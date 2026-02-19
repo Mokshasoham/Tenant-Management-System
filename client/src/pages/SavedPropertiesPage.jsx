@@ -1,0 +1,177 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, MapPin, Bed, Bath, Maximize, Star, ArrowRight, Trash2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { propertyService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
+
+const shimmerCard = (
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-card)' }}>
+        <div className="shimmer h-48 w-full" />
+        <div className="p-4 space-y-3">
+            <div className="shimmer h-5 w-3/4 rounded" />
+            <div className="shimmer h-4 w-1/2 rounded" />
+            <div className="shimmer h-6 w-1/3 rounded" />
+        </div>
+    </div>
+);
+
+const SavedPropertiesPage = () => {
+    const navigate = useNavigate();
+    const { t } = useLanguage();
+    const [properties, setProperties] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [removingId, setRemovingId] = useState(null);
+
+    const fetchSaved = useCallback(async () => {
+        try {
+            setLoading(true);
+            const res = await propertyService.getAllProperties({ savedOnly: true, limit: 50 });
+            setProperties(res.data || []);
+        } catch (e) {
+            console.error('Error fetching saved properties:', e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchSaved(); }, [fetchSaved]);
+
+    const handleUnsave = async (propertyId) => {
+        setRemovingId(propertyId);
+        try {
+            await propertyService.saveProperty(propertyId);
+            setProperties(prev => prev.filter(p => p._id !== propertyId));
+        } catch (e) {
+            console.error('Error unsaving:', e);
+        } finally {
+            setRemovingId(null);
+        }
+    };
+
+    return (
+        <div className="min-h-screen p-6" style={{ background: 'var(--bg-page)' }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e)' }}>
+                        <Heart className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>
+                            {t('nav.saved')}
+                        </h1>
+                        <p style={{ color: 'var(--text-secondary)' }}>{properties.length} properties saved</p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map(i => <div key={i}>{shimmerCard}</div>)}
+                    </div>
+                ) : properties.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                        <motion.div
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                            className="text-7xl mb-6"
+                        >
+                            💔
+                        </motion.div>
+                        <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>No Saved Properties</h2>
+                        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>Browse properties and save the ones you love!</p>
+                        <motion.button
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => navigate('/browse')}
+                            className="btn-glow px-6 py-3 rounded-xl font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e)' }}
+                        >
+                            Browse Properties
+                        </motion.button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <AnimatePresence>
+                            {properties.map((prop, idx) => (
+                                <motion.div
+                                    key={prop._id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className="rounded-2xl overflow-hidden"
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)' }}
+                                >
+                                    {/* Image */}
+                                    <div className="relative h-48 overflow-hidden">
+                                        <img
+                                            src={prop.images?.[0] || 'https://images.unsplash.com/photo-1560184897-ae75f418493e?w=400'}
+                                            alt={prop.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        {/* Rating */}
+                                        {prop.rating > 0 && (
+                                            <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                                                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                                <span className="text-xs text-white font-bold">{prop.rating}</span>
+                                            </div>
+                                        )}
+                                        {/* Unsave button */}
+                                        <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handleUnsave(prop._id)}
+                                            disabled={removingId === prop._id}
+                                            className="absolute top-3 right-3 p-2 rounded-xl text-white"
+                                            style={{ background: 'rgba(239,68,68,0.8)' }}
+                                        >
+                                            {removingId === prop._id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-4 h-4" />
+                                            )}
+                                        </motion.button>
+                                        <div className="absolute bottom-3 left-3">
+                                            <span className="text-white font-black text-lg">₹{prop.rentAmount?.toLocaleString('en-IN')}</span>
+                                            <span className="text-white/70 text-sm">/mo</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Details */}
+                                    <div className="p-4">
+                                        <h3 className="font-bold text-base mb-1 truncate" style={{ color: 'var(--text-primary)' }}>{prop.name}</h3>
+                                        <div className="flex items-center gap-1 mb-3" style={{ color: 'var(--text-secondary)' }}>
+                                            <MapPin className="w-3 h-3" />
+                                            <span className="text-sm truncate">{prop.city}, {prop.state}</span>
+                                        </div>
+                                        <div className="flex gap-3 mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                            {prop.bedrooms !== undefined && (
+                                                <span className="flex items-center gap-1"><Bed className="w-3 h-3" />{prop.bedrooms}</span>
+                                            )}
+                                            {prop.bathrooms !== undefined && (
+                                                <span className="flex items-center gap-1"><Bath className="w-3 h-3" />{prop.bathrooms}</span>
+                                            )}
+                                            {prop.squareFeet && (
+                                                <span className="flex items-center gap-1"><Maximize className="w-3 h-3" />{prop.squareFeet} sqft</span>
+                                            )}
+                                        </div>
+                                        <motion.button
+                                            whileTap={{ scale: 0.97 }}
+                                            onClick={() => navigate(`/properties/${prop._id}`)}
+                                            className="w-full py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 btn-glow"
+                                            style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e)', color: 'white' }}
+                                        >
+                                            View Property <ArrowRight className="w-4 h-4" />
+                                        </motion.button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                )}
+            </motion.div>
+        </div>
+    );
+};
+
+export default SavedPropertiesPage;

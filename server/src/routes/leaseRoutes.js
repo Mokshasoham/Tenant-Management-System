@@ -1,0 +1,22 @@
+import express from 'express';
+import * as leaseController from '../controllers/leaseController.js';
+import { authenticate, managerOrAdmin } from '../middleware/auth.js';
+
+const router = express.Router();
+
+router.use(authenticate);
+
+// Tenant-accessible: view their own lease
+router.get('/my-lease', leaseController.getMyLease);
+
+// Manager/Admin only routes
+router.get('/', managerOrAdmin, leaseController.getAllLeases);
+router.post('/', managerOrAdmin, leaseController.createLease);
+router.get('/stats', managerOrAdmin, leaseController.getLeaseStats);
+router.get('/:id', managerOrAdmin, leaseController.getLeaseById);
+router.put('/:id', managerOrAdmin, leaseController.updateLease);
+router.post('/:id/terminate', managerOrAdmin, leaseController.terminateLease);
+router.post('/:id/documents', managerOrAdmin, leaseController.uploadLeaseDocument);
+
+export default router;
+

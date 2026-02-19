@@ -1,0 +1,82 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { userService, tenantService, propertyService, leaseService, paymentService } from '../services/api';
+import useAuthStore from '../context/authStore';
+import AdminDashboard from './dashboards/AdminDashboard';
+import ManagerDashboard from './dashboards/ManagerDashboard';
+import TenantDashboard from './dashboards/TenantDashboard';
+
+export default function DashboardPage() {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTenants: 0,
+    totalProperties: 0,
+    totalLeases: 0,
+    totalPayments: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const data = {};
+
+        if (user?.role === 'admin') {
+          const userStats = await userService.getDashboardStats();
+          data.totalUsers = userStats.data?.totalUsers || 0;
+        }
+
+        if (['admin', 'manager'].includes(user?.role)) {
+          const [tenantStats, propertyStats, leaseStats, paymentStats] = await Promise.all([
+            tenantService.getTenantStats(),
+            propertyService.getPropertyStats(),
+            leaseService.getLeaseStats(),
+            paymentService.getPaymentStats(),
+          ]);
+
+          data.totalTenants = tenantStats.data?.totalTenants || 0;
+          data.totalProperties = propertyStats.data?.totalProperties || 0;
+          data.totalLeases = leaseStats.data?.totalLeases || 0;
+          data.totalPayments = paymentStats.data?.totalPayments || 0;
+        }
+
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [user?.role]);
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-white/60 animate-spin" />
+      </div>
+    );
+  }
+
+  switch (user?.role) {
+    case 'admin':
+      return <AdminDashboard stats={stats} loading={loading} navigate={navigate} />;
+    case 'manager':
+      return <ManagerDashboard stats={stats} loading={loading} navigate={navigate} />;
+    case 'tenant':
+    case 'user':  // legacy role name — treat same as tenant
+      return <TenantDashboard user={user} navigate={navigate} />;
+    default:
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-xl font-bold text-muted-foreground">Unknown role: {user?.role}</p>
+        </div>
+      );
+  }
+}
+
+

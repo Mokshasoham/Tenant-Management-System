@@ -1,0 +1,5 @@
+﻿[INFO] 2026-02-19T13:29:44.207Z - Connecting to MongoDB at mongodb://localhost:27017/tenant-management-system... 
+[INFO] 2026-02-19T13:29:44.269Z - MongoDB connected successfully 
+[INFO] 2026-02-19T13:29:44.276Z - Server running on port 5000 in development mode 
+[INFO] 2026-02-19T13:30:09.846Z - GET /unread-count - 200 - 27ms 
+[INFO] 2026-02-19T13:31:09.798Z - GET /unread-count - 304 - 10ms 
