@@ -34,7 +34,7 @@ function RingChart({ percentage, color, size = 100 }) {
     return (
         <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
-                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="10" />
                 <motion.circle
                     cx="50" cy="50" r={RADIUS}
                     fill="none" stroke={color} strokeWidth="10"
@@ -45,8 +45,8 @@ function RingChart({ percentage, color, size = 100 }) {
                 />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-black text-white">{percentage}%</span>
-                <span className="text-[9px] text-white/30 font-bold">Occupied</span>
+                <span className="text-xl font-black text-foreground">{percentage}%</span>
+                <span className="text-[9px] text-muted-foreground font-bold">Occupied</span>
             </div>
         </div>
     );
@@ -80,11 +80,11 @@ function ManagerStatCard({ card }) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: card.delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative group overflow-hidden rounded-2xl border border-blue-500/10 bg-gradient-to-br from-blue-900/20 via-cyan-900/10 to-transparent p-5 hover:border-blue-500/30 transition-all duration-300"
+            className="relative group overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 hover:border-blue-500/30 transition-all duration-300"
         >
             <div className="flex items-start justify-between mb-4">
                 <div className={cn('p-2.5 rounded-xl', card.color)}>
-                    <Icon className="w-5 h-5 text-white" />
+                    <Icon className="w-5 h-5 text-white dark:text-foreground" />
                 </div>
                 {card.trend && (
                     <span className="text-xs font-bold text-emerald-400">
@@ -92,8 +92,8 @@ function ManagerStatCard({ card }) {
                     </span>
                 )}
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-blue-300/60 mb-1">{card.title}</p>
-            <p className="text-3xl font-black text-white tabular-nums">{count}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{card.title}</p>
+            <p className="text-3xl font-black text-foreground tabular-nums">{count}</p>
         </motion.div>
     );
 }
@@ -119,9 +119,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const handleUpdateBooking = async (id, status, reason = '') => {
         try {
             await bookingService.updateBookingStatus(id, { status, rejectionReason: reason });
+            // Optimistically remove from pending list since we only show pending ones here
+            // If we just mapped it to 'approved', it would stay in the list but with wrong status if the list filters by pending.
+            // The logic below maps it.
             setBookings(prev => prev.map(b => b._id === id ? { ...b, status } : b));
         } catch (e) {
             console.error(e);
+            const errorMsg = e.response?.data?.message || e.message || 'Unknown error';
+            alert(`Failed to ${status} booking: ${errorMsg}`);
         }
     };
 
@@ -144,16 +149,16 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     ];
 
     const getPriorityStyle = (priority) => ({
-        emergency: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-        high: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        medium: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-        low: 'text-white/40 bg-white/5 border-white/10',
+        emergency: 'text-rose-500 bg-rose-500/10 border-rose-500/20 dark:text-rose-400',
+        high: 'text-amber-600 bg-amber-500/10 border-amber-500/20 dark:text-amber-400',
+        medium: 'text-blue-600 bg-blue-500/10 border-blue-500/20 dark:text-blue-400',
+        low: 'text-muted-foreground bg-muted border-border',
     }[priority] || '');
 
     const getStatusStyle = (status) => ({
-        open: 'text-amber-400',
-        in_progress: 'text-blue-400',
-        resolved: 'text-emerald-400',
+        open: 'text-amber-500 dark:text-amber-400',
+        in_progress: 'text-blue-500 dark:text-blue-400',
+        resolved: 'text-emerald-500 dark:text-emerald-400',
     }[status] || '');
 
     const getStatusLabel = (status) => ({
@@ -174,21 +179,21 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">Property Operations</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500/80 dark:text-blue-400">Property Operations</p>
                     </div>
-                    <h1 className="text-4xl font-black text-white tracking-tight">Operations Hub <span className="text-blue-400">🏢</span></h1>
-                    <p className="text-white/40 mt-1 font-medium">Manage properties, tenants &amp; maintenance</p>
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">Operations Hub <span className="text-blue-500/80 dark:text-blue-400">🏢</span></h1>
+                    <p className="text-muted-foreground mt-1 font-medium">Manage properties, tenants &amp; maintenance</p>
                 </div>
                 <div className="hidden md:flex gap-2">
                     <button
                         onClick={() => navigate('/tenants')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-bold hover:bg-blue-500/20 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-600 dark:text-blue-300 text-sm font-bold hover:bg-blue-500/10 transition-all"
                     >
                         <Users className="w-4 h-4" /> Tenants
                     </button>
                     <button
                         onClick={() => navigate('/properties')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold hover:opacity-90 transition-all shadow-lg shadow-blue-500/20"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold hover:opacity-90 transition-all shadow-lg"
                     >
                         <Plus className="w-4 h-4" /> Add Property
                     </button>
@@ -209,21 +214,21 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
-                    className="lg:col-span-2 rounded-2xl border border-blue-500/10 bg-gradient-to-br from-blue-900/20 via-cyan-900/10 to-transparent p-5"
+                    className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-300/60">Monthly Collections</p>
-                            <p className="text-2xl font-black text-white">$47,820 <span className="text-sm text-emerald-400 font-bold">↑ 8%</span></p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Collections</p>
+                            <p className="text-2xl font-black text-foreground">$47,820 <span className="text-sm text-emerald-500 font-bold">↑ 8%</span></p>
                         </div>
                         <div className="p-2 rounded-xl bg-blue-500/20">
                             <BarChart3 className="w-5 h-5 text-blue-400" />
                         </div>
                     </div>
-                    <BarChartComp data={revenueMonths} color="#3b82f6" />
+                    <BarChartComp data={revenueMonths} color="var(--primary)" />
                     <div className="flex gap-0.5 mt-2">
                         {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((m, i) => (
-                            <span key={i} className="flex-1 text-center text-[8px] text-white/20 font-bold">{m}</span>
+                            <span key={i} className="flex-1 text-center text-[8px] text-muted-foreground/30 font-bold">{m}</span>
                         ))}
                     </div>
                 </motion.div>
@@ -233,19 +238,19 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.5 }}
-                    className="rounded-2xl border border-blue-500/10 bg-gradient-to-br from-cyan-900/20 to-transparent p-5 flex flex-col"
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 flex flex-col"
                 >
-                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-300/60 mb-4">Unit Occupancy</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Unit Occupancy</p>
                     <div className="flex flex-col items-center gap-4 flex-1 justify-center">
                         <RingChart percentage={88} color="#3b82f6" size={120} />
                         <div className="grid grid-cols-2 gap-3 w-full">
-                            <div className="text-center p-3 rounded-xl bg-blue-500/10 border border-blue-500/10">
-                                <p className="text-lg font-black text-white">46</p>
-                                <p className="text-[9px] text-blue-300/60 font-black uppercase">Occupied</p>
+                            <div className="text-center p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 dark:bg-blue-500/10">
+                                <p className="text-lg font-black text-foreground">46</p>
+                                <p className="text-[9px] text-blue-500/80 dark:text-blue-300/60 font-black uppercase">Occupied</p>
                             </div>
-                            <div className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
-                                <p className="text-lg font-black text-white">6</p>
-                                <p className="text-[9px] text-white/30 font-black uppercase">Vacant</p>
+                            <div className="text-center p-3 rounded-xl bg-muted border border-border">
+                                <p className="text-lg font-black text-foreground">6</p>
+                                <p className="text-[9px] text-muted-foreground font-black uppercase">Vacant</p>
                             </div>
                         </div>
                     </div>
@@ -268,14 +273,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.55, duration: 0.5 }}
-                    className="rounded-2xl border border-indigo-500/10 bg-gradient-to-br from-indigo-900/20 to-transparent p-5"
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
                     <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-xl bg-indigo-500/20">
-                                <CalendarDays className="w-4 h-4 text-indigo-400" />
+                            <div className="p-2 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20">
+                                <CalendarDays className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                             </div>
-                            <p className="text-sm font-black text-white">Booking Requests</p>
+                            <p className="text-sm font-black text-foreground">Booking Requests</p>
                             <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[10px] font-black">
                                 {pendingBookings.length} PENDING
                             </span>
@@ -292,17 +297,21 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             >
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
-                                            {b.tenant?.firstName?.[0]}{b.tenant?.lastName?.[0]}
+                                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 font-black text-xs">
+                                            {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-white">{b.tenant?.firstName} {b.tenant?.lastName}</p>
-                                            <p className="text-[10px] text-white/30 truncate max-w-[150px]">{b.property?.name}</p>
+                                            <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-black text-indigo-400">₹{b.totalAmount?.toLocaleString('en-IN')}</p>
-                                        <p className="text-[9px] text-white/20 uppercase font-bold">Paid</p>
+                                        <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                            {b.totalAmount === 0 ? 'FREE' : `₹${b.totalAmount?.toLocaleString('en-IN')}`}
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                            {b.paymentReference === 'FREE-BOOKING' ? 'No Payment' : (b.paymentStatus || 'Paid')}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -330,14 +339,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
-                className="rounded-2xl border border-blue-500/10 bg-gradient-to-br from-blue-900/20 to-transparent p-5"
+                className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
             >
                 <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-xl bg-amber-500/20">
-                            <Wrench className="w-4 h-4 text-amber-400" />
+                        <div className="p-2 rounded-xl bg-amber-500/10 dark:bg-amber-500/20">
+                            <Wrench className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                         </div>
-                        <p className="text-sm font-black text-white">Maintenance Tickets</p>
+                        <p className="text-sm font-black text-foreground">Maintenance Tickets</p>
                     </div>
                     <button
                         onClick={() => navigate('/maintenance')}
@@ -360,8 +369,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                     {ticket.priority === 'emergency' ? '⚡ URGENT' : ticket.priority}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">{ticket.title}</p>
-                                    <p className="text-[10px] text-white/30">{ticket.id} • {ticket.time}</p>
+                                    <p className="text-sm font-bold text-foreground/80 group-hover:text-foreground transition-colors">{ticket.title}</p>
+                                    <p className="text-[10px] text-muted-foreground">{ticket.id} • {ticket.time}</p>
                                 </div>
                             </div>
                             <span className={cn('text-xs font-bold', getStatusStyle(ticket.status))}>

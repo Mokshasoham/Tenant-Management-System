@@ -64,12 +64,12 @@ export default function RegisterPage() {
               <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-4">
                 <Building2 className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">TMS</h1>
-              <p className="text-white/80 font-medium mt-1">Join the future of property management</p>
+              <h1 className="text-4xl font-black tracking-tighter text-white dark:text-foreground drop-shadow-lg">TMS</h1>
+              <p className="text-white/80 dark:text-muted-foreground font-medium mt-1">Join the future of property management</p>
             </motion.div>
 
             {/* Register Card */}
-            <Card className="p-10 border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+            <Card className="p-10 border-border bg-card shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-colors">
               <h2 className="text-3xl font-black text-foreground mb-2">Create Account</h2>
               <p className="text-muted-foreground mb-8 font-medium">Please fill in the details to get started.</p>
 
@@ -134,7 +134,11 @@ export default function RegisterPage() {
                     error={errors.password?.message}
                     {...register('password', {
                       required: 'Password is required',
-                      minLength: { value: 8, message: 'At least 8 characters' },
+                      minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                      pattern: {
+                        value: /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+                        message: 'Must contain uppercase, lowercase, number and special character',
+                      },
                     })}
                   />
                   <Input

@@ -58,12 +58,12 @@ export default function LoginPage() {
               <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-4">
                 <Building2 className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-white drop-shadow-lg">TMS</h1>
-              <p className="text-white/80 font-medium mt-1">Tenant Management System</p>
+              <h1 className="text-4xl font-black tracking-tighter text-white dark:text-foreground drop-shadow-lg">TMS</h1>
+              <p className="text-white/80 dark:text-muted-foreground font-medium mt-1">Tenant Management System</p>
             </motion.div>
 
             {/* Login Card */}
-            <Card className="p-10 border-white/20 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+            <Card className="p-10 border-border bg-card shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-colors">
               <h2 className="text-3xl font-black text-foreground mb-2">Welcome Back</h2>
               <p className="text-muted-foreground mb-8 font-medium">Please enter your details to sign in.</p>
 
@@ -106,15 +106,7 @@ export default function LoginPage() {
                       },
                     })}
                   />
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setIsForgotModalOpen(true)}
-                      className="text-xs font-bold text-primary hover:underline"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
+                  {/* Removed the old Forgot Password button from here */}
                 </div>
 
                 <Button

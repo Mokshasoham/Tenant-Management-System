@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import config from './config/config.js';
 import logger from './utils/logger.js';
@@ -24,9 +24,6 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 
@@ -96,6 +93,16 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   logger.info('SIGINT signal received: closing HTTP server');
   process.exit(0);
+});
+
+process.on('unhandledRejection', (err) => {
+  logger.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  process.exit(1);
 });
 
 export default app;

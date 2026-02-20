@@ -115,6 +115,7 @@ export default function InteractivePropertyMap({
     properties = [],
     loading = false,
     onBoundsChange,
+    country,
 }) {
     const navigate = useNavigate();
     const containerRef = useRef(null);
@@ -228,21 +229,39 @@ export default function InteractivePropertyMap({
         });
     }, [properties, typeFilter, navigate]);
 
-    // ── State filter → zoom map + set area panel ──
+    // ── State/Country filter → zoom map + set area panel ──
+    const [countryFilter, setCountryFilter] = useState('');
+
+    // Sync external country prop
     useEffect(() => {
-        if (!stateFilter) { setAreaProps([]); setShowAreaPanel(false); return; }
-        const coords = STATE_COORDS[stateFilter];
-        if (coords && mapRef.current) {
-            mapRef.current.setView([coords[0], coords[1]], coords[2], { animate: true });
+        if (typeof country !== 'undefined') setCountryFilter(country);
+    }, [country]);
+
+    useEffect(() => {
+        if (!stateFilter && !countryFilter) { setAreaProps([]); setShowAreaPanel(false); return; }
+
+        let foundCoords = false;
+
+        // Priority to State zoom if selected
+        if (stateFilter) {
+            const coords = STATE_COORDS[stateFilter];
+            if (coords && mapRef.current) {
+                mapRef.current.setView([coords[0], coords[1]], coords[2], { animate: true });
+                foundCoords = true;
+            }
         }
-        // Filter properties matching selected state
-        const matching = properties.filter(p =>
-            (p.state || '').toLowerCase() === stateFilter.toLowerCase() ||
-            (p.city || '').toLowerCase() === stateFilter.toLowerCase()
-        );
+
+        // Filter properties
+        const matching = properties.filter(p => {
+            const matchState = !stateFilter || (p.state || '').toLowerCase() === stateFilter.toLowerCase() || (p.city || '').toLowerCase() === stateFilter.toLowerCase();
+            const matchCountry = !countryFilter || (p.country || 'India').toLowerCase() === countryFilter.toLowerCase();
+            return matchState && matchCountry;
+        });
+
         setAreaProps(matching);
-        setShowAreaPanel(true);
-    }, [stateFilter, properties]);
+        setShowAreaPanel(!!(stateFilter || matching.length > 0)); // Show panel if state selected or if we found props in country
+
+    }, [stateFilter, countryFilter, properties]);
 
     const searchArea = useCallback(() => {
         if (!pendingBoundsRef.current) return;

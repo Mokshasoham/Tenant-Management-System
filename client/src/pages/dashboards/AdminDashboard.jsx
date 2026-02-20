@@ -34,10 +34,10 @@ function StatCard({ title, value, icon: Icon, trend, color, delay, prefix = '', 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative group overflow-hidden rounded-2xl border border-violet-500/10 bg-gradient-to-br from-violet-900/20 via-purple-900/10 to-transparent p-5 hover:border-violet-500/30 transition-all duration-300"
+            className="relative group overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 hover:border-violet-500/30 transition-all duration-300"
         >
             {/* Glow on hover */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-violet-600/5 to-transparent" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-violet-500/5 to-transparent dark:from-violet-900/5" />
 
             <div className="flex items-start justify-between mb-4">
                 <div className={cn('p-2.5 rounded-xl', color)}>
@@ -51,8 +51,8 @@ function StatCard({ title, value, icon: Icon, trend, color, delay, prefix = '', 
                 )}
             </div>
 
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/60 mb-1">{title}</p>
-            <p className="text-3xl font-black text-white tabular-nums">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mb-1">{title}</p>
+            <p className="text-3xl font-black text-foreground tabular-nums">
                 {prefix}{animatedValue.toLocaleString()}{suffix}
             </p>
         </motion.div>
@@ -165,15 +165,15 @@ export default function AdminDashboard({ stats, loading }) {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-violet-400 to-purple-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-400">System Administration</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-500/80 dark:text-violet-400">System Administration</p>
                     </div>
-                    <h1 className="text-4xl font-black text-white tracking-tight">Command Center <span className="text-violet-400">⚡</span></h1>
-                    <p className="text-white/40 mt-1 font-medium">Full system overview & controls</p>
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">Command Center <span className="text-violet-500/80 dark:text-violet-400">⚡</span></h1>
+                    <p className="text-muted-foreground mt-1 font-medium">Full system overview & controls</p>
                 </div>
                 <div className="hidden md:flex items-center gap-2">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-xs font-bold text-white/60">All Systems Operational</span>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10 dark:bg-emerald-500/10 dark:border-emerald-500/20">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">All Systems Operational</span>
                     </div>
                 </div>
             </motion.div>
@@ -192,21 +192,21 @@ export default function AdminDashboard({ stats, loading }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
-                    className="lg:col-span-2 rounded-2xl border border-violet-500/10 bg-gradient-to-br from-violet-900/20 via-purple-900/10 to-transparent p-5"
+                    className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/60">Monthly Revenue</p>
-                            <p className="text-2xl font-black text-white">₹94,280 <span className="text-sm text-emerald-400 font-bold">↑ 18%</span></p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Revenue</p>
+                            <p className="text-2xl font-black text-foreground">₹94,280 <span className="text-sm text-emerald-500 font-bold">↑ 18%</span></p>
                         </div>
                         <div className="p-2 rounded-xl bg-violet-500/20">
                             <TrendingUp className="w-5 h-5 text-violet-400" />
                         </div>
                     </div>
-                    <Sparkline data={revenueData} color="#7c3aed" />
+                    <Sparkline data={revenueData} color="var(--primary)" />
                     <div className="flex gap-3 mt-3">
                         {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                            <span key={m} className="flex-1 text-center text-[8px] text-white/20 font-bold">{m.slice(0, 1)}</span>
+                            <span key={m} className="flex-1 text-center text-[8px] text-muted-foreground/60 font-bold">{m.slice(0, 1)}</span>
                         ))}
                     </div>
                 </motion.div>
@@ -216,16 +216,16 @@ export default function AdminDashboard({ stats, loading }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.5 }}
-                    className="rounded-2xl border border-violet-500/10 bg-gradient-to-br from-violet-900/20 via-purple-900/10 to-transparent p-5"
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
-                    <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/60 mb-4">Payment Status</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Payment Status</p>
                     <div className="flex flex-col items-center">
                         <div className="relative">
                             <DonutChart data={donutData} size={110} />
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center">
-                                    <p className="text-xl font-black text-white">65%</p>
-                                    <p className="text-[9px] text-white/30 font-bold">Paid</p>
+                                    <p className="text-xl font-black text-foreground">65%</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold">Paid</p>
                                 </div>
                             </div>
                         </div>
@@ -233,8 +233,8 @@ export default function AdminDashboard({ stats, loading }) {
                             {donutData.map((d, i) => (
                                 <div key={i} className="flex items-center gap-1.5">
                                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                                    <span className="text-[10px] text-white/50 font-bold">{d.label}</span>
-                                    <span className="text-[10px] text-white/80 font-black ml-auto">{d.value}%</span>
+                                    <span className="text-[10px] text-muted-foreground font-bold">{d.label}</span>
+                                    <span className="text-[10px] text-foreground font-black ml-auto">{d.value}%</span>
                                 </div>
                             ))}
                         </div>
@@ -249,20 +249,20 @@ export default function AdminDashboard({ stats, loading }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6, duration: 0.5 }}
-                    className="rounded-2xl border border-violet-500/10 bg-gradient-to-br from-violet-900/20 to-transparent p-5"
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
                     <div className="flex items-center gap-2 mb-5">
-                        <div className="p-2 rounded-xl bg-violet-500/20">
-                            <Cpu className="w-4 h-4 text-violet-400" />
+                        <div className="p-2 rounded-xl bg-violet-500/10 active:bg-violet-500/20">
+                            <Cpu className="w-4 h-4 text-violet-500" />
                         </div>
-                        <p className="text-sm font-black text-white">System Health</p>
+                        <p className="text-sm font-black text-foreground">System Health</p>
                     </div>
                     <div className="space-y-4">
                         {systemHealth.map((item, i) => (
                             <div key={i}>
                                 <div className="flex justify-between items-center mb-1.5">
-                                    <span className="text-xs font-bold text-white/60">{item.label}</span>
-                                    <span className="text-xs font-black text-white">{item.value}%</span>
+                                    <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
+                                    <span className="text-xs font-black text-foreground">{item.value}%</span>
                                 </div>
                                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                                     <motion.div
@@ -275,9 +275,9 @@ export default function AdminDashboard({ stats, loading }) {
                             </div>
                         ))}
                     </div>
-                    <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <p className="text-xs text-white/40 font-medium">All systems running optimally</p>
+                    <div className="mt-5 pt-4 border-t border-border flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <p className="text-xs text-muted-foreground font-medium">All systems running optimally</p>
                     </div>
                 </motion.div>
 
@@ -286,14 +286,14 @@ export default function AdminDashboard({ stats, loading }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7, duration: 0.5 }}
-                    className="rounded-2xl border border-violet-500/10 bg-gradient-to-br from-purple-900/20 to-transparent p-5"
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
                     <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-xl bg-purple-500/20">
-                                <Activity className="w-4 h-4 text-purple-400" />
+                            <div className="p-2 rounded-xl bg-purple-500/10">
+                                <Activity className="w-4 h-4 text-purple-500" />
                             </div>
-                            <p className="text-sm font-black text-white">Recent Activity</p>
+                            <p className="text-sm font-black text-foreground">Recent Activity</p>
                         </div>
                     </div>
                     <div className="space-y-3">
@@ -309,8 +309,8 @@ export default function AdminDashboard({ stats, loading }) {
                                     {getTypeIcon(item.type)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-white/80 truncate">{item.action}</p>
-                                    <p className="text-[10px] text-white/30 font-medium mt-0.5">{item.user} • {item.time}</p>
+                                    <p className="text-xs font-bold text-foreground/80 truncate">{item.action}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.user} • {item.time}</p>
                                 </div>
                             </motion.div>
                         ))}
@@ -323,21 +323,21 @@ export default function AdminDashboard({ stats, loading }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8, duration: 0.5 }}
-                className="rounded-2xl border border-violet-500/10 bg-gradient-to-r from-violet-900/20 via-purple-900/10 to-indigo-900/20 p-5"
+                className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
             >
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-300/60">User Growth</p>
-                        <p className="text-2xl font-black text-white">248 Users <span className="text-sm text-emerald-400 font-bold">↑ 12%</span></p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">User Growth</p>
+                        <p className="text-2xl font-black text-foreground">248 Users <span className="text-sm text-emerald-500 font-bold">↑ 12%</span></p>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
                             <div className="w-2.5 h-2.5 rounded-full bg-violet-400" />
-                            <span className="text-xs text-white/40">Tenants</span>
+                            <span className="text-xs text-muted-foreground">Tenants</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-                            <span className="text-xs text-white/40">Managers</span>
+                            <span className="text-xs text-muted-foreground">Managers</span>
                         </div>
                     </div>
                 </div>

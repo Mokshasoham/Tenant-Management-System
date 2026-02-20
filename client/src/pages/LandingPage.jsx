@@ -45,15 +45,15 @@ export default function LandingPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6 }}
                             >
-                                <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest mb-6">
+                                <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-black text-xs uppercase tracking-widest mb-6 backdrop-blur-sm">
                                     Available Now • Full-Stack Platform
                                 </span>
-                                <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-6">
+                                <h1 className="text-6xl md:text-8xl font-black text-white leading-[0.9] tracking-tighter mb-6 drop-shadow-2xl">
                                     Next-Gen <br />
                                     <span className="text-primary italic">Property</span> <br />
                                     Solutions.
                                 </h1>
-                                <p className="text-xl text-gray-300 max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
+                                <p className="text-xl text-gray-200 dark:text-gray-300 max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed drop-shadow-lg">
                                     Streamline your tenant management, automate billing, and gain deep insights into your property portfolio with TMS.
                                 </p>
                             </motion.div>
@@ -74,7 +74,7 @@ export default function LandingPage() {
                                 <Button
                                     variant="outline"
                                     onClick={() => navigate('/login')}
-                                    className="w-full sm:w-auto px-10 py-5 text-lg border-white/20 text-white hover:bg-white/10"
+                                    className="w-full sm:w-auto px-10 py-5 text-lg border-white/20 text-white hover:bg-white/10 backdrop-blur-md"
                                 >
                                     View Demo
                                 </Button>
@@ -90,12 +90,12 @@ export default function LandingPage() {
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.5, delay: 0.4 + (index * 0.1) }}
                                 >
-                                    <Card className="p-8 h-full bg-white/10 backdrop-blur-xl border-white/10 hover:border-primary/50 transition-all group">
+                                    <Card className="p-8 h-full bg-white/10 dark:bg-white/5 backdrop-blur-xl border-white/10 hover:border-primary/50 transition-all group shadow-2xl">
                                         <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary mb-6 group-hover:scale-110 group-hover:bg-primary transition-all group-hover:text-white">
                                             {feature.icon}
                                         </div>
                                         <h3 className="text-xl font-black text-white mb-3 tracking-tight">{feature.title}</h3>
-                                        <p className="text-gray-400 font-medium leading-relaxed">{feature.desc}</p>
+                                        <p className="text-gray-300/80 dark:text-gray-400 font-medium leading-relaxed">{feature.desc}</p>
                                     </Card>
                                 </motion.div>
                             ))}

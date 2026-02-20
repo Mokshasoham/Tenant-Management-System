@@ -94,6 +94,11 @@ const propertySchema = new mongoose.Schema(
       enum: ['available', 'occupied', 'maintenance', 'rented'],
       default: 'available',
     },
+    bookingType: {
+      type: String,
+      enum: ['paid', 'free'],
+      default: 'paid',
+    },
     description: String,
     notes: String,
     tags: [String],   // smart badges: 'Best Value', 'Family Choice', etc.

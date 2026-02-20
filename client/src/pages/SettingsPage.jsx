@@ -7,34 +7,34 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import useAuthStore from '../context/authStore';
+import { cn } from '../utils/cn';
 
 const SettingsSection = ({ icon: Icon, title, children, gradient }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-6 mb-4"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)' }}
+        className="rounded-2xl p-6 mb-4 bg-card border border-border shadow-sm transition-colors"
     >
         <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 rounded-xl" style={{ background: gradient }}>
+            <div className="p-2.5 rounded-xl shadow-lg" style={{ background: gradient }}>
                 <Icon className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+            <h2 className="text-lg font-bold text-foreground">{title}</h2>
         </div>
         {children}
     </motion.div>
 );
 
 const Toggle = ({ value, onChange, label, sublabel }) => (
-    <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+    <div className="flex items-center justify-between py-3 border-b border-border">
         <div>
-            <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{label}</p>
-            {sublabel && <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{sublabel}</p>}
+            <p className="font-semibold text-sm text-foreground">{label}</p>
+            {sublabel && <p className="text-xs mt-0.5 text-muted-foreground">{sublabel}</p>}
         </div>
         <button
             onClick={() => onChange(!value)}
             className="relative w-12 h-6 rounded-full transition-all duration-300 flex-shrink-0"
-            style={{ background: value ? '#10b981' : 'var(--border-color)' }}
+            style={{ background: value ? '#10b981' : 'var(--muted)' }}
         >
             <motion.div
                 animate={{ x: value ? 24 : 2 }}
@@ -65,16 +65,16 @@ const SettingsPage = () => {
     const updateNotif = (key) => (val) => setNotifications(n => ({ ...n, [key]: val }));
 
     return (
-        <div className="min-h-screen p-6" style={{ background: 'var(--bg-page)' }}>
+        <div className="min-h-screen p-6 bg-background transition-colors">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-8">
-                    <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+                    <div className="p-3 rounded-xl shadow-lg" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
                         <Settings className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>{t('settings.title')}</h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>Customize your experience</p>
+                        <h1 className="text-2xl font-black text-foreground">{t('settings.title')}</h1>
+                        <p className="text-muted-foreground">Customize your experience</p>
                     </div>
                 </div>
 
@@ -85,16 +85,15 @@ const SettingsPage = () => {
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={() => theme !== 'dark' && toggleTheme()}
-                            className="flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all"
-                            style={{
-                                background: theme === 'dark' ? 'rgba(99,102,241,0.15)' : 'var(--bg-page)',
-                                border: `2px solid ${theme === 'dark' ? '#6366f1' : 'var(--border-color)'}`,
-                            }}
+                            className={cn(
+                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
+                                theme === 'dark' ? "bg-primary/10 border-primary" : "bg-muted border-border"
+                            )}
                         >
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#0a0a14' }}>
                                 <Moon className="w-6 h-6 text-indigo-400" />
                             </div>
-                            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Dark Mode</span>
+                            <span className="text-sm font-bold text-foreground">Dark Mode</span>
                             {theme === 'dark' && (
                                 <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#6366f1' }}>
                                     <Check className="w-3 h-3 text-white" />
@@ -106,16 +105,15 @@ const SettingsPage = () => {
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={() => theme !== 'light' && toggleTheme()}
-                            className="flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all"
-                            style={{
-                                background: theme === 'light' ? 'rgba(245,158,11,0.15)' : 'var(--bg-page)',
-                                border: `2px solid ${theme === 'light' ? '#f59e0b' : 'var(--border-color)'}`,
-                            }}
+                            className={cn(
+                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
+                                theme === 'light' ? "bg-amber-500/10 border-amber-500" : "bg-muted border-border"
+                            )}
                         >
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#fef9c3' }}>
                                 <Sun className="w-6 h-6 text-yellow-500" />
                             </div>
-                            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Light Mode</span>
+                            <span className="text-sm font-bold text-foreground">Light Mode</span>
                             {theme === 'light' && (
                                 <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#f59e0b' }}>
                                     <Check className="w-3 h-3 text-white" />
@@ -127,46 +125,43 @@ const SettingsPage = () => {
 
                 {/* Language */}
                 <SettingsSection icon={Globe} title="Language" gradient="linear-gradient(135deg, #10b981, #059669)">
-                    <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-sm mb-4 text-muted-foreground">
                         Choose your preferred language for the interface
                     </p>
                     <div className="relative">
                         <button
                             onClick={() => setShowLangDropdown(!showLangDropdown)}
-                            className="w-full px-4 py-3 rounded-xl flex items-center justify-between"
-                            style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)' }}
+                            className="w-full px-4 py-3 rounded-xl flex items-center justify-between bg-muted border border-border"
                         >
-                            <span className="flex items-center gap-3 font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            <span className="flex items-center gap-3 font-semibold text-foreground">
                                 <span className="text-xl">{selectedLang.flag}</span>
                                 <span>{selectedLang.nativeName}</span>
-                                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-border text-muted-foreground">
                                     {selectedLang.name}
                                 </span>
                             </span>
-                            <ChevronDown className={`w-4 h-4 transition-transform ${showLangDropdown ? 'rotate-180' : ''}`} style={{ color: 'var(--text-secondary)' }} />
+                            <ChevronDown className={cn("w-4 h-4 transition-transform text-muted-foreground", showLangDropdown && "rotate-180")} />
                         </button>
 
                         {showLangDropdown && (
                             <motion.div
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="absolute top-full mt-2 w-full rounded-xl overflow-hidden z-50"
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)' }}
+                                className="absolute top-full mt-2 w-full rounded-xl overflow-hidden z-50 bg-card border border-border shadow-lg"
                             >
                                 {SUPPORTED_LANGUAGES.map(lang => (
                                     <button
                                         key={lang.code}
                                         onClick={() => { setLanguage(lang.code); setShowLangDropdown(false); }}
-                                        className="w-full px-4 py-3 flex items-center justify-between hover:opacity-80 transition-opacity"
-                                        style={{
-                                            background: lang.code === language ? 'rgba(16,185,129,0.1)' : 'transparent',
-                                            borderBottom: '1px solid var(--border-color)',
-                                        }}
+                                        className={cn(
+                                            "w-full px-4 py-3 flex items-center justify-between hover:bg-muted transition-colors border-b border-border last:border-0",
+                                            lang.code === language && "bg-emerald-500/10"
+                                        )}
                                     >
-                                        <span className="flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+                                        <span className="flex items-center gap-3 text-foreground">
                                             <span className="text-xl">{lang.flag}</span>
                                             <span className="font-semibold">{lang.nativeName}</span>
-                                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{lang.name}</span>
+                                            <span className="text-sm text-muted-foreground">{lang.name}</span>
                                         </span>
                                         {lang.code === language && <Check className="w-4 h-4 text-emerald-400" />}
                                     </button>
@@ -224,16 +219,16 @@ const SettingsPage = () => {
                             ['Role', user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—'],
                             ['Name', `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '—'],
                         ].map(([label, val]) => (
-                            <div key={label} className="flex justify-between py-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{val}</span>
+                            <div key={label} className="flex justify-between py-2 border-b border-border last:border-0">
+                                <span className="text-sm font-medium text-muted-foreground">{label}</span>
+                                <span className="text-sm font-bold text-foreground">{val}</span>
                             </div>
                         ))}
                     </div>
                 </SettingsSection>
 
                 {/* Save notice */}
-                <div className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+                <div className="text-center text-sm text-muted-foreground/40 mt-8">
                     ✓ Settings are automatically saved to your device
                 </div>
             </motion.div>

@@ -18,12 +18,12 @@ const ROLE_CONFIG = {
     gradient: 'from-violet-600 via-purple-600 to-indigo-600',
     glowColor: 'rgba(124, 58, 237, 0.4)',
     activeBorder: 'border-violet-400/50',
-    activeText: 'text-violet-300',
-    hoverBg: 'hover:bg-violet-900/20',
+    activeText: 'text-violet-600 dark:text-violet-300',
+    hoverBg: 'hover:bg-violet-500/10 dark:hover:bg-violet-900/20',
     orb1: '#7c3aed',
     orb2: '#6d28d9',
-    navActiveStyle: 'bg-gradient-to-r from-violet-500/20 via-purple-500/10 to-transparent border-l-2 border-violet-400 text-violet-200',
-    iconActive: 'text-violet-300',
+    navActiveStyle: 'bg-violet-500/10 dark:bg-violet-500/20 border-l-2 border-violet-500 text-violet-700 dark:text-violet-200',
+    iconActive: 'text-violet-600 dark:text-violet-300',
     badgeBg: 'bg-violet-500',
     activePill: 'bg-violet-500',
     roleIcon: '⚡',
@@ -34,12 +34,12 @@ const ROLE_CONFIG = {
     gradient: 'from-blue-500 via-cyan-500 to-sky-600',
     glowColor: 'rgba(59, 130, 246, 0.4)',
     activeBorder: 'border-blue-400/50',
-    activeText: 'text-blue-300',
-    hoverBg: 'hover:bg-blue-900/20',
+    activeText: 'text-blue-600 dark:text-blue-300',
+    hoverBg: 'hover:bg-blue-500/10 dark:hover:bg-blue-900/20',
     orb1: '#2563eb',
     orb2: '#0891b2',
-    navActiveStyle: 'bg-gradient-to-r from-blue-500/20 via-cyan-500/10 to-transparent border-l-2 border-blue-400 text-blue-200',
-    iconActive: 'text-blue-300',
+    navActiveStyle: 'bg-blue-500/10 dark:bg-blue-500/20 border-l-2 border-blue-500 text-blue-700 dark:text-blue-200',
+    iconActive: 'text-blue-600 dark:text-blue-300',
     badgeBg: 'bg-blue-500',
     activePill: 'bg-blue-500',
     roleIcon: '🏢',
@@ -50,12 +50,12 @@ const ROLE_CONFIG = {
     gradient: 'from-emerald-500 via-teal-500 to-green-600',
     glowColor: 'rgba(16, 185, 129, 0.4)',
     activeBorder: 'border-emerald-400/50',
-    activeText: 'text-emerald-300',
-    hoverBg: 'hover:bg-emerald-900/20',
+    activeText: 'text-emerald-600 dark:text-emerald-300',
+    hoverBg: 'hover:bg-emerald-500/10 dark:hover:bg-emerald-900/20',
     orb1: '#059669',
     orb2: '#0d9488',
-    navActiveStyle: 'bg-gradient-to-r from-emerald-500/20 via-teal-500/10 to-transparent border-l-2 border-emerald-400 text-emerald-200',
-    iconActive: 'text-emerald-300',
+    navActiveStyle: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-l-2 border-emerald-500 text-emerald-700 dark:text-emerald-200',
+    iconActive: 'text-emerald-600 dark:text-emerald-300',
     badgeBg: 'bg-emerald-500',
     activePill: 'bg-emerald-500',
     roleIcon: '🏡',
@@ -122,24 +122,26 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           'fixed top-0 left-0 z-50 lg:relative lg:z-auto',
           // Size
           'w-72 h-screen',
-          // Layout — CRITICAL: flex column from top
+          // Layout
           'flex flex-col',
           // Mobile hide/show
           'transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          // Theme
+          'border-r transition-colors duration-300'
         )}
         style={{
-          background: 'linear-gradient(180deg, #080810 0%, #0d0d18 40%, #060610 100%)',
-          borderRight: `1px solid ${theme.glowColor.replace('0.4', '0.15')}`,
+          backgroundColor: 'var(--bg-sidebar)',
+          borderColor: 'var(--glass-border)',
         }}
       >
         {/* Decorative orbs — absolute, do NOT affect flex flow */}
         <div
-          className="pointer-events-none absolute -top-20 -left-20 w-64 h-64 rounded-full opacity-20"
+          className="pointer-events-none absolute -top-20 -left-20 w-64 h-64 rounded-full opacity-10 dark:opacity-20 transition-opacity"
           style={{ background: theme.orb1, filter: 'blur(60px)' }}
         />
         <div
-          className="pointer-events-none absolute bottom-24 -right-12 w-48 h-48 rounded-full opacity-15"
+          className="pointer-events-none absolute bottom-24 -right-12 w-48 h-48 rounded-full opacity-5 dark:opacity-15 transition-opacity"
           style={{ background: theme.orb2, filter: 'blur(60px)' }}
         />
 
@@ -158,13 +160,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               <Building2 className="w-5 h-5" />
             </motion.div>
             <div>
-              <h2 className="text-lg font-black text-white tracking-tight leading-none">TMS</h2>
-              <p className="text-[10px] text-white/40 font-semibold uppercase tracking-widest">{theme.sublabel}</p>
+              <h2 className="text-lg font-black text-foreground tracking-tight leading-none">TMS</h2>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{theme.sublabel}</p>
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"
+            className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
           >
             <X className="w-4 h-4" />
           </button>
@@ -179,7 +181,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             <span className="text-base flex-shrink-0">{theme.roleIcon}</span>
             <div className="flex-1 min-w-0">
               <p className={cn('text-xs font-black uppercase tracking-wider', theme.activeText)}>{theme.label}</p>
-              <p className="text-[10px] text-white/30 truncate">{user?.firstName} {user?.lastName}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user?.firstName} {user?.lastName}</p>
             </div>
             {/* Live indicator */}
             <span className="relative flex h-2 w-2 flex-shrink-0">
@@ -191,7 +193,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
         {/* ───── NAV (flex-1 + min-h-0 = fills middle, scrolls if needed) ───── */}
         <nav className="relative flex-1 min-h-0 overflow-y-auto px-3 pb-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/20 px-3 mb-3 mt-1">
+          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-3 mb-3 mt-1">
             Navigation
           </p>
           <div className="space-y-0.5">
@@ -215,13 +217,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative',
                       isActive
                         ? theme.navActiveStyle
-                        : cn('text-white/40 hover:text-white/80', theme.hoverBg)
+                        : cn('text-muted-foreground hover:text-foreground', theme.hoverBg)
                     )}
                   >
                     <Icon
                       className={cn(
                         'w-[18px] h-[18px] flex-shrink-0 transition-colors',
-                        isActive ? theme.iconActive : 'text-white/30 group-hover:text-white/60'
+                        isActive ? theme.iconActive : 'text-muted-foreground/60 group-hover:text-foreground/80'
                       )}
                     />
                     <span className="font-semibold text-sm tracking-tight flex-1 whitespace-nowrap">
@@ -245,7 +247,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* ───── FOOTER (flex-shrink-0) ───── */}
-        <div className="relative flex-shrink-0 px-3 py-3 border-t border-white/5">
+        <div className="relative flex-shrink-0 px-3 py-3 border-t border-border">
           {/* Theme + Language quick controls */}
           <div className="flex items-center gap-2 mb-3 px-1">
             {/* Theme toggle */}
@@ -254,9 +256,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               onClick={toggleTheme}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all"
               style={{
-                background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.12)',
-                color: colorTheme === 'dark' ? '#60a5fa' : '#fbbf24',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                color: colorTheme === 'dark' ? '#60a5fa' : '#2563eb',
+                border: colorTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
               }}
               title={colorTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
@@ -272,9 +274,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 onClick={() => setShowLangPicker(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.6)',
+                  background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                  border: colorTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 <Languages className="w-3.5 h-3.5" />
@@ -286,8 +288,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     initial={{ opacity: 0, y: 8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className="absolute bottom-full mb-2 right-0 rounded-xl overflow-hidden shadow-2xl z-50"
-                    style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', minWidth: '120px' }}
+                    className="absolute bottom-full mb-2 right-0 rounded-xl overflow-hidden shadow-2xl z-50 transition-colors"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', minWidth: '120px' }}
                   >
                     {SUPPORTED_LANGUAGES.map(({ code, name, nativeName, flag }) => (
                       <button
@@ -295,8 +297,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         onClick={() => { setLanguage(code); setShowLangPicker(false); }}
                         className="w-full text-left px-4 py-2.5 text-xs font-bold transition-all hover:bg-white/10"
                         style={{
-                          color: code === language ? '#a78bfa' : 'rgba(255,255,255,0.5)',
-                          background: code === language ? 'rgba(167,139,250,0.12)' : 'transparent',
+                          color: code === language ? 'var(--primary)' : 'var(--text-secondary)',
+                          background: code === language ? 'rgba(var(--primary), 0.1)' : 'transparent',
                           display: 'flex', alignItems: 'center', gap: 8,
                         }}
                       >
@@ -313,12 +315,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all group"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all group"
           >
             <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
             <span className="font-semibold text-sm">Sign Out</span>
           </button>
-          <p className="text-[9px] text-white/15 font-bold uppercase tracking-widest px-3 mt-2">
+          <p className="text-[9px] text-muted-foreground/30 font-bold uppercase tracking-widest px-3 mt-2">
             TMS Platform v2.0
           </p>
         </div>

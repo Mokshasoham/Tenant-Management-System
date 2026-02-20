@@ -6,7 +6,7 @@ import { propertyService } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 
 const shimmerCard = (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-card)' }}>
+    <div className="rounded-2xl overflow-hidden bg-card border border-border">
         <div className="shimmer h-48 w-full" />
         <div className="p-4 space-y-3">
             <div className="shimmer h-5 w-3/4 rounded" />
@@ -27,7 +27,7 @@ const SavedPropertiesPage = () => {
         try {
             setLoading(true);
             const res = await propertyService.getAllProperties({ savedOnly: true, limit: 50 });
-            setProperties(res.data || []);
+            setProperties(res.data?.data || res.data || []);
         } catch (e) {
             console.error('Error fetching saved properties:', e);
         } finally {
@@ -50,18 +50,18 @@ const SavedPropertiesPage = () => {
     };
 
     return (
-        <div className="min-h-screen p-6" style={{ background: 'var(--bg-page)' }}>
+        <div className="min-h-screen p-6 bg-background">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-8">
-                    <div className="p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #ec4899, #f43f5e)' }}>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg shadow-rose-500/20">
                         <Heart className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black" style={{ color: 'var(--text-primary)' }}>
+                        <h1 className="text-3xl font-black text-foreground tracking-tight">
                             {t('nav.saved')}
                         </h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>{properties.length} properties saved</p>
+                        <p className="text-sm font-black text-muted-foreground/40 uppercase tracking-[0.2em] mt-1">{properties.length} properties saved</p>
                     </div>
                 </div>
 
@@ -78,8 +78,8 @@ const SavedPropertiesPage = () => {
                         >
                             💔
                         </motion.div>
-                        <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>No Saved Properties</h2>
-                        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>Browse properties and save the ones you love!</p>
+                        <h2 className="text-2xl font-black text-foreground">No Saved Properties</h2>
+                        <p className="mb-6 text-muted-foreground font-medium">Browse properties and save the ones you love!</p>
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={() => navigate('/browse')}
@@ -99,8 +99,7 @@ const SavedPropertiesPage = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9 }}
                                     transition={{ delay: idx * 0.05 }}
-                                    className="rounded-2xl overflow-hidden"
-                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)' }}
+                                    className="rounded-2xl overflow-hidden glass hover:bg-white/80 dark:hover:bg-black/50 transition-all duration-300 border border-border shadow-lg"
                                 >
                                     {/* Image */}
                                     <div className="relative h-48 overflow-hidden">
@@ -139,12 +138,12 @@ const SavedPropertiesPage = () => {
 
                                     {/* Details */}
                                     <div className="p-4">
-                                        <h3 className="font-bold text-base mb-1 truncate" style={{ color: 'var(--text-primary)' }}>{prop.name}</h3>
-                                        <div className="flex items-center gap-1 mb-3" style={{ color: 'var(--text-secondary)' }}>
+                                        <h3 className="font-black text-base mb-1 truncate text-foreground">{prop.name}</h3>
+                                        <div className="flex items-center gap-1 mb-3 text-muted-foreground/60">
                                             <MapPin className="w-3 h-3" />
                                             <span className="text-sm truncate">{prop.city}, {prop.state}</span>
                                         </div>
-                                        <div className="flex gap-3 mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                        <div className="flex gap-3 mb-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">
                                             {prop.bedrooms !== undefined && (
                                                 <span className="flex items-center gap-1"><Bed className="w-3 h-3" />{prop.bedrooms}</span>
                                             )}

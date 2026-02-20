@@ -29,10 +29,14 @@ export default function DashboardLayout({ children }) {
   const roleBg = ROLE_BG[role] || ROLE_BG.tenant;
 
   return (
-    <div className={cn('flex h-screen overflow-hidden text-white relative', roleBg.bg)}>
+    <div className={cn(
+      'flex h-screen overflow-hidden relative transition-colors duration-300',
+      'bg-background text-foreground',
+      `theme-${role}`
+    )}>
       {/* Global Background Orbs */}
-      <div className={cn('fixed w-[600px] h-[600px] -top-64 -right-64 rounded-full blur-[120px] pointer-events-none', roleBg.orb1)} />
-      <div className={cn('fixed w-[400px] h-[400px] -bottom-32 -left-32 rounded-full blur-[100px] pointer-events-none', roleBg.orb2)} />
+      <div className={cn('fixed w-[600px] h-[600px] -top-64 -right-64 rounded-full blur-[120px] pointer-events-none opacity-50 dark:opacity-100', roleBg.orb1)} />
+      <div className={cn('fixed w-[400px] h-[400px] -bottom-32 -left-32 rounded-full blur-[100px] pointer-events-none opacity-50 dark:opacity-100', roleBg.orb2)} />
 
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />

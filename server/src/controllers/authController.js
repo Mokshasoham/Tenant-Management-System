@@ -4,6 +4,7 @@ import { generateToken } from '../utils/jwt.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
+import sendEmail from '../utils/sendEmail.js';
 
 export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
@@ -158,7 +159,7 @@ export const logout = asyncHandler(async (req, res) => {
   });
 });
 
-export const forgotPassword = asyncHandler(async (req, res) => {
+export const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
 
   // 1) Get user based on POSTed email
@@ -181,13 +182,29 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  // 5) Log the token (Simulation - usually you'd send an email)
-  logger.info(`Password reset token for ${user.email}: ${resetToken}`);
-  console.log(`\n--- PASSWORD RESET TOKEN --- \n${resetToken}\n---------------------------\n`);
+  // 5) Send it via email (Non-blocking simulation)
+  const resetURL = `${req.get('origin')}/reset-password/${resetToken}`;
+  const message = `Forgot your password? Click the link below to reset it:\n\n${resetURL}\n\nIf you didn't forget your password, please ignore this email!`;
 
+  // Always log to console for development/demo (The "Yesterday" behavior)
+  console.log(`\n--- PASSWORD RESET SIMULATION --- \nURL: ${resetURL}\nTOKEN: ${resetToken}\n---------------------------------\n`);
+  logger.info(`Password reset link generated for ${user.email}`);
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your password reset token (valid for 10 min)',
+      message,
+    });
+  } catch (err) {
+    // Log the error but DO NOT fail the request
+    logger.error(`Real email delivery failed (likely missing .env credentials): ${err.message}`);
+  }
+
+  // Always return success so the user is not blocked
   res.status(200).json({
     success: true,
-    message: 'Token sent to email! (Check server console for demo purposes)',
+    message: 'Reset link generated! (Check server console for demo purposes)',
   });
 });
 

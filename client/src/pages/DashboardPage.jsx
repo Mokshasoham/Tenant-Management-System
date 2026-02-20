@@ -26,7 +26,7 @@ export default function DashboardPage() {
 
         if (user?.role === 'admin') {
           const userStats = await userService.getDashboardStats();
-          data.totalUsers = userStats.data?.totalUsers || 0;
+          data.totalUsers = userStats.data?.totalUsers || userStats.data?.data?.totalUsers || 0;
         }
 
         if (['admin', 'manager'].includes(user?.role)) {
@@ -37,10 +37,11 @@ export default function DashboardPage() {
             paymentService.getPaymentStats(),
           ]);
 
-          data.totalTenants = tenantStats.data?.totalTenants || 0;
-          data.totalProperties = propertyStats.data?.totalProperties || 0;
-          data.totalLeases = leaseStats.data?.totalLeases || 0;
-          data.totalPayments = paymentStats.data?.totalPayments || 0;
+          data.totalTenants = tenantStats.data?.totalTenants || tenantStats.data?.data?.totalTenants || 0;
+          data.totalProperties = propertyStats.data?.totalProperties || propertyStats.data?.data?.totalProperties || 0;
+          data.totalLeases = leaseStats.data?.totalLeases || leaseStats.data?.data?.totalLeases || 0;
+          data.totalPayments = paymentStats.data?.totalPayments || paymentStats.data?.data?.totalPayments || 0;
+          data.totalRevenue = paymentStats.data?.totalRevenue || paymentStats.data?.data?.totalCollected || 0;
         }
 
         setStats(data);

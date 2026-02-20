@@ -68,7 +68,7 @@ const leaseSchema = new mongoose.Schema(
   }
 );
 
-leaseSchema.pre('save', async function (next) {
+leaseSchema.pre('validate', async function (next) {
   if (!this.leaseNumber) {
     const count = await mongoose.model('Lease').countDocuments();
     this.leaseNumber = `LEASE-${Date.now()}-${count + 1}`;

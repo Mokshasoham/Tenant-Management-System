@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "../utils/cn";
+import { Eye, EyeOff } from "lucide-react";
 
 export const Card = ({ children, className, delay = 0, ...props }) => {
     return (
@@ -36,7 +37,12 @@ export const Button = ({ children, className, variant = "primary", ...props }) =
     );
 };
 
-export const Input = React.forwardRef(({ className, label, error, ...props }, ref) => {
+export const Input = React.forwardRef(({ className, label, error, type, ...props }, ref) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+    const isPassword = type === "password";
+
+    const togglePassword = () => setShowPassword(!showPassword);
+
     return (
         <div className="w-full space-y-1.5">
             {label && (
@@ -44,15 +50,32 @@ export const Input = React.forwardRef(({ className, label, error, ...props }, re
                     {label}
                 </label>
             )}
-            <input
-                ref={ref}
-                className={cn(
-                    "input-premium",
-                    error && "border-destructive focus:ring-destructive/50",
-                    className
+            <div className="relative">
+                <input
+                    ref={ref}
+                    type={isPassword ? (showPassword ? "text" : "password") : type}
+                    className={cn(
+                        "input-premium w-full",
+                        isPassword && "pr-10",
+                        error && "border-destructive focus:ring-destructive/50",
+                        className
+                    )}
+                    {...props}
+                />
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={togglePassword}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        {showPassword ? (
+                            <EyeOff className="w-4 h-4" />
+                        ) : (
+                            <Eye className="w-4 h-4" />
+                        )}
+                    </button>
                 )}
-                {...props}
-            />
+            </div>
             {error && <p className="text-xs text-destructive ml-1">{error}</p>}
         </div>
     );

@@ -180,6 +180,7 @@ export const createProperty = asyncHandler(async (req, res) => {
     images,
     manager,
     description,
+    bookingType,
   } = req.body;
 
   const property = await Property.create({
@@ -201,6 +202,7 @@ export const createProperty = asyncHandler(async (req, res) => {
     manager,
     description,
     status: 'available',
+    bookingType,
   });
 
   logger.info(`New property created: ${property.name}`);

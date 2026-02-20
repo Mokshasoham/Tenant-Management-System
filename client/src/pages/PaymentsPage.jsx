@@ -10,11 +10,11 @@ import {
 import { cn } from '../utils/cn';
 
 const STATUS_CONFIG = {
-  paid: { label: 'Paid', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-400' },
-  pending: { label: 'Pending', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', dot: 'bg-amber-400' },
-  overdue: { label: 'Overdue', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', dot: 'bg-red-400 animate-pulse' },
-  partially_paid: { label: 'Partial', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', dot: 'bg-blue-400' },
-  cancelled: { label: 'Cancelled', color: 'text-white/30', bg: 'bg-white/5 border-white/10', dot: 'bg-white/20' },
+  paid: { label: 'Paid', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-500' },
+  pending: { label: 'Pending', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', dot: 'bg-amber-500' },
+  overdue: { label: 'Overdue', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20', dot: 'bg-red-500 animate-pulse' },
+  partially_paid: { label: 'Partial', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', dot: 'bg-blue-500' },
+  cancelled: { label: 'Cancelled', color: 'text-muted-foreground/60', bg: 'bg-muted border-border', dot: 'bg-muted-foreground/30' },
 };
 
 // =====================
@@ -27,6 +27,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
 
+  const user = useAuthStore((state) => state.user);
   const formatCard = (v) => v.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim().slice(0, 19);
   const formatExpiry = (v) => v.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').slice(0, 5);
 
@@ -61,7 +62,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-md bg-[#0e0e1c] border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+        className="w-full max-w-md bg-card border border-border rounded-2xl overflow-hidden shadow-2xl transition-colors"
       >
         {step === 3 ? (
           /* Success */
@@ -76,20 +77,20 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
               transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
               className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center"
             >
-              <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+              <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
             </motion.div>
-            <h3 className="text-2xl font-black text-white">Payment Successful! 🎉</h3>
-            <p className="text-white/50">Your rent payment of <span className="text-emerald-400 font-black">₹{payment.amount?.toLocaleString('en-IN')}</span> has been processed.</p>
+            <h3 className="text-2xl font-black text-foreground">Payment Successful! 🎉</h3>
+            <p className="text-muted-foreground">Your rent payment of <span className="text-emerald-600 dark:text-emerald-400 font-black">₹{payment.amount?.toLocaleString('en-IN')}</span> has been processed.</p>
           </motion.div>
         ) : (
           <>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
               <div>
-                <h3 className="font-black text-white">Pay Rent</h3>
-                <p className="text-xs text-white/30 mt-0.5">Secure payment processing</p>
+                <h3 className="font-black text-foreground">Pay Rent</h3>
+                <p className="text-xs text-muted-foreground/60 mt-0.5">Secure payment processing</p>
               </div>
-              <button onClick={onClose} className="p-1.5 rounded-xl text-white/30 hover:text-white hover:bg-white/5">
+              <button onClick={onClose} className="p-1.5 rounded-xl text-muted-foreground/40 hover:text-foreground hover:bg-muted">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -98,10 +99,10 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
               {step === 1 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                   {/* Amount Card */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/15">
-                    <p className="text-xs font-black text-emerald-300/60 uppercase tracking-widest mb-1">Amount Due</p>
-                    <p className="text-4xl font-black text-white">₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</p>
-                    <div className="flex gap-3 mt-3 text-xs text-white/40">
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                    <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Amount Due</p>
+                    <p className="text-4xl font-black text-foreground">₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</p>
+                    <div className="flex gap-3 mt-3 text-xs text-muted-foreground/60">
                       <span>Property: {payment.property?.name || 'N/A'}</span>
                       <span>•</span>
                       <span>Due: {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : 'N/A'}</span>
@@ -112,7 +113,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                     {['💳 Card', '🏦 Bank', '📱 Wallet'].map((method, i) => (
                       <button key={i} onClick={() => i === 0 && setStep(2)}
                         className={cn('py-2.5 rounded-xl border text-xs font-bold transition-all',
-                          i === 0 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : 'border-white/10 text-white/30 opacity-50 cursor-not-allowed'
+                          i === 0 ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground/30 opacity-50 cursor-not-allowed'
                         )}>
                         {method}
                       </button>
@@ -143,44 +144,44 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Card Number</label>
+                      <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Card Number</label>
                       <input
                         type="text"
                         maxLength={19}
                         value={cardNumber}
                         onChange={e => setCardNumber(formatCard(e.target.value))}
                         placeholder="1234 5678 9012 3456"
-                        className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-emerald-500/50 transition-all text-sm font-mono"
+                        className="mt-1 w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder-muted-foreground/20 outline-none focus:border-primary/50 transition-all text-sm font-mono"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Expiry</label>
+                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Expiry</label>
                         <input
                           type="text"
                           maxLength={5}
                           value={expiry}
                           onChange={e => setExpiry(formatExpiry(e.target.value))}
                           placeholder="MM/YY"
-                          className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-emerald-500/50 transition-all text-sm font-mono"
+                          className="mt-1 w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder-muted-foreground/20 outline-none focus:border-primary/50 transition-all text-sm font-mono"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-white/40 uppercase tracking-wider">CVV</label>
+                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">CVV</label>
                         <input
                           type="password"
                           maxLength={4}
                           value={cvv}
                           onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
                           placeholder="•••"
-                          className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/20 outline-none focus:border-emerald-500/50 transition-all text-sm font-mono"
+                          className="mt-1 w-full bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground placeholder-muted-foreground/20 outline-none focus:border-primary/50 transition-all text-sm font-mono"
                         />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex gap-3">
-                    <button onClick={() => setStep(1)} className="px-4 py-2.5 rounded-xl border border-white/10 text-white/40 text-sm font-bold hover:bg-white/5 transition-all">
+                    <button onClick={() => setStep(1)} className="px-4 py-2.5 rounded-xl border border-border text-muted-foreground/60 text-sm font-bold hover:bg-muted transition-all">
                       Back
                     </button>
                     <button
@@ -191,7 +192,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                       {loading ? (
                         <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
                       ) : (
-                        <><Check className="w-4 h-4" /> Pay ${(payment.amount - (payment.amountPaid || 0)).toLocaleString()}</>
+                        <><Check className="w-4 h-4" /> Pay ₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</>
                       )}
                     </button>
                   </div>
@@ -227,9 +228,9 @@ export default function PaymentsPage() {
   const [updateStatusId, setUpdateStatusId] = useState(null);
 
   const roleTheme = {
-    admin: { from: 'from-violet-600', to: 'to-purple-600', text: 'text-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/10' },
-    manager: { from: 'from-blue-600', to: 'to-cyan-600', text: 'text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/10' },
-    tenant: { from: 'from-emerald-600', to: 'to-teal-600', text: 'text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' },
+    admin: { from: 'from-violet-600', to: 'to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/10' },
+    manager: { from: 'from-blue-600', to: 'to-cyan-600', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/10' },
+    tenant: { from: 'from-emerald-600', to: 'to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' },
   }[role] || {};
 
   const fetchPayments = useCallback(async () => {
@@ -237,10 +238,10 @@ export default function PaymentsPage() {
     try {
       if (isTenant) {
         const payRes = await paymentService.getMyPayments();
-        setPayments(payRes.data || []);
+        setPayments(payRes.data?.data || payRes.data || []);
       } else {
         const payRes = await paymentService.getAllPayments({ limit: 50 });
-        setPayments(payRes.data?.data || []);
+        setPayments(payRes.data?.data || payRes.data || []);
         const statRes = await paymentService.getPaymentStats();
         setStats(statRes.data?.data || {});
       }
@@ -286,7 +287,7 @@ export default function PaymentsPage() {
               {isTenant ? 'My Payments' : 'Payment Management'}
             </p>
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">
+          <h1 className="text-3xl font-black text-foreground tracking-tight">
             {isTenant ? 'Rent & Payments 💳' : 'Revenue Center 💰'}
           </h1>
         </div>
@@ -318,13 +319,13 @@ export default function PaymentsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                className={cn('p-4 rounded-2xl border border-white/5 bg-gradient-to-br from-white/5 to-transparent')}
+                className={cn('p-4 rounded-2xl border border-border bg-card shadow-sm')}
               >
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br', s.color)}>
                   <Icon className="w-4 h-4 text-white" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-0.5">{s.label}</p>
-                <p className="text-2xl font-black text-white">{s.value}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-0.5">{s.label}</p>
+                <p className="text-2xl font-black text-foreground">{s.value}</p>
               </motion.div>
             );
           })}
@@ -340,16 +341,16 @@ export default function PaymentsPage() {
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-amber-400" />
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-black text-amber-300">Payment Due</p>
-              <p className="text-xs text-amber-300/60">Your rent of <strong>₹{pendingPayments[0]?.amount?.toLocaleString('en-IN')}</strong> is due soon</p>
+              <p className="text-sm font-black text-amber-700 dark:text-amber-300">Payment Due</p>
+              <p className="text-xs text-amber-700/60 dark:text-amber-300/60">Your rent of <strong>₹{pendingPayments[0]?.amount?.toLocaleString('en-IN')}</strong> is due soon</p>
             </div>
           </div>
           <button
             onClick={() => setSelectedPayment(pendingPayments[0])}
-            className="px-4 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-400 transition-all"
+            className="px-4 py-2 rounded-xl bg-amber-600 dark:bg-amber-500 text-white font-bold text-xs hover:opacity-90 transition-all"
           >
             Pay Now
           </button>
@@ -358,14 +359,14 @@ export default function PaymentsPage() {
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-3 py-2 flex-1 min-w-48">
-          <Search className="w-4 h-4 text-white/30" />
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-48">
+          <Search className="w-4 h-4 text-muted-foreground/30" />
           <input
             type="text"
             placeholder={isTenant ? 'Search payments...' : 'Search tenant or property...'}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-sm text-white/70 placeholder-white/25 flex-1"
+            className="bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground/25 flex-1"
           />
         </div>
         <div className="flex gap-1">
@@ -377,7 +378,7 @@ export default function PaymentsPage() {
                 'px-3 py-2 rounded-xl text-xs font-bold transition-all',
                 statusFilter === status
                   ? cn('text-white bg-gradient-to-r', roleTheme.from, roleTheme.to)
-                  : 'text-white/30 hover:text-white/60 hover:bg-white/5'
+                  : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted'
               )}
             >
               {status === 'all' ? 'All' : STATUS_CONFIG[status]?.label}
@@ -391,27 +392,27 @@ export default function PaymentsPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="rounded-2xl border border-white/5 overflow-hidden"
+        className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
       >
         {loading ? (
           <div className="p-8 space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex gap-4 items-center">
-                <div className="h-4 bg-white/5 rounded animate-pulse w-1/4" />
-                <div className="h-4 bg-white/5 rounded animate-pulse w-1/3" />
-                <div className="h-4 bg-white/5 rounded animate-pulse w-1/5 ml-auto" />
+                <div className="h-4 bg-muted rounded animate-pulse w-1/4" />
+                <div className="h-4 bg-muted rounded animate-pulse w-1/3" />
+                <div className="h-4 bg-muted rounded animate-pulse w-1/5 ml-auto" />
               </div>
             ))}
           </div>
         ) : filteredPayments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Receipt className="w-12 h-12 text-white/10" />
-            <p className="text-white/30 font-bold">No payments found</p>
+            <Receipt className="w-12 h-12 text-muted-foreground/10" />
+            <p className="text-muted-foreground/40 font-bold">No payments found</p>
           </div>
         ) : (
           <div>
             {/* Table Header */}
-            <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-white/25">
+            <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
               <div className="col-span-3">{isTenant ? 'Property' : 'Tenant'}</div>
               <div className="col-span-3 hidden md:block">Property</div>
               <div className="col-span-2">Amount</div>
@@ -420,7 +421,7 @@ export default function PaymentsPage() {
             </div>
 
             {/* Rows */}
-            <div className="divide-y divide-white/3">
+            <div className="divide-y divide-border">
               {filteredPayments.map((payment, i) => {
                 const statusStyle = STATUS_CONFIG[payment.status] || STATUS_CONFIG.pending;
                 const payId = payment._id || payment.id;
@@ -432,33 +433,33 @@ export default function PaymentsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.02 }}
-                    className="grid grid-cols-12 gap-3 items-center px-5 py-3.5 hover:bg-white/3 transition-colors group"
+                    className="grid grid-cols-12 gap-3 items-center px-5 py-3.5 border-b border-border last:border-0 hover:bg-muted/50 transition-colors group"
                   >
                     {/* Tenant / Property Name */}
                     <div className="col-span-3">
                       {isTenant ? (
-                        <p className="text-sm font-bold text-white/80 truncate">{payment.property?.name || 'N/A'}</p>
+                        <p className="text-sm font-bold text-foreground/80 truncate">{payment.property?.name || 'N/A'}</p>
                       ) : (
                         <div>
-                          <p className="text-sm font-bold text-white/80 truncate">{payment.tenant?.firstName} {payment.tenant?.lastName}</p>
-                          <p className="text-[10px] text-white/30">{payment.tenant?.email}</p>
+                          <p className="text-sm font-bold text-foreground/80 truncate">{payment.tenant?.firstName} {payment.tenant?.lastName}</p>
+                          <p className="text-[10px] text-muted-foreground/50">{payment.tenant?.email}</p>
                         </div>
                       )}
                     </div>
 
                     <div className="col-span-3 hidden md:block">
-                      <p className="text-sm text-white/50 truncate">{payment.property?.name || '—'}</p>
+                      <p className="text-sm text-muted-foreground/60 truncate">{payment.property?.name || '—'}</p>
                     </div>
 
                     <div className="col-span-2">
-                      <p className="text-sm font-black text-white">₹{payment.amount?.toLocaleString('en-IN')}</p>
+                      <p className="text-sm font-black text-foreground">₹{payment.amount?.toLocaleString('en-IN')}</p>
                       {payment.amountPaid > 0 && (
-                        <p className="text-[10px] text-white/30">Paid: ₹{payment.amountPaid?.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-muted-foreground/50">Paid: ₹{payment.amountPaid?.toLocaleString('en-IN')}</p>
                       )}
                     </div>
 
                     <div className="col-span-2 hidden md:block">
-                      <p className="text-xs text-white/50">
+                      <p className="text-xs text-muted-foreground/60">
                         {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : '—'}
                       </p>
                     </div>
@@ -485,7 +486,7 @@ export default function PaymentsPage() {
                           <button
                             onClick={() => handleStatusUpdate(payId, 'paid')}
                             disabled={updateStatusId === payId}
-                            className="text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                            className="text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all"
                           >
                             ✓ Paid
                           </button>
@@ -493,7 +494,7 @@ export default function PaymentsPage() {
                             <button
                               onClick={() => handleStatusUpdate(payId, 'overdue')}
                               disabled={updateStatusId === payId}
-                              className="text-[9px] font-black px-2 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                              className="text-[9px] font-black px-2 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all"
                             >
                               Overdue
                             </button>

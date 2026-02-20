@@ -9,9 +9,9 @@ import {
 import { cn } from '../utils/cn';
 
 const STATUS_CONFIG = {
-  active: { label: 'Active', icon: CheckCircle2, class: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-  inactive: { label: 'Inactive', icon: XCircle, class: 'text-white/40 bg-white/5 border-white/10' },
-  banned: { label: 'Banned', icon: AlertTriangle, class: 'text-rose-400 bg-rose-500/10 border-rose-500/20' },
+  active: { label: 'Active', icon: CheckCircle2, class: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400' },
+  inactive: { label: 'Inactive', icon: XCircle, class: 'text-muted-foreground/60 bg-muted border-border' },
+  banned: { label: 'Banned', icon: AlertTriangle, class: 'text-rose-600 bg-rose-500/10 border-rose-500/20 dark:text-rose-400' },
 };
 
 const EMPTY_FORM = {
@@ -46,7 +46,7 @@ function TenantModal({ tenant, onClose, onSave }) {
       }
       onSave();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save tenant');
+      setError(err.message || 'Failed to save tenant');
     } finally {
       setLoading(false);
     }
@@ -60,11 +60,11 @@ function TenantModal({ tenant, onClose, onSave }) {
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-blue-500/20 bg-[#0a0f1e]"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl transition-colors"
       >
-        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0a0f1e] z-10">
-          <h2 className="text-lg font-black text-white">{tenant ? 'Edit Tenant' : 'Add New Tenant'}</h2>
-          <button onClick={onClose} className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all">
+        <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm z-10 transition-colors">
+          <h2 className="text-lg font-black text-foreground">{tenant ? 'Edit Tenant' : 'Add New Tenant'}</h2>
+          <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -85,8 +85,8 @@ function TenantModal({ tenant, onClose, onSave }) {
               options={['employed', 'self-employed', 'student', 'retired', 'other']} />
           </div>
           <Field label="Monthly Income (₹)" type="number" value={form.monthlyIncome} onChange={v => set('monthlyIncome', v)} />
-          <div className="border-t border-white/5 pt-4">
-            <p className="text-xs font-black uppercase tracking-widest text-white/30 mb-3">Emergency Contact</p>
+          <div className="border-t border-border pt-4">
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/40 mb-3">Emergency Contact</p>
             <div className="grid grid-cols-3 gap-3">
               <Field label="Name" value={form.emergencyContact.name} onChange={v => setEC('name', v)} />
               <Field label="Phone" value={form.emergencyContact.phone} onChange={v => setEC('phone', v)} />
@@ -96,7 +96,7 @@ function TenantModal({ tenant, onClose, onSave }) {
           <TextAreaField label="Notes" value={form.notes} onChange={v => set('notes', v)} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-white/10 text-white/40 hover:text-white hover:border-white/20 transition-all font-bold">
+              className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold">
               Cancel
             </button>
             <button type="submit" disabled={loading}
@@ -122,11 +122,11 @@ function ViewModal({ tenant, onClose, onEdit }) {
     >
       <motion.div
         initial={{ scale: 0.95, x: 40 }} animate={{ scale: 1, x: 0 }}
-        className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0a0f1e] overflow-hidden"
+        className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden shadow-2xl transition-colors"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-          <h2 className="text-lg font-black text-white">Tenant Profile</h2>
-          <button onClick={onClose} className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"><X className="w-4 h-4" /></button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+          <h2 className="text-lg font-black text-foreground">Tenant Profile</h2>
+          <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-4">
@@ -134,7 +134,7 @@ function ViewModal({ tenant, onClose, onEdit }) {
               {tenant.firstName?.[0]}{tenant.lastName?.[0]}
             </div>
             <div>
-              <h3 className="text-xl font-black text-white">{tenant.firstName} {tenant.lastName}</h3>
+              <h3 className="text-xl font-black text-foreground">{tenant.firstName} {tenant.lastName}</h3>
               <div className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-bold mt-1', sc.class)}>
                 <Icon className="w-3 h-3" /> {sc.label}
               </div>
@@ -149,13 +149,13 @@ function ViewModal({ tenant, onClose, onEdit }) {
             {tenant.idNumber && <InfoItem icon={Shield} label="ID Number" value={tenant.idNumber} />}
           </div>
           {tenant.emergencyContact?.name && (
-            <div className="p-3 rounded-xl bg-white/3 border border-white/5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Emergency Contact</p>
-              <p className="text-sm font-bold text-white">{tenant.emergencyContact.name}</p>
-              <p className="text-xs text-white/40">{tenant.emergencyContact.phone} • {tenant.emergencyContact.relationship}</p>
+            <div className="p-3 rounded-xl bg-muted/50 border border-border">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">Emergency Contact</p>
+              <p className="text-sm font-bold text-foreground">{tenant.emergencyContact.name}</p>
+              <p className="text-xs text-muted-foreground/60">{tenant.emergencyContact.phone} • {tenant.emergencyContact.relationship}</p>
             </div>
           )}
-          {tenant.notes && <div className="p-3 rounded-xl bg-white/3 border border-white/5 text-sm text-white/50">{tenant.notes}</div>}
+          {tenant.notes && <div className="p-3 rounded-xl bg-muted/50 border border-border text-sm text-muted-foreground">{tenant.notes}</div>}
         </div>
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onEdit} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-black hover:opacity-90 transition-all flex items-center justify-center gap-2">
@@ -170,9 +170,9 @@ function ViewModal({ tenant, onClose, onEdit }) {
 function Field({ label, value, onChange, type = 'text', required }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-white/30">{label}{required && ' *'}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{label}{required && ' *'}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} required={required}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500/50 focus:bg-white/8 transition-all" />
+        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all" />
     </div>
   );
 }
@@ -180,10 +180,10 @@ function Field({ label, value, onChange, type = 'text', required }) {
 function SelectField({ label, value, onChange, options }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-white/30">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-all appearance-none">
-        {options.map(o => <option key={o} value={o} className="bg-gray-900">{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
+        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all appearance-none">
+        {options.map(o => <option key={o} value={o} className="bg-card">{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
       </select>
     </div>
   );
@@ -192,9 +192,9 @@ function SelectField({ label, value, onChange, options }) {
 function TextAreaField({ label, value, onChange }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-white/30">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{label}</label>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
-        className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500/50 transition-all resize-none" />
+        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all resize-none" />
     </div>
   );
 }
@@ -202,10 +202,10 @@ function TextAreaField({ label, value, onChange }) {
 function InfoItem({ icon: Icon, label, value }) {
   return (
     <div className="flex items-start gap-2">
-      <Icon className="w-4 h-4 text-blue-400/60 mt-0.5 flex-shrink-0" />
+      <Icon className="w-4 h-4 text-primary/60 mt-0.5 flex-shrink-0" />
       <div>
-        <p className="text-[9px] font-black uppercase tracking-widest text-white/25">{label}</p>
-        <p className="text-sm text-white/70">{value || '—'}</p>
+        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">{label}</p>
+        <p className="text-sm text-foreground/80">{value || '—'}</p>
       </div>
     </div>
   );
@@ -226,8 +226,8 @@ export default function TenantsPage() {
     try {
       setLoading(true);
       const res = await tenantService.getAllTenants({ page, limit: LIMIT, search, status: statusFilter });
-      setTenants(res.data);
-      setTotal(res.pagination?.total || 0);
+      setTenants(res.data?.data || res.data || []);
+      setTotal(res.data?.pagination?.total || res.pagination?.total || 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -265,9 +265,9 @@ export default function TenantsPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">Directory</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">Directory</p>
           </div>
-          <h1 className="text-3xl font-black text-white">Tenants <span className="text-white/20 font-bold text-lg">({total})</span></h1>
+          <h1 className="text-3xl font-black text-foreground">Tenants <span className="text-muted-foreground/20 font-bold text-lg">({total})</span></h1>
         </div>
         <button onClick={() => setModal('add')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg shadow-blue-500/20">
@@ -278,36 +278,36 @@ export default function TenantsPage() {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by name or email..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500/40 transition-all" />
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/40 transition-all" />
         </div>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500/40 transition-all appearance-none">
-          <option value="" className="bg-gray-900">All Statuses</option>
-          <option value="active" className="bg-gray-900">Active</option>
-          <option value="inactive" className="bg-gray-900">Inactive</option>
-          <option value="banned" className="bg-gray-900">Banned</option>
+          className="px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none appearance-none">
+          <option value="" className="bg-card">All Statuses</option>
+          <option value="active" className="bg-card">Active</option>
+          <option value="inactive" className="bg-card">Inactive</option>
+          <option value="banned" className="bg-card">Banned</option>
         </select>
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-white/5 bg-white/3 overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/5">
+              <tr className="border-b border-border bg-muted/30">
                 {['Tenant', 'Contact', 'Employment', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-white/25">{h}</th>
+                  <th key={h} className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-16 text-white/30">Loading...</td></tr>
+                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">Loading...</td></tr>
               ) : tenants.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-16 text-white/30">No tenants found</td></tr>
+                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">No tenants found</td></tr>
               ) : tenants.map((t, i) => {
                 const sc = STATUS_CONFIG[t.status] || STATUS_CONFIG.active;
                 const StatusIcon = sc.icon;
@@ -316,7 +316,7 @@ export default function TenantsPage() {
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                     onClick={() => openView(t)}
-                    className="border-b border-white/3 hover:bg-white/3 cursor-pointer transition-colors group"
+                    className="border-b border-border hover:bg-muted/50 cursor-pointer transition-colors group"
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -324,16 +324,16 @@ export default function TenantsPage() {
                           {t.firstName?.[0]}{t.lastName?.[0]}
                         </div>
                         <div>
-                          <p className="font-bold text-white text-sm">{t.firstName} {t.lastName}</p>
-                          <p className="text-xs text-white/30">{t.idNumber || 'No ID'}</p>
+                          <p className="font-bold text-foreground text-sm">{t.firstName} {t.lastName}</p>
+                          <p className="text-xs text-muted-foreground/50">{t.idNumber || 'No ID'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <p className="text-sm text-white/60">{t.email}</p>
-                      <p className="text-xs text-white/30">{t.phone}</p>
+                      <p className="text-sm text-foreground/70">{t.email}</p>
+                      <p className="text-xs text-muted-foreground/50">{t.phone}</p>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-white/50 capitalize">{t.occupationStatus}</td>
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground/60 capitalize">{t.occupationStatus}</td>
                     <td className="px-5 py-3.5">
                       <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold', sc.class)}>
                         <StatusIcon className="w-3 h-3" /> {sc.label}
@@ -359,13 +359,13 @@ export default function TenantsPage() {
         </div>
         {/* Pagination */}
         {total > LIMIT && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-white/5">
-            <p className="text-xs text-white/30">Showing {Math.min((page - 1) * LIMIT + 1, total)}–{Math.min(page * LIMIT, total)} of {total}</p>
+          <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20">
+            <p className="text-xs text-muted-foreground/60">Showing {Math.min((page - 1) * LIMIT + 1, total)}–{Math.min(page * LIMIT, total)} of {total}</p>
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">← Prev</button>
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border">← Prev</button>
               <button disabled={page * LIMIT >= total} onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white/40 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all">Next →</button>
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border">Next →</button>
             </div>
           </div>
         )}

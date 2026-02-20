@@ -37,8 +37,8 @@ export default function BookingStatusPage() {
 
     if (!booking) return (
         <div className="text-center py-20">
-            <h2 className="text-2xl font-bold text-white">Booking not found</h2>
-            <button onClick={() => navigate('/dashboard')} className="mt-4 text-blue-400 font-bold flex items-center gap-2 mx-auto">
+            <h2 className="text-2xl font-black text-foreground">Booking not found</h2>
+            <button onClick={() => navigate('/dashboard')} className="mt-4 text-primary font-black hover:underline flex items-center gap-2 mx-auto uppercase tracking-widest text-xs">
                 <ArrowLeft className="w-4 h-4" /> Back to Dashboard
             </button>
         </div>
@@ -79,18 +79,28 @@ export default function BookingStatusPage() {
         alert('Downloading receipt for BK-' + booking._id.slice(-8).toUpperCase() + '...');
     };
 
+    const handleChat = () => {
+        navigate('/messages', {
+            state: {
+                recipientId: booking.manager?._id,
+                recipientName: booking.manager?.firstName + ' ' + booking.manager?.lastName,
+                subject: `Booking ${booking._id.slice(-8).toUpperCase()} for ${booking.property?.name}`
+            }
+        });
+    };
+
     return (
         <div className="max-w-3xl mx-auto space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <button
                     onClick={() => navigate('/dashboard')}
-                    className="flex items-center gap-2 text-sm text-white/30 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 hover:text-foreground transition-colors group"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Dashboard
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Dashboard
                 </button>
-                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
-                    Booking Reference: {booking._id.slice(-8).toUpperCase()}
+                <span className="text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.3em]">
+                    Ref: {booking._id.slice(-8).toUpperCase()}
                 </span>
             </div>
 
@@ -98,23 +108,24 @@ export default function BookingStatusPage() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={cn("p-10 rounded-[2.5rem] border text-center space-y-6", config.bg, config.border)}
+                className={cn("p-10 rounded-[3rem] border-2 text-center space-y-6 shadow-xl", config.bg, config.border)}
             >
-                <div className={cn("w-20 h-20 rounded-full mx-auto flex items-center justify-center border-2", config.border)}>
-                    <Icon className={cn("w-10 h-10", config.color)} />
+                <div className={cn("w-24 h-24 rounded-full mx-auto flex items-center justify-center border-2 bg-card/50 backdrop-blur-sm", config.border)}>
+                    <Icon className={cn("w-12 h-12", config.color)} />
                 </div>
 
-                <div className="space-y-2">
-                    <h1 className="text-3xl font-black text-white">{config.title}</h1>
-                    <p className="text-white/50 text-sm max-w-md mx-auto">{config.desc}</p>
+                <div className="space-y-3">
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">{config.title}</h1>
+                    <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">{config.desc}</p>
                 </div>
 
                 <div className="flex items-center justify-center gap-4 pt-4">
-                    <div className="flex h-1.5 w-32 rounded-full bg-white/5">
+                    <div className="flex h-2 w-48 rounded-full bg-muted shadow-inner overflow-hidden">
                         <motion.div
-                            className={cn("h-full rounded-full", config.color.replace('text', 'bg'))}
+                            className={cn("h-full", config.color.replace('text', 'bg'))}
                             initial={{ width: 0 }}
                             animate={{ width: booking.status === 'pending' ? '50%' : '100%' }}
+                            transition={{ type: 'spring', damping: 20 }}
                         />
                     </div>
                 </div>
@@ -124,9 +135,9 @@ export default function BookingStatusPage() {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={handleDownloadReceipt}
-                        className="mt-6 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-black hover:bg-white/10 mx-auto transition-all"
+                        className="mt-8 flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all mx-auto active:scale-95"
                     >
-                        <FileText className="w-4 h-4 text-emerald-400" /> DOWNLOAD RECEIPT
+                        <FileText className="w-4 h-4 text-emerald-500" /> DOWNLOAD RECEIPT
                     </motion.button>
                 )}
             </motion.div>
@@ -134,23 +145,23 @@ export default function BookingStatusPage() {
             {/* Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Property Detail */}
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-blue-400" />
+                <div className="p-6 rounded-[2rem] bg-card border border-border space-y-5 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                            <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Property</p>
-                            <p className="text-white font-bold">{booking.property?.name}</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Property</p>
+                            <p className="text-foreground font-black tracking-tight">{booking.property?.name}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-purple-400" />
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
+                            <Calendar className="w-6 h-6 text-violet-600 dark:text-violet-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Duration</p>
-                            <p className="text-white font-bold">
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Lease Duration</p>
+                            <p className="text-foreground font-black tracking-tight">
                                 {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
                             </p>
                         </div>
@@ -158,39 +169,48 @@ export default function BookingStatusPage() {
                 </div>
 
                 {/* Payment Detail */}
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                            <IndianRupee className="w-5 h-5 text-emerald-400" />
+                <div className="p-6 rounded-[2rem] bg-card border border-border space-y-5 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                            <IndianRupee className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Amount Paid</p>
-                            <p className="text-white font-bold">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Amount Paid</p>
+                            <p className="text-foreground font-black tracking-tight text-xl">
+                                {booking.totalAmount === 0 ? 'FREE / DEMO' : `₹${booking.totalAmount?.toLocaleString('en-IN')}`}
+                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-amber-400" />
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                            <Shield className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Payment Status</p>
-                            <p className="text-white font-bold uppercase text-[10px] tracking-widest">{booking.paymentStatus}</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Payment Status</p>
+                            <p className="text-amber-600 dark:text-amber-400 font-black uppercase text-[10px] tracking-widest px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/10 inline-block font-mono">
+                                {booking.paymentReference === 'FREE-BOOKING' ? 'EXEMPT' : booking.paymentStatus}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Help Card */}
-            <div className="p-6 rounded-3xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Info className="w-6 h-6 text-blue-400" />
+            <div className="p-8 rounded-[2rem] bg-blue-500/5 border border-blue-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+                <div className="flex items-center gap-4 text-center sm:text-left">
+                    <div className="p-3 rounded-2xl bg-blue-500/10">
+                        <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
                     <div>
-                        <p className="text-white font-bold">Need help with your booking?</p>
-                        <p className="text-white/40 text-xs">Chat with our support or message the property manager.</p>
+                        <p className="text-foreground font-black tracking-tight">Need help with your booking?</p>
+                        <p className="text-muted-foreground/50 text-xs font-medium mt-0.5">Chat with support or message the property manager.</p>
                     </div>
                 </div>
-                <button onClick={() => navigate('/messages')} className="px-4 py-2 rounded-xl bg-blue-500 text-white text-xs font-black shadow-lg shadow-blue-500/20">
-                    OPEN CHAT
+                <button
+                    onClick={handleChat}
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                >
+                    CHAT WITH MANAGER
                 </button>
             </div>
         </div>

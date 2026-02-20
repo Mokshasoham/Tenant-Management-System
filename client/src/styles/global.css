@@ -6,75 +6,77 @@
    GLOBAL CSS VARIABLES - BASE THEME
    ============================================= */
 @layer base {
-  :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 1rem;
+  @layer base {
+    :root {
+      /* Light Mode (Shadcn Defaults) */
+      --background: 210 40% 98%;
+      --foreground: 222.2 84% 4.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 222.2 84% 4.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 222.2 84% 4.9%;
+      --primary: 221.2 83.2% 53.3%;
+      --primary-foreground: 210 40% 98%;
+      --secondary: 210 40% 96.1%;
+      --secondary-foreground: 222.2 47.4% 11.2%;
+      --muted: 210 40% 96.1%;
+      --muted-foreground: 215.4 16.3% 46.9%;
+      --accent: 210 40% 96.1%;
+      --accent-foreground: 222.2 47.4% 11.2%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 214.3 31.8% 91.4%;
+      --input: 214.3 31.8% 91.4%;
+      --ring: 221.2 83.2% 53.3%;
+      --radius: 1rem;
 
-    /* Role-specific palette defaults (admin) */
-    --role-primary: 262 83% 58%;
-    --role-primary-rgb: 124, 58, 237;
-    --role-secondary: 280 100% 70%;
-    --role-accent: 299 100% 74%;
-    --role-glow: rgba(124, 58, 237, 0.2);
-    --role-gradient: linear-gradient(135deg, #7c3aed, #6d28d9, #4c1d95);
-    --role-gradient-light: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(109, 40, 217, 0.08));
-    --role-sidebar-bg: linear-gradient(180deg, #0f0a1e 0%, #1a0f2e 50%, #0d0822 100%);
-  }
+      /* Custom Adaptive Variables */
+      --bg-page: #f0f4f8;
+      --bg-card: #ffffff;
+      --bg-sidebar: #f8fafc;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --glass-bg: rgba(255, 255, 255, 0.7);
+      --glass-border: rgba(0, 0, 0, 0.1);
+      --glass-hover: rgba(255, 255, 255, 0.85);
+    }
 
-  /* ==========================================
-     DATA-THEME LIGHT / DARK — ThemeContext
-     ========================================== */
+    .dark,
+    [data-theme="dark"] {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+      --card: 222.2 84% 4.9%;
+      --card-foreground: 210 40% 98%;
+      --popover: 222.2 84% 4.9%;
+      --popover-foreground: 210 40% 98%;
+      --primary: 217.2 91.2% 59.8%;
+      --primary-foreground: 222.2 47.4% 11.2%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 217.2 32.6% 17.5%;
+      --accent-foreground: 210 40% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 224.3 76.3% 48%;
 
-  /* Light Mode */
-  [data-theme="light"] {
-    --bg-page: #f0f4f8;
-    --bg-card: #ffffff;
-    --bg-sidebar: #f8fafc;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --text-muted: #94a3b8;
-    --border-color: #e2e8f0;
-    --input-bg: #ffffff;
-    --input-border: #cbd5e1;
-    --shadow-card: 0 2px 20px rgba(0, 0, 0, 0.08);
-    --overlay-bg: rgba(255, 255, 255, 0.85);
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(0, 0, 0, 0.1);
-  }
-
-  /* Dark Mode (default) */
-  [data-theme="dark"] {
-    --bg-page: #0a0a14;
-    --bg-card: #111827;
-    --bg-sidebar: #0d1117;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --border-color: #1e293b;
-    --input-bg: #1e293b;
-    --input-border: #334155;
-    --shadow-card: 0 4px 36px rgba(0, 0, 0, 0.4);
-    --overlay-bg: rgba(0, 0, 0, 0.6);
-    --glass-bg: rgba(17, 24, 39, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.06);
+      /* Custom Adaptive Variables (Dark) */
+      --bg-page: #0a0a14;
+      --bg-card: #111827;
+      --bg-sidebar: #0d1117;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border-color: #1e293b;
+      --glass-bg: rgba(17, 24, 39, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --glass-hover: rgba(17, 24, 39, 0.8);
+    }
   }
 
   /* ==========================================

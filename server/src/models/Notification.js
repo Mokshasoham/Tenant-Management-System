@@ -10,6 +10,7 @@ const notificationSchema = new mongoose.Schema(
         type: {
             type: String,
             enum: [
+                'payment',
                 'payment_due',
                 'payment_received',
                 'payment_overdue',
@@ -22,8 +23,15 @@ const notificationSchema = new mongoose.Schema(
                 'system',
                 'tenant_created',
                 'property_created',
+                'booking',
+                'success',
+                'alert',
             ],
             required: true,
+        },
+        link: {
+            type: String,
+            trim: true,
         },
         title: {
             type: String,

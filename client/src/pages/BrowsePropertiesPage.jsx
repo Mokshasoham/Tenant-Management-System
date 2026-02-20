@@ -8,7 +8,9 @@ import {
     CheckCircle2, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '../utils/cn';
 import useAuthStore from '../context/authStore';
+import { useTheme } from '../context/ThemeContext';
 
 // ── Lazy-load the map so Leaflet errors never crash the whole page ──
 const InteractivePropertyMap = lazy(() => import('../components/PropertyMap'));
@@ -20,18 +22,13 @@ class MapErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div style={{
-                    height: '100%', minHeight: 480, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 16,
-                    background: 'rgba(239,68,68,0.05)', border: '1px dashed rgba(239,68,68,0.3)',
-                    borderRadius: 20
-                }}>
-                    <AlertTriangle style={{ width: 40, height: 40, color: '#f87171' }} />
-                    <p style={{ color: '#f87171', fontWeight: 700, fontSize: 15 }}>Map failed to load</p>
-                    <p style={{ color: '#94a3b8', fontSize: 12 }}>{this.state.error?.message}</p>
+                <div className="h-full min-h-[480px] flex flex-col items-center justify-center gap-4 bg-destructive/5 border border-dashed border-destructive/30 rounded-[2.5rem]">
+                    <AlertTriangle className="w-10 h-10 text-destructive" />
+                    <p className="text-destructive font-black text-sm uppercase tracking-widest">Map failed to load</p>
+                    <p className="text-muted-foreground text-xs">{this.state.error?.message}</p>
                     <button
                         onClick={() => this.setState({ hasError: false, error: null })}
-                        style={{ padding: '8px 20px', borderRadius: 12, background: '#6366f1', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}
+                        className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-black hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                     >
                         Retry
                     </button>
@@ -55,31 +52,26 @@ const TYPE_COLORS = {
 
 // ── Skeleton Card ──
 function SkeletonCard({ compact = false }) {
-    const shimmerStyle = {
-        background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)',
-        backgroundSize: '1000px 100%',
-        animation: 'shimmerAnim 1.5s infinite',
-        borderRadius: 8,
-    };
+    const shimmerClass = "shimmer w-full h-full";
     if (compact) {
         return (
-            <div style={{ display: 'flex', gap: 12, padding: 12, borderRadius: 16, background: 'var(--bg-card, #1a1a2e)', border: '1px solid var(--border-color, rgba(255,255,255,0.06))' }}>
-                <div style={{ ...shimmerStyle, width: 96, height: 80, borderRadius: 12, flexShrink: 0 }} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
-                    <div style={{ ...shimmerStyle, height: 14, width: '70%' }} />
-                    <div style={{ ...shimmerStyle, height: 12, width: '50%' }} />
-                    <div style={{ ...shimmerStyle, height: 18, width: '40%' }} />
+            <div className="flex gap-3 p-3 rounded-2xl bg-card border border-border">
+                <div className="w-24 h-20 rounded-xl flex-shrink-0 shimmer" />
+                <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-3.5 w-[70%] rounded-md shimmer" />
+                    <div className="h-3 w-[50%] rounded-md shimmer" />
+                    <div className="h-4.5 w-[40%] rounded-md shimmer" />
                 </div>
             </div>
         );
     }
     return (
-        <div style={{ borderRadius: 24, overflow: 'hidden', background: 'var(--bg-card, #1a1a2e)', border: '1px solid var(--border-color, rgba(255,255,255,0.06))' }}>
-            <div style={{ ...shimmerStyle, height: 192 }} />
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ ...shimmerStyle, height: 18, width: '70%' }} />
-                <div style={{ ...shimmerStyle, height: 14, width: '50%' }} />
-                <div style={{ ...shimmerStyle, height: 36, width: '100%', marginTop: 4 }} />
+        <div className="rounded-[1.75rem] overflow-hidden bg-card border border-border">
+            <div className="h-48 shimmer" />
+            <div className="p-5 space-y-2.5">
+                <div className="h-4.5 w-[70%] rounded-md shimmer" />
+                <div className="h-3.5 w-[50%] rounded-md shimmer" />
+                <div className="h-9 w-full rounded-xl shimmer mt-1" />
             </div>
         </div>
     );
@@ -87,31 +79,30 @@ function SkeletonCard({ compact = false }) {
 
 // ── Compact card for the map side-panel ──
 function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
+    const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
-            style={{
-                display: 'flex', gap: 12, padding: 12, borderRadius: 16, cursor: 'pointer',
-                background: 'var(--bg-card, #1a1a2e)', border: '1px solid var(--border-color, rgba(255,255,255,0.06))'
-            }}>
-            <div style={{ width: 96, height: 80, borderRadius: 12, overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.04)', position: 'relative' }}>
+            className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
+            <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted relative">
                 {p.images?.[0]
-                    ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 style={{ width: 24, height: 24, opacity: 0.2, color: 'white' }} /></div>}
-                <span style={{ position: 'absolute', top: 4, left: 4, background: color, color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, textTransform: 'uppercase' }}>{p.type}</span>
+                    ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
+                <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
+                {p.bookingType === 'free' && <span className="absolute bottom-1 left-1 bg-primary/90 text-white text-[7px] font-black px-1 rounded shadow-sm">DEMO</span>}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary, white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{p.name}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-muted, rgba(255,255,255,0.4))', margin: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {p.city}</p>
-                <p style={{ fontSize: 16, fontWeight: 800, color, margin: 0 }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted, rgba(255,255,255,0.4))' }}>/mo</span></p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted, rgba(255,255,255,0.4))' }}>🛏 {p.bedrooms || 0}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted, rgba(255,255,255,0.4))' }}>🚿 {p.bathrooms || 0}</span>
-                    <button onClick={e => { e.stopPropagation(); onSave(); }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: isSaved ? '#ec4899' : 'rgba(255,255,255,0.3)', padding: 2 }}>
-                        <Heart style={{ width: 14, height: 14, fill: isSaved ? '#ec4899' : 'none' }} />
+            <div className="flex-1 min-w-0">
+                <p className="font-black text-sm text-foreground truncate">{p.name}</p>
+                <p className="text-[10px] text-muted-foreground/60 truncate my-0.5">📍 {p.city}</p>
+                <p className="text-base font-black text-foreground" style={{ color: theme === 'light' ? color : 'inherit' }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span className="text-[9px] font-bold text-muted-foreground/40">/mo</span></p>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-muted-foreground/60">🛏 {p.bedrooms || 0}</span>
+                    <span className="text-[10px] text-muted-foreground/60">🚿 {p.bathrooms || 0}</span>
+                    <button onClick={e => { e.stopPropagation(); onSave(); }} className={cn("ml-auto p-1 rounded-lg transition-colors", isSaved ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground/30 hover:bg-muted")}>
+                        <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
                     </button>
-                    <button onClick={e => { e.stopPropagation(); onCompare(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: inCompare ? '#6366f1' : 'rgba(255,255,255,0.3)', padding: 2 }}>
-                        <Scale style={{ width: 14, height: 14 }} />
+                    <button onClick={e => { e.stopPropagation(); onCompare(); }} className={cn("p-1 rounded-lg transition-colors", inCompare ? "text-primary bg-primary/10" : "text-muted-foreground/30 hover:bg-muted")}>
+                        <Scale className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
@@ -126,80 +117,76 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
         <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.5) }}
             onClick={onClick}
-            style={{
-                borderRadius: 28, overflow: 'hidden', cursor: 'pointer',
-                background: 'var(--bg-card, #1a1a2e)', border: '1px solid var(--border-color, rgba(255,255,255,0.06))',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.2)', transition: 'transform 0.2s'
-            }}
-            whileHover={{ y: -4 }}
+            className="rounded-[2rem] overflow-hidden cursor-pointer bg-card border border-border shadow-xl hover-lift transition-all"
         >
             {/* Image */}
-            <div style={{ position: 'relative', height: 200, overflow: 'hidden', background: 'rgba(255,255,255,0.03)' }}>
+            <div className="relative h-52 overflow-hidden bg-muted transition-colors">
                 {p.images?.[0]
-                    ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${color}22, ${color}11)` }}>
-                        <Building2 style={{ width: 48, height: 48, opacity: 0.2, color: 'white' }} />
+                    ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
+                        <Building2 className="w-12 h-12 opacity-20 text-foreground" />
                     </div>}
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)' }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
                 {/* Top-left badges */}
-                <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ background: color, color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase' }}>{p.type}</span>
-                    {p.rentAmount < 20000 && <span style={{ background: 'rgba(16,185,129,0.9)', color: 'white', fontSize: 9, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>⚡ Best Value</span>}
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                    <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
+                    {p.bookingType === 'free' && <span className="px-3 py-1 bg-primary/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">🛡️ Demo Available</span>}
+                    {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">⚡ Best Value</span>}
                 </div>
 
                 {/* Top-right actions */}
-                <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="absolute top-4 right-4 flex flex-col gap-2">
                     <button onClick={e => { e.stopPropagation(); onSave(); }}
-                        style={{
-                            width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: isSaved ? 'rgba(236,72,153,0.85)' : 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: 'white'
-                        }}>
-                        <Heart style={{ width: 14, height: 14, fill: isSaved ? 'white' : 'none' }} />
+                        className={cn(
+                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg",
+                            isSaved ? "bg-rose-500/80" : "bg-black/40 hover:bg-black/60"
+                        )}>
+                        <Heart className={cn("w-4.5 h-4.5", isSaved && "fill-current")} />
                     </button>
                     <button onClick={e => { e.stopPropagation(); onCompare(); }}
-                        style={{
-                            width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: inCompare ? 'rgba(99,102,241,0.85)' : 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: 'white'
-                        }}>
-                        <Scale style={{ width: 14, height: 14 }} />
+                        className={cn(
+                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg",
+                            inCompare ? "bg-primary/80" : "bg-black/40 hover:bg-black/60"
+                        )}>
+                        <Scale className="w-4.5 h-4.5" />
                     </button>
                 </div>
 
                 {/* Price */}
-                <div style={{ position: 'absolute', bottom: 12, left: 16 }}>
-                    <p style={{ fontSize: 22, fontWeight: 900, color: 'white', margin: 0 }}>₹{p.rentAmount?.toLocaleString('en-IN')}</p>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.1em' }}>per month</p>
+                <div className="absolute bottom-4 left-4 text-white">
+                    <p className="text-2xl font-black mb-0">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">per month</p>
                 </div>
                 {p.rating > 0 && (
-                    <div style={{ position: 'absolute', bottom: 12, right: 16, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Star style={{ width: 12, height: 12, fill: '#fbbf24', color: '#fbbf24' }} />
-                        <span style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>{p.rating}</span>
+                    <div className="absolute bottom-4 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span className="text-white text-xs font-black">{p.rating}</span>
                     </div>
                 )}
             </div>
 
             {/* Body */}
-            <div style={{ padding: 20 }}>
-                <h3 style={{ fontWeight: 900, fontSize: 15, margin: '0 0 4px', color: 'var(--text-primary, white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary, rgba(255,255,255,0.6))', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <MapPin style={{ width: 13, height: 13, flexShrink: 0 }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.city}{p.address ? `, ${p.address}` : ''}</span>
+            <div className="p-6">
+                <h3 className="text-lg font-black text-foreground truncate mb-1">{p.name}</h3>
+                <p className="text-sm text-muted-foreground/60 flex items-center gap-1.5 mb-5">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                    <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border-color, rgba(255,255,255,0.06))', color: 'var(--text-secondary, rgba(255,255,255,0.5))' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Bed style={{ width: 15, height: 15, color }} />{p.bedrooms || 0} Bed</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Bath style={{ width: 15, height: 15, color: '#10b981' }} />{p.bathrooms || 0} Bath</span>
-                    {p.squareFeet && <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Square style={{ width: 15, height: 15, color: '#f59e0b' }} />{p.squareFeet} sqft</span>}
+                <div className="flex items-center gap-8 text-xs font-bold mb-5 pb-5 border-b border-border/60 text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bedrooms || 0} Bed</span>
+                    <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
+                    {p.squareFeet && <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet} sqft</span>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: `linear-gradient(135deg, ${color}, ${color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 900 }}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
                             {p.manager?.firstName?.[0] || 'M'}
                         </div>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted, rgba(255,255,255,0.4))' }}>{p.manager?.firstName || 'Manager'}</span>
+                        <span className="text-[11px] font-black text-muted-foreground/60 tracking-wider uppercase">{p.manager?.firstName || 'Manager'}</span>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 900, color, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        View <ArrowRight style={{ width: 14, height: 14 }} />
+                    <span className="text-sm font-black flex items-center gap-1.5 transition-colors group-hover:bg-primary group-hover:text-white px-3 py-1.5 rounded-xl" style={{ color }}>
+                        View <ArrowRight className="w-4 h-4" />
                     </span>
                 </div>
             </div>
@@ -218,7 +205,7 @@ export default function BrowsePropertiesPage() {
     const [search, setSearch] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState('createdAt');
-    const [filters, setFilters] = useState({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '' });
+    const [filters, setFilters] = useState({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '', country: '' });
     const [savedIds, setSavedIds] = useState(new Set());
     const [compareList, setCompareList] = useState([]);
     const [mapBounds, setMapBounds] = useState(null);
@@ -234,11 +221,12 @@ export default function BrowsePropertiesPage() {
                 sortBy,
                 ...filters,
                 search,
+                ...overrides,
             };
             // Remove empty strings
             Object.keys(params).forEach(k => { if (params[k] === '') delete params[k]; });
             const res = await propertyService.getAllProperties(params);
-            const list = res?.data || [];
+            const list = res?.data?.data || res?.data || [];
             setProperties(Array.isArray(list) ? list : []);
 
             // Initialize saved IDs from the fetched list
@@ -298,16 +286,7 @@ export default function BrowsePropertiesPage() {
         borderRadius: 20,
         padding: 16,
     };
-    const inputStyle = {
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 14,
-        padding: '10px 14px',
-        color: 'white',
-        fontSize: 13,
-        outline: 'none',
-        width: '100%',
-    };
+    const inputClass = "bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/30";
 
     return (
         <>
@@ -317,57 +296,55 @@ export default function BrowsePropertiesPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
                 {/* ══ TOP BAR ══ */}
-                <div style={{ ...cardStyle, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+                <div className="p-4 rounded-[1.75rem] bg-card border border-border shadow-sm flex flex-wrap items-center gap-4 transition-colors">
                     {/* Title */}
-                    <div style={{ flex: '1 1 200px' }}>
-                        <h1 style={{ fontWeight: 900, fontSize: 22, margin: 0, color: 'white' }}>🏡 Find a Home</h1>
-                        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '2px 0 0' }}>
-                            {loading ? 'Searching…' : `${properties.length} properties`}
+                    <div className="flex-[2] min-w-[200px]">
+                        <h1 className="text-2xl font-black text-foreground mb-0.5 flex items-center gap-2">🏡 Find a Home</h1>
+                        <p className="text-xs text-muted-foreground/60 font-medium">
+                            {loading ? 'Searching…' : `${properties.length} properties available`}
                         </p>
                     </div>
 
                     {/* Search */}
-                    <div style={{ position: 'relative', flex: '1 1 240px' }}>
-                        <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'rgba(255,255,255,0.3)' }} />
+                    <div className="relative flex-[1.5] min-w-[200px]">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
                         <input
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
-                            placeholder="Search city, name…"
-                            style={{ ...inputStyle, paddingLeft: 38 }}
+                            placeholder="Search name, city, locality…"
+                            className={cn(inputClass, "pl-11")}
                         />
                     </div>
 
                     {/* Sort */}
-                    <div style={{ position: 'relative' }}>
+                    <div className="relative">
                         <select value={sortBy} onChange={e => { setSortBy(e.target.value); fetchProperties({ sortBy: e.target.value }); }}
-                            style={{ ...inputStyle, paddingRight: 32, appearance: 'none', cursor: 'pointer', width: 'auto' }}>
-                            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#1e293b' }}>{o.label}</option>)}
+                            className={cn(inputClass, "pr-10 appearance-none cursor-pointer w-auto font-bold")}>
+                            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-card">{o.label}</option>)}
                         </select>
-                        <ChevronDown style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} />
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none" />
                     </div>
 
                     {/* Filter toggle */}
-                    <button onClick={() => setShowFilters(v => !v)} style={{
-                        ...inputStyle, width: 'auto', padding: '10px 14px', cursor: 'pointer',
-                        position: 'relative', display: 'flex', alignItems: 'center', gap: 6,
-                        border: showFilters ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.1)',
-                        color: showFilters ? '#a78bfa' : 'rgba(255,255,255,0.6)',
-                    }}>
-                        <SlidersHorizontal style={{ width: 15, height: 15 }} />
+                    <button onClick={() => setShowFilters(v => !v)}
+                        className={cn(
+                            inputClass, "w-auto px-4 flex items-center gap-2 font-bold cursor-pointer",
+                            showFilters ? "border-primary text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted"
+                        )}>
+                        <SlidersHorizontal className="w-4 h-4" />
                         Filters
-                        {activeFilterCount > 0 && <span style={{ background: '#6366f1', color: 'white', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilterCount}</span>}
+                        {activeFilterCount > 0 && <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black">{activeFilterCount}</span>}
                     </button>
 
                     {/* Map/Grid toggle */}
-                    <div style={{ display: 'flex', borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div className="flex bg-muted p-1.5 rounded-2xl border border-border shadow-inner">
                         {[{ mode: 'grid', icon: LayoutGrid, label: 'Grid' }, { mode: 'map', icon: Map, label: 'Map' }].map(({ mode, icon: Icon, label }) => (
-                            <button key={mode} onClick={() => setViewMode(mode)} style={{
-                                padding: '9px 16px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700,
-                                background: viewMode === mode ? '#6366f1' : 'rgba(255,255,255,0.04)',
-                                color: viewMode === mode ? 'white' : 'rgba(255,255,255,0.5)',
-                                transition: 'all 0.2s',
-                            }}>
-                                <Icon style={{ width: 14, height: 14 }} />{label}
+                            <button key={mode} onClick={() => setViewMode(mode)}
+                                className={cn(
+                                    "px-4 py-1.5 rounded-xl border-none cursor-pointer flex items-center gap-2 text-xs font-black transition-all",
+                                    viewMode === mode ? "bg-card text-foreground shadow-md" : "text-muted-foreground/60 hover:text-muted-foreground"
+                                )}>
+                                <Icon className="w-3.5 h-3.5" />{label}
                             </button>
                         ))}
                     </div>
@@ -377,45 +354,46 @@ export default function BrowsePropertiesPage() {
                 <AnimatePresence>
                     {showFilters && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                            style={{ overflow: 'hidden' }}>
-                            <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                            className="overflow-hidden">
+                            <div className="p-5 rounded-[1.75rem] bg-card border border-border mt-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 transition-colors">
                                 {[
+                                    { key: 'country', label: 'Country', type: 'text', placeholder: 'India' },
                                     { key: 'city', label: 'City', type: 'text', placeholder: 'Bangalore' },
                                     { key: 'minPrice', label: 'Min Price (₹)', type: 'number', placeholder: '0' },
                                     { key: 'maxPrice', label: 'Max Price (₹)', type: 'number', placeholder: '50000' },
                                     { key: 'bedrooms', label: 'Bedrooms', type: 'number', placeholder: '2' },
                                 ].map(f => (
                                     <div key={f.key}>
-                                        <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>{f.label}</label>
+                                        <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">{f.label}</label>
                                         <input type={f.type} value={filters[f.key]} placeholder={f.placeholder}
                                             onChange={e => setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
-                                            style={{ ...inputStyle, padding: '8px 12px', fontSize: 12 }} />
+                                            className={cn(inputClass, "h-10 text-xs px-3")} />
                                     </div>
                                 ))}
                                 <div>
-                                    <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Property Type</label>
+                                    <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">Type</label>
                                     <select value={filters.type} onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                                        style={{ ...inputStyle, padding: '8px 12px', fontSize: 12, appearance: 'none', cursor: 'pointer' }}>
-                                        <option value="" style={{ background: '#1e293b' }}>All Types</option>
-                                        {['apartment', 'house', 'commercial', 'land'].map(t => <option key={t} value={t} style={{ background: '#1e293b' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                                        className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}>
+                                        <option value="" className="bg-card">All Types</option>
+                                        {['apartment', 'house', 'commercial', 'land'].map(t => <option key={t} value={t} className="bg-card">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Furnished</label>
+                                <div className="md:col-span-2 lg:col-span-1">
+                                    <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">Furnished</label>
                                     <select value={filters.furnishing} onChange={e => setFilters(prev => ({ ...prev, furnishing: e.target.value }))}
-                                        style={{ ...inputStyle, padding: '8px 12px', fontSize: 12, appearance: 'none', cursor: 'pointer' }}>
-                                        <option value="" style={{ background: '#1e293b' }}>Any</option>
-                                        {['furnished', 'semi-furnished', 'unfurnished'].map(t => <option key={t} value={t} style={{ background: '#1e293b' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                                        className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}>
+                                        <option value="" className="bg-card">Any</option>
+                                        {['furnished', 'semi-furnished', 'unfurnished'].map(t => <option key={t} value={t} className="bg-card">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                                     </select>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                                    <button onClick={() => { setFilters({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '' }); fetchProperties({}); }}
-                                        style={{ flex: 1, padding: '9px', borderRadius: 12, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#f87171', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                                <div className="col-span-2 lg:col-span-7 mt-2 flex items-center justify-end gap-3 pt-3 border-t border-border/50">
+                                    <button onClick={() => { setFilters({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '', country: '' }); fetchProperties({}); }}
+                                        className="h-10 px-6 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-500 font-black text-xs uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">
                                         Reset
                                     </button>
                                     <button onClick={() => fetchProperties()}
-                                        style={{ flex: 1, padding: '9px', borderRadius: 12, border: 'none', background: '#6366f1', color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                                        Apply
+                                        className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+                                        Apply Filters
                                     </button>
                                 </div>
                             </div>
@@ -425,15 +403,15 @@ export default function BrowsePropertiesPage() {
 
                 {/* ══ GRID VIEW ══ */}
                 {viewMode === 'grid' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         {loading
                             ? Array(6).fill(0).map((_, i) => <SkeletonCard key={i} />)
                             : properties.length === 0
                                 ? (
-                                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '80px 0', color: 'rgba(255,255,255,0.3)' }}>
-                                        <div style={{ fontSize: 56, marginBottom: 16 }}>🏠</div>
-                                        <p style={{ fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.6)', margin: 0 }}>No properties found</p>
-                                        <p style={{ fontSize: 13, marginTop: 8 }}>Try adjusting your filters or switching to Map view</p>
+                                    <div className="col-span-full py-20 flex flex-col items-center justify-center bg-card border border-dashed border-border rounded-[2.5rem]">
+                                        <div className="text-6xl mb-4 grayscale opacity-40">🏠</div>
+                                        <p className="text-xl font-black text-foreground">No properties found</p>
+                                        <p className="text-muted-foreground mt-2 max-w-xs text-center">Try adjusting your filters or search terms to find what you're looking for.</p>
                                     </div>
                                 )
                                 : properties.map((p, i) => (
@@ -451,21 +429,21 @@ export default function BrowsePropertiesPage() {
 
                 {/* ══ MAP VIEW ══  */}
                 {viewMode === 'map' && (
-                    <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 220px)', minHeight: 520 }}>
+                    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-220px)] min-h-[520px]">
                         {/* Map panel */}
-                        <div style={{ flex: '1 1 60%', minWidth: 0, borderRadius: 20, overflow: 'hidden' }}>
+                        <div className="flex-1 lg:flex-[2.5] rounded-[2.5rem] overflow-hidden border border-border shadow-inner bg-muted transition-colors relative">
                             <MapErrorBoundary>
                                 <Suspense fallback={
-                                    <div style={{ height: '100%', minHeight: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: 'rgba(99,102,241,0.05)', borderRadius: 20, border: '1px solid rgba(99,102,241,0.15)' }}>
-                                        <RefreshCw style={{ width: 32, height: 32, color: '#6366f1', animation: 'spin 1s linear infinite' }} />
-                                        <p style={{ color: '#6366f1', fontWeight: 700, margin: 0 }}>Loading map…</p>
-                                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                                        <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                                        <p className="text-primary font-black text-xs uppercase tracking-widest">Warping to location…</p>
                                     </div>
                                 }>
                                     <InteractivePropertyMap
                                         height="100%"
                                         properties={properties}
                                         loading={loading}
+                                        country={filters.country}
                                         onBoundsChange={handleMapBoundsChange}
                                     />
                                 </Suspense>
@@ -473,17 +451,19 @@ export default function BrowsePropertiesPage() {
                         </div>
 
                         {/* Results list */}
-                        <div style={{ flex: '0 0 320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: 0, padding: '2px 4px', flexShrink: 0 }}>
-                                {loading ? '⏳ Searching…' : `${properties.length} results in area`}
-                            </p>
+                        <div className="lg:w-[360px] flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                            <div className="sticky top-0 bg-transparent py-2 z-10">
+                                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 px-2">
+                                    {loading ? '⏳ Searching…' : `${properties.length} results in area`}
+                                </p>
+                            </div>
                             {loading
                                 ? Array(5).fill(0).map((_, i) => <SkeletonCard key={i} compact />)
                                 : properties.length === 0
-                                    ? <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
-                                        <div style={{ fontSize: 36, marginBottom: 12 }}>🗺️</div>
-                                        <p style={{ fontWeight: 700, color: 'rgba(255,255,255,0.5)', margin: 0 }}>Pan the map to search</p>
-                                        <p style={{ fontSize: 12, marginTop: 6 }}>Click "Search this area" after moving the map</p>
+                                    ? <div className="p-10 flex flex-col items-center justify-center text-center bg-card/50 border border-dashed border-border rounded-[2rem] mt-4">
+                                        <div className="text-4xl mb-3 opacity-20">🗺️</div>
+                                        <p className="font-black text-foreground text-sm">Pan to search area</p>
+                                        <p className="text-[10px] text-muted-foreground/50 mt-2 uppercase tracking-widest leading-relaxed">Zoom in or move map <br /> to find listings</p>
                                     </div>
                                     : properties.map(p => (
                                         <CompactCard key={p._id} p={p}
@@ -503,22 +483,18 @@ export default function BrowsePropertiesPage() {
                 <AnimatePresence>
                     {compareList.length > 0 && (
                         <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
-                            style={{
-                                position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 999,
-                                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderRadius: 20,
-                                background: '#6366f1', boxShadow: '0 8px 32px rgba(99,102,241,0.5)'
-                            }}>
-                            <Scale style={{ width: 18, height: 18, color: 'white', flexShrink: 0 }} />
-                            <span style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>
+                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 px-6 py-3.5 rounded-[1.75rem] bg-primary shadow-2xl shadow-primary/40 border border-white/20">
+                            <Scale className="w-5 h-5 text-white flex-shrink-0" />
+                            <span className="text-white font-black text-sm whitespace-nowrap">
                                 {compareList.length} propert{compareList.length > 1 ? 'ies' : 'y'} selected
                             </span>
                             <button onClick={() => navigate('/compare', { state: { compareList } })}
-                                style={{ padding: '6px 16px', borderRadius: 12, background: 'white', color: '#6366f1', fontWeight: 900, fontSize: 13, border: 'none', cursor: 'pointer' }}>
-                                Compare →
+                                className="px-5 py-2 rounded-xl bg-white text-primary font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md">
+                                Compare Now →
                             </button>
                             <button onClick={() => setCompareList([])}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: 4 }}>
-                                <X style={{ width: 16, height: 16 }} />
+                                className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                                <X className="w-4 h-4" />
                             </button>
                         </motion.div>
                     )}

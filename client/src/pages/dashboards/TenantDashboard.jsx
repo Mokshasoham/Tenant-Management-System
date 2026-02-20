@@ -9,11 +9,16 @@ import {
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 
+const getStatusStyle = (status) => ({
+    active: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    expired: 'text-rose-500 dark:text-rose-400 bg-rose-500/10 border-rose-500/20',
+    pending: 'text-amber-500 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+})[status] || 'text-muted-foreground bg-muted border-border';
 const STATUS_COLOR = {
-    paid: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    pending: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-    overdue: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-    partial: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    paid: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400',
+    pending: 'text-amber-600 bg-amber-500/10 border-amber-500/20 dark:text-amber-400',
+    overdue: 'text-rose-600 bg-rose-500/10 border-rose-500/20 dark:text-rose-400',
+    partial: 'text-blue-600 bg-blue-500/10 border-blue-500/20 dark:text-blue-400',
 };
 
 const STATUS_ICON = {
@@ -36,16 +41,16 @@ function LeaseProgress({ start, end }) {
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-white/40">{new Date(start).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-                <span className="text-emerald-400">{pct}% complete</span>
-                <span className="text-white/40">{new Date(end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                <span className="text-muted-foreground/60">{new Date(start).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                <span className="text-emerald-500 dark:text-emerald-400">{pct}% complete</span>
+                <span className="text-muted-foreground/60">{new Date(end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
             </div>
-            <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <motion.div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
                     initial={{ width: 0 }} animate={{ width: `${pct}%` }}
                     transition={{ delay: 0.5, duration: 1.2, ease: 'easeOut' }} />
             </div>
-            <p className="text-[10px] text-white/30 text-right">{monthsLeft} month{monthsLeft !== 1 ? 's' : ''} remaining</p>
+            <p className="text-[10px] text-muted-foreground/40 text-right">{monthsLeft} month{monthsLeft !== 1 ? 's' : ''} remaining</p>
         </div>
     );
 }
@@ -56,22 +61,43 @@ function PaymentCountdown({ dueDate, amount }) {
     const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
     const isOverdue = diff < 0;
 
+    const size = 100;
+    const RADIUS = 40;
+    const circumference = 2 * Math.PI * RADIUS;
+    const percentage = Math.max(0, Math.min(100, Math.round((days / 30) * 100))); // Assuming 30 days for a month cycle
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+    const label = isOverdue ? 'Overdue' : 'Days Left';
+
     return (
         <div className="flex flex-col items-center gap-3">
             <div className={cn('text-center px-5 py-3 rounded-2xl border', isOverdue
                 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20')}>
-                <p className={cn('text-5xl font-black tabular-nums', isOverdue ? 'text-rose-400' : 'text-white')}>
+                <p className={cn('text-5xl font-black tabular-nums', isOverdue ? 'text-rose-400' : 'text-emerald-600 dark:text-white')}>
                     {isOverdue ? '!' : String(days).padStart(2, '0')}
                 </p>
                 <p className={cn('text-[9px] font-black uppercase tracking-widest mt-1', isOverdue ? 'text-rose-400' : 'text-emerald-300/60')}>
                     {isOverdue ? 'Overdue' : 'Days Left'}
                 </p>
             </div>
-            <p className="text-xs text-white/30">Due {due.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-            <div className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-center">
-                <p className="text-2xl font-black text-white">₹{(amount || 0).toLocaleString('en-IN')}</p>
-                <p className="text-[10px] text-white/30 font-bold uppercase tracking-wider mt-0.5">Amount Due</p>
+            <p className="text-xs text-muted-foreground/60">Due {due.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <div className="relative w-full p-3 rounded-xl bg-card border border-border text-center overflow-hidden">
+                <p className="text-2xl font-black text-foreground">₹{(amount || 0).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-wider mt-0.5">Amount Due</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-black text-foreground">{percentage}%</span>
+                    <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{label}</span>
+                </div>
             </div>
+            <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
+                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="10" />
+                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor"
+                    className={cn('transition-all duration-500', isOverdue ? 'text-rose-500' : 'text-emerald-500')}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                />
+            </svg>
         </div>
     );
 }
@@ -121,7 +147,7 @@ export default function TenantDashboard({ user, navigate }) {
             <div className="flex items-center justify-center h-64">
                 <div className="text-center space-y-3">
                     <div className="w-12 h-12 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin mx-auto" />
-                    <p className="text-white/30 text-sm">Loading your dashboard…</p>
+                    <p className="text-muted-foreground/60 text-sm">Loading your dashboard…</p>
                 </div>
             </div>
         );
@@ -199,11 +225,18 @@ export default function TenantDashboard({ user, navigate }) {
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className={cn("text-[9px] font-black px-2 py-1 rounded-full border uppercase tracking-widest",
-                                            b.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                                                b.status === 'rejected' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400')}>
-                                            {b.status}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            {b.totalAmount === 0 && (
+                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 uppercase tracking-tighter">
+                                                    FREE
+                                                </span>
+                                            )}
+                                            <span className={cn("text-[9px] font-black px-2 py-1 rounded-full border uppercase tracking-widest",
+                                                b.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                                    b.status === 'rejected' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400')}>
+                                                {b.status}
+                                            </span>
+                                        </div>
                                         <p className="text-[9px] text-white/20 mt-1 font-bold">{new Date(b.createdAt).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -226,8 +259,14 @@ export default function TenantDashboard({ user, navigate }) {
                 /* Lease + Countdown Row */
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Lease Card */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                        className="lg:col-span-2 rounded-2xl border border-emerald-500/15 bg-gradient-to-br from-emerald-900/20 via-teal-900/10 to-transparent p-5">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.5 }}
+                        className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 relative overflow-hidden group"
+                    >
+                        {/* Interior Glow */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-600/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <div className="flex items-center gap-2 mb-1.5">
@@ -236,14 +275,16 @@ export default function TenantDashboard({ user, navigate }) {
                                         {lease.status === 'active' ? 'Active Lease' : 'Pending Lease'} • #{lease.leaseNumber || '—'}
                                     </span>
                                 </div>
-                                <h2 className="text-2xl font-black text-white">{lease.property?.name || 'Your Property'}</h2>
-                                <p className="text-white/40 text-sm flex items-center gap-1.5 mt-0.5">
-                                    <Home className="w-3.5 h-3.5" /> {lease.property?.address || '—'}
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">Current Residence</p>
+                                <h2 className="text-2xl font-black text-foreground">{lease?.property?.name || 'Not Assigned'}</h2>
+                                <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                    {lease?.property?.address || 'Property details will appear once assigned'}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Monthly Rent</p>
-                                <p className="text-3xl font-black text-emerald-400">₹{(lease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">Monthly Rent</p>
+                                <p className="text-3xl font-black text-emerald-500 dark:text-emerald-400">₹{(lease.rentAmount || 0).toLocaleString('en-IN')}</p>
                             </div>
                         </div>
                         <LeaseProgress start={lease.startDate} end={lease.endDate} />

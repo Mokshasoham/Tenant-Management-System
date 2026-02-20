@@ -1,4 +1,4 @@
-import { body, validationResult } from 'express-validator';
+import { body, query, validationResult } from 'express-validator';
 
 export const validationMiddleware = (req, res, next) => {
   const errors = validationResult(req);
@@ -7,7 +7,7 @@ export const validationMiddleware = (req, res, next) => {
       success: false,
       message: 'Validation failed',
       errors: errors.array().map(err => ({
-        field: err.param,
+        field: err.path || err.param,
         message: err.msg,
       })),
     });
@@ -89,10 +89,10 @@ export const validatePropertyCreation = [
 ];
 
 export const validatePaginationQuery = [
-  body('page')
+  query('page')
     .optional()
     .isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-  body('limit')
+  query('limit')
     .optional()
     .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
 ];

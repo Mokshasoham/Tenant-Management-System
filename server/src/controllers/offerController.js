@@ -35,7 +35,7 @@ export const createOffer = asyncHandler(async (req, res) => {
         sender: req.user.userId,
         title: 'New Rent Negotiation Offer',
         message: `A tenant has offered ₹${offeredRent.toLocaleString('en-IN')} for ${property.name} (original: ₹${property.rentAmount.toLocaleString('en-IN')}).`,
-        type: 'payment',
+        type: 'booking',
         link: `/properties/${propertyId}`,
     });
 
@@ -93,7 +93,7 @@ export const respondToOffer = asyncHandler(async (req, res) => {
         sender: req.user.userId,
         title: `Offer ${action === 'counter' ? 'Countered' : action === 'accept' ? 'Accepted' : 'Rejected'}`,
         message: msgs[action],
-        type: action === 'accept' ? 'success' : action === 'counter' ? 'payment' : 'alert',
+        type: action === 'accept' ? 'success' : action === 'counter' ? 'booking' : 'alert',
         link: `/properties/${offer.property?._id}`,
     });
 

@@ -1,6 +1,9 @@
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import Tenant from '../models/Tenant.js';
+import Lease from '../models/Lease.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
@@ -107,7 +110,7 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         sender: booking.user,
         title: 'New Booking Request — Payment Received',
         message: `Payment held in escrow. Please review and approve/reject the booking.`,
-        type: 'payment',
+        type: 'booking',
         link: `/bookings/${booking._id}`,
     });
 
@@ -115,37 +118,110 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
 });
 
 // PUT /api/bookings/:id/approve
-export const approveBooking = asyncHandler(async (req, res) => {
-    const booking = await Booking.findById(req.params.id).populate('property');
-    if (!booking) throw new AppError('Booking not found', 404);
+export const approveBooking = asyncHandler(async (req, res, next) => {
+    try {
+        console.log(`[Approve] Starting approval for booking ${req.params.id}`);
+        const booking = await Booking.findById(req.params.id).populate('property');
+        if (!booking) throw new AppError('Booking not found', 404);
 
-    if (booking.manager.toString() !== req.user.userId && req.user.role !== 'admin') {
-        throw new AppError('Not authorized', 403);
+        if (booking.manager.toString() !== req.user.userId && req.user.role !== 'admin') {
+            throw new AppError('Not authorized', 403);
+        }
+
+        // ─── NEW LOGIC: Make User a Tenant & Create Lease ───
+
+        // 1. Check/Create Tenant
+        console.log(`[Approve] Fetching user ${booking.user}`);
+        const user = await User.findById(booking.user._id || booking.user);
+        if (!user) throw new AppError('User not found', 404);
+
+        const managerId = booking.manager || (booking.property ? booking.property.owner : null);
+        if (!managerId) throw new AppError('Manager context missing', 400);
+
+        let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId });
+        if (!tenant) {
+            console.log(`[Approve] Creating new tenant for ${user.email}`);
+            tenant = await Tenant.create({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                phone: user.phone || 'N/A',
+                address: 'Update Address', // Placeholder
+                managedBy: managerId,
+                status: 'active',
+            });
+        } else {
+            console.log(`[Approve] Found existing tenant ${tenant._id}`);
+        }
+
+        // 2. Create Lease
+        console.log(`[Approve] Creating lease for property ${booking.property._id}`);
+        // Generate lease number explicitly to avoid validation errors
+        const leaseNumber = `LEASE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+        const lease = await Lease.create({
+            leaseNumber,
+            property: booking.property._id,
+            tenant: tenant._id,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
+            depositAmount: booking.depositAmount || 0,
+            status: 'active',
+            createdBy: managerId,
+            terms: 'Generated from booking approval',
+            utilities: {
+                water: true, electricity: true, gas: false, internet: false
+            }
+        });
+
+        // 3. Link Lease to Tenant & Property
+        console.log(`[Approve] Linking lease ${lease._id} to tenant`);
+        tenant.leases.push(lease._id);
+        await tenant.save();
+
+        booking.status = 'approved';
+        booking.escrowStatus = 'released';
+        booking.paymentStatus = 'paid';
+        addTimeline(booking, 'approved', 'Booking approved. Tenant & Lease created.');
+        addTimeline(booking, 'active', `Lease #${lease.leaseNumber} activated.`);
+        await booking.save();
+
+        // Mark dates as booked on property AND update currentTenant
+        console.log(`[Approve] Updating property status`);
+        await Property.updateOne(
+            { _id: booking.property._id },
+            {
+                $set: {
+                    status: 'occupied',
+                    currentTenant: tenant._id,
+                },
+                $addToSet: { leases: lease._id },
+            }
+        );
+        // Update the specific booked date entry status
+        await Property.updateOne(
+            { _id: booking.property._id, 'bookedDates.bookingId': booking._id },
+            { $set: { 'bookedDates.$.status': 'booked' } }
+        );
+
+        // Notify tenant
+        console.log(`[Approve] Sending notification`);
+        await Notification.create({
+            recipient: booking.user,
+            sender: req.user.userId,
+            title: '🎉 Booking Approved!',
+            message: `Your booking for ${booking.property?.name} is approved! You are now a tenant.`,
+            type: 'success',
+            link: `/my-lease`, // Redirect to lease
+        });
+
+        console.log(`[Approve] Success!`);
+        res.status(200).json({ success: true, data: booking });
+    } catch (error) {
+        console.error('[Approve Error]', error);
+        next(error);
     }
-
-    booking.status = 'approved';
-    booking.escrowStatus = 'released';
-    booking.paymentStatus = 'paid';
-    addTimeline(booking, 'approved', 'Booking approved. Escrow released to manager.');
-    await booking.save();
-
-    // Mark dates as booked on property
-    await Property.updateOne(
-        { _id: booking.property._id, 'bookedDates.bookingId': booking._id },
-        { $set: { 'bookedDates.$.status': 'booked', status: 'occupied' } }
-    );
-
-    // Notify tenant
-    await Notification.create({
-        recipient: booking.user,
-        sender: req.user.userId,
-        title: '🎉 Booking Approved!',
-        message: `Your booking for ${booking.property?.name} has been approved. Your rental agreement is now active.`,
-        type: 'success',
-        link: `/bookings/${booking._id}`,
-    });
-
-    res.status(200).json({ success: true, data: booking });
 });
 
 // PUT /api/bookings/:id/reject
@@ -192,29 +268,32 @@ export const requestBooking = asyncHandler(async (req, res) => {
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);
 
+    const isFree = property.bookingType === 'free';
+
     const booking = await Booking.create({
         user: req.user.userId,
         property: propertyId,
-        manager: property.owner || property.manager,
+        manager: property.manager || property.owner,
         startDate,
         endDate,
-        totalAmount,
-        paymentStatus: 'paid',
-        paymentReference,
+        totalAmount: isFree ? 0 : totalAmount,
+        paymentStatus: 'paid', // For free bookings, we consider it "paid" (no payment needed)
+        paymentReference: isFree ? 'FREE-BOOKING' : paymentReference,
         status: 'pending',
-        escrowStatus: 'held',
+        escrowStatus: isFree ? 'not_started' : 'held',
     });
 
     addTimeline(booking, 'request_sent');
-    addTimeline(booking, 'payment_done');
+    if (!isFree) addTimeline(booking, 'payment_done');
+
     await booking.save();
 
     await Notification.create({
-        recipient: property.owner || property.manager,
+        recipient: property.manager || property.owner,
         sender: req.user.userId,
-        title: 'New Booking Request',
-        message: `You have a new booking request for ${property.name}.`,
-        type: 'payment',
+        title: isFree ? 'New Demo Booking Request' : 'New Booking Request',
+        message: `You have a new ${isFree ? 'free/demo ' : ''}booking request for ${property.name}.`,
+        type: 'booking',
         link: `/bookings/${booking._id}`,
     });
 
@@ -240,7 +319,7 @@ export const getManagerBookings = asyncHandler(async (req, res) => {
 });
 
 // PUT /api/bookings/:id/status (legacy)
-export const updateBookingStatus = asyncHandler(async (req, res) => {
+export const updateBookingStatus = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { status, rejectionReason } = req.body;
 
@@ -251,8 +330,9 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         throw new AppError('Not authorized', 403);
     }
 
-    if (status === 'approved') return approveBooking({ ...req, params: { id } }, res);
-    if (status === 'rejected') return rejectBooking({ ...req, body: { rejectionReason } }, res);
+    // Pass next to the handlers
+    if (status === 'approved') return approveBooking({ ...req, params: { id } }, res, next);
+    if (status === 'rejected') return rejectBooking({ ...req, body: { rejectionReason } }, res, next);
 
     booking.status = status;
     await booking.save();

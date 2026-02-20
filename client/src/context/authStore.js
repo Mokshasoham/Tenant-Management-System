@@ -92,9 +92,9 @@ const useAuthStore = create((set) => ({
       set({ isLoading: false });
       return response;
     } catch (error) {
-      const errorMsg = error?.message || 'Failed to send reset email';
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to send reset email';
       set({ error: errorMsg, isLoading: false });
-      throw error;
+      throw new Error(errorMsg);
     }
   },
 
