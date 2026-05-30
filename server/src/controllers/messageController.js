@@ -7,23 +7,26 @@ export const getAvailableUsers = asyncHandler(async (req, res) => {
     const currentUser = req.user;
     let users = [];
 
-    if (currentUser.role === 'tenant') {
+    const userRole = currentUser.role;
+    const isTenant = userRole === 'tenant' || userRole === 'user';
+
+    if (isTenant) {
         // Tenants can message managers and admins
         users = await User.find(
             { role: { $in: ['manager', 'admin'] }, isActive: true },
-            'firstName lastName email role'
+            'firstName lastName email role avatar'
         );
-    } else if (currentUser.role === 'manager') {
+    } else if (userRole === 'manager') {
         // Managers can message tenants
         users = await User.find(
-            { role: 'tenant', isActive: true },
-            'firstName lastName email role'
+            { role: { $in: ['tenant', 'user'] }, isActive: true },
+            'firstName lastName email role avatar'
         );
-    } else if (currentUser.role === 'admin') {
+    } else if (userRole === 'admin') {
         // Admins can message everyone
         users = await User.find(
             { _id: { $ne: currentUser.userId }, isActive: true },
-            'firstName lastName email role'
+            'firstName lastName email role avatar'
         );
     }
 
@@ -116,5 +119,62 @@ export const markAsRead = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Messages marked as read',
+    });
+});
+
+export const deleteMessage = asyncHandler(async (req, res) => {
+    const { messageId } = req.params;
+    const userId = req.user.userId;
+
+    const message = await Message.findById(messageId);
+    if (!message) throw new AppError('Message not found', 404);
+
+    // Rule: System allows soft deletion for the user who requested it
+    // For simplicity, we flag it as deleted and track who deleted it.
+    // In a real multi-user chat, you might need a per-user deletion flag.
+    message.isDeleted = true;
+    message.deletedBy = userId;
+    await message.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Message deleted for you',
+    });
+});
+
+export const searchMessages = asyncHandler(async (req, res) => {
+    const { query } = req.query;
+    const userId = req.user.userId;
+
+    if (!query) throw new AppError('Search query is required', 400);
+
+    const messages = await Message.find({
+        $and: [
+            { $or: [{ sender: userId }, { receiver: userId }] },
+            { content: { $regex: query, $options: 'i' } },
+            { isDeleted: false }
+        ]
+    })
+    .sort({ createdAt: -1 })
+    .populate('sender receiver', 'firstName lastName avatar');
+
+    res.status(200).json({
+        success: true,
+        data: messages,
+    });
+});
+
+export const uploadAttachment = asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError('No file uploaded', 400);
+
+    const fileUrl = `/uploads/chat/${req.file.filename}`;
+    
+    res.status(200).json({
+        success: true,
+        data: {
+            url: fileUrl,
+            fileName: req.file.originalname,
+            fileType: req.file.mimetype
+        }
     });
 });

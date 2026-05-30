@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService, bookingService } from '../services/api';
+import { Helmet } from 'react-helmet-async';
 import {
     MapPin, IndianRupee, Bed, Bath, Square,
     ArrowLeft, Shield, CheckCircle2, Star,
     Calendar, User, Home, Building2, Zap,
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
-    ChevronRight, ArrowRight, Wallet, Hammer
+    ChevronRight, ArrowRight, Wallet, Hammer, Video
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import RazorpayPayment from '../components/RazorpayPayment';
@@ -36,6 +37,12 @@ export default function PropertyDetailsPage() {
     const [bookingLoading, setBookingLoading] = useState(false);
     const [showRazorpay, setShowRazorpay] = useState(false);
 
+    // Initialize date locks 1 month out by default
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const [endDate, setEndDate] = useState(nextMonth.toISOString().split('T')[0]);
+
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -44,12 +51,8 @@ export default function PropertyDetailsPage() {
                 setProperty(res.data);
 
                 // Fetch similar properties
-                const similarRes = await propertyService.getAllProperties({
-                    type: res.data.type,
-                    city: res.data.city,
-                    limit: 3
-                });
-                setSimilarProperties(similarRes.data.filter(p => p._id !== id));
+                const similarRes = await propertyService.getSimilarProperties(id);
+                setSimilarProperties(similarRes.data);
 
                 // Check for existing booking
                 try {
@@ -96,6 +99,17 @@ export default function PropertyDetailsPage() {
 
     return (
         <div className="space-y-8 pb-20">
+            <Helmet>
+                <title>{property.seo?.title || property.name} - Tenant Management</title>
+                <meta name="description" content={property.seo?.description || property.description?.substring(0, 160)} />
+                <meta name="keywords" content={property.seo?.keywords || property.tags?.join(', ')} />
+                {/* OpenGraph */}
+                <meta property="og:title" content={property.openGraph?.title || property.name} />
+                <meta property="og:description" content={property.openGraph?.description || property.description?.substring(0, 160)} />
+                <meta property="og:image" content={property.openGraph?.image || property.images?.[0]} />
+                <meta property="og:type" content="website" />
+            </Helmet>
+
             {/* Nav & Back */}
             <div className="flex items-center justify-between">
                 <button
@@ -147,7 +161,30 @@ export default function PropertyDetailsPage() {
                                         <img src={img} className="w-full h-full object-cover rounded-xl" alt="" />
                                     </button>
                                 ))}
+                                {property.virtualTourUrl && (
+                                    <a
+                                        href={property.virtualTourUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-24 h-24 rounded-2xl flex-shrink-0 border-2 border-border border-dashed flex flex-col items-center justify-center p-2 text-primary hover:bg-primary/5 transition-colors gap-1 shadow-sm"
+                                    >
+                                        <Video className="w-6 h-6" />
+                                        <span className="text-[9px] font-black uppercase text-center leading-tight">3D Tour</span>
+                                    </a>
+                                )}
                             </div>
+                        )}
+                        {/* Fallback if only 1 image but tour exists */}
+                        {(!property.images || property.images.length <= 1) && property.virtualTourUrl && (
+                             <a
+                                href={property.virtualTourUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-max px-4 py-2 mt-4 rounded-xl border-2 border-primary/20 bg-primary/5 flex items-center justify-center text-primary font-bold transition-colors gap-2 shadow-sm"
+                            >
+                                <Video className="w-4 h-4" />
+                                <span className="text-xs uppercase tracking-widest">View 3D Tour</span>
+                            </a>
                         )}
                     </div>
 
@@ -203,6 +240,21 @@ export default function PropertyDetailsPage() {
                                 {property.description || "This stunning property offers modern living in a prime location. Well-maintained with all essential amenities, it's perfect for those seeking comfort and style."}
                             </p>
                         </div>
+
+                        {/* Calendar Dates */}
+                        {property.bookedDates?.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-black text-foreground flex items-center gap-2"><Calendar className="w-5 h-5 text-primary"/> Availability Calendar</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {property.bookedDates.map((block, idx) => (
+                                        <div key={idx} className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 text-rose-500 text-xs font-bold flex flex-col gap-0.5">
+                                            <span className="text-[9px] uppercase tracking-widest opacity-60">Booked</span>
+                                            {new Date(block.startDate).toLocaleDateString()} - {new Date(block.endDate).toLocaleDateString()}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Amenities */}
                         <div className="space-y-4">
@@ -260,28 +312,50 @@ export default function PropertyDetailsPage() {
                             </div>
                         )}
 
+                        {/* Booking Schedule Selector */}
+                        <div className="flex gap-4">
+                            <div className="flex-1 space-y-1">
+                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                    style={{ colorScheme: 'dark' }}
+                                />
+                            </div>
+                            <div className="flex-1 space-y-1">
+                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    min={startDate}
+                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                    style={{ colorScheme: 'dark' }}
+                                />
+                            </div>
+                        </div>
+
                         <button
                             disabled={!!existingBooking || bookingLoading}
                             onClick={async () => {
-                                if (property.bookingType === 'free') {
-                                    setBookingLoading(true);
-                                    try {
-                                        await bookingService.requestBooking({
-                                            propertyId: id,
-                                            startDate: new Date().toISOString(),
-                                            endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-                                            paymentMethod: 'none',
-                                            paymentReference: 'FREE-BOOKING'
-                                        });
-                                        // Navigate to a success or status page
-                                        navigate('/dashboard');
-                                    } catch (err) {
-                                        alert('Failed to request booking. Please try again.');
-                                    } finally {
-                                        setBookingLoading(false);
-                                    }
-                                } else {
-                                    setShowRazorpay(true);
+                                setBookingLoading(true);
+                                try {
+                                    await bookingService.requestBooking({
+                                        propertyId: id,
+                                        startDate: new Date(startDate).toISOString(),
+                                        endDate: new Date(endDate).toISOString(),
+                                        totalAmount: property.rentAmount,
+                                        paymentReference: property.bookingType === 'free' ? 'FREE-BOOKING' : 'PENDING'
+                                    });
+                                    // Navigate to a success or status page
+                                    navigate('/dashboard');
+                                } catch (err) {
+                                    alert('Failed to request booking. Please try again.');
+                                } finally {
+                                    setBookingLoading(false);
                                 }
                             }}
                             className={cn(
@@ -392,17 +466,7 @@ export default function PropertyDetailsPage() {
                 </div>
             )}
 
-            {/* Razorpay Component */}
-            {showRazorpay && (
-                <RazorpayPayment
-                    property={property}
-                    onClose={() => setShowRazorpay(false)}
-                    onSuccess={() => {
-                        setShowRazorpay(false);
-                        navigate('/dashboard');
-                    }}
-                />
-            )}
+            {/* Razorpay Escrow Component decoupled to User Dashboard explicitly */}
         </div>
     );
 }

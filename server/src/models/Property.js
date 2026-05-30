@@ -7,6 +7,11 @@ const propertySchema = new mongoose.Schema(
       required: [true, 'Property name is required'],
       trim: true,
     },
+    slug: {
+      type: String,
+      unique: true,
+      index: true,
+    },
     address: {
       type: String,
       required: [true, 'Address is required'],
@@ -20,6 +25,10 @@ const propertySchema = new mongoose.Schema(
     location: {
       lat: { type: Number, default: 12.9716 },  // Default: Bangalore
       lng: { type: Number, default: 77.5946 },
+    },
+    geo: { // Formal 2dsphere index compatibility
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: [77.5946, 12.9716] } // [lng, lat]
     },
 
     type: {
@@ -54,6 +63,13 @@ const propertySchema = new mongoose.Schema(
     amenities: [String],
     images: [String],
     videos: [String],
+    media: [
+      {
+        url: String,
+        mediaType: { type: String, enum: ['image', 'video'] },
+        key: String // S3 Bucket Key
+      }
+    ],
     virtualTourUrl: String,
 
     // Availability calendar — array of booked date-ranges
@@ -99,6 +115,26 @@ const propertySchema = new mongoose.Schema(
       enum: ['paid', 'free'],
       default: 'paid',
     },
+    cancellationPolicy: {
+      type: String,
+      enum: ['flexible', 'moderate', 'strict'],
+      default: 'flexible',
+    },
+    publishStatus: {
+      type: String,
+      enum: ['draft', 'published', 'archived'],
+      default: 'published',
+    },
+    seo: {
+      title: String,
+      description: String,
+      keywords: String,
+    },
+    openGraph: {
+      title: String,
+      description: String,
+      image: String,
+    },
     description: String,
     notes: String,
     tags: [String],   // smart badges: 'Best Value', 'Family Choice', etc.
@@ -109,9 +145,34 @@ const propertySchema = new mongoose.Schema(
 propertySchema.index({ owner: 1 });
 propertySchema.index({ manager: 1 });
 propertySchema.index({ status: 1 });
+propertySchema.index({ publishStatus: 1 });
 propertySchema.index({ type: 1 });
 propertySchema.index({ 'location.lat': 1, 'location.lng': 1 });
+propertySchema.index({ geo: '2dsphere' });
 propertySchema.index({ rentAmount: 1 });
 propertySchema.index({ city: 1 });
+
+// Slug generation hook
+propertySchema.pre('save', function (next) {
+  if (this.isModified('name')) {
+    this.slug = this.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+      
+    if (this.isNew) {
+      this.slug += '-' + Math.random().toString(36).substring(2, 8);
+    }
+  }
+
+  // Auto-sync the geo coordinates if lat/lng are modified manually
+  if (this.isModified('location.lat') || this.isModified('location.lng')) {
+    this.geo.coordinates = [this.location.lng, this.location.lat];
+  }
+
+  next();
+});
 
 export default mongoose.model('Property', propertySchema);

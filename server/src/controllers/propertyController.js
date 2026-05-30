@@ -1,6 +1,8 @@
 import Property from '../models/Property.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import sharp from 'sharp';
+import { uploadBufferToStorage } from '../services/s3Service.js';
 
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
@@ -164,45 +166,11 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 
 export const createProperty = asyncHandler(async (req, res) => {
   const {
-    name,
-    address,
-    city,
-    state,
-    zipCode,
-    country,
-    type,
-    bedrooms,
-    bathrooms,
-    squareFeet,
-    rentAmount,
-    depositAmount,
-    amenities,
-    images,
-    manager,
-    description,
-    bookingType,
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl
   } = req.body;
 
   const property = await Property.create({
-    name,
-    address,
-    city,
-    state,
-    zipCode,
-    country,
-    type,
-    bedrooms,
-    bathrooms,
-    squareFeet,
-    rentAmount,
-    depositAmount,
-    amenities,
-    images,
-    owner: req.user.userId,
-    manager,
-    description,
-    status: 'available',
-    bookingType,
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: req.user.userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, seo, openGraph, virtualTourUrl
   });
 
   logger.info(`New property created: ${property.name}`);
@@ -216,7 +184,11 @@ export const createProperty = asyncHandler(async (req, res) => {
 
 export const updateProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const { manager, ...rest } = req.body;
+
+  // Use the spread payload but sanitize manager ID
+  const updateData = { ...rest };
+  if (manager) updateData.manager = manager;
 
   const property = await Property.findByIdAndUpdate(id, updateData, {
     new: true,
@@ -314,5 +286,104 @@ export const getPropertyStats = asyncHandler(async (req, res) => {
       maintenanceProperties,
       avgRent: avgRent[0]?.avgRent || 0,
     },
+  });
+});
+
+export const uploadPropertyMedia = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const property = await Property.findById(id);
+
+  if (!property) {
+    throw new AppError('Property not found', 404);
+  }
+
+  if (req.user.role !== 'admin' && property.owner.toString() !== req.user.userId && property.manager?.toString() !== req.user.userId) {
+    throw new AppError('Unauthorized to upload media for this property', 403);
+  }
+
+  if (!req.files || req.files.length === 0) {
+    throw new AppError('No files uploaded', 400);
+  }
+
+  const mediaUrls = [];
+
+  for (const file of req.files) {
+    let processedBuffer = file.buffer;
+    let mimeType = file.mimetype;
+    let filename = `property-${id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    let isVideo = file.mimetype.startsWith('video/');
+
+    if (!isVideo) {
+      processedBuffer = await sharp(file.buffer)
+        .resize({ width: 1920, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+      mimeType = 'image/webp';
+      filename += '.webp';
+    } else {
+      const ext = file.originalname.split('.').pop();
+      filename += `.${ext}`;
+    }
+
+    const uploadResult = await uploadBufferToStorage(processedBuffer, filename, mimeType);
+    
+    mediaUrls.push({
+      url: uploadResult.Location,
+      mediaType: isVideo ? 'video' : 'image',
+      key: uploadResult.Key
+    });
+  }
+
+  property.media = [...(property.media || []), ...mediaUrls];
+  await property.save();
+
+  logger.info(`Property media uploaded for: ${property.name}`);
+
+  res.status(200).json({
+    success: true,
+    message: 'Media uploaded successfully',
+    data: property.media,
+  });
+});
+
+export const getSimilarProperties = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const property = await Property.findById(id);
+
+  if (!property) {
+    throw new AppError('Property not found', 404);
+  }
+
+  const minPrice = property.rentAmount * 0.85;
+  const maxPrice = property.rentAmount * 1.15;
+
+  let geoFilter = {};
+  if (property.geo && property.geo.coordinates && property.geo.coordinates.length === 2) {
+      geoFilter = {
+        geo: {
+            $near: {
+                $geometry: { type: "Point", coordinates: property.geo.coordinates },
+                $maxDistance: 16093.4 // 10 miles in meters
+            }
+        }
+      };
+  } else {
+      // Fallback if geo coordinates aren't seeded properly
+      geoFilter = { city: property.city };
+  }
+
+  const similarProps = await Property.find({
+    _id: { $ne: property._id },
+    type: property.type,
+    status: 'available',
+    rentAmount: { $gte: minPrice, $lte: maxPrice },
+    ...geoFilter
+  })
+  .limit(4)
+  .populate('manager', 'firstName lastName');
+
+  res.status(200).json({
+    success: true,
+    data: similarProps,
   });
 });

@@ -1,11 +1,15 @@
 import express from 'express';
 import * as userController from '../controllers/userController.js';
 import { authenticate, authorize, adminOnly } from '../middleware/auth.js';
+import { uploadKYC } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
 // All user routes require authentication
 router.use(authenticate);
+
+// KYC upload
+router.post('/kyc', uploadKYC.array('documents', 5), userController.uploadKycDocuments);
 
 // Admin only routes
 router.get('/admin/all', adminOnly, userController.getAllUsers);

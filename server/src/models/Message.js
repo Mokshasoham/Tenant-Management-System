@@ -25,6 +25,25 @@ const messageSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Property',
         },
+        attachments: [
+            {
+                url: String,
+                fileType: String,
+                fileName: String,
+            }
+        ],
+        readAt: {
+            type: Date,
+            default: null,
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
+        deletedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        }
     },
     {
         timestamps: true,

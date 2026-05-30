@@ -5,8 +5,9 @@ import { messageService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     Send, Search, Plus, MessageSquare, ArrowLeft, MoreVertical,
-    Check, CheckCheck, Smile, Paperclip, Phone, Video, X
+    Check, CheckCheck, Smile, Paperclip, Phone, Video, X, Image as ImageIcon
 } from 'lucide-react';
+import { useChat } from '../context/ChatContext';
 import { cn } from '../utils/cn';
 
 const ROLE_COLORS = {
@@ -28,98 +29,93 @@ function Avatar({ name, role, size = 'md' }) {
 
 export default function MessagesPage() {
     const user = useAuthStore((state) => state.user);
-    if (!user) return null;
+    const { 
+        conversations: chatConversations, 
+        messages: chatMessages, 
+        activeChat, 
+        setActiveChat, 
+        typingUsers, 
+        onlineUsers,
+        availableUsers,
+        isLoading,
+        fetchConversations,
+        fetchAvailableUsers,
+        fetchMessages: loadChatMessages,
+        sendMessage: emitMessage,
+        sendTyping,
+        markAsRead: emitRead
+    } = useChat();
 
-    const role = user.role;
-    const myTheme = ROLE_COLORS[role] || ROLE_COLORS.tenant;
-    const userId = user._id || user.id;
-
-    const [conversations, setConversations] = useState([]);
-    const [availableUsers, setAvailableUsers] = useState([]);
-    const [selectedChat, setSelectedChat] = useState(null);
-    const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
     const [sendingMsg, setSendingMsg] = useState(false);
     const [showNewChat, setShowNewChat] = useState(false);
     const [search, setSearch] = useState('');
     const [mobileView, setMobileView] = useState('list'); // 'list' | 'chat'
+    const [attachments, setAttachments] = useState([]);
+    const fileInputRef = useRef(null);
     const messagesEndRef = useRef(null);
-    const pollRef = useRef(null);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    const fetchConversations = useCallback(async () => {
-        try {
-            const res = await messageService.getConversations();
-            setConversations(res.data.data || []);
-        } catch { }
-    }, []);
-
-    const fetchAvailableUsers = useCallback(async () => {
-        try {
-            const res = await messageService.getAvailableUsers();
-            setAvailableUsers(res.data.data || []);
-        } catch { }
-    }, []);
-
-    const fetchMessages = useCallback(async (otherId) => {
-        if (!otherId) return;
-        try {
-            const res = await messageService.getMessages(otherId);
-            setMessages(res.data.data || []);
-            scrollToBottom();
-            // Mark as read
-            await messageService.markAsRead(otherId).catch(() => { });
-        } catch { }
-    }, []);
-
+    const [msgSearchQuery, setMsgSearchQuery] = useState('');
+    const [showMsgSearch, setShowMsgSearch] = useState(false);
+    
     const location = useLocation();
 
-    useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            const [convRes, userRes] = await Promise.all([fetchConversations(), fetchAvailableUsers()]);
-            setLoading(false);
+    const role = user?.role;
+    const myTheme = ROLE_COLORS[role] || ROLE_COLORS.tenant;
+    const userId = user?._id || user?.id;
 
-            // Handle location state for pre-booking chat
-            if (location.state?.recipientId) {
-                const recipient = {
-                    _id: location.state.recipientId,
-                    firstName: location.state.recipientName?.split(' ')[0] || 'Manager',
-                    lastName: location.state.recipientName?.split(' ')[1] || '',
-                    role: 'manager'
-                };
-                handleSelectNewUser(recipient);
-                if (location.state.subject) {
-                    setNewMessage(`Hi, I'm interested in ${location.state.subject}. `);
-                }
+    useEffect(() => {
+        if (!user) return;
+        fetchConversations();
+        fetchAvailableUsers();
+        
+        if (location.state?.recipientId) {
+            const recipient = {
+                _id: location.state.recipientId,
+                firstName: location.state.recipientName?.split(' ')[0] || 'Manager',
+                lastName: location.state.recipientName?.split(' ')[1] || '',
+                role: 'manager'
+            };
+            handleSelectNewUser(recipient);
+            if (location.state.subject) {
+                setNewMessage(`Hi, I'm interested in ${location.state.subject}. `);
             }
-        };
-        init();
-    }, [location.state]);
+        }
+    }, [location.state, fetchAvailableUsers, fetchConversations, user]);
 
-    // Poll for new messages every 5s when a chat is selected
+
+
     useEffect(() => {
-        if (!selectedChat) return;
-        const otherId = selectedChat.user?._id || selectedChat.user?.id || selectedChat._id || selectedChat.id;
-        fetchMessages(otherId);
-        pollRef.current = setInterval(() => fetchMessages(otherId), 5000);
-        return () => clearInterval(pollRef.current);
-    }, [selectedChat, fetchMessages]);
+        if (!user || !activeChat) return;
+        const otherId = activeChat.user?._id || activeChat.user?.id || activeChat._id || activeChat.id;
+        loadChatMessages(otherId);
+    }, [activeChat, loadChatMessages, user]); // Removed chatMessages and emitRead
 
-    useEffect(() => { scrollToBottom(); }, [messages]);
+    useEffect(() => {
+        if (!user || !activeChat || !chatMessages.length) return;
+        const otherId = activeChat.user?._id || activeChat.user?.id || activeChat._id || activeChat.id;
+        
+        // Mark unread messages as read
+        const unreadIds = chatMessages
+            .filter(m => (m.receiver === userId || m.receiver?._id === userId) && !m.read)
+            .map(m => m._id);
+        if (unreadIds.length > 0) emitRead(otherId, unreadIds);
+    }, [chatMessages, activeChat, userId, emitRead, user]);
+
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatMessages]);
+
+    if (!user) return null;
 
     const handleSelectConversation = (conv) => {
-        setSelectedChat({ user: conv.user, lastMessage: conv.lastMessage });
+        setActiveChat(conv);
         setMobileView('chat');
     };
 
     const handleSelectNewUser = (newUser) => {
-        // Check if conversation already exists
-        const existing = conversations.find(c => {
+        const existing = chatConversations.find(c => {
             const cId = c.user?._id || c.user?.id;
             const nId = newUser._id || newUser.id;
             return cId === nId;
@@ -127,8 +123,7 @@ export default function MessagesPage() {
         if (existing) {
             handleSelectConversation(existing);
         } else {
-            setSelectedChat({ user: newUser, lastMessage: null });
-            setMessages([]);
+            setActiveChat({ user: newUser, _id: newUser._id });
             setMobileView('chat');
         }
         setShowNewChat(false);
@@ -136,44 +131,80 @@ export default function MessagesPage() {
 
     const handleSend = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat || sendingMsg) return;
+        if ((!newMessage.trim() && attachments.length === 0) || !activeChat || sendingMsg) return;
 
-        const receiverId = selectedChat.user?._id || selectedChat.user?.id;
+        const receiverId = activeChat.user?._id || activeChat.user?.id || activeChat._id;
         if (!receiverId) return;
 
-        const tempMsg = {
-            _id: Date.now().toString(),
-            sender: userId,
-            receiver: receiverId,
-            content: newMessage.trim(),
-            createdAt: new Date().toISOString(),
-            pending: true,
-        };
-
-        setMessages(prev => [...prev, tempMsg]);
-        setNewMessage('');
         setSendingMsg(true);
-
         try {
-            const res = await messageService.sendMessage({ receiverId, content: tempMsg.content });
-            setMessages(prev => prev.map(m => m._id === tempMsg._id ? res.data.data : m));
-            fetchConversations();
-        } catch {
-            setMessages(prev => prev.filter(m => m._id !== tempMsg._id));
-            setNewMessage(tempMsg.content);
+            await emitMessage(receiverId, newMessage.trim(), attachments);
+            setNewMessage('');
+            setAttachments([]);
+            sendTyping(receiverId, false);
+        } catch (err) {
+            console.error('Send error', err);
         } finally {
             setSendingMsg(false);
         }
     };
 
-    const filteredConversations = conversations.filter(c =>
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const tempId = Date.now();
+        setAttachments(prev => [...prev, { _tempId: tempId, fileName: file.name, fileType: file.type, url: URL.createObjectURL(file), uploading: true }]);
+
+        try {
+            const uploaded = await uploadFile(file);
+            setAttachments(prev => prev.map(a => a._tempId === tempId ? { ...uploaded, uploading: false } : a));
+        } catch (err) {
+            setAttachments(prev => prev.filter(a => a._tempId !== tempId));
+            alert('File upload failed');
+        } finally {
+            e.target.value = '';
+        }
+    };
+
+    const handleDeleteMessage = async (messageId) => {
+        if (!window.confirm('Delete this message?')) return;
+        try {
+            await messageService.deleteMessage(messageId);
+            // Local update is handled by the context's message listener if implemented, 
+            // or we can manually filter here if needed.
+        } catch (err) {
+            console.error('Delete error', err);
+        }
+    };
+
+    const handleSearch = async (val) => {
+        setSearch(val);
+        if (val.length > 2) {
+            try {
+                const res = await messageService.searchMessages(val);
+                // Handle search results UI (optional, could just filter local)
+            } catch {}
+        }
+    };
+
+    const onTyping = (e) => {
+        setNewMessage(e.target.value);
+        const receiverId = activeChat.user?._id || activeChat.user?.id || activeChat._id;
+        if (receiverId) {
+            sendTyping(receiverId, e.target.value.length > 0);
+        }
+    };
+
+    const filteredConversations = (chatConversations || []).filter(c =>
         search === '' ||
         `${c.user?.firstName} ${c.user?.lastName}`.toLowerCase().includes(search.toLowerCase())
     );
 
-    const filteredAvailable = availableUsers.filter(u =>
+    const filteredAvailable = (availableUsers || []).filter(u =>
         search === '' ||
-        `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase())
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase())
     );
 
     const formatTime = (dateStr) => {
@@ -185,8 +216,10 @@ export default function MessagesPage() {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    const chatUser = selectedChat?.user;
-    const chatUserId = chatUser?._id || chatUser?.id;
+    const chatUser = activeChat?.user;
+    const chatUserId = chatUser?._id || chatUser?.id || activeChat?._id;
+    const isChatUserOnline = onlineUsers[chatUserId];
+    const isOtherTyping = typingUsers[chatUserId];
 
     return (
         <div className="h-[calc(100vh-80px)] flex gap-0 rounded-2xl overflow-hidden border border-border shadow-sm transition-colors">
@@ -229,7 +262,7 @@ export default function MessagesPage() {
 
                         {/* Conversation List */}
                         <div className="flex-1 overflow-y-auto">
-                            {loading ? (
+                            {isLoading ? (
                                 <div className="space-y-2 p-3">
                                     {[...Array(5)].map((_, i) => (
                                         <div key={i} className="flex gap-3 p-3">
@@ -311,7 +344,7 @@ export default function MessagesPage() {
                 'flex-1 flex flex-col bg-background transition-colors',
                 mobileView === 'list' ? 'hidden lg:flex' : 'flex'
             )}>
-                {selectedChat ? (
+                {activeChat ? (
                     <>
                         {/* Chat Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-10">
@@ -328,13 +361,29 @@ export default function MessagesPage() {
                                     size="md"
                                 />
                                 <div>
-                                    <p className="text-sm font-black text-foreground">{chatUser?.firstName} {chatUser?.lastName}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-black text-foreground">{chatUser?.firstName} {chatUser?.lastName}</p>
+                                        {isChatUserOnline && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                    </div>
                                     <p className={cn('text-[10px] font-bold uppercase tracking-wider', myTheme.text)}>
-                                        {chatUser?.role}
+                                        {isOtherTyping ? (
+                                            <span className="flex items-center gap-1">
+                                                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }}>.</motion.span>
+                                                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}>.</motion.span>
+                                                <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}>.</motion.span>
+                                                typing
+                                            </span>
+                                        ) : (isChatUserOnline ? 'Online' : 'Offline')}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
+                                <button 
+                                    onClick={() => setShowMsgSearch(!showMsgSearch)}
+                                    className={cn('p-2 rounded-xl transition-all', showMsgSearch ? 'bg-primary/10 text-primary' : 'text-muted-foreground/30 hover:text-foreground hover:bg-muted')}
+                                >
+                                    <Search className="w-4 h-4" />
+                                </button>
                                 <button className="p-2 text-muted-foreground/30 hover:text-foreground hover:bg-muted rounded-xl transition-all">
                                     <Phone className="w-4 h-4" />
                                 </button>
@@ -344,17 +393,42 @@ export default function MessagesPage() {
                             </div>
                         </div>
 
+                        {showMsgSearch && (
+                            <motion.div 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                className="px-4 py-2 bg-muted/30 border-b border-border flex items-center gap-2"
+                            >
+                                <Search className="w-3.5 h-3.5 text-muted-foreground/40" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Find in chat..."
+                                    value={msgSearchQuery}
+                                    onChange={e => setMsgSearchQuery(e.target.value)}
+                                    className="bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/30 flex-1"
+                                    autoFocus
+                                />
+                                {msgSearchQuery && (
+                                    <button onClick={() => setMsgSearchQuery('')}>
+                                        <X className="w-3 h-3 text-muted-foreground/40" />
+                                    </button>
+                                )}
+                            </motion.div>
+                        )}
+
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                            {messages.length === 0 ? (
+                            {chatMessages.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full gap-3 opacity-20 grayscale">
                                     <Avatar name={`${chatUser?.firstName} ${chatUser?.lastName}`} role={chatUser?.role} size="lg" />
                                     <p className="text-foreground font-black text-sm uppercase tracking-widest">Start a conversation</p>
                                 </div>
                             ) : (
-                                messages.map((msg, i) => {
+                                chatMessages
+                                    .filter(m => !msgSearchQuery || m.content.toLowerCase().includes(msgSearchQuery.toLowerCase()))
+                                    .map((msg, i) => {
                                     const isOwn = (msg.sender === userId) || (msg.sender?._id === userId) || (msg.sender?.id === userId);
-                                    const showAvatar = !isOwn && (i === 0 || (messages[i - 1]?.sender !== msg.sender && messages[i - 1]?.sender?._id !== (msg.sender?._id || msg.sender)));
+                                    const showAvatar = !isOwn && (i === 0 || (chatMessages[i - 1]?.sender !== msg.sender && chatMessages[i - 1]?.sender?._id !== (msg.sender?._id || msg.sender)));
 
                                     return (
                                         <motion.div
@@ -377,13 +451,37 @@ export default function MessagesPage() {
                                                         : 'bg-muted text-foreground border border-border rounded-bl-[4px]'
                                                 )}>
                                                     {msg.content}
+                                                    {msg.attachments?.length > 0 && (
+                                                        <div className="mt-2 space-y-2">
+                                                            {msg.attachments.map((att, idx) => (
+                                                                <div key={idx} className="rounded-lg overflow-hidden border border-white/10">
+                                                                    {att.fileType?.startsWith('image/') ? (
+                                                                        <img src={att.url} alt={att.fileName} className="max-w-full h-auto" />
+                                                                    ) : (
+                                                                        <div className="p-2 flex items-center gap-2 bg-black/20">
+                                                                            <Paperclip className="w-4 h-4" />
+                                                                            <span className="text-[10px] truncate">{att.fileName}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-1 px-1">
                                                     <span className="text-[9px] text-muted-foreground/30 font-black">{formatTime(msg.createdAt)}</span>
                                                     {isOwn && (
-                                                        msg.pending
-                                                            ? <Check className="w-3 h-3 text-muted-foreground/20" />
-                                                            : <CheckCheck className="w-3 h-3 text-primary/60" />
+                                                        <div className="flex items-center gap-1">
+                                                            {msg.pending
+                                                                ? <Check className="w-3 h-3 text-muted-foreground/20" />
+                                                                : (msg.read ? <CheckCheck className="w-3 h-3 text-sky-500" /> : <CheckCheck className="w-3 h-3 text-muted-foreground/40" />)}
+                                                            <button 
+                                                                onClick={() => handleDeleteMessage(msg._id)}
+                                                                className="text-muted-foreground/20 hover:text-rose-500 transition-colors ml-1"
+                                                            >
+                                                                <X className="w-2.5 h-2.5" />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -393,6 +491,29 @@ export default function MessagesPage() {
                             )}
                             <div ref={messagesEndRef} />
                         </div>
+
+                        {/* Attachment Previews */}
+                        {attachments.length > 0 && (
+                            <div className="px-4 py-2 flex gap-2 overflow-x-auto bg-card/50">
+                                {attachments.map((att, idx) => (
+                                    <div key={idx} className="relative group flex-shrink-0">
+                                        {att.fileType?.startsWith('image/') ? (
+                                            <img src={att.url} alt="preview" className="w-12 h-12 rounded-lg object-cover border border-border" />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center border border-border">
+                                                <Paperclip className="w-5 h-5 opacity-40" />
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                            className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Message Input */}
                         <form
@@ -409,9 +530,22 @@ export default function MessagesPage() {
                                 <input
                                     type="text"
                                     value={newMessage}
-                                    onChange={e => setNewMessage(e.target.value)}
+                                    onChange={onTyping}
                                     placeholder="Type a message..."
                                     className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/30 font-medium"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-muted-foreground/40 hover:text-primary transition-colors"
+                                >
+                                    <Paperclip className="w-5 h-5" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    onChange={handleFileChange}
                                 />
                                 <motion.button
                                     type="submit"

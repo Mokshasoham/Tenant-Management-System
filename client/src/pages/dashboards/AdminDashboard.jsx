@@ -6,6 +6,7 @@ import {
     CheckCircle2, AlertCircle, Clock, MoreHorizontal, Wrench
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import AdminPayouts from './AdminPayouts';
 
 // Animated counter hook
 function useCounter(end, duration = 2000) {
@@ -114,6 +115,7 @@ function Sparkline({ data, color }) {
 }
 
 export default function AdminDashboard({ stats, loading }) {
+    const [view, setView] = useState('overview');
     const revenueData = [42, 58, 51, 73, 65, 89, 94, 78, 102, 88, 115, 98];
     const userGrowth = [12, 18, 15, 24, 20, 31, 28, 36, 33, 42, 38, 47];
 
@@ -178,171 +180,179 @@ export default function AdminDashboard({ stats, loading }) {
                 </div>
             </motion.div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {statCards.map((card) => (
-                    <StatCard key={card.title} {...card} />
-                ))}
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-fit">
+                <button
+                    onClick={() => setView('overview')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all",
+                        view === 'overview' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    OVERVIEW
+                </button>
+                <button
+                    onClick={() => setView('payouts')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all",
+                        view === 'payouts' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    PAYOUT REQUESTS
+                </button>
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Revenue Chart */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.5 }}
-                    className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
-                >
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Revenue</p>
-                            <p className="text-2xl font-black text-foreground">₹94,280 <span className="text-sm text-emerald-500 font-bold">↑ 18%</span></p>
-                        </div>
-                        <div className="p-2 rounded-xl bg-violet-500/20">
-                            <TrendingUp className="w-5 h-5 text-violet-400" />
-                        </div>
-                    </div>
-                    <Sparkline data={revenueData} color="var(--primary)" />
-                    <div className="flex gap-3 mt-3">
-                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                            <span key={m} className="flex-1 text-center text-[8px] text-muted-foreground/60 font-bold">{m.slice(0, 1)}</span>
+            {view === 'overview' ? (
+                <>
+                    {/* Stat Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {statCards.map((card) => (
+                            <StatCard key={card.title} {...card} />
                         ))}
                     </div>
-                </motion.div>
 
-                {/* Payment Distribution Donut */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
-                >
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Payment Status</p>
-                    <div className="flex flex-col items-center">
-                        <div className="relative">
-                            <DonutChart data={donutData} size={110} />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="text-center">
-                                    <p className="text-xl font-black text-foreground">65%</p>
-                                    <p className="text-[9px] text-muted-foreground font-bold">Paid</p>
+                    {/* Charts Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Revenue Chart */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4, duration: 0.5 }}
+                            className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Revenue</p>
+                                    <p className="text-2xl font-black text-foreground">₹94,280 <span className="text-sm text-emerald-500 font-bold">↑ 18%</span></p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-violet-500/20">
+                                    <TrendingUp className="w-5 h-5 text-violet-400" />
                                 </div>
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 mt-4 w-full">
-                            {donutData.map((d, i) => (
-                                <div key={i} className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                                    <span className="text-[10px] text-muted-foreground font-bold">{d.label}</span>
-                                    <span className="text-[10px] text-foreground font-black ml-auto">{d.value}%</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
+                            <Sparkline data={revenueData} color="var(--primary)" />
+                            <div className="flex gap-3 mt-3">
+                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                    <span key={m} className="flex-1 text-center text-[8px] text-muted-foreground/60 font-bold">{m.slice(0, 1)}</span>
+                                ))}
+                            </div>
+                        </motion.div>
 
-            {/* System Health + Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* System Health */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6, duration: 0.5 }}
-                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
-                >
-                    <div className="flex items-center gap-2 mb-5">
-                        <div className="p-2 rounded-xl bg-violet-500/10 active:bg-violet-500/20">
-                            <Cpu className="w-4 h-4 text-violet-500" />
-                        </div>
-                        <p className="text-sm font-black text-foreground">System Health</p>
-                    </div>
-                    <div className="space-y-4">
-                        {systemHealth.map((item, i) => (
-                            <div key={i}>
-                                <div className="flex justify-between items-center mb-1.5">
-                                    <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
-                                    <span className="text-xs font-black text-foreground">{item.value}%</span>
+                        {/* Payment Distribution Donut */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5, duration: 0.5 }}
+                            className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
+                        >
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Payment Status</p>
+                            <div className="flex flex-col items-center">
+                                <div className="relative">
+                                    <DonutChart data={donutData} size={110} />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <p className="text-xl font-black text-foreground">65%</p>
+                                            <p className="text-[9px] text-muted-foreground font-bold">Paid</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div className="grid grid-cols-2 gap-2 mt-4 w-full">
+                                    {donutData.map((d, i) => (
+                                        <div key={i} className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+                                            <span className="text-[10px] text-muted-foreground font-bold">{d.label}</span>
+                                            <span className="text-[10px] text-foreground font-black ml-auto">{d.value}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* System Health + Activity */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* System Health */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6, duration: 0.5 }}
+                            className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
+                        >
+                            <div className="flex items-center gap-2 mb-5">
+                                <div className="p-2 rounded-xl bg-violet-500/10 active:bg-violet-500/20">
+                                    <Cpu className="w-4 h-4 text-violet-500" />
+                                </div>
+                                <p className="text-sm font-black text-foreground">System Health</p>
+                            </div>
+                            <div className="space-y-4">
+                                {systemHealth.map((item, i) => (
+                                    <div key={i}>
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <span className="text-xs font-bold text-muted-foreground">{item.label}</span>
+                                            <span className="text-xs font-black text-foreground">{item.value}%</span>
+                                        </div>
+                                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                            <motion.div
+                                                className={cn('h-full rounded-full', item.color)}
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${item.value}%` }}
+                                                transition={{ delay: 0.8 + i * 0.1, duration: 0.8, ease: 'easeOut' }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-5 pt-4 border-t border-border flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <p className="text-xs text-muted-foreground font-medium">All systems running optimally</p>
+                            </div>
+                        </motion.div>
+
+                        {/* Recent Activity */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7, duration: 0.5 }}
+                            className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
+                        >
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-xl bg-purple-500/10">
+                                        <Activity className="w-4 h-4 text-purple-500" />
+                                    </div>
+                                    <p className="text-sm font-black text-foreground">Recent Activity</p>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {recentActivity.map((item, i) => (
                                     <motion.div
-                                        className={cn('h-full rounded-full', item.color)}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${item.value}%` }}
-                                        transition={{ delay: 0.8 + i * 0.1, duration: 0.8, ease: 'easeOut' }}
-                                    />
-                                </div>
+                                        key={i}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.9 + i * 0.1 }}
+                                        className="flex items-start gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors"
+                                    >
+                                        <div className="p-1.5 rounded-lg bg-white/5 mt-0.5">
+                                            {getTypeIcon(item.type)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-foreground/80 truncate">{item.action}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.user} • {item.time}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
                             </div>
-                        ))}
+                        </motion.div>
                     </div>
-                    <div className="mt-5 pt-4 border-t border-border flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <p className="text-xs text-muted-foreground font-medium">All systems running optimally</p>
-                    </div>
-                </motion.div>
-
-                {/* Recent Activity */}
+                </>
+            ) : (
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7, duration: 0.5 }}
-                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4 }}
                 >
-                    <div className="flex items-center justify-between mb-5">
-                        <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-xl bg-purple-500/10">
-                                <Activity className="w-4 h-4 text-purple-500" />
-                            </div>
-                            <p className="text-sm font-black text-foreground">Recent Activity</p>
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        {recentActivity.map((item, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.9 + i * 0.1 }}
-                                className="flex items-start gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors"
-                            >
-                                <div className="p-1.5 rounded-lg bg-white/5 mt-0.5">
-                                    {getTypeIcon(item.type)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-foreground/80 truncate">{item.action}</p>
-                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.user} • {item.time}</p>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                    <AdminPayouts />
                 </motion.div>
-            </div>
-
-            {/* User Growth */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.5 }}
-                className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
-            >
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">User Growth</p>
-                        <p className="text-2xl font-black text-foreground">248 Users <span className="text-sm text-emerald-500 font-bold">↑ 12%</span></p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-violet-400" />
-                            <span className="text-xs text-muted-foreground">Tenants</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-                            <span className="text-xs text-muted-foreground">Managers</span>
-                        </div>
-                    </div>
-                </div>
-                <Sparkline data={userGrowth} color="#a855f7" />
-            </motion.div>
+            )}
         </div>
     );
 }

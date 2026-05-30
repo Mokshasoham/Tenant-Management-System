@@ -211,14 +211,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
 // =====================
 export default function PaymentsPage() {
   const user = useAuthStore((state) => state.user);
-  if (!user) return null;
-
-  const role = user.role;
-  // 'user' is a legacy role name — treat the same as tenant
-  const effectiveRole = role === 'user' ? 'tenant' : role;
-  const isTenant = effectiveRole === 'tenant';
-  const isManagerOrAdmin = ['manager', 'admin'].includes(effectiveRole);
-
+  
   const [payments, setPayments] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
@@ -227,13 +220,14 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [updateStatusId, setUpdateStatusId] = useState(null);
 
-  const roleTheme = {
-    admin: { from: 'from-violet-600', to: 'to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/10' },
-    manager: { from: 'from-blue-600', to: 'to-cyan-600', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/10' },
-    tenant: { from: 'from-emerald-600', to: 'to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' },
-  }[role] || {};
+  const role = user?.role;
+  // 'user' is a legacy role name — treat the same as tenant
+  const effectiveRole = role === 'user' ? 'tenant' : role;
+  const isTenant = effectiveRole === 'tenant';
+  const isManagerOrAdmin = ['manager', 'admin'].includes(effectiveRole);
 
   const fetchPayments = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     try {
       if (isTenant) {
@@ -249,9 +243,19 @@ export default function PaymentsPage() {
       console.error('Failed to fetch payments', e);
     }
     setLoading(false);
-  }, [isTenant]);
+  }, [user, isTenant]);
 
-  useEffect(() => { fetchPayments(); }, [fetchPayments]);
+  useEffect(() => { 
+    if (user) fetchPayments(); 
+  }, [fetchPayments, user]);
+
+  if (!user) return null;
+
+  const roleTheme = {
+    admin: { from: 'from-violet-600', to: 'to-purple-600', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20', bg: 'bg-violet-500/10' },
+    manager: { from: 'from-blue-600', to: 'to-cyan-600', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20', bg: 'bg-blue-500/10' },
+    tenant: { from: 'from-emerald-600', to: 'to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' },
+  }[role] || {};
 
 
   const handleStatusUpdate = async (paymentId, newStatus) => {

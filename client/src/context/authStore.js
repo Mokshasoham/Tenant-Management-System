@@ -11,6 +11,13 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.login({ email, password });
+      
+      if (response.data?.requires2FA) {
+        set({ isLoading: false });
+        // Return this flag so the UI can redirect/show OTP modal
+        return { requires2FA: true, userId: response.data.userId };
+      }
+
       localStorage.setItem('authToken', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       set({ user: response.data.user, token: response.data.token, isLoading: false });
@@ -19,6 +26,36 @@ const useAuthStore = create((set) => ({
       const errorMsg = error?.message || 'Login failed';
       set({ error: errorMsg, isLoading: false });
       throw error;
+    }
+  },
+
+  verify2FALogin: async (userId, token) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authService.verify2FALogin({ userId, token });
+      localStorage.setItem('authToken', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      return response;
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || '2FA verification failed';
+      set({ error: errorMsg, isLoading: false });
+      throw new Error(errorMsg);
+    }
+  },
+
+  googleLogin: async (idToken) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authService.googleAuth(idToken);
+      localStorage.setItem('authToken', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      return response;
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || 'Google Login failed';
+      set({ error: errorMsg, isLoading: false });
+      throw new Error(errorMsg);
     }
   },
 
@@ -110,6 +147,25 @@ const useAuthStore = create((set) => ({
       throw error;
     }
   },
+
+  verifyEmail: async (token) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authService.verifyEmail(token);
+      if (response.data.token && response.data.user) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        set({ user: response.data.user, token: response.data.token });
+      }
+      set({ isLoading: false });
+      return response;
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to verify email';
+      set({ error: errorMsg, isLoading: false });
+      throw new Error(errorMsg);
+    }
+  },
 }));
 
 export default useAuthStore;
+

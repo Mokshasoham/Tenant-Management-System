@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { HelmetProvider } from 'react-helmet-async';
 import useAuthStore from './context/authStore';
+import { ChatProvider } from './context/ChatContext';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -10,12 +13,14 @@ import TenantsPage from './pages/TenantsPage';
 import PropertiesPage from './pages/PropertiesPage';
 import LeasesPage from './pages/LeasesPage';
 import PaymentsPage from './pages/PaymentsPage';
+import BillsPage from './pages/BillsPage';
 import UsersPage from './pages/UsersPage';
 import ProfilePage from './pages/ProfilePage';
 import MaintenancePage from './pages/MaintenancePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LandingPage from './pages/LandingPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import MessagesPage from './pages/MessagesPage';
 import MyLeasePage from './pages/MyLeasePage';
 import PayNowPage from './pages/PayNowPage';
@@ -62,41 +67,50 @@ function App() {
   }, [initializeAuth]);
 
   return (
-    <Router>
-      <Routes>
-        {/* Public */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+    <HelmetProvider>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '345345345345-dummy.apps.googleusercontent.com'}>
+        <Router>
+          <ChatProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
 
-        {/* All authenticated */}
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/payments" element={<ProtectedRoute><DashboardLayout><PaymentsPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/maintenance" element={<ProtectedRoute><DashboardLayout><MaintenancePage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><DashboardLayout><MessagesPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><DashboardLayout><ProfilePage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/my-lease" element={<ProtectedRoute><DashboardLayout><MyLeasePage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/pay-now" element={<ProtectedRoute><DashboardLayout><PayNowPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/browse" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/properties/:id" element={<ProtectedRoute><DashboardLayout><PropertyDetailsPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPropertiesPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/compare" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/reviews/:propertyId" element={<ProtectedRoute><DashboardLayout><ReviewsPage /></DashboardLayout></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>} />
+              {/* All authenticated */}
+              <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/payments" element={<ProtectedRoute><DashboardLayout><PaymentsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/bills" element={<ProtectedRoute><DashboardLayout><BillsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/maintenance" element={<ProtectedRoute><DashboardLayout><MaintenancePage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute><DashboardLayout><MessagesPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><DashboardLayout><ProfilePage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/my-lease" element={<ProtectedRoute><DashboardLayout><MyLeasePage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/pay-now" element={<ProtectedRoute><DashboardLayout><PayNowPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/browse" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/properties/:id" element={<ProtectedRoute><DashboardLayout><PropertyDetailsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPropertiesPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/compare" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/reviews/:propertyId" element={<ProtectedRoute><DashboardLayout><ReviewsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>} />
 
-        {/* Manager + Admin */}
-        <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
-        <Route path="/properties" element={<ManagerRoute><DashboardLayout><PropertiesPage /></DashboardLayout></ManagerRoute>} />
-        <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
-        <Route path="/analytics" element={<ManagerRoute><DashboardLayout><AnalyticsPage /></DashboardLayout></ManagerRoute>} />
+              {/* Manager + Admin */}
+              <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/properties" element={<ManagerRoute><DashboardLayout><PropertiesPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/analytics" element={<ManagerRoute><DashboardLayout><AnalyticsPage /></DashboardLayout></ManagerRoute>} />
 
-        {/* Admin only */}
-        <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
-      </Routes>
-    </Router>
+              {/* Admin only */}
+              <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
+            </Routes>
+          </ChatProvider>
+        </Router>
+      </GoogleOAuthProvider>
+    </HelmetProvider>
   );
 }
 
 export default App;
+

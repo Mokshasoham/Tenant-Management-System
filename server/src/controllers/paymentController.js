@@ -4,6 +4,7 @@ import Tenant from '../models/Tenant.js';
 import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import { processPostPayment } from '../services/paymentAutomation.js';
 
 // Tenant-scoped: get the logged-in user's own payment history
 export const getMyPayments = asyncHandler(async (req, res) => {
@@ -130,6 +131,15 @@ export const recordPayment = asyncHandler(async (req, res) => {
 
   await payment.save();
 
+  if (payment.status === 'paid') {
+    try {
+      await processPostPayment(payment._id);
+    } catch (error) {
+      logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
+      // Don't fail the payment recording, but log the error
+    }
+  }
+
   logger.info(`Payment recorded: ${payment._id}`);
 
   res.status(200).json({
@@ -153,6 +163,15 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
 
   if (!payment) {
     throw new AppError('Payment not found', 404);
+  }
+
+  if (payment.status === 'paid') {
+    try {
+      await processPostPayment(payment._id);
+    } catch (error) {
+      logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
+      // Don't fail the status update, but log the error
+    }
   }
 
   logger.info(`Payment status updated: ${payment._id} - ${status}`);

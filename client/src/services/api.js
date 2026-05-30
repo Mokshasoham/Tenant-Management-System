@@ -9,6 +9,11 @@ export const authService = {
   logout: () => apiClient.post('/auth/logout'),
   forgotPassword: (data) => apiClient.post('/auth/forgot-password', data),
   resetPassword: (token, data) => apiClient.post(`/auth/reset-password/${token}`, data),
+  verifyEmail: (token) => apiClient.get(`/auth/verify-email/${token}`),
+  googleAuth: (idToken) => apiClient.post('/auth/google', { idToken }),
+  verify2FALogin: (data) => apiClient.post('/auth/login/2fa', data),
+  setup2FA: () => apiClient.post('/auth/2fa/setup'),
+  verifyAndEnable2FA: (data) => apiClient.post('/auth/2fa/verify', data),
 };
 
 export const userService = {
@@ -20,6 +25,7 @@ export const userService = {
   assignRole: (id, role) => apiClient.post(`/users/admin/${id}/role`, { role }),
   toggleUserStatus: (id) => apiClient.post(`/users/admin/${id}/toggle-status`),
   getDashboardStats: () => apiClient.get('/users/admin/stats'),
+  uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const tenantService = {
@@ -42,9 +48,10 @@ export const propertyService = {
   changePropertyStatus: (id, status) =>
     apiClient.post(`/properties/${id}/status`, { status }),
   getPropertyStats: () => apiClient.get('/properties/stats'),
-  // New SaaS features
   saveProperty: (id) => apiClient.post(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
+  getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
+  uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const leaseService = {
@@ -75,6 +82,11 @@ export const messageService = {
   getAvailableUsers: () => apiClient.get('/messages/available-users'),
   getMessages: (otherUserId) => apiClient.get(`/messages/${otherUserId}`),
   markAsRead: (senderId) => apiClient.put(`/messages/read/${senderId}`),
+  uploadAttachment: (formData) => apiClient.post('/messages/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  searchMessages: (query) => apiClient.get('/messages/search', { params: { query } }),
+  deleteMessage: (messageId) => apiClient.delete(`/messages/${messageId}`),
 };
 
 export const maintenanceService = {
@@ -109,12 +121,15 @@ export const bookingService = {
   getManagerBookings: () => apiClient.get('/bookings/manager'),
   getBookingById: (id) => apiClient.get(`/bookings/${id}`),
   updateBookingStatus: (id, data) => apiClient.put(`/bookings/${id}/status`, data),
+  cancelBooking: (id) => apiClient.post('/bookings/' + id + '/cancel'),
   // Razorpay payment flow
   createRazorpayOrder: (data) => apiClient.post('/bookings/razorpay/create-order', data),
   verifyRazorpayPayment: (data) => apiClient.post('/bookings/razorpay/verify', data),
   // Manager approval
   approveBooking: (id, note) => apiClient.put(`/bookings/${id}/approve`, { note }),
   rejectBooking: (id, note) => apiClient.put(`/bookings/${id}/reject`, { note }),
+  // Mock Demo flow
+  processMockPayment: (data) => apiClient.post('/bookings/process-mock-payment', data),
 };
 
 export const reviewService = {
@@ -132,6 +147,19 @@ export const offerService = {
   getMyOffers: () => apiClient.get('/offers/my'),
   respondToOffer: (id, action, data) =>
     apiClient.put(`/offers/${id}/respond`, { action, ...data }),
+};
+
+export const payoutService = {
+  requestPayout: (data) => apiClient.post('/payouts/request', data),
+  getAllPayouts: (status) => apiClient.get('/payouts', { params: { status } }),
+  approvePayout: (id) => apiClient.put(`/payouts/${id}/approve`),
+  rejectPayout: (id, note) => apiClient.put(`/payouts/${id}/reject`, { note }),
+};
+
+export const subscriptionService = {
+  getMySubscription: () => apiClient.get('/subscriptions/my'),
+  createCheckoutSession: (data) => apiClient.post('/subscriptions/checkout', data),
+  cancelSubscription: () => apiClient.post('/subscriptions/cancel'),
 };
 
 export default apiClient;

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 import useAuthStore from '../context/authStore';
 import { Mail, Lock, User, Phone, Building2, ArrowRight } from 'lucide-react';
+
 import { Card, Button, Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
 import PublicNavbar from '../components/PublicNavbar';
@@ -161,6 +163,37 @@ export default function RegisterPage() {
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </form>
+
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={async (credentialResponse) => {
+                    try {
+                      setIsLoading(true);
+                      await useAuthStore.getState().googleLogin(credentialResponse.credential);
+                      navigate('/dashboard');
+                    } catch (err) {
+                      setError(err.message || 'Google signup failed');
+                      setIsLoading(false);
+                    }
+                  }}
+                  onError={() => {
+                    setError('Google Log In Failed');
+                  }}
+                  useOneTap
+                  theme="outline"
+                  size="large"
+                  text="signup_with"
+                />
+              </div>
 
               <div className="mt-10 pt-8 border-t border-gray-100 dark:border-white/5 text-center">
                 <p className="text-muted-foreground font-medium">

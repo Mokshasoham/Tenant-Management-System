@@ -6,7 +6,7 @@ import useAuthStore from '../context/authStore';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
     ChevronRight, Lock, RefreshCw, ArrowLeft, IndianRupee,
-    Shield, Eye, EyeOff, Info
+    Shield, Eye, EyeOff, Info, Coins
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -52,7 +52,7 @@ function Input({ className, error, ...props }) {
 }
 
 // ─── Debit Card Form ────────────────────────────────────────────────────────
-function DebitCardForm({ amount, paymentId, onSuccess }) {
+function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
     const [cardNum, setCardNum] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
@@ -75,28 +75,30 @@ function DebitCardForm({ amount, paymentId, onSuccess }) {
         e.preventDefault();
         if (!validate()) return;
         setLoading(true);
+        
         try {
-            if (onSuccess.type === 'booking') {
-                await bookingService.requestBooking({
-                    propertyId: onSuccess.propertyId,
-                    totalAmount: amount,
-                    paymentReference: `BK-DC-${Date.now()}`,
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-                });
-            } else {
-                await paymentService.recordPayment(paymentId, {
-                    amountPaid: amount,
-                    paymentDate: new Date().toISOString(),
-                    paymentMethod: 'debit_card',
-                    reference: `DC-${Date.now()}`,
-                });
-            }
-            onSuccess.callback();
+            // CALL THE REAL BACKEND BRIDGE AS APPROVED IN THE PLAN
+            // This ensures PDFs are generated and History is logged even for "random" inputs.
+            await bookingService.processMockPayment({
+                propertyId: propertyId, // Use the propertyId prop
+                amount: amount,
+                method: 'debit_card',
+                startDate: new Date(),
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            });
+
+            // Delay purely for visual "Processing" effect
+            setTimeout(() => {
+                setLoading(false);
+                if (typeof onSuccess === 'function') {
+                    onSuccess();
+                } else if (onSuccess && onSuccess.callback) {
+                    onSuccess.callback();
+                }
+            }, 1000);
         } catch (err) {
             console.error(err);
-            setErrors({ submit: 'Payment failed. Please check your card details and try again.' });
-        } finally {
+            setErrors({ submit: err?.message || err?.submit || String(err) || 'Payment failed.' });
             setLoading(false);
         }
     };
@@ -187,7 +189,7 @@ function DebitCardForm({ amount, paymentId, onSuccess }) {
 }
 
 // ─── UPI Form ───────────────────────────────────────────────────────────────
-function UpiForm({ amount, paymentId, onSuccess }) {
+function UpiForm({ amount, paymentId, onSuccess, propertyId }) {
     const [upiId, setUpiId] = useState('');
     const [verifying, setVerifying] = useState(false);
     const [verified, setVerified] = useState(false);
@@ -213,28 +215,28 @@ function UpiForm({ amount, paymentId, onSuccess }) {
         e.preventDefault();
         if (!verified) { handleVerify(); return; }
         setLoading(true);
+
         try {
-            if (onSuccess.type === 'booking') {
-                await bookingService.requestBooking({
-                    propertyId: onSuccess.propertyId,
-                    totalAmount: amount,
-                    paymentReference: `BK-UPI-${upiId}-${Date.now()}`,
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-                });
-            } else {
-                await paymentService.recordPayment(paymentId, {
-                    amountPaid: amount,
-                    paymentDate: new Date().toISOString(),
-                    paymentMethod: 'upi',
-                    reference: `UPI-${upiId}-${Date.now()}`,
-                });
-            }
-            onSuccess.callback();
+            await bookingService.processMockPayment({
+                propertyId: propertyId, // Use the propertyId prop
+                amount: amount,
+                method: 'upi',
+                startDate: new Date(),
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            });
+
+            // Mock Success Simulation
+            setTimeout(() => {
+                setLoading(false);
+                if (typeof onSuccess === 'function') {
+                    onSuccess();
+                } else if (onSuccess && onSuccess.callback) {
+                    onSuccess.callback();
+                }
+            }, 1000);
         } catch (err) {
             console.error(err);
-            setErrors({ submit: 'UPI payment failed. Please check your UPI ID and try again.' });
-        } finally {
+            setErrors({ submit: err?.message || err?.submit || String(err) || 'Payment failed.' });
             setLoading(false);
         }
     };
@@ -325,23 +327,50 @@ function UpiForm({ amount, paymentId, onSuccess }) {
 }
 
 // ─── Success Screen ──────────────────────────────────────────────────────────
+const CoinAnimation = () => (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(12)].map((_, i) => (
+            <motion.div
+                key={i}
+                initial={{ y: 200, x: 0, opacity: 1, scale: 1 }}
+                animate={{ 
+                    y: -400, 
+                    x: (Math.random() - 0.5) * 400, 
+                    opacity: 0, 
+                    scale: 0.5,
+                    rotate: 360 
+                }}
+                transition={{ 
+                    duration: 1.5, 
+                    delay: i * 0.1, 
+                    ease: "easeOut" 
+                }}
+                className="absolute bottom-0 left-1/2 text-yellow-400"
+            >
+                <Coins className="w-6 h-6 fill-current" />
+            </motion.div>
+        ))}
+    </div>
+);
+
 function SuccessScreen({ amount, method, navigate, type }) {
     return (
         <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center gap-6 py-10 text-center">
+            className="flex flex-col items-center gap-6 py-10 text-center relative">
+            <CoinAnimation />
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
                 transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
-                className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center">
+                className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center relative z-10">
                 <CheckCircle2 className="w-12 h-12 text-emerald-400" />
             </motion.div>
-            <div>
+            <div className="relative z-10">
                 <h2 className="text-3xl font-black text-foreground tracking-tight">
                     {type === 'booking' ? 'Booking Requested! 🏠' : 'Payment Successful! 🎉'}
                 </h2>
                 <p className="text-muted-foreground mt-2 text-sm max-w-xs mx-auto">Your payment of <span className="font-black text-emerald-600 dark:text-emerald-400">₹{amount.toLocaleString('en-IN')}</span> has been received.</p>
                 <p className="text-muted-foreground/40 mt-3 text-[10px] font-black uppercase tracking-[0.15em]">via {method === 'upi' ? 'UPI' : 'Debit Card'} · {new Date().toLocaleString('en-IN')}</p>
             </div>
-            <div className="w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300/70">
+            <div className="w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300/70 relative z-10">
                 <p className="font-bold text-emerald-300 mb-1">What happens next?</p>
                 {type === 'booking' ? (
                     <p>The owner has been notified. Your status is now "Pending Approval". You can track it in your dashboard.</p>
@@ -349,7 +378,7 @@ function SuccessScreen({ amount, method, navigate, type }) {
                     <p>Your property manager has been notified. A receipt will be generated in your payment history.</p>
                 )}
             </div>
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-3 w-full relative z-10">
                 {type === 'booking' ? (
                     <button onClick={() => navigate('/dashboard')} className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-black text-sm hover:opacity-90 transition-all shadow-xl shadow-primary/20">
                         Back to Dashboard
@@ -423,6 +452,7 @@ export default function PayNowPage() {
     const baseAmount = bookingData.amount !== undefined ? bookingData.amount : pendingAmount;
     const payAmount = useCustom ? parsedCustom : baseAmount;
     const paymentId = pendingPayment?._id || pendingPayment?.id;
+    const propertyId = bookingData.propertyId || lease?.property?._id; // Determine propertyId from bookingData or lease
 
     const validateCustom = () => {
         if (parsedCustom < 1) { setAmountError('Enter a valid amount'); return false; }
@@ -563,6 +593,7 @@ export default function PayNowPage() {
                                             amount={payAmount}
                                             paymentId={paymentId || 'manual'}
                                             onSuccess={handleSuccess}
+                                            propertyId={propertyId}
                                         />
                                     </motion.div>
                                 ) : (
@@ -571,6 +602,7 @@ export default function PayNowPage() {
                                             amount={payAmount}
                                             paymentId={paymentId || 'manual'}
                                             onSuccess={handleSuccess}
+                                            propertyId={propertyId}
                                         />
                                     </motion.div>
                                 )}

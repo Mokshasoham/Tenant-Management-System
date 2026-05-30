@@ -7,13 +7,21 @@ const router = express.Router();
 
 router.post('/register', validateUserRegistration, validationMiddleware, authController.register);
 router.post('/login', validateUserLogin, validationMiddleware, authController.login);
+router.post('/google', authController.googleAuth);
 router.post('/forgot-password', validateForgotPassword, validationMiddleware, authController.forgotPassword);
 router.post('/reset-password/:token', validateResetPassword, validationMiddleware, authController.resetPassword);
+router.get('/verify-email/:token', authController.verifyEmail);
+
 
 // Protected routes
 router.get('/profile', authenticate, authController.getCurrentUser);
 router.put('/profile', authenticate, authController.updateProfile);
 router.post('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authenticate, authController.logout);
+
+// 2FA Routes
+router.post('/login/2fa', authController.verify2FALogin);
+router.post('/2fa/setup', authenticate, authController.setup2FA);
+router.post('/2fa/verify', authenticate, authController.verifyAndEnable2FA);
 
 export default router;

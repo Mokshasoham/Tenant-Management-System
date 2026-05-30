@@ -49,6 +49,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
+    },
     twoFactorEnabled: {
       type: Boolean,
       default: false,
@@ -59,6 +67,26 @@ const userSchema = new mongoose.Schema(
         ref: 'Property',
       },
     ],
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+    googleId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    twoFactorSecret: String,
+    kycStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'approved', 'rejected'],
+      default: 'unverified',
+    },
+    kycDocuments: [{
+      type: String,
+    }],
     passwordResetToken: String,
     passwordResetExpires: Date,
   },

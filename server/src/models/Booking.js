@@ -22,6 +22,8 @@ const bookingSchema = new mongoose.Schema(
         totalAmount: { type: Number, required: true, min: 0 },
         depositAmount: { type: Number, default: 0 },
         platformFee: { type: Number, default: 0 },
+        managerEarnings: { type: Number, default: 0 },
+        ownerEarnings: { type: Number, default: 0 },
 
         status: {
             type: String,

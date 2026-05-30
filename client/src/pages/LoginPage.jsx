@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 import useAuthStore from '../context/authStore';
 import { Mail, Lock, Building2, ArrowRight } from 'lucide-react';
 import { Card, Button, Input } from '../components/PremiumUI';
@@ -17,17 +18,39 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempUserId, setTempUserId] = useState(null);
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+
   const login = useAuthStore((state) => state.login);
+  const verify2FALogin = useAuthStore((state) => state.verify2FALogin);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
     setError('');
+
+    if (requires2FA) {
+      try {
+        await verify2FALogin(tempUserId, twoFactorToken);
+        navigate('/dashboard');
+      } catch (err) {
+        setError(err.message || 'Invalid 2FA token');
+        setIsLoading(false);
+      }
+      return;
+    }
+
     try {
-      await login(data.email, data.password);
-      navigate('/dashboard');
+      const res = await login(data.email, data.password);
+      if (res?.requires2FA) {
+        setRequires2FA(true);
+        setTempUserId(res.userId);
+        setIsLoading(false);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err?.message || 'Login failed. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -77,47 +100,109 @@ export default function LoginPage() {
                 </motion.div>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="you@example.com"
-                  error={errors.email?.message}
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  })}
-                />
+              <form onSubmit={requires2FA ? (e) => { e.preventDefault(); onSubmit(); } : handleSubmit(onSubmit)} className="space-y-6">
+                {requires2FA ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <p className="text-sm text-muted-foreground mb-4 font-semibold">
+                      Please enter the 6-digit authentication code from your authenticator app.
+                    </p>
+                    <Input
+                      label="6-Digit Token"
+                      type="text"
+                      placeholder="123456"
+                      value={twoFactorToken}
+                      onChange={(e) => setTwoFactorToken(e.target.value)}
+                      maxLength={6}
+                      required
+                    />
+                  </motion.div>
+                ) : (
+                  <>
+                    <Input
+                      label="Email Address"
+                      type="email"
+                      placeholder="you@example.com"
+                      error={errors.email?.message}
+                      {...register('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                      })}
+                    />
 
-                <div className="space-y-1">
-                  <Input
-                    label="Password"
-                    type="password"
-                    placeholder="••••••••"
-                    error={errors.password?.message}
-                    {...register('password', {
-                      required: 'Password is required',
-                      minLength: {
-                        value: 8,
-                        message: 'Password must be at least 8 characters',
-                      },
-                    })}
-                  />
-                  {/* Removed the old Forgot Password button from here */}
-                </div>
+                    <div className="space-y-1">
+                      <Input
+                        label="Password"
+                        type="password"
+                        placeholder="••••••••"
+                        error={errors.password?.message}
+                        {...register('password', {
+                          required: 'Password is required',
+                          minLength: {
+                            value: 8,
+                            message: 'Password must be at least 8 characters',
+                          },
+                        })}
+                      />
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsForgotModalOpen(true)}
+                          className="text-sm font-bold text-primary hover:text-primary/80 transition-colors"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Button
                   type="submit"
                   disabled={isLoading}
                   className="w-full py-4 text-lg flex items-center justify-center gap-2"
                 >
-                  {isLoading ? 'Decrypting Credentials...' : 'Sign In'}
+                  {isLoading ? 'Verifying...' : (requires2FA ? 'Verify Code' : 'Sign In')}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </form>
+
+              {!requires2FA && (
+                <>
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <GoogleLogin
+                      onSuccess={async (credentialResponse) => {
+                        try {
+                          setIsLoading(true);
+                          await useAuthStore.getState().googleLogin(credentialResponse.credential);
+                          navigate('/dashboard');
+                        } catch (err) {
+                          setError(err.message || 'Google Login failed');
+                          setIsLoading(false);
+                        }
+                      }}
+                      onError={() => {
+                        setError('Google Log In Failed');
+                      }}
+                      useOneTap
+                      theme="outline"
+                      size="large"
+                      text="signin_with"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="mt-10 pt-8 border-t border-gray-100 dark:border-white/5 text-center">
                 <p className="text-muted-foreground font-medium">

@@ -7,6 +7,7 @@ import {
 import { cn } from '../../utils/cn';
 import { bookingService } from '../../services/api';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
+import PayoutsSection from '../../components/dashboard/PayoutsSection';
 
 function useCounter(end, duration = 2000) {
     const [count, setCount] = useState(0);
@@ -99,6 +100,7 @@ function ManagerStatCard({ card }) {
 }
 
 export default function ManagerDashboard({ stats, loading, navigate }) {
+    const [view, setView] = useState('overview');
     const [bookings, setBookings] = useState([]);
     const [bookingLoading, setBookingLoading] = useState(true);
 
@@ -200,7 +202,31 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 </div>
             </motion.div>
 
-            {/* Stat Cards */}
+            {/* Navigation Tabs */}
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-fit">
+                <button
+                    onClick={() => setView('overview')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all",
+                        view === 'overview' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    OVERVIEW
+                </button>
+                <button
+                    onClick={() => setView('financials')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all",
+                        view === 'financials' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    FINANCIALS & PAYOUTS
+                </button>
+            </div>
+
+            {view === 'overview' ? (
+                <>
+                    {/* Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((card) => (
                     <ManagerStatCard key={card.title} card={card} />
@@ -409,6 +435,16 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     );
                 })}
             </motion.div>
+                </>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <PayoutsSection />
+                </motion.div>
+            )}
         </div>
     );
 }

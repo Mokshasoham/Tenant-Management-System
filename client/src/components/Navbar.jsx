@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../context/authStore';
 import { notificationService } from '../services/api';
-import { LogOut, Menu, Bell, Search, CheckCheck } from 'lucide-react';
+import { LogOut, Menu, Bell, Search, CheckCircle2 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const ROLE_THEME = {
@@ -81,7 +81,7 @@ export default function Navbar({ toggleSidebar }) {
   useEffect(() => {
     if (!showNotif) return;
     notificationService.getMyNotifications({ limit: 10 })
-      .then(res => setNotifications(res.data || []))
+      .then(res => setNotifications(res.data?.data || []))
       .catch(() => { });
   }, [showNotif]);
 

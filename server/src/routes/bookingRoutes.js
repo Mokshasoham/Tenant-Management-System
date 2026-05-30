@@ -9,6 +9,8 @@ import {
     verifyRazorpayPayment,
     approveBooking,
     rejectBooking,
+    cancelBooking,
+    processMockPayment,
 } from '../controllers/bookingController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -30,5 +32,11 @@ router.post('/razorpay/verify', verifyRazorpayPayment);
 // Manager approval/rejection
 router.put('/:id/approve', authorize('manager', 'admin'), approveBooking);
 router.put('/:id/reject', authorize('manager', 'admin'), rejectBooking);
+
+// Tenant Cancellation
+router.post('/:id/cancel', cancelBooking);
+
+// Simulated Mock Payment (for demo/UI testing)
+router.post('/process-mock-payment', processMockPayment);
 
 export default router;

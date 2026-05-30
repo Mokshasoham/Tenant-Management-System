@@ -187,3 +187,32 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     },
   });
 });
+
+export const uploadKycDocuments = asyncHandler(async (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    throw new AppError('No documents uploaded', 400);
+  }
+
+  const user = await User.findById(req.user.userId || req.user._id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const fileUrls = req.files.map(file => `/uploads/kyc/${file.filename}`);
+
+  user.kycDocuments = [...user.kycDocuments, ...fileUrls];
+  user.kycStatus = 'pending';
+  await user.save();
+
+  logger.info(`KYC documents uploaded for user: ${user.email}`);
+
+  res.status(200).json({
+    success: true,
+    message: 'KYC documents uploaded successfully. They are pending review.',
+    data: {
+      kycStatus: user.kycStatus,
+      kycDocuments: user.kycDocuments,
+    }
+  });
+});
+

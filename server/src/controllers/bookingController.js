@@ -4,67 +4,93 @@ import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';
+import Payment from '../models/Payment.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { generateAndUploadLeasePDF } from '../services/pdfService.js';
+import { processPostPayment } from '../services/paymentAutomation.js';
 
 // Helper: add timeline event
 const addTimeline = (booking, event, note = '') => {
     booking.timeline.push({ event, timestamp: new Date(), note });
 };
 
-// POST /api/bookings/razorpay/create-order
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
-    const { propertyId, startDate, endDate, totalAmount, agreedRent } = req.body;
+    const { bookingId } = req.body;
 
-    const property = await Property.findById(propertyId);
-    if (!property) throw new AppError('Property not found', 404);
+    const booking = await Booking.findById(bookingId).populate('property');
+    if (!booking) throw new AppError('Booking not found', 404);
+    if (booking.status !== 'approved') throw new AppError('Booking is not approved', 400);
 
-    const managerId = property.manager || property.owner;
-    const platformFee = Math.round(totalAmount * 0.02); // 2% platform fee
-    const grandTotal = totalAmount + platformFee;
+    const property = booking.property;
+    const totalAmount = booking.agreedRent || property.rentAmount;
+    
+    // Strict match to frontend presentation matrix
+    const securityDeposit = property.rentAmount * 2;
+    const serviceFee = Math.round(property.rentAmount * 0.05); // 5% platform fee
+    const managerCommission = Math.round(property.rentAmount * 0.10); // 10% manager cut
+    const ownerPayout = Math.round(property.rentAmount - managerCommission); // 90% to owner
 
-    // Create Razorpay order (mock for test mode — replace with real Razorpay SDK call)
-    const razorpayOrderId = `order_test_${Date.now()}`;
+    const grandTotal = totalAmount + securityDeposit + serviceFee;
 
-    // Create booking in pending state
-    const booking = await Booking.create({
-        user: req.user.userId,
-        property: propertyId,
-        manager: managerId,
-        startDate,
-        endDate,
-        totalAmount,
-        platformFee,
-        agreedRent: agreedRent || totalAmount,
-        paymentStatus: 'pending',
-        status: 'pending',
-        razorpayOrderId,
-        escrowStatus: 'not_started',
-    });
+    let razorpayOrderId;
+    let fallbackTestMode = false;
+    
+    const testKeysActive = process.env.RAZORPAY_KEY_ID && 
+                           process.env.RAZORPAY_KEY_SECRET && 
+                           process.env.RAZORPAY_KEY_ID !== 'rzp_test_placeholder_key';
 
-    addTimeline(booking, 'request_sent', 'Booking request created');
+    // To natively spawn the Razorpay Test Popup widget (for test Cards/UPI), we must authenticate an order.
+    if (testKeysActive) {
+        const rzp = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET
+        });
+
+        const rzpOrder = await rzp.orders.create({
+            // Force strict 100 INR mock value during test-mode to safely bypass native RBI ceilings 
+            // blocking large (e.g., 7 Lakhs) test transactions on mock cards.
+            amount: 100 * 100, 
+            currency: 'INR',
+            receipt: `receipt_booking_${booking._id}`
+        });
+        
+        razorpayOrderId = rzpOrder.id;
+    } else {
+        // Fallback for isolated local testing without Keys
+        razorpayOrderId = `order_test_${Date.now()}`;
+        fallbackTestMode = true;
+        logger.warn('RAZORPAY_KEY_ID is missing. Defaulting to mock escrow bypass mechanism.');
+    }
+
+    booking.razorpayOrderId = razorpayOrderId;
+    booking.platformFee = serviceFee;
+    booking.managerEarnings = managerCommission;
+    // Owner payout consists of their slice of rent PLUS the full 2x security deposit
+    booking.ownerEarnings = ownerPayout + securityDeposit;
+    booking.totalAmount = grandTotal; // Lock in the final total
     await booking.save();
 
-    logger.info(`Razorpay order created: ${razorpayOrderId} for booking ${booking._id}`);
+    logger.info(`Razorpay order generated: ${razorpayOrderId} for existing booking ${booking._id}`);
 
     res.status(201).json({
         success: true,
         data: {
             bookingId: booking._id,
             razorpayOrderId,
-            amount: grandTotal * 100, // paise
+            amount: testKeysActive ? (100 * 100) : (grandTotal * 100), // paise
             currency: 'INR',
-            keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+            keyId: fallbackTestMode ? 'rzp_test_placeholder' : process.env.RAZORPAY_KEY_ID,
         },
     });
 });
 
-// POST /api/bookings/razorpay/verify
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
-    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature, signature } = req.body;
 
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId).populate('property');
     if (!booking) throw new AppError('Booking not found', 404);
 
     // Verify signature
@@ -75,8 +101,11 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         .digest('hex');
 
     const isValid = expectedSig === razorpaySignature;
-    // For test mode, skip signature check
-    const testMode = !process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET === 'test_secret';
+    
+    // For local isolated testing without valid secret keys, skip signature check
+    const testMode = !process.env.RAZORPAY_KEY_SECRET || 
+                     process.env.RAZORPAY_KEY_SECRET === 'test_secret' || 
+                     process.env.RAZORPAY_KEY_SECRET === 'rzp_test_placeholder_secret';
 
     if (!isValid && !testMode) {
         booking.paymentStatus = 'failed';
@@ -84,33 +113,57 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         throw new AppError('Payment verification failed', 400);
     }
 
-    // Payment verified — hold in escrow
+    // Payment verified
     booking.razorpayPaymentId = razorpayPaymentId;
     booking.razorpaySignature = razorpaySignature;
-    booking.paymentStatus = 'held';
+    booking.paymentStatus = 'paid';
     booking.escrowStatus = 'held';
-    addTimeline(booking, 'payment_done', `Payment of ₹${booking.totalAmount.toLocaleString('en-IN')} held in escrow`);
+    addTimeline(booking, 'payment_done', `Payment of ₹${booking.totalAmount.toLocaleString('en-IN')} locked into escrow.`);
     await booking.save();
 
-    // Block dates on property
-    await Property.findByIdAndUpdate(booking.property, {
-        $push: {
-            bookedDates: {
-                startDate: booking.startDate,
-                endDate: booking.endDate,
-                bookingId: booking._id,
-                status: 'pending',
-            },
-        },
-    });
+    // 1. Fetch user to get matching Tenant
+    const user = await User.findById(booking.user);
+    if (user) {
+        const tenant = await Tenant.findOne({ email: user.email });
+        if (tenant) {
+            const lease = await Lease.findOneAndUpdate(
+                { tenant: tenant._id, property: booking.property._id, status: 'pending' },
+                { $set: { status: 'active' } },
+                { new: true }
+            );
+            if (lease) {
+                try {
+                    const uploadResult = await generateAndUploadLeasePDF(lease, tenant, booking.property, signature);
+                    lease.documents.push({
+                        name: 'Signed Lease Agreement',
+                        url: uploadResult.Location,
+                        uploadedAt: new Date()
+                    });
+                    await lease.save();
+                    logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location}`);
+                } catch (pdfErr) {
+                    logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
+                }
+
+                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
+                await booking.save();
+            }
+
+            // Set Property to definitively occupied
+            await Property.findByIdAndUpdate(booking.property._id, {
+                $set: { status: 'occupied', currentTenant: tenant._id },
+                $pull: { bookedDates: { bookingId: booking._id } }
+            });
+        }
+    }
 
     // Notify manager
     await Notification.create({
         recipient: booking.manager,
         sender: booking.user,
-        title: 'New Booking Request — Payment Received',
-        message: `Payment held in escrow. Please review and approve/reject the booking.`,
-        type: 'booking',
+        title: 'Escrow Secured — Lease Active',
+        message: `Payment received in escrow for booking ${booking._id.slice(-8)}. Lease is now active.`,
+        type: 'success',
         link: `/bookings/${booking._id}`,
     });
 
@@ -127,6 +180,24 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
         if (booking.manager.toString() !== req.user.userId && req.user.role !== 'admin') {
             throw new AppError('Not authorized', 403);
         }
+
+        // --- 1. Prevent overlapping approvals (Double-Booking Engine) ---
+        const reqStart = new Date(booking.startDate);
+        const reqEnd = new Date(booking.endDate);
+
+        const isConflict = booking.property.bookedDates?.some(block => {
+            if (block.status === 'cancelled') return false;
+            
+            const blockStart = new Date(block.startDate);
+            const blockEnd = new Date(block.endDate);
+            
+            return reqStart < blockEnd && blockStart < reqEnd;
+        });
+
+        if (isConflict) {
+            throw new AppError('CRITICAL: Another approved lease already occupies this exact timeline. You cannot double-book this property.', 409);
+        }
+        // ----------------------------------------------------------------
 
         // ─── NEW LOGIC: Make User a Tenant & Create Lease ───
 
@@ -167,7 +238,7 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
             endDate: booking.endDate,
             rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
             depositAmount: booking.depositAmount || 0,
-            status: 'active',
+            status: 'pending', // NEW FLOW: Lease awaits Razorpay payment
             createdBy: managerId,
             terms: 'Generated from booking approval',
             utilities: {
@@ -181,28 +252,17 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
         await tenant.save();
 
         booking.status = 'approved';
-        booking.escrowStatus = 'released';
-        booking.paymentStatus = 'paid';
-        addTimeline(booking, 'approved', 'Booking approved. Tenant & Lease created.');
-        addTimeline(booking, 'active', `Lease #${lease.leaseNumber} activated.`);
+        booking.paymentStatus = 'pending';
+        addTimeline(booking, 'approved', 'Booking approved. Pending security deposit & payment.');
         await booking.save();
 
-        // Mark dates as booked on property AND update currentTenant
-        console.log(`[Approve] Updating property status`);
-        await Property.updateOne(
-            { _id: booking.property._id },
-            {
-                $set: {
-                    status: 'occupied',
-                    currentTenant: tenant._id,
-                },
-                $addToSet: { leases: lease._id },
-            }
-        );
+        // Note: Property status remains 'available' until Escrow clears!
+        // We only reserve the date block on calendar temporarily.
+        console.log(`[Approve] Updating property calendar blocks`);
         // Update the specific booked date entry status
         await Property.updateOne(
             { _id: booking.property._id, 'bookedDates.bookingId': booking._id },
-            { $set: { 'bookedDates.$.status': 'booked' } }
+            { $set: { 'bookedDates.$.status': 'approved_pending_payment' } }
         );
 
         // Notify tenant
@@ -261,12 +321,117 @@ export const rejectBooking = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: booking });
 });
 
+// POST /api/bookings/:id/cancel
+export const cancelBooking = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('property');
+
+    if (!booking) throw new AppError('Booking not found', 404);
+    if (booking.user.toString() !== req.user.userId && req.user.role !== 'admin') {
+        throw new AppError('Not authorized', 403);
+    }
+    if (booking.status === 'cancelled') throw new AppError('Booking is already legally cancelled', 400);
+
+    const property = booking.property;
+    const now = new Date();
+    const startDate = new Date(booking.startDate);
+    const hoursUntilStart = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    // Escrow refund calculation logic
+    let refundAmount = 0;
+    if (booking.paymentStatus === 'paid' && booking.razorpayPaymentId) {
+        const policy = property.cancellationPolicy || 'flexible';
+        let refundPercentage = 0;
+
+        if (policy === 'flexible') {
+            if (hoursUntilStart >= 24) refundPercentage = 100;
+            else refundPercentage = 50;
+        } else if (policy === 'moderate') {
+            if (hoursUntilStart >= 120) refundPercentage = 100; // 5 days
+            else if (hoursUntilStart >= 24) refundPercentage = 50;
+            else refundPercentage = 0;
+        } else if (policy === 'strict') {
+            if (hoursUntilStart >= 168) refundPercentage = 50; // 7 days
+            else refundPercentage = 0;
+        }
+
+        if (refundPercentage > 0) {
+            refundAmount = Math.round(booking.totalAmount * (refundPercentage / 100));
+            const testMode = !process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET === 'test_secret';
+            if (!testMode) {
+                const rzp = new Razorpay({
+                    key_id: process.env.RAZORPAY_KEY_ID,
+                    key_secret: process.env.RAZORPAY_KEY_SECRET
+                });
+                await rzp.payments.refund(booking.razorpayPaymentId, {
+                    amount: refundAmount * 100 // paise
+                });
+            }
+            booking.escrowStatus = 'refunded';
+            booking.paymentStatus = 'refunded';
+            addTimeline(booking, 'refunded', `Refund of ₹${refundAmount} (${refundPercentage}%) issued securely to original payment method.`);
+        } else {
+            addTimeline(booking, 'refunded', `No refund granted due to rigorous ${policy} cancellation parameters.`);
+        }
+    }
+
+    booking.status = 'cancelled';
+    addTimeline(booking, 'cancelled', `Tenant formally withdrew the lease application.`);
+    await booking.save();
+
+    // Unlock property schedule
+    await Property.updateOne(
+        { _id: property._id },
+        { 
+            $pull: { bookedDates: { bookingId: booking._id } },
+            $set: { status: 'available' }
+        }
+    );
+
+    // Disable any dangling leases
+    await Lease.updateMany(
+        { property: property._id, status: { $in: ['pending', 'active'] } },
+        { $set: { status: 'terminated' } }
+    );
+
+    await Notification.create({
+        recipient: property.manager || property.owner,
+        sender: req.user.userId,
+        title: 'Booking Cancelled By Tenant',
+        message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
+        type: 'alert',
+        link: `/bookings/${booking._id}`
+    });
+
+    res.status(200).json({ success: true, data: booking, refundAmount });
+});
+
 // POST /api/bookings/request (original simplified flow)
 export const requestBooking = asyncHandler(async (req, res) => {
     const { propertyId, startDate, endDate, totalAmount, paymentReference } = req.body;
 
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);
+
+    // --- 1. Calendar Lock / Collision Algorithm ---
+    const reqStart = new Date(startDate);
+    const reqEnd = new Date(endDate);
+
+    const isConflict = property.bookedDates?.some(block => {
+        if (block.status === 'cancelled') return false;
+        
+        const blockStart = new Date(block.startDate);
+        const blockEnd = new Date(block.endDate);
+        
+        // Two date ranges [start1, end1] and [start2, end2] overlap if:
+        // start1 < end2 AND start2 < end1
+        return reqStart < blockEnd && blockStart < reqEnd;
+    });
+
+    if (isConflict) {
+        throw new AppError('The selected dates are already physically locked. Please choose a different timeline.', 409);
+    }
+    // ----------------------------------------------
 
     const isFree = property.bookingType === 'free';
 
@@ -276,15 +441,15 @@ export const requestBooking = asyncHandler(async (req, res) => {
         manager: property.manager || property.owner,
         startDate,
         endDate,
-        totalAmount: isFree ? 0 : totalAmount,
-        paymentStatus: 'paid', // For free bookings, we consider it "paid" (no payment needed)
-        paymentReference: isFree ? 'FREE-BOOKING' : paymentReference,
+        totalAmount: isFree ? 0 : (property.rentAmount || totalAmount || 0),
+        paymentStatus: isFree ? 'paid' : 'pending',
+        paymentReference: isFree ? 'FREE-BOOKING' : 'PENDING',
         status: 'pending',
-        escrowStatus: isFree ? 'not_started' : 'held',
+        escrowStatus: isFree ? 'not_started' : 'not_started',
     });
 
     addTimeline(booking, 'request_sent');
-    if (!isFree) addTimeline(booking, 'payment_done');
+    if (isFree) addTimeline(booking, 'payment_done');
 
     await booking.save();
 
@@ -349,4 +514,149 @@ export const getBookingById = asyncHandler(async (req, res) => {
 
     if (!booking) throw new AppError('Booking not found', 404);
     res.status(200).json({ success: true, data: booking });
+});
+
+// Simulated Mock Payment (for demo/UI testing)
+// This forces a booking into "Paid" status, creates a tenant/lease, and generates a PDF
+export const processMockPayment = asyncHandler(async (req, res, next) => {
+    try {
+        let { propertyId, amount, method, startDate, endDate } = req.body;
+        let userId = req.user?.userId;
+        if (!userId) {
+            console.log('[MockPay] Trace: No user in request, finding demo user...');
+            const demoUser = await User.findOne({ role: 'tenant' });
+            if (demoUser) userId = demoUser._id;
+        }
+
+        if (!userId) throw new AppError('No users available to mock.', 400);
+
+        const property = await Property.findById(propertyId);
+        const user = await User.findById(userId);
+        if (!property || !user) {
+            console.log('[MockPay] Trace: Missing context. P:', !!property, 'U:', !!user);
+            throw new AppError('Context not found', 404);
+        }
+
+        // IMPORTANT FALLBACK: Ensure we always have a managerId for required fields
+        const managerId = property.manager || property.owner || userId; 
+        console.log('[MockPay] Trace: Using managerId:', managerId);
+
+        // 1. Create Booking
+        console.log('[MockPay] Trace: Step 1 (Booking)');
+        const booking = await Booking.create({
+            user: userId,
+            property: propertyId,
+            manager: managerId,
+            startDate: startDate || new Date(),
+            endDate: endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            totalAmount: Number(amount) || property.rentAmount || 1,
+            status: 'approved',
+            paymentStatus: 'paid',
+            paymentReference: `MOCK-${Date.now()}`,
+            escrowStatus: 'released',
+        });
+
+        // 2. Ensure Tenant
+        console.log('[MockPay] Trace: Step 2 (Tenant)');
+        let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId });
+        if (!tenant) {
+            console.log('[MockPay] Trace: Creating new tenant');
+            tenant = await Tenant.create({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                phone: user.phone || 'N/A',
+                managedBy: managerId,
+                status: 'active',
+                address: 'Simulated Address'
+            });
+        }
+
+        // 3. Create Lease
+        console.log('[MockPay] Trace: Step 3 (Lease)');
+        const lease = await Lease.create({
+            leaseNumber: `LEASE-MOCK-${Date.now()}`,
+            property: propertyId,
+            tenant: tenant._id,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            rentAmount: booking.totalAmount,
+            depositAmount: property.depositAmount || 0,
+            status: 'active',
+            createdBy: managerId,
+            terms: 'Simulated for demo.'
+        });
+
+        // 4. Record Payment
+        console.log('[MockPay] Trace: Step 4 (Payment)');
+        
+        let safeMethod = 'card';
+        if (method === 'upi' || method === 'transfer') safeMethod = 'transfer';
+        else if (method && ['cash', 'check', 'transfer', 'card', 'other'].includes(method)) safeMethod = method;
+
+        const payment = await Payment.create({
+            lease: lease._id,
+            tenant: tenant._id,
+            property: propertyId,
+            amount: booking.totalAmount,
+            amountPaid: booking.totalAmount,
+            status: 'paid',
+            paymentDate: new Date(),
+            dueDate: new Date(),
+            paymentMethod: safeMethod,
+            reference: booking.paymentReference,
+            billingPeriod: {
+                start: booking.startDate,
+                end: new Date(new Date(booking.startDate).setMonth(new Date(booking.startDate).getMonth() + 1))
+            }
+        });
+
+        // Trigger invoice generation
+        try {
+            await processPostPayment(payment._id);
+        } catch (error) {
+            console.error('[MockPay] Failed to generate invoice:', error.message);
+        }
+
+        // 5. Generate Real PDF (The highlight feature requested)
+        console.log('[MockPay] Trace: Step 5 (PDF)');
+        try {
+            const docUrl = await generateAndUploadLeasePDF(lease, tenant, property);
+            lease.documents.push({
+                name: 'Residential Lease Agreement (Simulated)',
+                url: docUrl,
+                type: 'lease'
+            });
+            await lease.save();
+        } catch (pdfErr) {
+            console.error('[MockPay] PDF Step Error (Non-Fatal):', pdfErr.message);
+        }
+
+        // Update property
+        console.log('[MockPay] Trace: Finalizing');
+        await Property.findByIdAndUpdate(propertyId, {
+            $set: { status: 'occupied', currentTenant: tenant._id }
+        });
+
+        // 7. Notification
+        console.log('[MockPay] Trace: Sending notification');
+        await Notification.create({
+            recipient: userId,
+            sender: managerId,
+            title: '🏠 Lease Executed Successfully',
+            message: `Your payment was processed. Your mock lease for ${property.name} is now active!`,
+            type: 'success',
+            link: '/my-lease'
+        });
+
+        console.log('[MockPay] TRACE COMPLETE: SUCCESS');
+        res.status(200).json({ 
+            success: true, 
+            message: 'Payment recorded in history!',
+            data: { lease } 
+        });
+    } catch (error) {
+        console.error('[MockPay] TRACE ERROR:', error);
+        next(error);
+    }
 });

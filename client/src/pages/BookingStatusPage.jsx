@@ -5,15 +5,18 @@ import { bookingService } from '../services/api';
 import {
     CheckCircle2, Clock, XCircle, ArrowLeft,
     Calendar, MapPin, IndianRupee, Shield,
-    User, Building2, ChevronRight, FileText, Info
+    User, Building2, ChevronRight, FileText, Info,
+    AlertTriangle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import RazorpayPayment from '../components/RazorpayPayment';
 
 export default function BookingStatusPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showRazorpay, setShowRazorpay] = useState(false);
 
     useEffect(() => {
         const fetchBooking = async () => {
@@ -54,13 +57,14 @@ export default function BookingStatusPage() {
             desc: 'The property manager is reviewing your request. You will be notified once they respond.'
         },
         approved: {
-            icon: CheckCircle2,
-            color: 'text-emerald-400',
-            bg: 'bg-emerald-400/10',
-            border: 'border-emerald-400/20',
-            title: 'Booking Confirmed!',
-            desc: 'Congratulations! Your booking request has been approved. Welcome to your new home.',
-            showButton: true
+            icon: booking?.paymentStatus === 'pending' ? AlertTriangle : CheckCircle2,
+            color: booking?.paymentStatus === 'pending' ? 'text-amber-500' : 'text-emerald-400',
+            bg: booking?.paymentStatus === 'pending' ? 'bg-amber-500/10' : 'bg-emerald-400/10',
+            border: booking?.paymentStatus === 'pending' ? 'border-amber-500/20' : 'border-emerald-400/20',
+            title: booking?.paymentStatus === 'pending' ? 'Action Required: Pay Security Deposit' : 'Booking Confirmed!',
+            desc: booking?.paymentStatus === 'pending' ? 'The manager has approved your request! Please fulfill the deposit to activate the lease.' : 'Congratulations! Your lease is active.',
+            showButton: booking?.paymentStatus !== 'pending',
+            showPayButton: booking?.paymentStatus === 'pending'
         },
         rejected: {
             icon: XCircle,
@@ -135,9 +139,20 @@ export default function BookingStatusPage() {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={handleDownloadReceipt}
-                        className="mt-8 flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all mx-auto active:scale-95"
+                        className="mt-8 flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl transition-all mx-auto w-full max-w-sm"
                     >
                         <FileText className="w-4 h-4 text-emerald-500" /> DOWNLOAD RECEIPT
+                    </motion.button>
+                )}
+
+                {config.showPayButton && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={() => setShowRazorpay(true)}
+                        className="mt-8 flex items-center justify-center gap-2.5 px-10 py-4 rounded-2xl bg-indigo-600 border border-indigo-500 text-white text-[12px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/30 hover:shadow-xl transition-all mx-auto active:scale-95 w-full max-w-sm"
+                    >
+                        <IndianRupee className="w-5 h-5" /> PAY TO ACTIVATE
                     </motion.button>
                 )}
             </motion.div>
@@ -206,13 +221,45 @@ export default function BookingStatusPage() {
                         <p className="text-muted-foreground/50 text-xs font-medium mt-0.5">Chat with support or message the property manager.</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleChat}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
-                >
-                    CHAT WITH MANAGER
-                </button>
+                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                    <button
+                        onClick={handleChat}
+                        className="w-full px-8 py-3.5 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                    >
+                        CHAT WITH MANAGER
+                    </button>
+                    {booking.status !== 'cancelled' && booking.status !== 'rejected' && (
+                        <button
+                            onClick={async () => {
+                                if(window.confirm('Are you certain you wish to cancel this booking? Explicit property refund limits will organically dictate escrow disbursements based on how many hours remain until the lease start date.')) {
+                                    try {
+                                        await bookingService.cancelBooking(booking._id);
+                                        window.location.reload();
+                                    } catch(e) {
+                                        alert(e.response?.data?.message || 'Failed to cancel the booking.');
+                                    }
+                                }
+                            }}
+                            className="w-full px-8 py-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-500 w-full hover:text-white transition-all"
+                        >
+                            CANCEL LEASE APPLICATION
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Razorpay Component */}
+            {showRazorpay && (
+                <RazorpayPayment
+                    bookingId={booking._id}
+                    property={booking.property}
+                    onClose={() => setShowRazorpay(false)}
+                    onSuccess={() => {
+                        setShowRazorpay(false);
+                        window.location.reload();
+                    }}
+                />
+            )}
         </div>
     );
 }
