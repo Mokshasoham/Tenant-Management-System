@@ -50,7 +50,7 @@ const ReviewsPage = () => {
         try {
             setLoading(true);
             const res = await apiClient.get(`/reviews/property/${propertyId}`);
-            setReviews(res.data?.data || []);
+            setReviews(res.data?.data || res.data || []);
         } catch (e) {
             console.error('Fetch reviews error:', e);
         } finally {

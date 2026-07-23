@@ -127,7 +127,7 @@ export default function TenantDashboard({ user, navigate }) {
                 if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data || null);
                 if (payRes.status === 'fulfilled') setPayments(payRes.value?.data || []);
                 if (maintRes.status === 'fulfilled') setMaintenance(maintRes.value?.data || []);
-                if (notifRes.status === 'fulfilled') setNotifications(notifRes.value?.data?.data || []);
+                if (notifRes.status === 'fulfilled') setNotifications(notifRes.value?.data?.data || notifRes.value?.data || []);
                 if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value?.data?.count || 0);
                 if (bookingRes.status === 'fulfilled') setBookings(bookingRes.value?.data || []);
             } catch (e) { setError('Failed to load dashboard'); }

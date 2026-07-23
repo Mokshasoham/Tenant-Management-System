@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Scale, Check, X, Star, MapPin, Bed, Bath, Maximize, ArrowLeft, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '../utils/cn';
 
 const COMPARE_FEATURES = [
@@ -34,7 +34,11 @@ const getBestValue = (key, properties) => {
 
 const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
     const navigate = useNavigate();
-    const [selected, setSelected] = useState(compareList);
+    const location = useLocation();
+    
+    // Read compareList from navigation state, fallback to props, then fallback to empty array
+    const initialList = location.state?.compareList || compareList || [];
+    const [selected, setSelected] = useState(initialList);
 
     const remove = (id) => {
         setSelected(prev => prev.filter(p => p._id !== id));

@@ -81,7 +81,7 @@ export default function Navbar({ toggleSidebar }) {
   useEffect(() => {
     if (!showNotif) return;
     notificationService.getMyNotifications({ limit: 10 })
-      .then(res => setNotifications(res.data?.data || []))
+      .then(res => setNotifications(res.data?.data || res.data || []))
       .catch(() => { });
   }, [showNotif]);
 

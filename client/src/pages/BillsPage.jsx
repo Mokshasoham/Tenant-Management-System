@@ -208,7 +208,7 @@ export default function BillsPage() {
                       Invoice Pending
                     </button>
                   )}
-                  {isSettled && (
+                  {isSettled && bill.invoiceUrl && (
                     <button
                       onClick={() => window.open(bill.invoiceUrl, '_blank')}
                       className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/5 transition-all"

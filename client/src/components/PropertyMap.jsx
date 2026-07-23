@@ -83,16 +83,25 @@ const INDIA_STATES = Object.keys(STATE_COORDS);
 
 function priceIcon(property, selected) {
     const color = TYPE_COLORS[property.type] || DEF;
-    const price = ((property.rentAmount || 0) / 1000).toFixed(0);
+    const amount = property.rentAmount || 0;
+    let priceLabel = '';
+    if (amount >= 1000) {
+        const kVal = amount / 1000;
+        priceLabel = `₹${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    } else {
+        priceLabel = `₹${amount}`;
+    }
+
     return L.divIcon({
-        className: '',
+        className: 'custom-price-marker',
         iconAnchor: [28, 18],
+        iconSize: [64, 32],
         html: `<div style="
       background:${color};color:white;padding:5px 10px;border-radius:20px;
       font-size:12px;font-weight:800;white-space:nowrap;border:2px solid white;
       box-shadow:${selected ? `0 4px 20px ${color}80,0 2px 8px rgba(0,0,0,0.6)` : '0 2px 8px rgba(0,0,0,0.3)'};
       transform:${selected ? 'scale(1.25)' : 'scale(1)'};cursor:pointer;font-family:Inter,sans-serif;
-    ">₹${price}k</div>`,
+    ">${priceLabel}</div>`,
     });
 }
 
@@ -165,7 +174,11 @@ export default function InteractivePropertyMap({
         }, 400);
 
         mapRef.current = map;
-        return () => { map.remove(); mapRef.current = null; };
+        return () => {
+            map.remove();
+            mapRef.current = null;
+            markersRef.current = {};
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
