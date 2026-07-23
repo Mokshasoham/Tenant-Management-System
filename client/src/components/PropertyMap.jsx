@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -127,8 +128,10 @@ export default function InteractivePropertyMap({
     country,
 }) {
     const navigate = useNavigate();
+    const { theme } = useTheme();
     const containerRef = useRef(null);
     const mapRef = useRef(null);
+    const tileLayerRef = useRef(null);
     const markersRef = useRef({});
 
     const [typeFilter, setTypeFilter] = useState('');
@@ -149,9 +152,12 @@ export default function InteractivePropertyMap({
             zoomControl: false,
         });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const tileLayer = L.tileLayer(theme === 'dark'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(map);
+        tileLayerRef.current = tileLayer;
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -177,10 +183,21 @@ export default function InteractivePropertyMap({
         return () => {
             map.remove();
             mapRef.current = null;
+            tileLayerRef.current = null;
             markersRef.current = {};
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // ── Update map tile layer theme dynamically ──
+    useEffect(() => {
+        if (tileLayerRef.current) {
+            const url = theme === 'dark'
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            tileLayerRef.current.setUrl(url);
+        }
+    }, [theme]);
 
     // ── Update markers when properties/typeFilter change ──
     useEffect(() => {
