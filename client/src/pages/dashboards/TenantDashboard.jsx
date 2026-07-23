@@ -104,9 +104,7 @@ function PaymentCountdown({ dueDate, amount }) {
     );
 }
 
-export default function TenantDashboard() {
-    const navigate = useNavigate();
-    const user = useAuthStore((state) => state.user);
+export default function TenantDashboard({ user, navigate }) {
     const { t } = useLanguage();
     const [lease, setLease] = useState(null);
     const [payments, setPayments] = useState([]);
