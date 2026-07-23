@@ -13,15 +13,15 @@ export function CalendarWidget() {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col h-full overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl p-4 flex flex-col h-full overflow-hidden">
             <div className="flex items-center gap-2 mb-4 shrink-0">
                 <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400">
                     <CalendarIcon className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-white text-sm">{monthName} {currentYear}</span>
+                <span className="font-bold text-foreground text-sm">{monthName} {currentYear}</span>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-white/30 mb-2 shrink-0">
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-muted-foreground/60 mb-2 shrink-0">
                 {days.map(d => <div key={d}>{d}</div>)}
             </div>
 
@@ -38,7 +38,7 @@ export function CalendarWidget() {
                             className={`flex items-center justify-center rounded-lg text-xs
                                 ${isToday
                                     ? 'bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-500/20'
-                                    : 'text-white/70 hover:bg-white/5'
+                                    : 'text-foreground/75 hover:bg-muted'
                                 }`}
                         >
                             {day}
@@ -77,12 +77,12 @@ function AnalogClock({ tz, name, code }) {
 
     return (
         <div className="flex flex-col items-center gap-2">
-            <div className="relative w-20 h-20 rounded-full border-2 border-white/10 bg-white/5 shadow-inner flex items-center justify-center">
+            <div className="relative w-20 h-20 rounded-full border-2 border-border bg-muted/30 shadow-inner flex items-center justify-center">
                 {/* Clock Face Markers */}
                 {[...Array(12)].map((_, i) => (
                     <div
                         key={i}
-                        className={`absolute w-0.5 bg-white/20 origin-bottom ${i % 3 === 0 ? 'h-2 bg-white/40' : 'h-1'}`}
+                        className={`absolute w-0.5 bg-foreground/20 origin-bottom ${i % 3 === 0 ? 'h-2 bg-foreground/40' : 'h-1'}`}
                         style={{
                             transform: `rotate(${i * 30}deg) translate(0, -9px)`, // Push to edge
                             top: 0,
@@ -92,16 +92,16 @@ function AnalogClock({ tz, name, code }) {
                             height: '50%'
                         }}
                     >
-                        <div className="absolute top-0 w-full bg-white/20" style={{ height: i % 3 === 0 ? 6 : 3 }} />
+                        <div className="absolute top-0 w-full bg-foreground/25" style={{ height: i % 3 === 0 ? 6 : 3 }} />
                     </div>
                 ))}
 
                 {/* Center dot */}
-                <div className="absolute w-1.5 h-1.5 bg-white rounded-full z-10 box-content border border-[#0a0a16]" />
+                <div className="absolute w-1.5 h-1.5 bg-foreground rounded-full z-10 box-content border border-background" />
 
                 {/* Hour Hand */}
                 <motion.div
-                    className="absolute w-1 bg-white rounded-full origin-bottom"
+                    className="absolute w-1 bg-foreground rounded-full origin-bottom"
                     style={{ height: '25%', bottom: '50%', left: 'calc(50% - 2px)' }}
                     animate={{ rotate: hourAngle }}
                     transition={{ type: "spring", stiffness: 50, damping: 15 }}
@@ -109,7 +109,7 @@ function AnalogClock({ tz, name, code }) {
 
                 {/* Minute Hand */}
                 <motion.div
-                    className="absolute w-0.5 bg-white/70 rounded-full origin-bottom"
+                    className="absolute w-0.5 bg-foreground/70 rounded-full origin-bottom"
                     style={{ height: '35%', bottom: '50%', left: 'calc(50% - 1px)' }}
                     animate={{ rotate: minuteAngle }}
                     transition={{ type: "spring", stiffness: 50, damping: 15 }}
@@ -124,8 +124,8 @@ function AnalogClock({ tz, name, code }) {
                 />
             </div>
             <div className="text-center">
-                <p className="text-[10px] font-black text-white uppercase tracking-widest">{code}</p>
-                <p className="text-[9px] text-white/40 font-medium">
+                <p className="text-[10px] font-black text-foreground uppercase tracking-widest">{code}</p>
+                <p className="text-[9px] text-muted-foreground/60 font-medium">
                     {localDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {/* Day/Night Icon */}
                     <span className="ml-1 opacity-50">{isDay ? '☀️' : '🌙'}</span>
@@ -145,12 +145,12 @@ export function WorldClockWidget() {
     ];
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 h-full flex flex-col justify-between">
+        <div className="bg-card border border-border rounded-2xl p-4 h-full flex flex-col justify-between">
             <div className="flex items-center gap-2 mb-2 shrink-0">
                 <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
                     <Globe className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-white text-sm">World Clock</span>
+                <span className="font-bold text-foreground text-sm">World Clock</span>
             </div>
 
             <div className="grid grid-cols-2 gap-y-4 gap-x-2 place-items-center flex-1 overflow-y-auto custom-scrollbar">
