@@ -121,7 +121,7 @@ export default function TenantDashboard({ user, navigate }) {
                 const [leaseRes, payRes, maintRes, notifRes, unreadRes, bookingRes] = await Promise.allSettled([
                     leaseService.getMyLease(),
                     paymentService.getMyPayments(),
-                    maintenanceService.getMyRequests(),
+                    maintenanceService.getAllRequests({ limit: 5 }),
                     notificationService.getMyNotifications({ limit: 10 }),
                     notificationService.getUnreadCount(),
                     bookingService.getMyBookings(),
@@ -129,7 +129,7 @@ export default function TenantDashboard({ user, navigate }) {
 
                 if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data);
                 if (payRes.status === 'fulfilled') setPayments(payRes.value?.data);
-                if (maintRes.status === 'fulfilled') setMaintenance(maintRes.value?.data);
+                if (maintRes.status === 'fulfilled') setMaintenance(maintRes.value?.data?.data || maintRes.value?.data || []);
                 if (notifRes.status === 'fulfilled') setNotifications(notifRes.value?.data?.data || notifRes.value?.data || []);
                 if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value?.data?.count || 0);
                 if (bookingRes.status === 'fulfilled') setBookings(bookingRes.value?.data || []);
