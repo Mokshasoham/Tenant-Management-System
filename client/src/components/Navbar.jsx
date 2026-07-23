@@ -5,6 +5,7 @@ import useAuthStore from '../context/authStore';
 import { notificationService } from '../services/api';
 import { LogOut, Menu, Bell, Search, CheckCircle2 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 
 const ROLE_THEME = {
   admin: {
@@ -54,6 +55,7 @@ export default function Navbar({ toggleSidebar }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { t } = useLanguage();
 
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -121,7 +123,7 @@ export default function Navbar({ toggleSidebar }) {
         </button>
         <div className={cn('hidden sm:flex items-center gap-2 bg-muted border border-border px-3 py-2 rounded-xl transition-all duration-200', theme.searchFocus)}>
           <Search className="w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground w-48" />
+          <input type="text" placeholder={t('common.search') + '...'} className="bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground w-48" />
         </div>
       </div>
 
@@ -156,17 +158,17 @@ export default function Navbar({ toggleSidebar }) {
                 className="absolute right-0 top-12 w-80 rounded-2xl border border-border bg-card/98 backdrop-blur-xl shadow-2xl overflow-hidden"
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <p className="text-sm font-black text-foreground">Notifications</p>
+                  <p className="text-sm font-black text-foreground">{t('settings.notifications')}</p>
                   {unreadCount > 0 && (
                     <button onClick={handleMarkAllRead}
                       className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors">
-                      <CheckCircle2 className="w-3 h-3" /> Mark all read
+                      <CheckCircle2 className="w-3 h-3" /> {t('common.markAllRead') || 'Mark all read'}
                     </button>
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-border">
                   {notifications.length === 0 ? (
-                    <div className="py-10 text-center text-muted-foreground/30 text-sm">No notifications yet</div>
+                    <div className="py-10 text-center text-muted-foreground/30 text-sm">{t('common.noData') || 'No notifications yet'}</div>
                   ) : notifications.map((n) => (
                     <button key={n._id} onClick={() => handleNotifClick(n)}
                       className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors text-left">
@@ -201,7 +203,7 @@ export default function Navbar({ toggleSidebar }) {
         </button>
 
         {/* Logout */}
-        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all ml-1" title="Sign Out">
+        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all ml-1" title={t('nav.logout') || 'Sign Out'}>
           <LogOut className="w-4 h-4" />
         </button>
       </div>

@@ -63,22 +63,22 @@ const ROLE_CONFIG = {
 };
 
 const ALL_NAV_ITEMS = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'manager', 'tenant'] },
-  { label: 'Find a Home', icon: Compass, path: '/browse', roles: ['admin', 'tenant'] },
-  { label: 'Saved Homes', icon: Bookmark, path: '/saved', roles: ['tenant'] },
-  { label: 'Compare', icon: Scale, path: '/compare', roles: ['tenant'] },
-  { label: 'Properties', icon: Home, path: '/properties', roles: ['admin', 'manager'] },
-  { label: 'Tenants', icon: Users, path: '/tenants', roles: ['admin', 'manager'] },
-  { label: 'Leases', icon: FileText, path: '/leases', roles: ['admin', 'manager'] },
-  { label: 'Payments', icon: CreditCard, path: '/payments', roles: ['admin', 'manager', 'tenant'] },
-  { label: 'Bills', icon: Receipt, path: '/bills', roles: ['tenant'] },
-  { label: 'My Lease', icon: FileText, path: '/my-lease', roles: ['tenant'] },
-  { label: 'Pay Now', icon: Wallet, path: '/pay-now', roles: ['tenant'] },
-  { label: 'Maintenance', icon: Wrench, path: '/maintenance', roles: ['admin', 'manager', 'tenant'] },
-  { label: 'Analytics', icon: BarChart2, path: '/analytics', roles: ['admin', 'manager'] },
-  { label: 'Messages', icon: MessageSquare, path: '/messages', roles: ['admin', 'manager', 'tenant'], badge: true },
-  { label: 'Users', icon: UserCog, path: '/users', roles: ['admin'] },
-  { label: 'Settings', icon: Settings, path: '/settings', roles: ['admin', 'manager', 'tenant'] },
+  { label: 'Dashboard', key: 'dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'manager', 'tenant'] },
+  { label: 'Find a Home', key: 'browse', icon: Compass, path: '/browse', roles: ['admin', 'tenant'] },
+  { label: 'Saved Homes', key: 'saved', icon: Bookmark, path: '/saved', roles: ['tenant'] },
+  { label: 'Compare', key: 'compare', icon: Scale, path: '/compare', roles: ['tenant'] },
+  { label: 'Properties', key: 'properties', icon: Home, path: '/properties', roles: ['admin', 'manager'] },
+  { label: 'Tenants', key: 'tenants', icon: Users, path: '/tenants', roles: ['admin', 'manager'] },
+  { label: 'Leases', key: 'leases', icon: FileText, path: '/leases', roles: ['admin', 'manager'] },
+  { label: 'Payments', key: 'payments', icon: CreditCard, path: '/payments', roles: ['admin', 'manager', 'tenant'] },
+  { label: 'Bills', key: 'bills', icon: Receipt, path: '/bills', roles: ['tenant'] },
+  { label: 'My Lease', key: 'myLease', icon: FileText, path: '/my-lease', roles: ['tenant'] },
+  { label: 'Pay Now', key: 'payNow', icon: Wallet, path: '/pay-now', roles: ['tenant'] },
+  { label: 'Maintenance', key: 'maintenance', icon: Wrench, path: '/maintenance', roles: ['admin', 'manager', 'tenant'] },
+  { label: 'Analytics', key: 'analytics', icon: BarChart2, path: '/analytics', roles: ['admin', 'manager'] },
+  { label: 'Messages', key: 'messages', icon: MessageSquare, path: '/messages', roles: ['admin', 'manager', 'tenant'], badge: true },
+  { label: 'Users', key: 'users', icon: UserCog, path: '/users', roles: ['admin'] },
+  { label: 'Settings', key: 'settings', icon: Settings, path: '/settings', roles: ['admin', 'manager', 'tenant'] },
 ];
 
 
@@ -87,7 +87,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { theme: colorTheme, toggleTheme } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [showLangPicker, setShowLangPicker] = React.useState(false);
 
   const role = user?.role || 'tenant';
@@ -228,7 +228,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       )}
                     />
                     <span className="font-semibold text-sm tracking-tight flex-1 whitespace-nowrap">
-                      {item.label}
+                      {t(`nav.${item.key}`) || item.label}
                     </span>
                     {item.badge && !isActive && (
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', theme.badgeBg)} />
@@ -319,7 +319,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all group"
           >
             <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
-            <span className="font-semibold text-sm">Sign Out</span>
+            <span className="font-semibold text-sm">{t('nav.logout') || 'Sign Out'}</span>
           </button>
           <p className="text-[9px] text-muted-foreground/30 font-bold uppercase tracking-widest px-3 mt-2">
             TMS Platform v2.0
