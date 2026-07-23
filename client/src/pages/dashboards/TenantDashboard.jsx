@@ -72,10 +72,10 @@ function PaymentCountdown({ dueDate, amount }) {
         <div className="flex flex-col items-center gap-3">
             <div className={cn('text-center px-5 py-3 rounded-2xl border', isOverdue
                 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20')}>
-                <p className={cn('text-5xl font-black tabular-nums', isOverdue ? 'text-rose-400' : 'text-emerald-600 dark:text-white')}>
+                <p className={cn('text-5xl font-black tabular-nums', isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-white')}>
                     {isOverdue ? '!' : String(days).padStart(2, '0')}
                 </p>
-                <p className={cn('text-[9px] font-black uppercase tracking-widest mt-1', isOverdue ? 'text-rose-400' : 'text-emerald-300/60')}>
+                <p className={cn('text-[9px] font-black uppercase tracking-widest mt-1', isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-300/60')}>
                     {isOverdue ? 'Overdue' : 'Days Left'}
                 </p>
             </div>
@@ -203,25 +203,25 @@ export default function TenantDashboard({ user, navigate }) {
                 <div className="grid grid-cols-1 gap-4">
                     {/* Active Bookings Timeline */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                        className="p-6 rounded-3xl bg-white/3 border border-white/5">
-                        <p className="text-sm font-black text-white mb-4 flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-blue-400" /> Recent Booking Activity
+                        className="p-6 rounded-3xl bg-card border border-border">
+                        <p className="text-sm font-black text-foreground mb-4 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-500" /> Recent Booking Activity
                         </p>
                         <div className="space-y-4">
                             {bookings.map((b, i) => (
                                 <div key={b._id}
                                     onClick={() => navigate(`/bookings/${b._id}`)}
-                                    className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                                    className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border hover:bg-muted transition-all cursor-pointer group"
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center",
-                                            b.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                b.status === 'rejected' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400')}>
+                                            b.status === 'approved' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' :
+                                                b.status === 'rejected' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-blue-500/20 text-blue-600 dark:text-blue-400')}>
                                             <Building2 className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{b.property?.name}</p>
-                                            <p className="text-[10px] text-white/30 truncate max-w-[200px]">{b.property?.address}</p>
+                                            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{b.property?.name}</p>
+                                            <p className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]">{b.property?.address}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -294,23 +294,23 @@ export default function TenantDashboard({ user, navigate }) {
                                 { label: 'Start', value: new Date(lease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                 { label: 'Ends', value: new Date(lease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                             ].map((item) => (
-                                <div key={item.label} className={cn('p-3 rounded-xl', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-white/5 border border-white/5')}>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{item.label}</p>
-                                    <p className={cn('text-xs font-black', item.hl ? 'text-emerald-300' : 'text-white')}>{item.value}</p>
+                                <div key={item.label} className={cn('p-3 rounded-xl', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
+                                    <p className={cn('text-xs font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
                                 </div>
                             ))}
                         </div>
                         {lease.property?.amenities?.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-white/5">
-                                <p className="text-[10px] font-black text-white/25 uppercase tracking-widest mb-2">Unit Amenities</p>
+                            <div className="mt-4 pt-4 border-t border-border">
+                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-2">Unit Amenities</p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {lease.property.amenities.map(a => (
-                                        <span key={a} className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-white/50 capitalize">{a}</span>
+                                        <span key={a} className="px-2 py-1 rounded-lg bg-muted border border-border text-[10px] text-muted-foreground capitalize">{a}</span>
                                     ))}
                                 </div>
                             </div>
                         )}
-                        <div className="flex gap-3 mt-5 pt-4 border-t border-white/5">
+                        <div className="flex gap-3 mt-5 pt-4 border-t border-border">
                             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                 onClick={() => navigate('/pay-now')}
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-all">
@@ -318,7 +318,7 @@ export default function TenantDashboard({ user, navigate }) {
                             </motion.button>
                             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                 onClick={() => navigate('/maintenance')}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-white/60 font-bold text-sm hover:bg-white/5 hover:text-white transition-all">
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-all">
                                 <Wrench className="w-4 h-4" /> Report Issue
                             </motion.button>
                             {lease.property?.manager && (
@@ -338,21 +338,21 @@ export default function TenantDashboard({ user, navigate }) {
 
                     {/* Payment Countdown */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                        className="rounded-2xl border border-emerald-500/15 bg-gradient-to-br from-emerald-900/30 via-teal-900/20 to-transparent p-5 flex flex-col">
+                        className="rounded-2xl border border-border bg-card p-5 flex flex-col">
                         <div className="flex items-center gap-2 mb-4">
-                            <div className="p-2 rounded-xl bg-emerald-500/20">
-                                <Clock className="w-4 h-4 text-emerald-400" />
+                            <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
+                                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             </div>
-                            <p className="text-sm font-black text-white">Next Payment</p>
+                            <p className="text-sm font-black text-foreground">Next Payment</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center">
                             {pendingPayment ? (
                                 <PaymentCountdown dueDate={pendingPayment.dueDate} amount={pendingPayment.amount} />
                             ) : (
                                 <div className="text-center py-6 space-y-2">
-                                    <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                                    <p className="font-bold text-white/60 text-sm">All caught up!</p>
-                                    <p className="text-xs text-white/25">No pending payments</p>
+                                    <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto" />
+                                    <p className="font-bold text-muted-foreground text-sm">All caught up!</p>
+                                    <p className="text-xs text-muted-foreground/50">No pending payments</p>
                                 </div>
                             )}
                         </div>
@@ -380,8 +380,8 @@ export default function TenantDashboard({ user, navigate }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Quick Actions */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                    className="rounded-2xl border border-white/5 bg-white/3 p-5">
-                    <p className="text-sm font-black text-white mb-4">Quick Actions</p>
+                    className="rounded-2xl border border-border bg-card p-5">
+                    <p className="text-sm font-black text-foreground mb-4">Quick Actions</p>
                     <div className="grid grid-cols-2 gap-3">
                         {[
                             { label: 'Messages', icon: MessageSquare, path: '/messages', color: 'from-indigo-600 to-violet-600', glow: 'shadow-indigo-500/20' },
@@ -405,30 +405,30 @@ export default function TenantDashboard({ user, navigate }) {
 
                 {/* Recent Maintenance */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-                    className="rounded-2xl border border-white/5 bg-white/3 p-5">
+                    className="rounded-2xl border border-border bg-card p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-black text-white">My Requests</p>
+                        <p className="text-sm font-black text-foreground">My Requests</p>
                         <button onClick={() => navigate('/maintenance')}
-                            className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors">
+                            className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 transition-colors">
                             + New <ArrowRight className="w-3 h-3" />
                         </button>
                     </div>
                     {maintenance.length === 0 ? (
-                        <div className="text-center py-8 text-white/20 text-sm">
+                        <div className="text-center py-8 text-muted-foreground/30 text-sm">
                             <Wrench className="w-8 h-8 mx-auto mb-2 opacity-30" />
                             No requests yet
                         </div>
                     ) : (
                         <div className="space-y-2.5">
                             {maintenance.slice(0, 4).map((m) => (
-                                <div key={m._id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
+                                <div key={m._id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted transition-colors">
                                     <div className={cn('w-2 h-2 rounded-full flex-shrink-0',
                                         m.status === 'resolved' ? 'bg-emerald-400' : m.status === 'in_progress' ? 'bg-amber-400' : 'bg-rose-400')} />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-white/80 truncate">{m.title}</p>
-                                        <p className="text-[10px] text-white/30 capitalize">{m.status?.replace('_', ' ')}</p>
+                                        <p className="text-xs font-bold text-foreground/80 truncate">{m.title}</p>
+                                        <p className="text-[10px] text-muted-foreground/60 capitalize">{m.status?.replace('_', ' ')}</p>
                                     </div>
-                                    <span className="text-[9px] text-white/20">{new Date(m.createdAt).toLocaleDateString()}</span>
+                                    <span className="text-[9px] text-muted-foreground/40">{new Date(m.createdAt).toLocaleDateString()}</span>
                                 </div>
                             ))}
                         </div>
@@ -437,9 +437,9 @@ export default function TenantDashboard({ user, navigate }) {
 
                 {/* Recent Notifications */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                    className="rounded-2xl border border-white/5 bg-white/3 p-5">
+                    className="rounded-2xl border border-border bg-card p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-black text-white flex items-center gap-2">
+                        <p className="text-sm font-black text-foreground flex items-center gap-2">
                             Notifications
                             {unread > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">{unread}</span>
@@ -447,18 +447,18 @@ export default function TenantDashboard({ user, navigate }) {
                         </p>
                     </div>
                     {notifications.length === 0 ? (
-                        <div className="text-center py-8 text-white/20 text-sm">
+                        <div className="text-center py-8 text-muted-foreground/30 text-sm">
                             <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
                             No notifications
                         </div>
                     ) : (
                         <div className="space-y-2.5">
                             {notifications.slice(0, 4).map((n) => (
-                                <div key={n._id} className={cn('flex gap-3 p-2.5 rounded-xl transition-colors', n.read ? 'opacity-50' : 'bg-white/3')}>
-                                    <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', n.read ? 'bg-white/20' : 'bg-blue-400')} />
+                                <div key={n._id} className={cn('flex gap-3 p-2.5 rounded-xl transition-colors', n.read ? 'opacity-50' : 'bg-muted/50')}>
+                                    <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', n.read ? 'bg-muted-foreground/20' : 'bg-blue-500')} />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-white/80 truncate">{n.title}</p>
-                                        <p className="text-[10px] text-white/30 line-clamp-1">{n.message}</p>
+                                        <p className="text-xs font-bold text-foreground/80 truncate">{n.title}</p>
+                                        <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{n.message}</p>
                                     </div>
                                 </div>
                             ))}
@@ -470,33 +470,33 @@ export default function TenantDashboard({ user, navigate }) {
             {/* Payment History */}
             {payments.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
-                    className="rounded-2xl border border-white/5 bg-white/3 p-5">
+                    className="rounded-2xl border border-border bg-card p-5">
                     <div className="flex items-center justify-between mb-5">
-                        <p className="text-sm font-black text-white">Payment History</p>
+                        <p className="text-sm font-black text-foreground">Payment History</p>
                         <button onClick={() => navigate('/payments')}
                             className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors">
                             View all <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                     </div>
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-border">
                         {payments.slice(0, 6).map((p, i) => {
                             const StatusIcon = STATUS_ICON[p.status] || CreditCard;
                             return (
                                 <motion.div key={p._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.65 + i * 0.06 }}
-                                    className="flex items-center justify-between py-3 hover:bg-white/3 px-2 -mx-2 rounded-lg transition-colors">
+                                    className="flex items-center justify-between py-3 hover:bg-muted px-2 -mx-2 rounded-lg transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className={cn('p-1.5 rounded-lg', STATUS_COLOR[p.status]?.split(' ').slice(1).join(' ') || 'bg-white/5')}>
-                                            <StatusIcon className={cn('w-3.5 h-3.5', STATUS_COLOR[p.status]?.split(' ')[0] || 'text-white/40')} />
+                                        <div className={cn('p-1.5 rounded-lg', STATUS_COLOR[p.status]?.split(' ').slice(1).join(' ') || 'bg-muted')}>
+                                            <StatusIcon className={cn('w-3.5 h-3.5', STATUS_COLOR[p.status]?.split(' ')[0] || 'text-muted-foreground')} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-white">{p.property?.name || p.lease?.leaseNumber || 'Payment'}</p>
-                                            <p className="text-xs text-white/30">{new Date(p.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                                            <p className="text-sm font-bold text-foreground">{p.property?.name || p.lease?.leaseNumber || 'Payment'}</p>
+                                            <p className="text-xs text-muted-foreground/60">{new Date(p.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-black text-white">₹{(p.amountPaid || p.amount || 0).toLocaleString()}</p>
-                                        <span className={cn('text-[9px] font-black px-2 py-0.5 rounded-full border uppercase', STATUS_COLOR[p.status] || 'text-white/30 bg-white/5 border-white/10')}>
+                                        <p className="text-sm font-black text-foreground">₹{(p.amountPaid || p.amount || 0).toLocaleString()}</p>
+                                        <span className={cn('text-[9px] font-black px-2 py-0.5 rounded-full border uppercase', STATUS_COLOR[p.status] || 'text-muted-foreground bg-muted border-border')}>
                                             {p.status}
                                         </span>
                                     </div>
