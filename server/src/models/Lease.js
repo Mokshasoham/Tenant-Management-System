@@ -62,6 +62,22 @@ const leaseSchema = new mongoose.Schema(
         },
       },
     ],
+    signature: {
+      type: String, // base64 representation of drawing/upload or typed text representation
+    },
+    signatureType: {
+      type: String,
+      enum: ['draw', 'type', 'upload'],
+    },
+    signedBy: {
+      type: String,
+    },
+    signedAt: {
+      type: Date,
+    },
+    tenantSignatureIp: {
+      type: String,
+    },
   },
   {
     timestamps: true,

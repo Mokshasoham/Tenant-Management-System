@@ -166,6 +166,22 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
             </div>
           )}
           {lease.terms && <div className="p-3 rounded-xl bg-muted/50 border border-border text-sm text-muted-foreground whitespace-pre-wrap">{lease.terms}</div>}
+          {lease.signature && (
+            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Verified Digital Sign-Off</p>
+              <div className="flex items-center gap-4 justify-between">
+                <div className="text-xs space-y-1">
+                  <p><span className="text-muted-foreground">Signed By:</span> <strong className="text-foreground">{lease.signedBy}</strong></p>
+                  <p><span className="text-muted-foreground">IP:</span> <strong className="text-foreground font-mono">{lease.tenantSignatureIp}</strong></p>
+                  <p><span className="text-muted-foreground">Date:</span> <strong className="text-foreground">{new Date(lease.signedAt).toLocaleString()}</strong></p>
+                  <p><span className="text-muted-foreground">Type:</span> <strong className="text-foreground capitalize">{lease.signatureType || 'draw'}</strong></p>
+                </div>
+                <div className="w-32 h-14 bg-card border border-border p-1 flex items-center justify-center rounded-lg overflow-hidden shadow-inner flex-shrink-0">
+                  <img src={lease.signature} alt="Signature stamp" className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         {lease.status === 'active' && (
           <div className="px-6 pb-6">

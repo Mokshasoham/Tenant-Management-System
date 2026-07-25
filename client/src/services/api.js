@@ -63,6 +63,7 @@ export const leaseService = {
   terminateLease: (id) => apiClient.post(`/leases/${id}/terminate`),
   uploadDocument: (id, data) => apiClient.post(`/leases/${id}/documents`, data),
   getLeaseStats: () => apiClient.get('/leases/stats'),
+  signLease: (id, data) => apiClient.post(`/leases/${id}/sign`, data),
 };
 
 export const paymentService = {

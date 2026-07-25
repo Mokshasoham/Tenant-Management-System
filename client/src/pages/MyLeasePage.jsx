@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { leaseService, paymentService } from '../services/api';
@@ -6,7 +6,8 @@ import {
     Home, Calendar, CreditCard, FileText, CheckCircle2, Clock,
     AlertTriangle, Building2, Wifi, Car, Droplets, Zap, Wind,
     Wallet, ArrowRight, RefreshCw, Info, Shield, Hash, Phone,
-    Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp
+    Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
+    PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -17,7 +18,7 @@ const AMENITY_ICON = {
 
 const STATUS_CONFIG = {
     active: { label: 'Active', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/25', dot: 'bg-emerald-500 animate-pulse dark:bg-emerald-400' },
-    pending: { label: 'Pending', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-500 animate-pulse dark:bg-amber-400' },
+    pending: { label: 'Pending Signature', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-500 animate-pulse dark:bg-amber-400' },
     expired: { label: 'Expired', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10 border-rose-500/25', dot: 'bg-rose-500 dark:bg-rose-400' },
     terminated: { label: 'Terminated', color: 'text-muted-foreground/40', bg: 'bg-muted border-border', dot: 'bg-muted-foreground/20' },
 };
@@ -64,20 +65,182 @@ export default function MyLeasePage() {
     const [loading, setLoading] = useState(true);
     const [showAllPayments, setShowAllPayments] = useState(false);
 
+    // E-Signature States
+    const [agreeToTerms, setAgreeToTerms] = useState(false);
+    const [printedName, setPrintedName] = useState('');
+    const [sigTab, setSigTab] = useState('draw'); // 'draw' | 'type' | 'upload'
+    const [typedFont, setTypedFont] = useState('caveat'); // 'caveat' | 'pacifico' | 'delafield'
+    const [typewrittenText, setTypewrittenText] = useState('');
+    const [signatureData, setSignatureData] = useState(''); // base64 Data URL
+    const [signingError, setSigningError] = useState('');
+    const [signingLoading, setSigningLoading] = useState(false);
+
+    // Canvas Draw Refs & State
+    const canvasRef = useRef(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    const fetchLeaseData = async () => {
+        setLoading(true);
+        try {
+            const [leaseRes, payRes] = await Promise.allSettled([
+                leaseService.getMyLease(),
+                paymentService.getMyPayments(),
+            ]);
+            if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data?.data || leaseRes.value?.data || null);
+            if (payRes.status === 'fulfilled') setPayments(payRes.value?.data?.data || payRes.value?.data || []);
+        } catch (e) { console.error('Error fetching lease data:', e); }
+        setLoading(false);
+    };
+
     useEffect(() => {
-        (async () => {
-            setLoading(true);
-            try {
-                const [leaseRes, payRes] = await Promise.allSettled([
-                    leaseService.getMyLease(),
-                    paymentService.getMyPayments(),
-                ]);
-                if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data?.data || leaseRes.value?.data || null);
-                if (payRes.status === 'fulfilled') setPayments(payRes.value?.data?.data || payRes.value?.data || []);
-            } catch (e) { console.error('Error fetching lease data:', e); }
-            setLoading(false);
-        })();
+        fetchLeaseData();
     }, []);
+
+    // Canvas Drawing Helpers
+    const getCoordinates = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+        
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        
+        return {
+            x: ((clientX - rect.left) / rect.width) * canvas.width,
+            y: ((clientY - rect.top) / rect.height) * canvas.height
+        };
+    };
+
+    const handleStartDraw = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const { x, y } = getCoordinates(e);
+        setIsDrawing(true);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    const handleDraw = (e) => {
+        if (!isDrawing) return;
+        e.preventDefault(); // Prevent scrolling on touch screens
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const { x, y } = getCoordinates(e);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#10b981'; // Emerald-500
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+
+    const handleStopDraw = () => {
+        if (!isDrawing) return;
+        setIsDrawing(false);
+        const canvas = canvasRef.current;
+        if (canvas) {
+            setSignatureData(canvas.toDataURL());
+        }
+    };
+
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setSignatureData('');
+    };
+
+    // Typed Signature Helper
+    const generateTypedSignatureImage = (text, fontName) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 150;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        let fontStyle = "bold 44px 'Caveat', cursive";
+        if (fontName === 'pacifico') fontStyle = "36px 'Pacifico', cursive";
+        if (fontName === 'delafield') fontStyle = "68px 'Mrs Saint Delafield', cursive";
+        
+        ctx.font = fontStyle;
+        ctx.fillStyle = '#059669'; // Emerald-600
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        return canvas.toDataURL();
+    };
+
+    // Upload Signature Helper
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            setSigningError("Image size must be less than 2MB");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setSignatureData(event.target.result);
+            setSigningError("");
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Submit Signature
+    const handleSignLease = async (e) => {
+        e.preventDefault();
+        setSigningError('');
+        if (!agreeToTerms) {
+            setSigningError('You must agree to the terms & conditions.');
+            return;
+        }
+        if (!printedName.trim()) {
+            setSigningError('Please enter your printed legal name.');
+            return;
+        }
+
+        let finalSig = signatureData;
+        if (sigTab === 'type') {
+            if (!typewrittenText.trim()) {
+                setSigningError('Please type your name to create your signature.');
+                return;
+            }
+            finalSig = generateTypedSignatureImage(typewrittenText, typedFont);
+        } else if (sigTab === 'draw' && !signatureData) {
+            setSigningError('Please draw your signature.');
+            return;
+        } else if (sigTab === 'upload' && !signatureData) {
+            setSigningError('Please upload a signature image.');
+            return;
+        }
+
+        setSigningLoading(true);
+        try {
+            const res = await leaseService.signLease(lease._id, {
+                signature: finalSig,
+                signatureType: sigTab,
+                signedBy: printedName,
+            });
+            if (res.data?.success || res.success) {
+                // Refresh local states
+                fetchLeaseData();
+            }
+        } catch (err) {
+            setSigningError(err.response?.data?.message || err.message || 'Failed to sign lease');
+        } finally {
+            setSigningLoading(false);
+        }
+    };
 
     const statusCfg = STATUS_CONFIG[lease?.status] || STATUS_CONFIG.pending;
     const paidPayments = payments.filter(p => p.status === 'paid');
@@ -133,6 +296,20 @@ export default function MyLeasePage() {
 
             {!loading && lease && (
                 <>
+                    {/* ── Pending Signature Warning Banner ── */}
+                    {lease.status === 'pending' && (
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                            className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm">
+                            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <h4 className="text-sm font-black uppercase tracking-wider">Lease Pending Signature</h4>
+                                <p className="text-xs opacity-80 mt-1 leading-relaxed">
+                                    Please review all the terms and conditions of this lease. Once you are satisfied, draw, type, or upload your signature at the bottom of the page to activate your tenancy.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* ── Lease Hero Card ── */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                         className="relative overflow-hidden rounded-[2.5rem] border border-emerald-500/20 p-6 md:p-10 shadow-2xl"
@@ -159,7 +336,7 @@ export default function MyLeasePage() {
                                     </div>
                                     <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{lease.property?.name || 'Your Property'}</h2>
                                     <p className="flex items-center gap-2 text-emerald-100/60 text-sm mt-3 font-medium">
-                                        <div className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></div> {lease.property?.address || '—'}
+                                        <span className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></span> {lease.property?.address || '—'}
                                     </p>
                                 </div>
                                 <div className="text-right flex-shrink-0 flex flex-col items-end">
@@ -315,12 +492,12 @@ export default function MyLeasePage() {
                                     <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2">
                                         {lease.tenant.email && (
                                             <span className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                                                <div className="p-1 rounded bg-muted"><Mail className="w-3.5 h-3.5" /></div> {lease.tenant.email}
+                                                <span className="p-1 rounded bg-muted"><Mail className="w-3.5 h-3.5" /></span> {lease.tenant.email}
                                             </span>
                                         )}
                                         {lease.tenant.phone && (
                                             <span className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                                                <div className="p-1 rounded bg-muted"><Phone className="w-3.5 h-3.5" /></div> {lease.tenant.phone}
+                                                <span className="p-1 rounded bg-muted"><Phone className="w-3.5 h-3.5" /></span> {lease.tenant.phone}
                                             </span>
                                         )}
                                     </div>
@@ -420,6 +597,283 @@ export default function MyLeasePage() {
                             </>
                         )}
                     </motion.div>
+
+                    {/* ── Lease E-Signature & Agreement Panel ── */}
+                    {lease.status === 'pending' && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                            className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-xl space-y-6">
+                            
+                            <div className="flex items-center gap-3 pb-4 border-b border-border">
+                                <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500">
+                                    <FileSignature className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-foreground uppercase tracking-wider">Lease E-Signature &amp; Legal Consent</h3>
+                                    <p className="text-xs text-muted-foreground/60">Digitally sign and activate your lease contract securely.</p>
+                                </div>
+                            </div>
+
+                            {signingError && (
+                                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-semibold">
+                                    {signingError}
+                                </div>
+                            )}
+
+                            {/* Tab Headers */}
+                            <div className="flex bg-muted p-1 rounded-2xl gap-1">
+                                {[
+                                    { id: 'draw', label: 'Draw Signature', icon: PenTool },
+                                    { id: 'type', label: 'Type Signature', icon: Type },
+                                    { id: 'upload', label: 'Upload Image', icon: Upload },
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSigTab(tab.id);
+                                            setSignatureData('');
+                                            setSigningError('');
+                                        }}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                                            sigTab === tab.id
+                                                ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <tab.icon className="w-4 h-4" />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Tab Contents */}
+                            <div className="min-h-[180px] flex flex-col justify-center border border-border/80 bg-muted/10 rounded-2xl p-4">
+                                {sigTab === 'draw' && (
+                                    <div className="space-y-3">
+                                        <div className="relative border border-dashed border-border rounded-xl overflow-hidden bg-card transition-colors">
+                                            <canvas
+                                                ref={canvasRef}
+                                                width={600}
+                                                height={150}
+                                                className="w-full h-36 bg-transparent cursor-crosshair touch-none"
+                                                onMouseDown={handleStartDraw}
+                                                onMouseMove={handleDraw}
+                                                onMouseUp={handleStopDraw}
+                                                onMouseLeave={handleStopDraw}
+                                                onTouchStart={handleStartDraw}
+                                                onTouchMove={handleDraw}
+                                                onTouchEnd={handleStopDraw}
+                                            />
+                                            {!signatureData && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground/30 text-xs font-semibold uppercase tracking-wider">
+                                                    Draw your signature here
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={clearCanvas}
+                                                className="px-4 py-2 rounded-xl border border-border text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            >
+                                                Clear Board
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {sigTab === 'type' && (
+                                    <div className="space-y-4">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Type your signature</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Enter full name"
+                                                value={typewrittenText}
+                                                onChange={e => setTypewrittenText(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all font-bold"
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            {[
+                                                { id: 'caveat', name: 'Caveat Font', style: "font-['Caveat']" },
+                                                { id: 'pacifico', name: 'Pacifico Font', style: "font-['Pacifico']" },
+                                                { id: 'delafield', name: 'Mrs Saint Delafield', style: "font-['Mrs_Saint_Delafield']" },
+                                            ].map(font => (
+                                                <button
+                                                    key={font.id}
+                                                    type="button"
+                                                    onClick={() => setTypedFont(font.id)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all",
+                                                        typedFont === font.id
+                                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                                                            : "bg-card border-border text-muted-foreground hover:border-muted-foreground/30"
+                                                    )}
+                                                >
+                                                    {font.name}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="h-28 rounded-xl bg-card border border-border flex items-center justify-center overflow-hidden shadow-inner p-4">
+                                            {typewrittenText ? (
+                                                <p
+                                                    className={cn(
+                                                        "text-4xl text-emerald-600 dark:text-emerald-400 select-none tracking-normal truncate px-4",
+                                                        typedFont === 'caveat' && "font-['Caveat'] font-bold",
+                                                        typedFont === 'pacifico' && "font-['Pacifico']",
+                                                        typedFont === 'delafield' && "font-['Mrs_Saint_Delafield'] text-5xl"
+                                                    )}
+                                                    style={{
+                                                        fontFamily: typedFont === 'caveat' ? "'Caveat', cursive" :
+                                                                    typedFont === 'pacifico' ? "'Pacifico', cursive" :
+                                                                    "'Mrs Saint Delafield', cursive"
+                                                    }}
+                                                >
+                                                    {typewrittenText}
+                                                </p>
+                                            ) : (
+                                                <p className="text-muted-foreground/30 text-xs font-semibold uppercase tracking-wider">Signature Preview</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {sigTab === 'upload' && (
+                                    <div className="space-y-4">
+                                        <div className="relative h-32 rounded-xl border border-dashed border-border bg-card flex flex-col items-center justify-center p-4 hover:border-muted-foreground/30 transition-colors">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            {signatureData ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <img src={signatureData} alt="Uploaded signature" className="max-h-20 object-contain" />
+                                                    <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">Image Loaded Successfully</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 text-center">
+                                                    <Upload className="w-6 h-6 text-muted-foreground/40" />
+                                                    <div>
+                                                        <p className="text-xs font-black text-foreground uppercase tracking-wider">Click or drag image file here</p>
+                                                        <p className="text-[9px] text-muted-foreground/40 uppercase tracking-widest mt-1">Supports PNG, JPG (Max 2MB)</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {signatureData && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSignatureData('')}
+                                                    className="px-4 py-2 rounded-xl border border-border text-xs font-black uppercase tracking-wider text-rose-500 hover:bg-rose-500/10 transition-colors"
+                                                >
+                                                    Remove Image
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Consent Checkbox */}
+                            <label className="flex gap-3 items-start select-none cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={agreeToTerms}
+                                    onChange={e => setAgreeToTerms(e.target.checked)}
+                                    className="mt-1 w-4.5 h-4.5 rounded text-emerald-600 focus:ring-emerald-500 border-border bg-card transition-all"
+                                />
+                                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed font-semibold">
+                                    I agree that this digital signature is a legally binding representation of my physical signature and I consent to all terms, rules, and conditions outlined in this lease agreement.
+                                </span>
+                            </label>
+
+                            {/* Printed legal name & button */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end pt-4 border-t border-border">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Printed Legal Name *</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter legal name"
+                                        value={printedName}
+                                        onChange={e => setPrintedName(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all font-bold"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSignLease}
+                                    disabled={signingLoading}
+                                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    <Fingerprint className="w-4 h-4" />
+                                    {signingLoading ? 'Processing signature...' : 'Sign & Activate Lease'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── Digital Signature Stamp Section ── */}
+                    {lease.status === 'active' && lease.signature && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                            className="rounded-3xl border border-emerald-500/20 bg-card p-6 md:p-8 shadow-lg relative overflow-hidden">
+                            {/* Watermark background icon */}
+                            <div className="absolute right-6 top-6 opacity-[0.03] pointer-events-none text-emerald-500">
+                                <Shield className="w-48 h-48" />
+                            </div>
+
+                            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10">
+                                {/* Left Side audit card */}
+                                <div className="flex-1 space-y-4 w-full">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                            <FileCheck className="w-5 h-5" />
+                                        </div>
+                                        <h4 className="text-sm font-black text-foreground uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Verified Lease Sign-off</h4>
+                                    </div>
+                                    <div className="space-y-2 text-xs">
+                                        <div className="flex justify-between py-1.5 border-b border-border/40">
+                                            <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signed By</span>
+                                            <span className="font-black text-foreground">{lease.signedBy}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1.5 border-b border-border/40">
+                                            <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signed On</span>
+                                            <span className="font-black text-foreground">{new Date(lease.signedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1.5 border-b border-border/40">
+                                            <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signing IP Address</span>
+                                            <span className="font-black text-foreground font-mono">{lease.tenantSignatureIp}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1.5 border-b border-border/40">
+                                            <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signature Type</span>
+                                            <span className="font-black text-foreground capitalize">{lease.signatureType || 'Digital Drawing'}</span>
+                                        </div>
+                                        <div className="flex justify-between py-1.5 border-b border-border/40">
+                                            <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Verification Fingerprint</span>
+                                            <span className="font-bold text-muted-foreground font-mono text-[9px] truncate max-w-[150px]">{lease._id}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Side Signature Image Rendering */}
+                                <div className="flex flex-col items-center justify-center p-4 bg-muted/20 border border-border rounded-2xl w-full md:w-64 select-none relative group overflow-hidden">
+                                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider">
+                                        <Shield className="w-2.5 h-2.5" /> SECURE
+                                    </div>
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/30 mb-2">TENANT SIGNATURE</p>
+                                    <div className="w-full h-24 bg-card rounded-xl border border-border/60 p-2 flex items-center justify-center relative shadow-inner overflow-hidden">
+                                        <img src={lease.signature} alt="Verified digital signature" className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
+                                    </div>
+                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-600/40 dark:text-emerald-400/40 mt-2 text-center">VERIFIED ELECTRONIC RECORD</p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* ── Quick Actions ── */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}

@@ -8,6 +8,7 @@ router.use(authenticate);
 
 // Tenant-accessible: view their own lease
 router.get('/my-lease', leaseController.getMyLease);
+router.post('/:id/sign', leaseController.signLease);
 
 // Manager/Admin only routes
 router.get('/', managerOrAdmin, leaseController.getAllLeases);

@@ -242,3 +242,49 @@ export const getLeaseStats = asyncHandler(async (req, res) => {
     },
   });
 });
+
+export const signLease = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { signature, signatureType, signedBy } = req.body;
+
+  if (!signature || !signatureType || !signedBy) {
+    throw new AppError('Signature, signature type, and printed legal name are required', 400);
+  }
+
+  const lease = await Lease.findById(id);
+  if (!lease) {
+    throw new AppError('Lease not found', 404);
+  }
+
+  // Verify user is the tenant associated with the lease
+  const user = await User.findById(req.user.userId).select('email');
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const tenant = await Tenant.findOne({ email: user.email });
+  if (!tenant || lease.tenant.toString() !== tenant._id.toString()) {
+    throw new AppError('You are not authorized to sign this lease', 403);
+  }
+
+  if (lease.status !== 'pending') {
+    throw new AppError('Lease is not pending signature or has already been signed', 400);
+  }
+
+  lease.signature = signature;
+  lease.signatureType = signatureType;
+  lease.signedBy = signedBy;
+  lease.signedAt = new Date();
+  lease.tenantSignatureIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+  lease.status = 'active';
+
+  await lease.save();
+
+  logger.info(`Lease ${lease.leaseNumber} digitally signed by ${signedBy}`);
+
+  res.status(200).json({
+    success: true,
+    message: 'Lease signed and activated successfully',
+    data: lease,
+  });
+});
