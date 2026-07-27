@@ -572,20 +572,24 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             });
         }
 
-        // 3. Create Lease
+        // 3. Ensure Lease (Reuse active lease if it exists, otherwise create new)
         console.log('[MockPay] Trace: Step 3 (Lease)');
-        const lease = await Lease.create({
-            leaseNumber: `LEASE-MOCK-${Date.now()}`,
-            property: propertyId,
-            tenant: tenant._id,
-            startDate: booking.startDate,
-            endDate: booking.endDate,
-            rentAmount: booking.totalAmount,
-            depositAmount: property.depositAmount || 0,
-            status: 'active',
-            createdBy: managerId,
-            terms: 'Simulated for demo.'
-        });
+        let lease = await Lease.findOne({ tenant: tenant._id, property: propertyId, status: 'active' });
+        if (!lease) {
+            console.log('[MockPay] Trace: Creating new lease');
+            lease = await Lease.create({
+                leaseNumber: `LEASE-MOCK-${Date.now()}`,
+                property: propertyId,
+                tenant: tenant._id,
+                startDate: booking.startDate,
+                endDate: booking.endDate,
+                rentAmount: property.rentAmount || booking.totalAmount || 1, // Actual property rent
+                depositAmount: property.depositAmount || 0,
+                status: 'active',
+                createdBy: managerId,
+                terms: 'Simulated for demo.'
+            });
+        }
 
         // 4. Record Payment
         console.log('[MockPay] Trace: Step 4 (Payment)');
@@ -594,13 +598,16 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         if (method === 'upi' || method === 'transfer') safeMethod = 'transfer';
         else if (method && ['cash', 'check', 'transfer', 'card', 'other'].includes(method)) safeMethod = method;
 
+        const actualRent = lease.rentAmount || property.rentAmount || 1;
+        const amountPaid = Number(amount) || booking.totalAmount;
+
         const payment = await Payment.create({
             lease: lease._id,
             tenant: tenant._id,
             property: propertyId,
-            amount: booking.totalAmount,
-            amountPaid: booking.totalAmount,
-            status: 'paid',
+            amount: actualRent, // Actual monthly rent amount
+            amountPaid: amountPaid, // The actual custom paid amount
+            status: amountPaid >= actualRent ? 'paid' : 'partially_paid',
             paymentDate: new Date(),
             dueDate: new Date(),
             paymentMethod: safeMethod,
