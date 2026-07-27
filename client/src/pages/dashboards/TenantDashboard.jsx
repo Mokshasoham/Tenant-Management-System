@@ -4,7 +4,7 @@ import { leaseService, paymentService, maintenanceService, notificationService, 
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
-    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus
+    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
@@ -109,6 +109,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
+    const [completedStackOpen, setCompletedStackOpen] = useState(false);
     const [payments, setPayments] = useState([]);
     const [maintenance, setMaintenance] = useState([]);
     const [notifications, setNotifications] = useState([]);
@@ -181,6 +182,13 @@ export default function TenantDashboard({ user, navigate }) {
 
     const nextEstimatedPayments = getNextEstimatedPayments();
 
+    const trulyActiveLeases = activeLeases.filter(l => new Date(l.endDate) > new Date());
+    const completedLeases = [
+        ...pastLeases,
+        ...activeLeases.filter(l => new Date(l.endDate) <= new Date())
+    ];
+    const uniqueCompletedLeases = Array.from(new Map(completedLeases.map(l => [l._id, l])).values());
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -241,13 +249,13 @@ export default function TenantDashboard({ user, navigate }) {
                             <h2 className="text-lg font-black text-foreground tracking-tight">My Lease Agreements</h2>
                         </div>
                         <span className="px-3 py-1 rounded-full bg-muted border border-border text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                            Total Leases: {activeLeases.length + pastLeases.length} ({activeLeases.length} Active, {pastLeases.length} Past)
+                            Total Leases: {activeLeases.length + pastLeases.length} ({trulyActiveLeases.length} Active, {uniqueCompletedLeases.length} Completed)
                         </span>
                     </div>
 
-                    {activeLeases.length > 0 ? (
+                    {trulyActiveLeases.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
-                            {activeLeases.map((activeLease) => (
+                            {trulyActiveLeases.map((activeLease) => (
                                 <motion.div
                                     key={activeLease._id}
                                     initial={{ opacity: 0, y: 20 }}
@@ -337,33 +345,81 @@ export default function TenantDashboard({ user, navigate }) {
                         </div>
                     )}
 
-                    {/* Past Rentals Section */}
-                    {pastLeases.length > 0 && (
-                        <div className="space-y-2 pt-2">
-                            <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Past Rentals & Expired Leases</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {pastLeases.map((pastLease) => (
-                                    <div key={pastLease._id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-1.5 mb-1">
-                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500">
-                                                    Expired
-                                                </span>
-                                                <span className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-wider">#{pastLease.leaseNumber}</span>
-                                            </div>
-                                            <h4 className="text-sm font-black text-foreground truncate">{pastLease?.property?.name || 'Previous Residence'}</h4>
-                                            <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{pastLease?.property?.address}</p>
-                                            <p className="text-[9px] text-muted-foreground/40 mt-1 font-bold">
-                                                {new Date(pastLease.startDate).toLocaleDateString()} - {new Date(pastLease.endDate).toLocaleDateString()}
-                                            </p>
+                    {/* Collapsible Completed Leases Stack */}
+                    {uniqueCompletedLeases.length > 0 && (
+                        <div className="space-y-3 pt-3">
+                            <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Past & Completed Rentals</h3>
+                            
+                            <div className="relative group">
+                                {/* 3D Card Stack visual deck effect when collapsed */}
+                                {!completedStackOpen && uniqueCompletedLeases.length > 1 && (
+                                    <>
+                                        <div className="absolute inset-0 bg-card/25 border border-border/80 rounded-2xl translate-x-1.5 translate-y-1.5 scale-[0.98] blur-[0.5px] transition-transform duration-300 group-hover:translate-x-2 group-hover:translate-y-2 z-0" />
+                                        {uniqueCompletedLeases.length > 2 && (
+                                            <div className="absolute inset-0 bg-card/10 border border-border/60 rounded-2xl translate-x-3 translate-y-3 scale-[0.96] blur-[1px] transition-transform duration-300 group-hover:translate-x-4 group-hover:translate-y-4 z-0" />
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Main Stack Trigger Card */}
+                                <button
+                                    onClick={() => setCompletedStackOpen(!completedStackOpen)}
+                                    className="relative z-10 w-full bg-card/60 backdrop-blur-md border border-border hover:border-border/80 rounded-2xl p-5 shadow-lg flex items-center justify-between text-left group transition-all duration-300 hover:-translate-y-0.5"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground/80 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                                            <FileText className="w-5 h-5" />
                                         </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Rent</p>
-                                            <p className="text-sm font-black text-foreground">₹{(pastLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                        <div>
+                                            <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">Completed Leases Stack</h4>
+                                            <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-wider mt-0.5">{uniqueCompletedLeases.length} expired or completed lease agreement{uniqueCompletedLeases.length > 1 ? 's' : ''}</p>
                                         </div>
                                     </div>
-                                ))}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 bg-muted border border-border/80 px-2 py-0.5 rounded-lg select-none">
+                                            {completedStackOpen ? 'Hide' : 'Reveal Stack'}
+                                        </span>
+                                        <ChevronDown className={cn("w-4 h-4 text-muted-foreground/60 transition-transform duration-300", completedStackOpen && "rotate-180")} />
+                                    </div>
+                                </button>
                             </div>
+
+                            {/* Stack expanded items list with smooth motion height transition */}
+                            <AnimatePresence>
+                                {completedStackOpen && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                        className="overflow-hidden space-y-3 pt-2"
+                                    >
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1">
+                                            {uniqueCompletedLeases.map((pastLease) => (
+                                                <div key={pastLease._id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between gap-4">
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-1.5 mb-1">
+                                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500">
+                                                                Expired
+                                                            </span>
+                                                            <span className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-wider">#{pastLease.leaseNumber}</span>
+                                                        </div>
+                                                        <h4 className="text-sm font-black text-foreground truncate">{pastLease?.property?.name || 'Previous Residence'}</h4>
+                                                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{pastLease?.property?.address}</p>
+                                                        <p className="text-[9px] text-muted-foreground/45 mt-1 font-bold">
+                                                            {new Date(pastLease.startDate).toLocaleDateString()} - {new Date(pastLease.endDate).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Rent</p>
+                                                        <p className="text-sm font-black text-foreground">₹{(pastLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     )}
                 </div>
