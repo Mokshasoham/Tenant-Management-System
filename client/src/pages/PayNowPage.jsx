@@ -109,7 +109,7 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
                 : '';
 
     return (
-        <form onSubmit={handlePay} className="space-y-4">
+        <form onSubmit={handlePay} className="space-y-4" autoComplete="off">
             {/* Virtual Card Preview */}
             <div className="relative p-6 rounded-[2rem] overflow-hidden text-white h-48 shadow-2xl"
                 style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}>
@@ -139,13 +139,13 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
             </div>
 
             <Field label="Cardholder Name" error={errors.name}>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Name on card" error={errors.name} />
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Name on card" error={errors.name} autoComplete="off" />
             </Field>
 
             <Field label="Card Number" error={errors.cardNum} hint="16-digit number on your debit card">
                 <div className="relative">
                     <Input value={cardNum} onChange={e => setCardNum(fmtCard(e.target.value))} placeholder="1234 5678 9012 3456"
-                        inputMode="numeric" className="font-mono pr-20" error={errors.cardNum} />
+                        inputMode="numeric" className="font-mono pr-20" error={errors.cardNum} autoComplete="off" />
                     {cardType && (
                         <span className="absolute right-3 top-2.5 text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{cardType}</span>
                     )}
@@ -155,13 +155,13 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
             <div className="grid grid-cols-2 gap-3">
                 <Field label="Expiry Date" error={errors.expiry}>
                     <Input value={expiry} onChange={e => setExpiry(fmtExpiry(e.target.value))} placeholder="MM/YY"
-                        inputMode="numeric" error={errors.expiry} />
+                        inputMode="numeric" error={errors.expiry} autoComplete="off" />
                 </Field>
                 <Field label="CVV" error={errors.cvv} hint="3–4 digits on back">
                     <div className="relative">
                         <Input type={showCvv ? 'text' : 'password'} value={cvv}
                             onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                            placeholder="•••" inputMode="numeric" className="pr-10" error={errors.cvv} />
+                            placeholder="•••" inputMode="numeric" className="pr-10" error={errors.cvv} autoComplete="off" />
                         <button type="button" onClick={() => setShowCvv(v => !v)}
                             className="absolute right-3 top-3 text-muted-foreground/30 hover:text-foreground transition-colors">
                             {showCvv ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
