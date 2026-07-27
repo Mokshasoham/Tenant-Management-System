@@ -10,6 +10,8 @@ export const SUPPORTED_LANGUAGES = [
     { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', flag: '🇮🇳' },
     { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', flag: '🇮🇳' },
     { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', flag: '🇮🇳' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+    { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
 ];
 
 export function LanguageProvider({ children }) {
