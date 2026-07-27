@@ -64,6 +64,10 @@ const maintenanceSchema = new mongoose.Schema(
             min: 0,
         },
         scheduledDate: Date,
+        scheduledSlot: {
+            type: String,
+            enum: ['morning', 'afternoon', 'evening'],
+        },
         resolvedAt: Date,
     },
     {

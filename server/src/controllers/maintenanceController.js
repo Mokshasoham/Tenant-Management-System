@@ -60,7 +60,7 @@ export const getRequestById = asyncHandler(async (req, res) => {
 });
 
 export const createRequest = asyncHandler(async (req, res) => {
-    const { title, description, category, priority, unit } = req.body;
+    const { title, description, category, priority, unit, scheduledDate, scheduledSlot } = req.body;
 
     const request = await Maintenance.create({
         title,
@@ -70,6 +70,8 @@ export const createRequest = asyncHandler(async (req, res) => {
         unit,
         requestedBy: req.user.userId,
         status: 'open',
+        scheduledDate,
+        scheduledSlot,
     });
 
     logger.info(`Maintenance request created: ${request._id} by ${req.user.userId}`);
@@ -94,7 +96,7 @@ export const createRequest = asyncHandler(async (req, res) => {
 
 export const updateRequest = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { status, priority, assignedTo, estimatedCost, actualCost, scheduledDate } = req.body;
+    const { status, priority, assignedTo, estimatedCost, actualCost, scheduledDate, scheduledSlot } = req.body;
 
     const request = await Maintenance.findById(id);
     if (!request) throw new AppError('Request not found', 404);
@@ -106,7 +108,8 @@ export const updateRequest = asyncHandler(async (req, res) => {
     if (assignedTo) request.assignedTo = assignedTo;
     if (estimatedCost !== undefined) request.estimatedCost = estimatedCost;
     if (actualCost !== undefined) request.actualCost = actualCost;
-    if (scheduledDate) request.scheduledDate = scheduledDate;
+    if (scheduledDate !== undefined) request.scheduledDate = scheduledDate;
+    if (scheduledSlot !== undefined) request.scheduledSlot = scheduledSlot;
     if (status === 'resolved') request.resolvedAt = new Date();
 
     await request.save();
