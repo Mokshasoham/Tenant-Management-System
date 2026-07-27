@@ -43,7 +43,9 @@ export default function MessagesPage() {
         fetchMessages: loadChatMessages,
         sendMessage: emitMessage,
         sendTyping,
-        markAsRead: emitRead
+        markAsRead: emitRead,
+        deleteMessage,
+        uploadFile
     } = useChat();
 
     const [newMessage, setNewMessage] = useState('');
@@ -169,10 +171,9 @@ export default function MessagesPage() {
 
     const handleDeleteMessage = async (messageId) => {
         if (!window.confirm('Delete this message?')) return;
+        const receiverId = activeChat.user?._id || activeChat.user?.id || activeChat._id;
         try {
-            await messageService.deleteMessage(messageId);
-            // Local update is handled by the context's message listener if implemented, 
-            // or we can manually filter here if needed.
+            deleteMessage(messageId, receiverId);
         } catch (err) {
             console.error('Delete error', err);
         }
