@@ -218,155 +218,7 @@ export default function TenantDashboard({ user, navigate }) {
                 </div>
             </motion.div>
 
-            {/* Monthly Payment Reminders & Upcoming Schedule */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                className="rounded-3xl border border-border bg-card/60 backdrop-blur-md p-6 relative overflow-hidden group shadow-lg"
-            >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 dark:bg-emerald-600/5 blur-[80px] -mr-32 -mt-32 rounded-full" />
-                
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-border pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                            <Wallet className="w-5 h-5 text-emerald-500" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-black text-foreground tracking-tight">Payment Schedule & Reminders</h2>
-                            <p className="text-xs text-muted-foreground/60">Overview of your due payments, overdue items, and upcoming invoices</p>
-                        </div>
-                    </div>
-                    {lease && (
-                        <div className="text-left sm:text-right">
-                            <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest block">Monthly Rent Rate</span>
-                            <span className="text-lg font-black text-emerald-500">₹{(lease.rentAmount || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                    )}
-                </div>
 
-                <div className="space-y-3">
-                    {/* Unpaid / Active Due Payments */}
-                    {payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).length > 0 ? (
-                        payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).map((p) => {
-                            const isOverdue = p.status === 'overdue';
-                            const isPartial = p.status === 'partially_paid';
-                            return (
-                                <motion.div
-                                    key={p._id}
-                                    whileHover={{ x: 4 }}
-                                    className={cn(
-                                        "flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border transition-all gap-4",
-                                        isOverdue
-                                            ? "bg-rose-500/5 border-rose-500/20 text-rose-900 dark:text-rose-100"
-                                            : isPartial
-                                                ? "bg-blue-500/5 border-blue-500/20 text-blue-900 dark:text-blue-100"
-                                                : "bg-amber-500/5 border-amber-500/20 text-amber-900 dark:text-amber-100"
-                                    )}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className={cn(
-                                            "p-2 rounded-xl mt-0.5",
-                                            isOverdue
-                                                ? "bg-rose-500/10 border border-rose-500/20 text-rose-500"
-                                                : isPartial
-                                                    ? "bg-blue-500/10 border border-blue-500/20 text-blue-500"
-                                                    : "bg-amber-500/10 border border-amber-500/20 text-amber-500"
-                                        )}>
-                                            {isOverdue ? <AlertTriangle className="w-4 h-4" /> : isPartial ? <CreditCard className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className={cn(
-                                                    "text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border",
-                                                    isOverdue
-                                                        ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
-                                                        : isPartial
-                                                            ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
-                                                            : "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
-                                                )}>
-                                                    {isOverdue ? 'Overdue Payment' : isPartial ? 'Partially Paid' : 'Due Rent'}
-                                                </span>
-                                                <span className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
-                                                    Type: {p.type?.toUpperCase() || 'RENT'}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm font-black text-foreground mt-1">
-                                                ₹{((p.amount || 0) - (p.amountPaid || 0)).toLocaleString('en-IN')} pending
-                                                {isPartial && <span className="text-xs text-muted-foreground/60 font-medium"> (paid ₹{(p.amountPaid || 0).toLocaleString('en-IN')} of ₹{(p.amount || 0).toLocaleString('en-IN')})</span>}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                Due Date: <span className="font-bold text-foreground/80">{new Date(p.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                                                {p.billingPeriod?.start && (
-                                                    <span className="text-muted-foreground/40 font-mono text-[10px] block md:inline md:ml-2">
-                                                        Period: {new Date(p.billingPeriod.start).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} - {new Date(p.billingPeriod.end).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-                                                    </span>
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 self-end md:self-auto">
-                                        <button
-                                            onClick={() => navigate('/pay-now', { state: { paymentId: p._id } })}
-                                            className={cn(
-                                                "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-md hover:opacity-95 active:scale-95",
-                                                isOverdue
-                                                    ? "bg-rose-600 hover:bg-rose-500 shadow-rose-500/10"
-                                                    : isPartial
-                                                        ? "bg-blue-600 hover:bg-blue-500 shadow-blue-500/10"
-                                                        : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/10"
-                                            )}
-                                        >
-                                            Pay ₹{((p.amount || 0) - (p.amountPaid || 0)).toLocaleString('en-IN')}
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            );
-                        })
-                    ) : (
-                        /* If no unpaid payments, show caught up reminder */
-                        <div className="flex items-center gap-3 p-4 rounded-2xl border border-emerald-500/10 bg-emerald-500/5 text-emerald-900 dark:text-emerald-100">
-                            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex-shrink-0">
-                                <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-black text-foreground">All Caught Up! 🎉</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">No currently due or overdue payments. Nice job!</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Upcoming Monthly Invoice Estimate */}
-                    {nextEstimated && (
-                        <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-dashed border-border bg-muted/40 gap-4 mt-2">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 rounded-xl bg-muted border border-border text-muted-foreground/60 mt-0.5">
-                                    <Calendar className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-muted border border-border text-muted-foreground/60">
-                                            Next Payment
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-wider font-mono">
-                                            Auto-Scheduled
-                                        </span>
-                                    </div>
-                                    <p className="text-sm font-black text-foreground mt-1">
-                                        ₹{(nextEstimated.amount || 0).toLocaleString('en-IN')}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        Estimated Generation Date: <span className="font-bold text-foreground/80">{nextEstimated.dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="text-[10px] font-black text-muted-foreground/30 uppercase tracking-widest self-end md:self-auto select-none">
-                                Pending Release
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
 
             {lease ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -470,6 +322,120 @@ export default function TenantDashboard({ user, navigate }) {
                 </motion.div>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="h-64">
                     <WorldClockWidget />
+                </motion.div>
+
+                {/* Monthly Payment Reminders & Upcoming Schedule */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45, duration: 0.5 }}
+                    className="rounded-3xl border border-border bg-card/60 backdrop-blur-md p-5 relative overflow-hidden group shadow-lg flex flex-col h-64"
+                >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 dark:bg-emerald-600/5 blur-[40px] -mr-16 -mt-16 rounded-full" />
+                    
+                    <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 flex-shrink-0">
+                        <Wallet className="w-4 h-4 text-emerald-500" />
+                        <div>
+                            <h2 className="text-xs font-black text-foreground tracking-tight">Payment Schedule & Reminders</h2>
+                            <p className="text-[9px] text-muted-foreground/60 leading-none">Your due, overdue & upcoming invoices</p>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        {/* Unpaid / Active Due Payments */}
+                        {payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).length > 0 ? (
+                            payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).map((p) => {
+                                const isOverdue = p.status === 'overdue';
+                                const isPartial = p.status === 'partially_paid';
+                                return (
+                                    <div
+                                        key={p._id}
+                                        className={cn(
+                                            "p-2.5 rounded-xl border flex flex-col gap-2 transition-all",
+                                            isOverdue
+                                                ? "bg-rose-500/5 border-rose-500/25"
+                                                : isPartial
+                                                    ? "bg-blue-500/5 border-blue-500/25"
+                                                    : "bg-amber-500/5 border-amber-500/25"
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={cn(
+                                                        "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                                                        isOverdue
+                                                            ? "bg-rose-500/10 border-rose-500/20 text-rose-500"
+                                                            : isPartial
+                                                                ? "bg-blue-500/10 border-blue-500/20 text-blue-500"
+                                                                : "bg-amber-500/10 border-amber-500/20 text-amber-500"
+                                                    )}>
+                                                        {isOverdue ? 'Overdue' : isPartial ? 'Partial' : 'Due'}
+                                                    </span>
+                                                    <span className="text-[8px] font-bold text-muted-foreground/60 uppercase">{p.type}</span>
+                                                </div>
+                                                <p className="text-xs font-black text-foreground mt-1">
+                                                    ₹{((p.amount || 0) - (p.amountPaid || 0)).toLocaleString('en-IN')} pending
+                                                </p>
+                                                <p className="text-[9px] text-muted-foreground mt-0.5">
+                                                    Due: {new Date(p.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => navigate('/pay-now', { state: { paymentId: p._id } })}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all shadow-md active:scale-95 flex-shrink-0 self-center",
+                                                    isOverdue
+                                                        ? "bg-rose-600 hover:bg-rose-500"
+                                                        : isPartial
+                                                            ? "bg-blue-600 hover:bg-blue-500"
+                                                            : "bg-emerald-600 hover:bg-emerald-500"
+                                                )}
+                                            >
+                                                Pay
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            /* If no unpaid payments, show caught up reminder */
+                            <div className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/10 bg-emerald-500/5 text-emerald-900 dark:text-emerald-100">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black text-foreground">All Caught Up! 🎉</p>
+                                    <p className="text-[10px] text-muted-foreground/60">No pending payments.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Upcoming Monthly Invoice Estimate */}
+                        {nextEstimated && (
+                            <div className="p-2.5 rounded-xl border border-dashed border-border bg-muted/40 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground/60">
+                                        Upcoming
+                                    </span>
+                                    <span className="text-[8px] text-muted-foreground/40 font-bold uppercase tracking-wider font-mono">
+                                        Next Month
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-xs font-black text-foreground">
+                                            ₹{(nextEstimated.amount || 0).toLocaleString('en-IN')}
+                                        </p>
+                                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                                            Est: {nextEstimated.dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <span className="text-[8px] font-black text-muted-foreground/30 uppercase tracking-widest select-none">
+                                        Scheduled
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </motion.div>
             </div>
 
