@@ -127,7 +127,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           'transition-all duration-300 ease-in-out',
           isOpen 
             ? 'translate-x-0 w-72 border-r' 
-            : '-translate-x-full w-0 border-r-transparent',
+            : '-translate-x-full lg:translate-x-0 w-0 lg:w-20 border-r',
           // Size
           'h-screen',
           // Theme
@@ -155,14 +155,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br',
+                'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br flex-shrink-0',
                 theme.gradient,
               )}
               style={{ boxShadow: `0 4px 20px ${theme.glowColor}` }}
             >
               <Building2 className="w-5 h-5" />
             </motion.div>
-            <div>
+            <div className={cn("transition-opacity duration-200", isOpen ? "opacity-100 block" : "opacity-0 hidden")}>
               <h2 className="text-lg font-black text-foreground tracking-tight leading-none">TMS</h2>
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{theme.sublabel}</p>
             </div>
@@ -178,25 +178,27 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* ───── ROLE BADGE (flex-shrink-0) ───── */}
         <div className="relative flex-shrink-0 px-4 pb-4">
           <div
-            className={cn('flex items-center gap-2.5 px-3 py-2.5 rounded-xl border', theme.activeBorder)}
+            className={cn('flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all duration-200', theme.activeBorder, !isOpen && 'justify-center px-1')}
             style={{ background: theme.glowColor.replace('0.4', '0.08') }}
           >
             <span className="text-base flex-shrink-0">{theme.roleIcon}</span>
-            <div className="flex-1 min-w-0">
+            <div className={cn("flex-1 min-w-0 transition-opacity duration-200", isOpen ? "opacity-100 block" : "opacity-0 hidden")}>
               <p className={cn('text-xs font-black uppercase tracking-wider', theme.activeText)}>{theme.label}</p>
               <p className="text-[10px] text-muted-foreground truncate">{user?.firstName} {user?.lastName}</p>
             </div>
             {/* Live indicator */}
-            <span className="relative flex h-2 w-2 flex-shrink-0">
-              <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', theme.badgeBg)} />
-              <span className={cn('relative inline-flex rounded-full h-2 w-2', theme.badgeBg)} />
-            </span>
+            {isOpen && (
+              <span className="relative flex h-2 w-2 flex-shrink-0">
+                <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', theme.badgeBg)} />
+                <span className={cn('relative inline-flex rounded-full h-2 w-2', theme.badgeBg)} />
+              </span>
+            )}
           </div>
         </div>
 
         {/* ───── NAV (flex-1 + min-h-0 = fills middle, scrolls if needed) ───── */}
         <nav className="relative flex-1 min-h-0 overflow-y-auto px-3 pb-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-3 mb-3 mt-1">
+          <p className={cn("text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-3 mb-3 mt-1 transition-opacity", !isOpen && "opacity-0 hidden")}>
             Navigation
           </p>
           <div className="space-y-0.5">
@@ -218,6 +220,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     onClick={() => setIsOpen(false)}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative',
+                      !isOpen && 'justify-center px-1.5',
                       isActive
                         ? theme.navActiveStyle
                         : cn('text-muted-foreground hover:text-foreground', theme.hoverBg)
@@ -229,13 +232,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         isActive ? theme.iconActive : 'text-muted-foreground/60 group-hover:text-foreground/80'
                       )}
                     />
-                    <span className="font-semibold text-sm tracking-tight flex-1 whitespace-nowrap">
+                    <span className={cn("font-semibold text-sm tracking-tight flex-1 whitespace-nowrap transition-opacity duration-200", !isOpen && "w-0 opacity-0 hidden")}>
                       {t(`nav.${item.key}`) || item.label}
                     </span>
-                    {item.badge && !isActive && (
+                    {item.badge && !isActive && isOpen && (
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', theme.badgeBg)} />
                     )}
-                    {isActive && (
+                    {isActive && isOpen && (
                       <motion.div
                         layoutId="sidebar-active-pill"
                         className={cn('absolute right-2 w-1 h-5 rounded-full', theme.activePill)}
@@ -252,12 +255,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* ───── FOOTER (flex-shrink-0) ───── */}
         <div className="relative flex-shrink-0 px-3 py-3 border-t border-border">
           {/* Theme + Language quick controls */}
-          <div className="flex items-center gap-2 mb-3 px-1">
+          <div className={cn("flex items-center gap-2 mb-3 px-1 transition-all duration-200", !isOpen && "flex-col gap-1.5")}>
             {/* Theme toggle */}
             <motion.button
               whileTap={{ scale: 0.92 }}
               onClick={toggleTheme}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all"
+              className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all", !isOpen && "w-full py-2.5")}
               style={{
                 background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                 color: colorTheme === 'dark' ? '#60a5fa' : '#2563eb',
@@ -265,25 +268,24 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               }}
               title={colorTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {colorTheme === 'dark'
-                ? <><Sun className="w-3.5 h-3.5" /> Light</>
-                : <><Moon className="w-3.5 h-3.5" /> Dark</>}
+              {colorTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {isOpen && (colorTheme === 'dark' ? 'Light' : 'Dark')}
             </motion.button>
 
             {/* Language picker */}
-            <div className="relative">
+            <div className={cn("relative", !isOpen && "w-full")}>
               <motion.button
                 whileTap={{ scale: 0.92 }}
                 onClick={() => setShowLangPicker(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all", !isOpen && "w-full justify-center py-2.5")}
                 style={{
                   background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                   border: colorTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
                   color: 'var(--text-secondary)',
                 }}
               >
-                <Languages className="w-3.5 h-3.5" />
-                <span className="uppercase">{language}</span>
+                <Languages className="w-4 h-4" />
+                {isOpen && <span className="uppercase">{language}</span>}
               </motion.button>
               <AnimatePresence>
                 {showLangPicker && (
@@ -291,7 +293,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     initial={{ opacity: 0, y: 8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className="absolute bottom-full mb-2 right-0 rounded-xl overflow-hidden shadow-2xl z-50 transition-colors"
+                    className={cn("absolute bottom-full mb-2 right-0 rounded-xl overflow-hidden shadow-2xl z-50 transition-colors", !isOpen && "left-0 right-auto")}
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', minWidth: '120px' }}
                   >
                     {SUPPORTED_LANGUAGES.map(({ code, name, nativeName, flag }) => (
@@ -318,12 +320,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all group"
+            className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all group", !isOpen && "justify-center px-1.5")}
           >
             <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
-            <span className="font-semibold text-sm">{t('nav.logout') || 'Sign Out'}</span>
+            <span className={cn("font-semibold text-sm transition-opacity duration-200", !isOpen && "w-0 opacity-0 hidden")}>{t('nav.logout') || 'Sign Out'}</span>
           </button>
-          <p className="text-[9px] text-muted-foreground/30 font-bold uppercase tracking-widest px-3 mt-2">
+          <p className={cn("text-[9px] text-muted-foreground/30 font-bold uppercase tracking-widest px-3 mt-2", !isOpen && "hidden")}>
             TMS Platform v2.0
           </p>
         </div>
