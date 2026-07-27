@@ -431,15 +431,17 @@ export default function PayNowPage() {
                 const l = leaseRes.status === 'fulfilled' ? leaseRes.value?.data : null;
                 setLease(l);
                 if (payRes.status === 'fulfilled') {
-                    const pending = (payRes.value?.data || []).find(p =>
-                        ['pending', 'overdue', 'partially_paid'].includes(p.status)
-                    );
+                    const allPayments = payRes.value?.data || [];
+                    const statePaymentId = location.state?.paymentId;
+                    const pending = statePaymentId
+                        ? allPayments.find(p => p._id === statePaymentId || p.id === statePaymentId)
+                        : allPayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
                     setPendingPayment(pending || null);
                 }
             } catch (_) { }
             setLoadingLease(false);
         })();
-    }, []);
+    }, [location.state?.paymentId]);
 
     const rentAmount = lease?.rentAmount || 0;
     const pendingAmount = pendingPayment
