@@ -10,12 +10,12 @@ import logger from '../utils/logger.js';
 export const getMyLease = asyncHandler(async (req, res) => {
   // JWT only has userId + role — look up the User to get their email
   const user = await User.findById(req.user.userId).select('email');
-  if (!user) return res.status(200).json({ success: true, data: null });
+  if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
   const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant) return res.status(200).json({ success: true, data: null });
+  if (!tenant) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
-  const lease = await Lease.findOne({
+  const activeLeases = await Lease.find({
     tenant: tenant._id,
     status: { $in: ['active', 'pending'] },
   })
@@ -27,7 +27,24 @@ export const getMyLease = asyncHandler(async (req, res) => {
     })
     .populate('tenant', 'firstName lastName email phone');
 
-  res.status(200).json({ success: true, data: lease || null });
+  const pastLeases = await Lease.find({
+    tenant: tenant._id,
+    status: { $nin: ['active', 'pending'] },
+  })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'property',
+      select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
+      populate: { path: 'manager', select: 'firstName lastName email' }
+    })
+    .populate('tenant', 'firstName lastName email phone');
+
+  res.status(200).json({ 
+    success: true, 
+    data: activeLeases[0] || null, 
+    activeLeases, 
+    pastLeases 
+  });
 });
 
 

@@ -107,6 +107,8 @@ function PaymentCountdown({ dueDate, amount }) {
 export default function TenantDashboard({ user, navigate }) {
     const { t } = useLanguage();
     const [lease, setLease] = useState(null);
+    const [activeLeases, setActiveLeases] = useState([]);
+    const [pastLeases, setPastLeases] = useState([]);
     const [payments, setPayments] = useState([]);
     const [maintenance, setMaintenance] = useState([]);
     const [notifications, setNotifications] = useState([]);
@@ -127,8 +129,13 @@ export default function TenantDashboard({ user, navigate }) {
                     bookingService.getMyBookings(),
                 ]);
 
-                if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data);
-                if (payRes.status === 'fulfilled') setPayments(payRes.value?.data);
+                if (leaseRes.status === 'fulfilled') {
+                    const resVal = leaseRes.value || {};
+                    setLease(resVal.data || null);
+                    setActiveLeases(resVal.activeLeases || (resVal.data ? [resVal.data] : []));
+                    setPastLeases(resVal.pastLeases || []);
+                }
+                if (payRes.status === 'fulfilled') setPayments(payRes.value?.data || []);
                 if (maintRes.status === 'fulfilled') setMaintenance(maintRes.value?.data?.data || maintRes.value?.data || []);
                 if (notifRes.status === 'fulfilled') setNotifications(notifRes.value?.data?.data || notifRes.value?.data || []);
                 if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value?.data?.count || 0);
@@ -144,30 +151,35 @@ export default function TenantDashboard({ user, navigate }) {
     const totalSpend = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
     const onTimeRate = payments.length > 0 ? Math.round((payments.filter(p => p.status === 'paid').length / payments.length) * 100) : 100;
 
-    const getNextEstimatedPayment = () => {
-        if (!lease) return null;
-        const paidPayments = payments.filter(p => p.status === 'paid');
-        let nextDueDate = new Date();
-        if (paidPayments.length > 0) {
-            const sortedPaid = [...paidPayments].sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
-            const latestDue = new Date(sortedPaid[0].dueDate);
-            nextDueDate = new Date(latestDue.getFullYear(), latestDue.getMonth() + 1, latestDue.getDate());
-        } else {
-            const leaseStart = new Date(lease.startDate);
-            nextDueDate = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), leaseStart.getDate());
-            if (nextDueDate < new Date()) {
-                nextDueDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+    const getNextEstimatedPayments = () => {
+        if (activeLeases.length === 0) return [];
+        return activeLeases.map(activeLease => {
+            const activeLeasePayments = payments.filter(p => p.lease?._id === activeLease._id || p.lease === activeLease._id);
+            const paidPayments = activeLeasePayments.filter(p => p.status === 'paid');
+            let nextDueDate = new Date();
+            if (paidPayments.length > 0) {
+                const sortedPaid = [...paidPayments].sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
+                const latestDue = new Date(sortedPaid[0].dueDate);
+                nextDueDate = new Date(latestDue.getFullYear(), latestDue.getMonth() + 1, latestDue.getDate());
+            } else {
+                const leaseStart = new Date(activeLease.startDate);
+                nextDueDate = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), leaseStart.getDate());
+                if (nextDueDate < new Date()) {
+                    nextDueDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+                }
             }
-        }
-        return {
-            amount: lease.rentAmount,
-            dueDate: nextDueDate,
-            type: 'rent',
-            status: 'upcoming'
-        };
+            return {
+                id: activeLease._id,
+                propertyName: activeLease.property?.name || 'TMS Rental',
+                amount: activeLease.rentAmount,
+                dueDate: nextDueDate,
+                type: 'rent',
+                status: 'upcoming'
+            };
+        });
     };
 
-    const nextEstimated = getNextEstimatedPayment();
+    const nextEstimatedPayments = getNextEstimatedPayments();
 
     if (loading) {
         return (
@@ -220,101 +232,164 @@ export default function TenantDashboard({ user, navigate }) {
 
 
 
-            {lease ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                        className="lg:col-span-2 rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 relative overflow-hidden group"
-                    >
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-600/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                                        {lease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease')} • #{lease.leaseNumber || '—'}
-                                    </span>
-                                </div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
-                                <h2 className="text-2xl font-black text-foreground">{lease?.property?.name || 'Not Assigned'}</h2>
-                                <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                    {lease?.property?.address || 'Property details will appear once assigned'}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{t('dashboard.monthlyRent')}</p>
-                                <p className="text-3xl font-black text-emerald-500 dark:text-emerald-400">₹{(lease.rentAmount || 0).toLocaleString('en-IN')}</p>
-                            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Leases Column (Left 2 columns) */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-emerald-500" />
+                            <h2 className="text-lg font-black text-foreground tracking-tight">My Lease Agreements</h2>
                         </div>
-                        <LeaseProgress start={lease.startDate} end={lease.endDate} />
-                        <div className="grid grid-cols-3 gap-3 mt-4">
-                            {[
-                                { label: t('common.status') || 'Status', value: lease.status?.toUpperCase() || '—', hl: true },
-                                { label: t('common.start') || 'Start', value: new Date(lease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                                { label: t('common.ends') || 'Ends', value: new Date(lease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                            ].map((item) => (
-                                <div key={item.label} className={cn('p-3 rounded-xl', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
-                                    <p className={cn('text-xs font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
-                                </div>
+                        <span className="px-3 py-1 rounded-full bg-muted border border-border text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                            Total Leases: {activeLeases.length + pastLeases.length} ({activeLeases.length} Active, {pastLeases.length} Past)
+                        </span>
+                    </div>
+
+                    {activeLeases.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4">
+                            {activeLeases.map((activeLease) => (
+                                <motion.div
+                                    key={activeLease._id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 relative overflow-hidden group flex flex-col justify-between"
+                                >
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-600/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
+                                    <div>
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                                        {activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease')} • #{activeLease.leaseNumber || '—'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
+                                                <h2 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{activeLease?.property?.name || 'Not Assigned'}</h2>
+                                                <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                    {activeLease?.property?.address || 'Property details will appear once assigned'}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{t('dashboard.monthlyRent')}</p>
+                                                <p className="text-2xl font-black text-emerald-500 dark:text-emerald-400">₹{(activeLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                        <LeaseProgress start={activeLease.startDate} end={activeLease.endDate} />
+                                        
+                                        <div className="grid grid-cols-3 gap-3 mt-4">
+                                            {[
+                                                { label: t('common.status') || 'Status', value: activeLease.status?.toUpperCase() || '—', hl: true },
+                                                { label: t('common.start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                { label: t('common.ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                            ].map((item) => (
+                                                <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
+                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
+                                                    <p className={cn('text-[10px] font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {activeLease.property?.amenities?.length > 0 && (
+                                            <div className="mt-4 pt-3 border-t border-border/60">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {activeLease.property.amenities.slice(0, 4).map(a => (
+                                                        <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
+                                                    ))}
+                                                    {activeLease.property.amenities.length > 4 && (
+                                                        <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} more</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-2.5 mt-5 pt-3 border-t border-border/60">
+                                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                            onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:opacity-90 transition-all">
+                                            <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
+                                        </motion.button>
+                                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                            onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
+                                            <Wrench className="w-3.5 h-3.5" /> {t('dashboard.reportIssue')}
+                                        </motion.button>
+                                        {activeLease.property?.manager && (
+                                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                onClick={() => navigate('/messages', { state: { recipientId: activeLease.property.manager._id, recipientName: `${activeLease.property.manager.firstName} ${activeLease.property.manager.lastName}` } })}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
+                                                <MessageSquare className="w-3.5 h-3.5" /> Chat
+                                            </motion.button>
+                                        )}
+                                    </div>
+                                </motion.div>
                             ))}
                         </div>
-                        {lease.property?.amenities?.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-border">
-                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-2">{t('dashboard.unitAmenities')}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {lease.property.amenities.map(a => (
-                                        <span key={a} className="px-2 py-1 rounded-lg bg-muted border border-border text-[10px] text-muted-foreground capitalize">{a}</span>
-                                    ))}
-                                </div>
+                    ) : (
+                        <div className="text-center py-8 rounded-2xl border border-dashed border-border bg-card/10">
+                            <Home className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                            <p className="text-sm font-bold text-muted-foreground">No active rentals</p>
+                            <button onClick={() => navigate('/properties')} className="mt-2 text-xs font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto">
+                                Browse Properties <ArrowRight className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Past Rentals Section */}
+                    {pastLeases.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                            <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Past Rentals & Expired Leases</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {pastLeases.map((pastLease) => (
+                                    <div key={pastLease._id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500">
+                                                    Expired
+                                                </span>
+                                                <span className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-wider">#{pastLease.leaseNumber}</span>
+                                            </div>
+                                            <h4 className="text-sm font-black text-foreground truncate">{pastLease?.property?.name || 'Previous Residence'}</h4>
+                                            <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{pastLease?.property?.address}</p>
+                                            <p className="text-[9px] text-muted-foreground/40 mt-1 font-bold">
+                                                {new Date(pastLease.startDate).toLocaleDateString()} - {new Date(pastLease.endDate).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Rent</p>
+                                            <p className="text-sm font-black text-foreground">₹{(pastLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Next Payment Countdown Column (Right 1 column) */}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+                    className="rounded-2xl border border-border bg-card p-5 flex flex-col h-full min-h-[300px] justify-center">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
+                            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <p className="text-sm font-black text-foreground">{t('dashboard.nextPayment')}</p>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                        {pendingPayment ? (
+                            <PaymentCountdown dueDate={pendingPayment.dueDate} amount={pendingPayment.amount} />
+                        ) : (
+                            <div className="text-center py-6 space-y-2">
+                                <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto" />
+                                <p className="font-bold text-muted-foreground text-sm">{t('dashboard.allCaughtUp')}</p>
+                                <p className="text-xs text-muted-foreground/50">{t('dashboard.noPendingPayments')}</p>
                             </div>
                         )}
-                        <div className="flex gap-3 mt-5 pt-4 border-t border-border">
-                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                onClick={() => navigate('/pay-now')}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-all">
-                                <Wallet className="w-4 h-4" /> {t('dashboard.payRent')}
-                            </motion.button>
-                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                onClick={() => navigate('/maintenance')}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-all">
-                                <Wrench className="w-4 h-4" /> {t('dashboard.reportIssue')}
-                            </motion.button>
-                            {lease.property?.manager && (
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                    onClick={() => navigate('/messages', { state: { recipientId: lease.property.manager._id, recipientName: `${lease.property.manager.firstName} ${lease.property.manager.lastName}` } })}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-all">
-                                    <MessageSquare className="w-4 h-4" /> {t('dashboard.chatManager')}
-                                </motion.button>
-                            )}
-                        </div>
-                    </motion.div>
-
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                        className="rounded-2xl border border-border bg-card p-5 flex flex-col">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
-                                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <p className="text-sm font-black text-foreground">{t('dashboard.nextPayment')}</p>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                            {pendingPayment ? (
-                                <PaymentCountdown dueDate={pendingPayment.dueDate} amount={pendingPayment.amount} />
-                            ) : (
-                                <div className="text-center py-6 space-y-2">
-                                    <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto" />
-                                    <p className="font-bold text-muted-foreground text-sm">{t('dashboard.allCaughtUp')}</p>
-                                    <p className="text-xs text-muted-foreground/50">{t('dashboard.noPendingPayments')}</p>
-                                </div>
-                            )}
-                        </div>
-                    </motion.div>
-                </div>
-            ) : null}
+                    </div>
+                </motion.div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="h-64">
@@ -409,24 +484,24 @@ export default function TenantDashboard({ user, navigate }) {
                             </div>
                         )}
 
-                        {/* Upcoming Monthly Invoice Estimate */}
-                        {nextEstimated && (
-                            <div className="p-2.5 rounded-xl border border-dashed border-border bg-muted/40 flex flex-col gap-1.5">
+                        {/* Upcoming Monthly Invoice Estimates */}
+                        {nextEstimatedPayments.map((est) => (
+                            <div key={est.id} className="p-2.5 rounded-xl border border-dashed border-border bg-muted/40 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground/60">
                                         Upcoming
                                     </span>
-                                    <span className="text-[8px] text-muted-foreground/40 font-bold uppercase tracking-wider font-mono">
-                                        Next Month
+                                    <span className="text-[8px] text-muted-foreground/45 font-bold uppercase truncate max-w-[120px]" title={est.propertyName}>
+                                        {est.propertyName}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between gap-2">
                                     <div>
                                         <p className="text-xs font-black text-foreground">
-                                            ₹{(nextEstimated.amount || 0).toLocaleString('en-IN')}
+                                            ₹{(est.amount || 0).toLocaleString('en-IN')}
                                         </p>
                                         <p className="text-[9px] text-muted-foreground mt-0.5">
-                                            Est: {nextEstimated.dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            Est: {est.dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </p>
                                     </div>
                                     <span className="text-[8px] font-black text-muted-foreground/30 uppercase tracking-widest select-none">
@@ -434,7 +509,7 @@ export default function TenantDashboard({ user, navigate }) {
                                     </span>
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 </motion.div>
             </div>
