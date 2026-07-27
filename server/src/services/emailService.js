@@ -120,7 +120,7 @@ export const sendPaymentFailedEmail = async (user, amount, reason) => {
 
       <p>Please log in to your dashboard to update your payment method and retry the transaction to avoid any service interruptions or late fees.</p>
 
-      <a href="${process.env.FRONTEND_URL}/dashboard" style="display: inline-block; padding: 10px 20px; background: #e11d48; color: #fff; text-decoration: none; border-radius: 5px;">Go to Dashboard</a>
+      <a href="${config.FRONTEND_URL || 'http://localhost:3000'}/dashboard" style="display: inline-block; padding: 10px 20px; background: #e11d48; color: #fff; text-decoration: none; border-radius: 5px;">Go to Dashboard</a>
 
       <p style="margin-top: 30px;">If you believe this is an error, please contact support.</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb;" />
@@ -128,5 +128,48 @@ export const sendPaymentFailedEmail = async (user, amount, reason) => {
     </div>
   `;
 
+  return sendEmail({ to: user.email, subject, html });
+};
+
+/**
+ * Notify user that a late fee has been applied
+ */
+export const sendLateFeeAppliedEmail = async (user, payment, property, lateFeeAmount) => {
+  const subject = `⚠️ Late Fee Applied - ${property.name}`;
+  const html = `
+    <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+      <h2 style="color: #dc2626;">Late Fee Applied</h2>
+      <p>Hi ${user.firstName},</p>
+      <p>This is to inform you that a 5% late fee of <strong>INR ${lateFeeAmount.toLocaleString('en-IN')}</strong> has been applied to your account for overdue rent on <strong>${property.name}</strong>.</p>
+      <p>The original rent payment of INR ${payment.amount.toLocaleString('en-IN')} was due on ${new Date(payment.dueDate).toLocaleDateString()}.</p>
+      <p>Please log in to your dashboard to pay the outstanding balance as soon as possible to avoid further penalties.</p>
+      <a href="${config.FRONTEND_URL || 'http://localhost:3000'}/payments" style="display: inline-block; padding: 10px 20px; background: #dc2626; color: #fff; text-decoration: none; border-radius: 5px;">View Payments</a>
+      <p style="margin-top: 30px;">Thank you,</p>
+      <p>TMS Management Team</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb;" />
+      <p style="font-size: 12px; color: #6b7280;">This is an automated message. Please do not reply.</p>
+    </div>
+  `;
+  return sendEmail({ to: user.email, subject, html });
+};
+
+/**
+ * Send rent payment reminder to user
+ */
+export const sendRentReminderEmail = async (user, payment, property) => {
+  const subject = `⏰ Rent Payment Reminder - ${property.name}`;
+  const html = `
+    <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+      <h2 style="color: #2563eb;">Rent Due Soon</h2>
+      <p>Hi ${user.firstName},</p>
+      <p>This is a friendly reminder that your rent payment of <strong>INR ${payment.amount.toLocaleString('en-IN')}</strong> for <strong>${property.name}</strong> is due on <strong>${new Date(payment.dueDate).toLocaleDateString()}</strong>.</p>
+      <p>Please log in to your dashboard to make your payment on time.</p>
+      <a href="${config.FRONTEND_URL || 'http://localhost:3000'}/payments" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 5px;">Pay Rent Now</a>
+      <p style="margin-top: 30px;">Thank you,</p>
+      <p>TMS Management Team</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb;" />
+      <p style="font-size: 12px; color: #6b7280;">This is an automated message. Please do not reply.</p>
+    </div>
+  `;
   return sendEmail({ to: user.email, subject, html });
 };

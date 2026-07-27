@@ -3,6 +3,8 @@ import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
 import Notification from '../models/Notification.js';
 import Payment from '../models/Payment.js';
+import User from '../models/User.js';
+import { sendLateFeeAppliedEmail, sendRentReminderEmail } from '../services/emailService.js';
 import logger from './logger.js';
 
 export const startCronJobs = () => {
@@ -71,6 +73,7 @@ export const startCronJobs = () => {
             }).populate('property').populate('tenant');
 
             for (const payment of overdueRent) {
+                if (!payment.tenant) continue;
                 logger.info(`[CRON] Generating Late Fee for Lease: ${payment.lease}`);
                 
                 const lateFeeAmount = Math.round(payment.amount * 0.05); // 5% late fee
@@ -91,20 +94,68 @@ export const startCronJobs = () => {
                 payment.status = 'overdue';
                 await payment.save();
 
-                // Notify Tenant
-                await Notification.create({
-                    recipient: payment.tenant.user, // tenant.user is the userId
-                    title: '⚠️ Late Fee Applied',
-                    message: `A 5% late fee (₹${lateFeeAmount}) has been applied to your account for overdue rent on ${payment.property.name}.`,
-                    type: 'alert',
-                    link: '/payments'
-                });
+                // Find matching User by tenant email to retrieve user id for notifications & emails
+                const tenantUser = await User.findOne({ email: payment.tenant.email });
+                if (tenantUser) {
+                    // Notify Tenant in-app
+                    await Notification.create({
+                        recipient: tenantUser._id,
+                        title: '⚠️ Late Fee Applied',
+                        message: `A 5% late fee (₹${lateFeeAmount}) has been applied to your account for overdue rent on ${payment.property.name}.`,
+                        type: 'alert',
+                        link: '/payments'
+                    });
+
+                    // Send email alert
+                    await sendLateFeeAppliedEmail(tenantUser, payment, payment.property, lateFeeAmount);
+                }
             }
             if (overdueRent.length > 0) {
                logger.info(`[CRON] Successfully applied late fees to ${overdueRent.length} overdue accounts.`);
             }
         } catch (error) {
             logger.error(`[CRON ERROR] Late Fee daemon exception: ${error.message}`);
+        }
+    });
+
+    // Run every midnight to check for upcoming rent due dates and send reminders
+    cron.schedule('0 0 * * *', async () => {
+        logger.info('[CRON] Initializing Daily Rent Reminder check...');
+        try {
+            const threeDaysFromNow = new Date();
+            threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+            // Find all pending rent payments that are due within 3 days or already overdue but not handled
+            const upcomingRent = await Payment.find({
+                type: 'rent',
+                status: 'pending',
+                dueDate: { $lte: threeDaysFromNow }
+            }).populate('property').populate('tenant');
+
+            for (const payment of upcomingRent) {
+                if (!payment.tenant) continue;
+                const tenantUser = await User.findOne({ email: payment.tenant.email });
+                if (tenantUser) {
+                    logger.info(`[CRON] Sending rent reminder to tenant: ${tenantUser.email} for property: ${payment.property.name}`);
+                    
+                    // In-app Notification
+                    await Notification.create({
+                        recipient: tenantUser._id,
+                        title: '⏰ Rent Due Soon',
+                        message: `Friendly reminder: Your rent payment of ₹${payment.amount.toLocaleString('en-IN')} for ${payment.property.name} is due on ${new Date(payment.dueDate).toLocaleDateString()}.`,
+                        type: 'info',
+                        link: '/payments'
+                    });
+
+                    // Email reminder
+                    await sendRentReminderEmail(tenantUser, payment, payment.property);
+                }
+            }
+            if (upcomingRent.length > 0) {
+                logger.info(`[CRON] Successfully dispatched ${upcomingRent.length} rent reminders.`);
+            }
+        } catch (error) {
+            logger.error(`[CRON ERROR] Rent Reminder sweep exception: ${error.message}`);
         }
     });
 };
