@@ -42,6 +42,7 @@ export const getAllLeases = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const leases = await Lease.find(filter)
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit))
     .populate('property', 'name address rentAmount')
