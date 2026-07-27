@@ -151,7 +151,7 @@ export default function AnalyticsPage() {
                         {revenue.length === 0 ? (
                             <div className="text-center py-16 text-muted-foreground/30 text-sm">No revenue recorded yet</div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={240}>
                                 <AreaChart data={revenue} margin={{ left: -15, right: 10, top: 10, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
@@ -178,7 +178,7 @@ export default function AnalyticsPage() {
                         <div className="flex flex-col items-center justify-center relative min-h-[220px]">
                             {/* SVG Donut */}
                             <div className="w-full h-44 relative flex items-center justify-center">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height={176}>
                                     <PieChart>
                                         <Pie
                                             data={occupancyPieData}
@@ -234,7 +234,7 @@ export default function AnalyticsPage() {
                         {collection.length === 0 ? (
                             <div className="text-center py-16 text-muted-foreground/30 text-sm">No payment data recorded</div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={240}>
                                 <RechartsBarChart data={collection} margin={{ left: -25, right: 10, top: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                                     <XAxis dataKey="month" tick={{ fill: textColor, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -259,7 +259,7 @@ export default function AnalyticsPage() {
                         {maintenanceByCategoryData.length === 0 ? (
                             <div className="text-center py-16 text-muted-foreground/30 text-sm">No maintenance requests yet</div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={240}>
                                 <RechartsBarChart data={maintenanceByCategoryData} layout="vertical" margin={{ left: -10, right: 10, top: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
                                     <XAxis type="number" tick={{ fill: textColor, fontSize: 10 }} axisLine={false} tickLine={false} />
