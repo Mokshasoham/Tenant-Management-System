@@ -123,6 +123,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
     const [completedStackOpen, setCompletedStackOpen] = useState(false);
+    const [activePaymentIndex, setActivePaymentIndex] = useState(0);
     const [payments, setPayments] = useState([]);
     const [maintenance, setMaintenance] = useState([]);
     const [notifications, setNotifications] = useState([]);
@@ -524,48 +525,47 @@ export default function TenantDashboard({ user, navigate }) {
                     </div>
                     <div className="flex-1 flex flex-col items-center justify-center w-full">
                         {activePaymentsToShow.length > 1 ? (
-                            <div className="space-y-3 w-full">
-                                {activePaymentsToShow.map((pmt) => {
-                                    const due = new Date(pmt.dueDate);
-                                    const diff = due - Date.now();
-                                    const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-                                    const isOverdue = pmt.isOverdue;
-                                    const label = isOverdue ? 'Overdue' : `${days}d left`;
+                            <div className="flex flex-col items-center w-full">
+                                {/* Staggered Animating Switcher */}
+                                <div className="w-full relative min-h-[220px] flex items-center justify-center">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div
+                                            key={activePaymentIndex}
+                                            initial={{ opacity: 0, x: 25, scale: 0.95 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            exit={{ opacity: 0, x: -25, scale: 0.95 }}
+                                            transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                                            className="w-full absolute"
+                                        >
+                                            <PaymentCountdown
+                                                dueDate={activePaymentsToShow[activePaymentIndex].dueDate}
+                                                amount={activePaymentsToShow[activePaymentIndex].amount}
+                                                isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
+                                                propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
+                                            />
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
 
-                                    return (
-                                        <div 
-                                            key={pmt.id} 
+                                {/* Premium Dot/Pill Selectors */}
+                                <div className="flex flex-wrap items-center justify-center gap-2 mt-4 pt-3 border-t border-border/50 w-full z-25">
+                                    {activePaymentsToShow.map((pmt, idx) => (
+                                        <motion.button
+                                            key={pmt.id}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => setActivePaymentIndex(idx)}
                                             className={cn(
-                                                "p-3 rounded-xl border flex items-center justify-between gap-3 bg-muted/30 transition-all hover:bg-muted/50 w-full",
-                                                isOverdue ? "border-rose-500/20 bg-rose-500/5" : "border-border"
+                                                "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 border",
+                                                activePaymentIndex === idx
+                                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-extrabold shadow-sm"
+                                                    : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
                                             )}
                                         >
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <div className={cn(
-                                                    "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black",
-                                                    isOverdue ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"
-                                                )}>
-                                                    {isOverdue ? '!' : days}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-black text-foreground truncate">{pmt.propertyName}</p>
-                                                    <p className="text-[10px] text-muted-foreground/60">
-                                                        {pmt.isEstimate ? 'Est: ' : ''}{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right flex-shrink-0">
-                                                <p className="text-sm font-black text-foreground">₹{(pmt.amount || 0).toLocaleString('en-IN')}</p>
-                                                <span className={cn(
-                                                    "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
-                                                    isOverdue ? "bg-rose-500/10 text-rose-500" : "bg-muted border border-border text-muted-foreground/60"
-                                                )}>
-                                                    {label}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                            {pmt.propertyName.split(' ')[0]}
+                                        </motion.button>
+                                    ))}
+                                </div>
                             </div>
                         ) : activePaymentsToShow.length === 1 ? (
                             <PaymentCountdown 
