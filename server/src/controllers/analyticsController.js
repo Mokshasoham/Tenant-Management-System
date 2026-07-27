@@ -122,7 +122,7 @@ export const getTopProperties = asyncHandler(async (req, res) => {
                 as: 'property',
             },
         },
-        { $unwind: { path: '$property', preserveNullAndEmpty: true } },
+        { $unwind: { path: '$property', preserveNullAndEmptyArrays: true } },
         {
             $project: {
                 propertyName: '$property.name',
