@@ -261,6 +261,11 @@ export default function TenantDashboard({ user, navigate }) {
 
     return (
         <div className="space-y-5 pb-8">
+            <style dangerouslySetInnerHTML={{__html: `
+                .scrollbar-none::-webkit-scrollbar {
+                    display: none;
+                }
+            `}} />
             {error && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>
             )}

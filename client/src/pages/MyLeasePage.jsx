@@ -7,7 +7,8 @@ import {
     AlertTriangle, Building2, Wifi, Car, Droplets, Zap, Wind,
     Wallet, ArrowRight, RefreshCw, Info, Shield, Hash, Phone,
     Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
-    PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck
+    PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -61,9 +62,34 @@ function LeaseProgressBar({ startDate, endDate }) {
 export default function MyLeasePage() {
     const navigate = useNavigate();
     const [lease, setLease] = useState(null);
+    const [activeLeases, setActiveLeases] = useState([]);
+    const [pastLeases, setPastLeases] = useState([]);
+    const [selectedLeaseIndex, setSelectedLeaseIndex] = useState(0);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAllPayments, setShowAllPayments] = useState(false);
+
+    const scrollRef = useRef(null);
+
+    const scrollActiveLeases = (direction) => {
+        if (scrollRef.current) {
+            const { scrollLeft, clientWidth } = scrollRef.current;
+            const scrollTo = direction === 'left' 
+                ? scrollLeft - clientWidth 
+                : scrollLeft + clientWidth;
+            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
+    };
+
+    const handleScroll = (e) => {
+        const { scrollLeft, clientWidth } = e.target;
+        if (clientWidth > 0) {
+            const index = Math.round(scrollLeft / clientWidth);
+            if (index !== selectedLeaseIndex && index >= 0 && index < activeLeases.length) {
+                setSelectedLeaseIndex(index);
+            }
+        }
+    };
 
     // E-Signature States
     const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -86,8 +112,13 @@ export default function MyLeasePage() {
                 leaseService.getMyLease(),
                 paymentService.getMyPayments(),
             ]);
-            if (leaseRes.status === 'fulfilled') setLease(leaseRes.value?.data?.data || leaseRes.value?.data || null);
-            if (payRes.status === 'fulfilled') setPayments(payRes.value?.data?.data || payRes.value?.data || []);
+            if (leaseRes.status === 'fulfilled') {
+                const resVal = leaseRes.value || {};
+                setLease(resVal.data || null);
+                setActiveLeases(resVal.activeLeases || (resVal.data ? [resVal.data] : []));
+                setPastLeases(resVal.pastLeases || []);
+            }
+            if (payRes.status === 'fulfilled') setPayments(payRes.value?.data || []);
         } catch (e) { console.error('Error fetching lease data:', e); }
         setLoading(false);
     };
@@ -226,7 +257,7 @@ export default function MyLeasePage() {
 
         setSigningLoading(true);
         try {
-            const res = await leaseService.signLease(lease._id, {
+            const res = await leaseService.signLease(currentLease._id, {
                 signature: finalSig,
                 signatureType: sigTab,
                 signedBy: printedName,
@@ -250,6 +281,11 @@ export default function MyLeasePage() {
 
     return (
         <div className="space-y-5 pb-10">
+            <style dangerouslySetInnerHTML={{__html: `
+                .scrollbar-none::-webkit-scrollbar {
+                    display: none;
+                }
+            `}} />
             {/* Page Header */}
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
                 <div>
@@ -277,7 +313,7 @@ export default function MyLeasePage() {
             )}
 
             {/* No Lease */}
-            {!loading && !lease && (
+            {!loading && activeLeases.length === 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     className="flex flex-col items-center justify-center gap-6 py-24 rounded-[2rem] border-2 border-dashed border-border bg-card/50">
                     <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center">
@@ -294,10 +330,10 @@ export default function MyLeasePage() {
                 </motion.div>
             )}
 
-            {!loading && lease && (
+            {!loading && activeLeases.length > 0 && (
                 <>
                     {/* ── Pending Signature Warning Banner ── */}
-                    {lease.status === 'pending' && (
+                    {currentLease.status === 'pending' && (
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                             className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm">
                             <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -310,74 +346,119 @@ export default function MyLeasePage() {
                         </motion.div>
                     )}
 
-                    {/* ── Lease Hero Card ── */}
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                        className="relative overflow-hidden rounded-[2.5rem] border border-emerald-500/20 p-6 md:p-10 shadow-2xl"
-                        style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}>
+                    {/* ── Active Leases Horizontal Carousel Row ── */}
+                    <div className="relative group/scroll w-full">
+                        {/* Left Arrow Button */}
+                        {activeLeases.length > 1 && (
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => scrollActiveLeases('left')}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
+                            >
+                                <ChevronLeft className="w-6 h-6 text-muted-foreground" />
+                            </motion.button>
+                        )}
 
-                        {/* Orbs */}
-                        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
-                        <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
+                        {/* Right Arrow Button */}
+                        {activeLeases.length > 1 && (
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => scrollActiveLeases('right')}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
+                            >
+                                <ChevronRight className="w-6 h-6 text-muted-foreground" />
+                            </motion.button>
+                        )}
 
-                        <div className="relative z-10">
-                            {/* Top row */}
-                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <span className={cn('flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest backdrop-blur-md', statusCfg.bg, statusCfg.color)}>
-                                            <span className={cn('w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]', statusCfg.dot)} />
-                                            {statusCfg.label}
-                                        </span>
-                                        {lease.leaseNumber && (
-                                            <span className="flex items-center gap-1 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] bg-white/5 px-3 py-1.5 rounded-full">
-                                                <Hash className="w-3 h-3" />{lease.leaseNumber}
-                                            </span>
+                        {/* Horizontal Scroll Container */}
+                        <div
+                            ref={scrollRef}
+                            onScroll={handleScroll}
+                            className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-4"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            {activeLeases.map((actLease, idx) => {
+                                const actStatusCfg = STATUS_CONFIG[actLease.status] || STATUS_CONFIG.pending;
+                                return (
+                                    <motion.div
+                                        key={actLease._id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={cn(
+                                            "snap-start shrink-0 w-full relative overflow-hidden rounded-[2.5rem] border p-6 md:p-10 shadow-2xl transition-all duration-300",
+                                            selectedLeaseIndex === idx ? "border-emerald-500/40" : "border-emerald-500/10 opacity-70"
                                         )}
-                                    </div>
-                                    <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{lease.property?.name || 'Your Property'}</h2>
-                                    <p className="flex items-center gap-2 text-emerald-100/60 text-sm mt-3 font-medium">
-                                        <span className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></span> {lease.property?.address || '—'}
-                                    </p>
-                                </div>
-                                <div className="text-right flex-shrink-0 flex flex-col items-end">
-                                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Monthly Rent</p>
-                                    <p className="text-6xl font-black text-white drop-shadow-2xl">₹{(lease.rentAmount || 0).toLocaleString('en-IN')}</p>
-                                    {lease.depositAmount > 0 && (
-                                        <div className="mt-3 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                                            <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Deposit: ₹{lease.depositAmount.toLocaleString('en-IN')}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                        style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}
+                                    >
+                                        {/* Orbs */}
+                                        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+                                        <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
 
-                            {/* Progress */}
-                            <div className="mb-6">
-                                <LeaseProgressBar startDate={lease.startDate} endDate={lease.endDate} />
-                            </div>
-
-                            {/* Key dates grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {[
-                                    { label: 'Start Date', value: new Date(lease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
-                                    { label: 'End Date', value: new Date(lease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
-                                    { label: 'Frequency', value: 'Monthly', icon: RefreshCw },
-                                    { label: 'Protection', value: 'Lease Guard', icon: Shield },
-                                ].map((item) => {
-                                    return (
-                                        <div key={item.label} className="p-4 rounded-2xl bg-muted border border-border hover:bg-muted/80 transition-all group">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transform group-hover:scale-110 transition-transform">
-                                                    <item.icon className="w-3.5 h-3.5" />
+                                        <div className="relative z-10">
+                                            {/* Top row */}
+                                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <span className={cn('flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest backdrop-blur-md', actStatusCfg.bg, actStatusCfg.color)}>
+                                                            <span className={cn('w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]', actStatusCfg.dot)} />
+                                                            {actStatusCfg.label}
+                                                        </span>
+                                                        {actLease.leaseNumber && (
+                                                            <span className="flex items-center gap-1 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] bg-white/5 px-3 py-1.5 rounded-full">
+                                                                <Hash className="w-3 h-3" />{actLease.leaseNumber}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{actLease.property?.name || 'Your Property'}</h2>
+                                                    <p className="flex items-center gap-2 text-emerald-100/60 text-sm mt-3 font-medium">
+                                                        <span className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></span> {actLease.property?.address || '—'}
+                                                    </p>
                                                 </div>
-                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40">{item.label}</p>
+                                                <div className="text-right flex-shrink-0 flex flex-col items-end">
+                                                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Monthly Rent</p>
+                                                    <p className="text-6xl font-black text-white drop-shadow-2xl">₹{(actLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                                    {actLease.depositAmount > 0 && (
+                                                        <div className="mt-3 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+                                                            <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Deposit: ₹{actLease.depositAmount.toLocaleString('en-IN')}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <p className="text-sm font-black text-foreground">{item.value}</p>
+
+                                            {/* Progress */}
+                                            <div className="mb-6">
+                                                <LeaseProgressBar startDate={actLease.startDate} endDate={actLease.endDate} />
+                                            </div>
+
+                                            {/* Key dates grid */}
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                {[
+                                                    { label: 'Start Date', value: new Date(actLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
+                                                    { label: 'End Date', value: new Date(actLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
+                                                    { label: 'Frequency', value: 'Monthly', icon: RefreshCw },
+                                                    { label: 'Protection', value: 'Lease Guard', icon: Shield },
+                                                ].map((item) => {
+                                                    return (
+                                                        <div key={item.label} className="p-4 rounded-2xl bg-muted border border-border hover:bg-muted/80 transition-all group">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transform group-hover:scale-110 transition-transform">
+                                                                    <item.icon className="w-3.5 h-3.5" />
+                                                                </div>
+                                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40">{item.label}</p>
+                                                            </div>
+                                                            <p className="text-sm font-black text-foreground">{item.value}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    </motion.div>
+                                );
+                            })}
                         </div>
-                    </motion.div>
+                    </div>
 
                     {/* ── Property Details + Utilities ── */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -394,10 +475,10 @@ export default function MyLeasePage() {
                             </div>
                             <div className="space-y-3">
                                 {[
-                                    { label: 'Property Type', value: lease.property?.type || '—' },
-                                    { label: 'Bedrooms', value: lease.property?.bedrooms != null ? `${lease.property.bedrooms} Bed` : '—' },
-                                    { label: 'Bathrooms', value: lease.property?.bathrooms != null ? `${lease.property.bathrooms} Bath` : '—' },
-                                    { label: 'Floor Level', value: lease.property?.floor ? `${lease.property.floor} Floor` : 'Main Level' },
+                                    { label: 'Property Type', value: currentLease.property?.type || '—' },
+                                    { label: 'Bedrooms', value: currentLease.property?.bedrooms != null ? `${currentLease.property.bedrooms} Bed` : '—' },
+                                    { label: 'Bathrooms', value: currentLease.property?.bathrooms != null ? `${currentLease.property.bathrooms} Bath` : '—' },
+                                    { label: 'Floor Level', value: currentLease.property?.floor ? `${currentLease.property.floor} Floor` : 'Main Level' },
                                 ].map(r => (
                                     <div key={r.label} className="flex items-center justify-between py-3.5 border-b border-border/50 last:border-0">
                                         <span className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest">{r.label}</span>
@@ -407,11 +488,11 @@ export default function MyLeasePage() {
                             </div>
 
                             {/* Amenities */}
-                            {lease.property?.amenities?.length > 0 && (
+                            {currentLease.property?.amenities?.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-border">
                                     <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-4 text-center">Included Amenities</p>
                                     <div className="flex flex-wrap gap-2.5">
-                                        {lease.property.amenities.map(a => {
+                                        {currentLease.property.amenities.map(a => {
                                             const Icon = AMENITY_ICON[a.toLowerCase()] || AMENITY_ICON.default;
                                             return (
                                                 <span key={a} className="flex-1 min-w-[100px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-xs font-black text-emerald-700 dark:text-emerald-400 capitalize hover:bg-emerald-500/10 transition-colors">
@@ -435,9 +516,9 @@ export default function MyLeasePage() {
                             </div>
 
                             {/* Utilities object */}
-                            {lease.utilities && Object.keys(lease.utilities).length > 0 ? (
+                            {currentLease.utilities && Object.keys(currentLease.utilities).length > 0 ? (
                                 <div className="space-y-3.5 mb-6">
-                                    {Object.entries(lease.utilities).map(([key, val]) => (
+                                    {Object.entries(currentLease.utilities).map(([key, val]) => (
                                         <div key={key} className="flex items-center justify-between">
                                             <span className="text-[10px] text-muted-foreground/40 font-black capitalize uppercase tracking-widest">{key}</span>
                                             <span className={cn('text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm',
@@ -452,10 +533,10 @@ export default function MyLeasePage() {
                             )}
 
                             {/* Terms */}
-                            {lease.terms && (
+                            {currentLease.terms && (
                                 <div className="pt-6 border-t border-border">
                                     <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-3">Lease Terms</p>
-                                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">{lease.terms}</p>
+                                    <p className="text-sm text-muted-foreground leading-relaxed font-medium">{currentLease.terms}</p>
                                 </div>
                             )}
 
@@ -474,7 +555,7 @@ export default function MyLeasePage() {
                     </div>
 
                     {/* ── Tenant Details ── */}
-                    {lease.tenant && (
+                    {currentLease.tenant && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                             className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                             <div className="flex items-center gap-2 mb-6">
@@ -485,19 +566,19 @@ export default function MyLeasePage() {
                             </div>
                             <div className="flex items-center gap-5">
                                 <div className="w-16 h-16 rounded-[1.25rem] bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-black flex-shrink-0 shadow-lg shadow-emerald-500/20">
-                                    {lease.tenant.firstName?.[0]}{lease.tenant.lastName?.[0]}
+                                    {currentLease.tenant.firstName?.[0]}{currentLease.tenant.lastName?.[0]}
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-lg font-black text-foreground">{lease.tenant.firstName} {lease.tenant.lastName}</p>
+                                    <p className="text-lg font-black text-foreground">{currentLease.tenant.firstName} {currentLease.tenant.lastName}</p>
                                     <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2">
-                                        {lease.tenant.email && (
+                                        {currentLease.tenant.email && (
                                             <span className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                                                <span className="p-1 rounded bg-muted"><Mail className="w-3.5 h-3.5" /></span> {lease.tenant.email}
+                                                <span className="p-1 rounded bg-muted"><Mail className="w-3.5 h-3.5" /></span> {currentLease.tenant.email}
                                             </span>
                                         )}
-                                        {lease.tenant.phone && (
+                                        {currentLease.tenant.phone && (
                                             <span className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                                                <span className="p-1 rounded bg-muted"><Phone className="w-3.5 h-3.5" /></span> {lease.tenant.phone}
+                                                <span className="p-1 rounded bg-muted"><Phone className="w-3.5 h-3.5" /></span> {currentLease.tenant.phone}
                                             </span>
                                         )}
                                     </div>
@@ -522,7 +603,7 @@ export default function MyLeasePage() {
                             </button>
                         </div>
 
-                        {payments.length === 0 ? (
+                        {currentLeasePayments.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-14 gap-3 text-muted-foreground/40">
                                 <CreditCard className="w-10 h-10" />
                                 <p className="text-sm font-bold">No payment records yet</p>
@@ -586,11 +667,11 @@ export default function MyLeasePage() {
                                     </AnimatePresence>
                                 </div>
 
-                                {payments.length > 6 && (
+                                {currentLeasePayments.length > 6 && (
                                     <div className="px-6 py-4 border-t border-border bg-muted/20">
                                         <button onClick={() => setShowAllPayments(v => !v)}
                                             className="w-full flex items-center justify-center gap-2 py-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 hover:text-foreground transition-colors">
-                                            {showAllPayments ? <><ChevronUp className="w-4 h-4" /> Show less</> : <><ChevronDown className="w-4 h-4" /> Show all {payments.length} payments</>}
+                                            {showAllPayments ? <><ChevronUp className="w-4 h-4" /> Show less</> : <><ChevronDown className="w-4 h-4" /> Show all {currentLeasePayments.length} payments</>}
                                         </button>
                                     </div>
                                 )}
@@ -599,7 +680,7 @@ export default function MyLeasePage() {
                     </motion.div>
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
-                    {lease.status === 'pending' && (
+                    {currentLease.status === 'pending' && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                             className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-xl space-y-6">
                             
@@ -819,7 +900,7 @@ export default function MyLeasePage() {
                     )}
 
                     {/* ── Digital Signature Stamp Section ── */}
-                    {lease.status === 'active' && lease.signature && (
+                    {currentLease.status === 'active' && currentLease.signature && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                             className="rounded-3xl border border-emerald-500/20 bg-card p-6 md:p-8 shadow-lg relative overflow-hidden">
                             {/* Watermark background icon */}
@@ -839,23 +920,23 @@ export default function MyLeasePage() {
                                     <div className="space-y-2 text-xs">
                                         <div className="flex justify-between py-1.5 border-b border-border/40">
                                             <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signed By</span>
-                                            <span className="font-black text-foreground">{lease.signedBy}</span>
+                                            <span className="font-black text-foreground">{currentLease.signedBy}</span>
                                         </div>
                                         <div className="flex justify-between py-1.5 border-b border-border/40">
                                             <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signed On</span>
-                                            <span className="font-black text-foreground">{new Date(lease.signedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                            <span className="font-black text-foreground">{new Date(currentLease.signedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                         </div>
                                         <div className="flex justify-between py-1.5 border-b border-border/40">
                                             <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signing IP Address</span>
-                                            <span className="font-black text-foreground font-mono">{lease.tenantSignatureIp}</span>
+                                            <span className="font-black text-foreground font-mono">{currentLease.tenantSignatureIp}</span>
                                         </div>
                                         <div className="flex justify-between py-1.5 border-b border-border/40">
                                             <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Signature Type</span>
-                                            <span className="font-black text-foreground capitalize">{lease.signatureType || 'Digital Drawing'}</span>
+                                            <span className="font-black text-foreground capitalize">{currentLease.signatureType || 'Digital Drawing'}</span>
                                         </div>
                                         <div className="flex justify-between py-1.5 border-b border-border/40">
                                             <span className="text-muted-foreground/50 font-bold uppercase tracking-wider text-[10px]">Verification Fingerprint</span>
-                                            <span className="font-bold text-muted-foreground font-mono text-[9px] truncate max-w-[150px]">{lease._id}</span>
+                                            <span className="font-bold text-muted-foreground font-mono text-[9px] truncate max-w-[150px]">{currentLease._id}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -867,7 +948,7 @@ export default function MyLeasePage() {
                                     </div>
                                     <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/30 mb-2">TENANT SIGNATURE</p>
                                     <div className="w-full h-24 bg-card rounded-xl border border-border/60 p-2 flex items-center justify-center relative shadow-inner overflow-hidden">
-                                        <img src={lease.signature} alt="Verified digital signature" className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
+                                        <img src={currentLease.signature} alt="Verified digital signature" className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
                                     </div>
                                     <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-600/40 dark:text-emerald-400/40 mt-2 text-center">VERIFIED ELECTRONIC RECORD</p>
                                 </div>
