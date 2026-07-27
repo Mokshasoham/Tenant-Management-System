@@ -113,13 +113,13 @@ export default function MyLeasePage() {
                 paymentService.getMyPayments(),
             ]);
             if (leaseRes.status === 'fulfilled') {
-                const resVal = leaseRes.value?.data || {};
+                const resVal = leaseRes.value || {};
                 setLease(resVal.data || null);
                 setActiveLeases(resVal.activeLeases || (resVal.data ? [resVal.data] : []));
                 setPastLeases(resVal.pastLeases || []);
             }
             if (payRes.status === 'fulfilled') {
-                const payVal = payRes.value?.data || {};
+                const payVal = payRes.value || {};
                 setPayments(payVal.data || (Array.isArray(payVal) ? payVal : []));
             }
         } catch (e) { console.error('Error fetching lease data:', e); }
