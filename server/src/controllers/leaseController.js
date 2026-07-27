@@ -15,6 +15,24 @@ export const getMyLease = asyncHandler(async (req, res) => {
   const tenant = await Tenant.findOne({ email: user.email });
   if (!tenant) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
+  // Self-healing: if there are multiple active/pending leases for the same property, keep only the newest one active, mark others as terminated
+  const activeLeasesRaw = await Lease.find({
+    tenant: tenant._id,
+    status: { $in: ['active', 'pending'] },
+  }).sort({ createdAt: -1 });
+
+  const seenProperties = new Set();
+  for (const lease of activeLeasesRaw) {
+    if (!lease.property) continue;
+    const propId = lease.property.toString();
+    if (seenProperties.has(propId)) {
+      lease.status = 'terminated';
+      await lease.save();
+    } else {
+      seenProperties.add(propId);
+    }
+  }
+
   const activeLeases = await Lease.find({
     tenant: tenant._id,
     status: { $in: ['active', 'pending'] },
