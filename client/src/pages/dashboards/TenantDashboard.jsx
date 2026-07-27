@@ -57,50 +57,62 @@ function LeaseProgress({ start, end }) {
     );
 }
 
-function PaymentCountdown({ dueDate, amount }) {
+function PaymentCountdown({ dueDate, amount, isEstimate, propertyName }) {
     const { t } = useLanguage();
     const due = new Date(dueDate);
     const diff = due - Date.now();
     const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-    const isOverdue = diff < 0;
+    const isOverdue = diff < 0 && !isEstimate;
 
     const size = 100;
     const RADIUS = 40;
     const circumference = 2 * Math.PI * RADIUS;
-    const percentage = Math.max(0, Math.min(100, Math.round((days / 30) * 100))); // Assuming 30 days for a month cycle
+    const percentage = Math.max(0, Math.min(100, Math.round((days / 30) * 100)));
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
     const label = isOverdue ? t('dashboard.overdue') : t('dashboard.daysLeft');
 
     return (
-        <div className="flex flex-col items-center gap-3">
-            <div className={cn('text-center px-5 py-3 rounded-2xl border', isOverdue
-                ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20')}>
-                <p className={cn('text-5xl font-black tabular-nums', isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-white')}>
-                    {isOverdue ? '!' : String(days).padStart(2, '0')}
-                </p>
-                <p className={cn('text-[9px] font-black uppercase tracking-widest mt-1', isOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-300/60')}>
-                    {isOverdue ? t('dashboard.overdue') : t('dashboard.daysLeft')}
-                </p>
-            </div>
-            <p className="text-xs text-muted-foreground/60">{t('dashboard.due')} {due.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-            <div className="relative w-full p-3 rounded-xl bg-card border border-border text-center overflow-hidden">
-                <p className="text-2xl font-black text-foreground">₹{(amount || 0).toLocaleString('en-IN')}</p>
-                <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-wider mt-0.5">{t('dashboard.amountDue')}</p>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl font-black text-foreground">{percentage}%</span>
-                    <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{label}</span>
+        <div className="flex flex-col items-center gap-3 w-full max-w-[240px] mx-auto">
+            <div className="relative w-28 h-28 flex items-center justify-center">
+                {/* SVG Progress Circle */}
+                <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90 absolute">
+                    <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="8" />
+                    <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor"
+                        className={cn('transition-all duration-500', isOverdue ? 'text-rose-500' : 'text-emerald-500')}
+                        strokeWidth="8"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                    />
+                </svg>
+                {/* Center text in SVG */}
+                <div className="flex flex-col items-center justify-center z-10">
+                    <p className={cn('text-3xl font-black tabular-nums leading-none', isOverdue ? 'text-rose-500' : 'text-emerald-500')}>
+                        {isOverdue ? '!' : days}
+                    </p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mt-1 text-center">
+                        {label}
+                    </p>
                 </div>
             </div>
-            <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
-                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="10" />
-                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor"
-                    className={cn('transition-all duration-500', isOverdue ? 'text-rose-500' : 'text-emerald-500')}
-                    strokeWidth="10"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                />
-            </svg>
+
+            <div className="text-center w-full">
+                <p className="text-xs text-muted-foreground/60">
+                    {isEstimate ? 'Estimated Due:' : `${t('dashboard.due')}:`} {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+                {propertyName && (
+                    <p className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest mt-0.5 truncate px-2" title={propertyName}>
+                        {propertyName}
+                    </p>
+                )}
+            </div>
+
+            <div className="w-full p-3 rounded-2xl bg-muted/40 border border-border text-center">
+                <p className="text-2xl font-black text-foreground">₹{(amount || 0).toLocaleString('en-IN')}</p>
+                <p className="text-[9px] text-muted-foreground/50 font-black uppercase tracking-widest mt-0.5">
+                    {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue')}
+                </p>
+            </div>
         </div>
     );
 }
@@ -480,6 +492,13 @@ export default function TenantDashboard({ user, navigate }) {
                     <div className="flex-1 flex flex-col items-center justify-center">
                         {pendingPayment ? (
                             <PaymentCountdown dueDate={pendingPayment.dueDate} amount={pendingPayment.amount} />
+                        ) : nextEstimatedPayments[0] ? (
+                            <PaymentCountdown
+                                dueDate={nextEstimatedPayments[0].dueDate}
+                                amount={nextEstimatedPayments[0].amount}
+                                isEstimate={true}
+                                propertyName={nextEstimatedPayments[0].propertyName}
+                            />
                         ) : (
                             <div className="text-center py-6 space-y-2">
                                 <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto" />
