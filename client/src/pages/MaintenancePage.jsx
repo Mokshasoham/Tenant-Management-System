@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { maintenanceService } from '../services/api';
 import useAuthStore from '../context/authStore';
@@ -240,7 +241,7 @@ function BookingModal({ request, onClose, onSave }) {
     );
 }
 
-function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule }) {
+function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule, highlighted }) {
     const pc = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.medium;
     const [noteOpen, setNoteOpen] = useState(false);
     const [noteText, setNoteText] = useState('');
@@ -254,7 +255,12 @@ function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule
     const sc = SLOT_CONFIG[request.scheduledSlot];
 
     return (
-        <motion.div layout className="rounded-xl border border-border bg-card p-4 space-y-3 hover:border-border/80 shadow-sm transition-all flex flex-col justify-between">
+        <motion.div layout className={cn(
+            "rounded-xl border bg-card p-4 space-y-3 shadow-sm transition-all flex flex-col justify-between",
+            highlighted 
+                ? "border-amber-500 dark:border-amber-400 shadow-lg shadow-amber-500/25 ring-2 ring-amber-500/30 scale-[1.02]"
+                : "border-border hover:border-border/80"
+        )}>
             <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -566,6 +572,8 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 
 export default function MaintenancePage() {
     const { user } = useAuthStore();
+    const location = useLocation();
+    const searchId = location.state?.searchId;
     const isManager = user?.role === 'manager' || user?.role === 'admin';
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -695,7 +703,8 @@ export default function MaintenancePage() {
                                             ) : cards.map(r => (
                                                 <RequestCard key={r._id} request={r} isManager={isManager}
                                                     onStatusChange={handleStatusChange} onAddNote={handleAddNote}
-                                                    onSchedule={() => setBookingTarget(r)} />
+                                                    onSchedule={() => setBookingTarget(r)}
+                                                    highlighted={r._id === searchId} />
                                             ))}
                                         </div>
                                     </div>
