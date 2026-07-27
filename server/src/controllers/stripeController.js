@@ -136,8 +136,8 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       logger.info(`Stripe Webhook processed successfully for payment: ${payment?._id}`);
       
       // 2. Automate Post-Payment Documentation (Async)
-      if (payment?._id) {
-        processPostPayment(payment._id).catch((error) => {
+      if (payment) {
+        processPostPayment(payment).catch((error) => {
           logger.error(`Failed to process post-payment for Stripe payment ${payment._id}: ${error.message}`);
         });
       }

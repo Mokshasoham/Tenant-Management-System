@@ -612,7 +612,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         });
 
         // Trigger invoice generation (non-blocking background task)
-        processPostPayment(payment._id).catch((error) => {
+        processPostPayment(payment).catch((error) => {
             console.error('[MockPay] Failed to generate invoice:', error.message);
         });
 
