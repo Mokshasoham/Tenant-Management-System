@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import useAuthStore from '../context/authStore';
@@ -23,7 +23,15 @@ const ROLE_BG = {
 };
 
 export default function DashboardLayout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved === null ? true : saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', sidebarOpen);
+  }, [sidebarOpen]);
+
   const user = useAuthStore((state) => state.user);
   const role = user?.role || 'tenant';
   const roleBg = ROLE_BG[role] || ROLE_BG.tenant;
