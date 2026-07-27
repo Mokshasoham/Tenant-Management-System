@@ -74,6 +74,7 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
         totalProperties, totalTenants, totalLeases, totalPayments,
         paidPayments, overduePayments, openMaintenance,
         totalRevenue,
+        maintenanceByCategory,
     ] = await Promise.all([
         Property.countDocuments(),
         Tenant.countDocuments({ status: 'active' }),
@@ -83,6 +84,9 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
         Payment.countDocuments({ status: 'overdue' }),
         Maintenance.countDocuments({ status: { $in: ['open', 'in_progress'] } }),
         Payment.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amountPaid' } } }]),
+        Maintenance.aggregate([
+            { $group: { _id: '$category', count: { $sum: 1 } } }
+        ]),
     ]);
 
     res.status(200).json({
@@ -96,6 +100,10 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
             overduePayments,
             openMaintenance,
             totalRevenue: totalRevenue[0]?.total || 0,
+            maintenanceByCategory: maintenanceByCategory.map(c => ({
+                category: c._id || 'other',
+                count: c.count
+            })),
         },
     });
 });
