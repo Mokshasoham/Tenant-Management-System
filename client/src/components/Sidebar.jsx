@@ -90,6 +90,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const { language, setLanguage, t } = useLanguage();
   const [showLangPicker, setShowLangPicker] = React.useState(false);
 
+  const handleLinkClick = () => {
+    if (window.innerWidth < 1024) {
+      setIsOpen(false);
+    }
+  };
+
   const role = user?.role || 'tenant';
   // 'user' is a legacy role — treat as tenant
   const effectiveRole = role === 'user' ? 'tenant' : role;
@@ -217,7 +223,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 >
                   <Link
                     to={item.path}
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleLinkClick}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative',
                       !isOpen && 'justify-center px-1.5',
