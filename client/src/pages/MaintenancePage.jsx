@@ -381,12 +381,24 @@ function CalendarView({ requests, onScheduleRequest, user }) {
         return arr;
     };
 
+    const getLocalDateString = (date) => {
+        if (!date) return '';
+        if (typeof date === 'string') {
+            return date.split('T')[0];
+        }
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const getRequestsForDate = (date) => {
         if (!date) return [];
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = getLocalDateString(date);
         return requests.filter(r => {
             if (!r.scheduledDate) return false;
-            const rDateStr = new Date(r.scheduledDate).toISOString().split('T')[0];
+            const rDateStr = getLocalDateString(r.scheduledDate);
             return rDateStr === dateStr;
         });
     };
