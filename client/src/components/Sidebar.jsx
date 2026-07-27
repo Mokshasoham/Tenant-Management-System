@@ -121,15 +121,17 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         className={cn(
           // Position
           'fixed top-0 left-0 z-50 lg:relative lg:z-auto',
-          // Size
-          'w-72 h-screen',
           // Layout
-          'flex flex-col',
-          // Mobile hide/show
-          'transition-transform duration-300 ease-in-out',
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          'flex flex-col overflow-hidden',
+          // Mobile/Desktop hide/show and width transition
+          'transition-all duration-300 ease-in-out',
+          isOpen 
+            ? 'translate-x-0 w-72 border-r' 
+            : '-translate-x-full w-0 border-r-transparent',
+          // Size
+          'h-screen',
           // Theme
-          'border-r transition-colors duration-300'
+          'transition-colors duration-300'
         )}
         style={{
           backgroundColor: 'var(--bg-sidebar)',
