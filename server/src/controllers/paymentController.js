@@ -132,12 +132,9 @@ export const recordPayment = asyncHandler(async (req, res) => {
   await payment.save();
 
   if (payment.status === 'paid') {
-    try {
-      await processPostPayment(payment._id);
-    } catch (error) {
+    processPostPayment(payment._id).catch((error) => {
       logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
-      // Don't fail the payment recording, but log the error
-    }
+    });
   }
 
   logger.info(`Payment recorded: ${payment._id}`);
@@ -166,12 +163,9 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
   }
 
   if (payment.status === 'paid') {
-    try {
-      await processPostPayment(payment._id);
-    } catch (error) {
+    processPostPayment(payment._id).catch((error) => {
       logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
-      // Don't fail the status update, but log the error
-    }
+    });
   }
 
   logger.info(`Payment status updated: ${payment._id} - ${status}`);

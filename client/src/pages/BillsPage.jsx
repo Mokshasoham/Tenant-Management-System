@@ -23,21 +23,32 @@ export default function BillsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all'); // all, settled, pending
 
-  const fetchPayments = useCallback(async () => {
+  const fetchPayments = useCallback(async (isSilent = false) => {
     if (!user) return;
-    setLoading(true);
+    if (!isSilent) setLoading(true);
     try {
       const res = await paymentService.getMyPayments();
       setPayments(res.data?.data || res.data || []);
     } catch (error) {
       console.error('Failed to fetch bills:', error);
     }
-    setLoading(false);
+    if (!isSilent) setLoading(false);
   }, [user]);
 
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  useEffect(() => {
+    const hasProcessing = payments.some(p => p.status === 'paid' && !p.invoiceUrl);
+    if (!hasProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchPayments(true);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [payments, fetchPayments]);
 
   const filteredBills = payments.filter(p => {
     const matchSearch = p.property?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 

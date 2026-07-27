@@ -137,11 +137,9 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       
       // 2. Automate Post-Payment Documentation (Async)
       if (payment?._id) {
-        try {
-          await processPostPayment(payment._id);
-        } catch (error) {
+        processPostPayment(payment._id).catch((error) => {
           logger.error(`Failed to process post-payment for Stripe payment ${payment._id}: ${error.message}`);
-        }
+        });
       }
     }
   } else if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {

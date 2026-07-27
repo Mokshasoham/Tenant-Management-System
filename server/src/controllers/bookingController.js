@@ -611,12 +611,10 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             }
         });
 
-        // Trigger invoice generation
-        try {
-            await processPostPayment(payment._id);
-        } catch (error) {
+        // Trigger invoice generation (non-blocking background task)
+        processPostPayment(payment._id).catch((error) => {
             console.error('[MockPay] Failed to generate invoice:', error.message);
-        }
+        });
 
         // 5. Generate Real PDF (The highlight feature requested)
         console.log('[MockPay] Trace: Step 5 (PDF)');
