@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { leaseService, paymentService, maintenanceService, notificationService, bookingService } from '../../services/api';
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
-    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown
+    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
@@ -117,6 +118,18 @@ export default function TenantDashboard({ user, navigate }) {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const scrollRef = useRef(null);
+
+    const scrollActiveLeases = (direction) => {
+        if (scrollRef.current) {
+            const { scrollLeft, clientWidth } = scrollRef.current;
+            const scrollTo = direction === 'left' 
+                ? scrollLeft - clientWidth 
+                : scrollLeft + clientWidth;
+            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
+    };
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -254,86 +267,117 @@ export default function TenantDashboard({ user, navigate }) {
                     </div>
 
                     {trulyActiveLeases.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4">
-                            {trulyActiveLeases.map((activeLease) => (
-                                <motion.div
-                                    key={activeLease._id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 relative overflow-hidden group flex flex-col justify-between"
+                        <div className="relative group/scroll">
+                            {/* Left Navigation Arrow */}
+                            {trulyActiveLeases.length > 1 && (
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => scrollActiveLeases('left')}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
                                 >
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-600/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
-                                    <div>
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                                                        {activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease')} • #{activeLease.leaseNumber || '—'}
-                                                    </span>
+                                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                                </motion.button>
+                            )}
+
+                            {/* Right Navigation Arrow */}
+                            {trulyActiveLeases.length > 1 && (
+                                <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => scrollActiveLeases('right')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
+                                >
+                                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                                </motion.button>
+                            )}
+
+                            {/* Horizontal Scroll Wrapper */}
+                            <div
+                                ref={scrollRef}
+                                className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-2"
+                                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                            >
+                                {trulyActiveLeases.map((activeLease) => (
+                                    <motion.div
+                                        key={activeLease._id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="snap-start shrink-0 w-full rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 relative overflow-hidden group flex flex-col justify-between"
+                                    >
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 dark:bg-indigo-600/10 blur-[80px] -mr-32 -mt-32 rounded-full" />
+                                        <div>
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                                            {activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease')} • #{activeLease.leaseNumber || '—'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
+                                                    <h2 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{activeLease?.property?.name || 'Not Assigned'}</h2>
+                                                    <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                        {activeLease?.property?.address || 'Property details will appear once assigned'}
+                                                    </p>
                                                 </div>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
-                                                <h2 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{activeLease?.property?.name || 'Not Assigned'}</h2>
-                                                <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                                    {activeLease?.property?.address || 'Property details will appear once assigned'}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{t('dashboard.monthlyRent')}</p>
-                                                <p className="text-2xl font-black text-emerald-500 dark:text-emerald-400">₹{(activeLease.rentAmount || 0).toLocaleString('en-IN')}</p>
-                                            </div>
-                                        </div>
-                                        <LeaseProgress start={activeLease.startDate} end={activeLease.endDate} />
-                                        
-                                        <div className="grid grid-cols-3 gap-3 mt-4">
-                                            {[
-                                                { label: t('common.status') || 'Status', value: activeLease.status?.toUpperCase() || '—', hl: true },
-                                                { label: t('common.start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                                                { label: t('common.ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                                            ].map((item) => (
-                                                <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
-                                                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
-                                                    <p className={cn('text-[10px] font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{t('dashboard.monthlyRent')}</p>
+                                                    <p className="text-2xl font-black text-emerald-500 dark:text-emerald-400">₹{(activeLease.rentAmount || 0).toLocaleString('en-IN')}</p>
                                                 </div>
-                                            ))}
+                                            </div>
+                                            <LeaseProgress start={activeLease.startDate} end={activeLease.endDate} />
+                                            
+                                            <div className="grid grid-cols-3 gap-3 mt-4">
+                                                {[
+                                                    { label: t('common.status') || 'Status', value: activeLease.status?.toUpperCase() || '—', hl: true },
+                                                    { label: t('common.start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                    { label: t('common.ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                ].map((item) => (
+                                                    <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
+                                                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
+                                                        <p className={cn('text-[10px] font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {activeLease.property?.amenities?.length > 0 && (
+                                                <div className="mt-4 pt-3 border-t border-border/60">
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {activeLease.property.amenities.slice(0, 4).map(a => (
+                                                            <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
+                                                        ))}
+                                                        {activeLease.property.amenities.length > 4 && (
+                                                            <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} more</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {activeLease.property?.amenities?.length > 0 && (
-                                            <div className="mt-4 pt-3 border-t border-border/60">
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {activeLease.property.amenities.slice(0, 4).map(a => (
-                                                        <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
-                                                    ))}
-                                                    {activeLease.property.amenities.length > 4 && (
-                                                        <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} more</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex gap-2.5 mt-5 pt-3 border-t border-border/60">
-                                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                            onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:opacity-90 transition-all">
-                                            <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
-                                        </motion.button>
-                                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                            onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
-                                            <Wrench className="w-3.5 h-3.5" /> {t('dashboard.reportIssue')}
-                                        </motion.button>
-                                        {activeLease.property?.manager && (
+                                        <div className="flex gap-2.5 mt-5 pt-3 border-t border-border/60">
                                             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                onClick={() => navigate('/messages', { state: { recipientId: activeLease.property.manager._id, recipientName: `${activeLease.property.manager.firstName} ${activeLease.property.manager.lastName}` } })}
-                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
-                                                <MessageSquare className="w-3.5 h-3.5" /> Chat
+                                                onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:opacity-90 transition-all">
+                                                <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
                                             </motion.button>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))}
+                                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
+                                                <Wrench className="w-3.5 h-3.5" /> {t('dashboard.reportIssue')}
+                                            </motion.button>
+                                            {activeLease.property?.manager && (
+                                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                    onClick={() => navigate('/messages', { state: { recipientId: activeLease.property.manager._id, recipientName: `${activeLease.property.manager.firstName} ${activeLease.property.manager.lastName}` } })}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
+                                                    <MessageSquare className="w-3.5 h-3.5" /> Chat
+                                                </motion.button>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center py-8 rounded-2xl border border-dashed border-border bg-card/10">
