@@ -40,7 +40,7 @@ export default function BillsPage() {
   }, [fetchPayments]);
 
   useEffect(() => {
-    const hasProcessing = payments.some(p => p.status === 'paid' && !p.invoiceUrl);
+    const hasProcessing = payments.some(p => ['paid', 'partially_paid'].includes(p.status) && !p.invoiceUrl);
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
@@ -143,6 +143,7 @@ export default function BillsPage() {
             const status = STATUS_CONFIG[bill.status] || STATUS_CONFIG.pending;
             const StatusIcon = status.icon;
             const isSettled = bill.status === 'paid';
+            const isPaidOrPartial = ['paid', 'partially_paid'].includes(bill.status);
 
             return (
               <motion.div
@@ -152,7 +153,7 @@ export default function BillsPage() {
                 transition={{ delay: index * 0.05 }}
                 className={cn(
                   "group relative bg-card border rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300",
-                  isSettled ? "border-emerald-500/10" : "border-border"
+                  isSettled ? "border-emerald-500/10" : bill.status === 'partially_paid' ? "border-blue-500/10" : "border-border"
                 )}
               >
                 {/* Status Badge */}
@@ -167,7 +168,11 @@ export default function BillsPage() {
                 <div className="flex items-start gap-4 mb-4">
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br",
-                    isSettled ? "from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20" : "from-muted to-muted-foreground/10"
+                    isSettled 
+                      ? "from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20" 
+                      : bill.status === 'partially_paid'
+                        ? "from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20"
+                        : "from-muted to-muted-foreground/10"
                   )}>
                     <FileText className="w-6 h-6 text-white" />
                   </div>
@@ -207,7 +212,7 @@ export default function BillsPage() {
                       <ArrowDownToLine className="w-4 h-4" />
                       Download Invoice
                     </button>
-                  ) : isSettled ? (
+                  ) : isPaidOrPartial ? (
                     <div className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-500/10 text-orange-600 text-[10px] font-bold border border-orange-500/20">
                       Processing Invoice...
                     </div>

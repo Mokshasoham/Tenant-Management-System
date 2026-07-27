@@ -131,7 +131,7 @@ export const recordPayment = asyncHandler(async (req, res) => {
 
   await payment.save();
 
-  if (payment.status === 'paid') {
+  if (['paid', 'partially_paid'].includes(payment.status)) {
     processPostPayment(payment).catch((error) => {
       logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
     });
@@ -162,7 +162,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
     throw new AppError('Payment not found', 404);
   }
 
-  if (payment.status === 'paid') {
+  if (['paid', 'partially_paid'].includes(payment.status)) {
     processPostPayment(payment).catch((error) => {
       logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
     });

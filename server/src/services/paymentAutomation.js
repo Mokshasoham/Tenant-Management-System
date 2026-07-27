@@ -15,8 +15,8 @@ export const processPostPayment = async (paymentOrId) => {
     try {
         const paymentId = paymentOrId._id || paymentOrId;
         const payment = paymentOrId._id ? paymentOrId : await Payment.findById(paymentId);
-        if (!payment || payment.status !== 'paid') {
-            logger.warn(`Post-payment processing skipped for payment ${paymentId}: not found or not paid.`);
+        if (!payment || !['paid', 'partially_paid'].includes(payment.status)) {
+            logger.warn(`Post-payment processing skipped for payment ${paymentId}: not found or status is ${payment?.status}.`);
             return;
         }
 
