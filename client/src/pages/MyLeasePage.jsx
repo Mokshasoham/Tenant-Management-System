@@ -113,12 +113,15 @@ export default function MyLeasePage() {
                 paymentService.getMyPayments(),
             ]);
             if (leaseRes.status === 'fulfilled') {
-                const resVal = leaseRes.value || {};
+                const resVal = leaseRes.value?.data || {};
                 setLease(resVal.data || null);
                 setActiveLeases(resVal.activeLeases || (resVal.data ? [resVal.data] : []));
                 setPastLeases(resVal.pastLeases || []);
             }
-            if (payRes.status === 'fulfilled') setPayments(payRes.value?.data || []);
+            if (payRes.status === 'fulfilled') {
+                const payVal = payRes.value?.data || {};
+                setPayments(payVal.data || (Array.isArray(payVal) ? payVal : []));
+            }
         } catch (e) { console.error('Error fetching lease data:', e); }
         setLoading(false);
     };
@@ -273,11 +276,13 @@ export default function MyLeasePage() {
         }
     };
 
-    const statusCfg = STATUS_CONFIG[lease?.status] || STATUS_CONFIG.pending;
-    const paidPayments = payments.filter(p => p.status === 'paid');
-    const pendingPay = payments.find(p => ['pending', 'overdue'].includes(p.status));
+    const currentLease = activeLeases[selectedLeaseIndex] || lease || null;
+    const statusCfg = STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending;
+    const currentLeasePayments = currentLease ? payments.filter(p => p.lease?._id === currentLease._id || p.lease === currentLease._id) : [];
+    const paidPayments = currentLeasePayments.filter(p => p.status === 'paid');
+    const pendingPay = currentLeasePayments.find(p => ['pending', 'overdue'].includes(p.status));
     const totalPaid = paidPayments.reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
-    const visiblePay = showAllPayments ? payments : payments.slice(0, 6);
+    const visiblePay = showAllPayments ? currentLeasePayments : currentLeasePayments.slice(0, 6);
 
     return (
         <div className="space-y-5 pb-10">
