@@ -4,6 +4,8 @@ import { Heart, MapPin, Bed, Bath, Maximize, Star, ArrowRight, Trash2, Loader2 }
 import { useNavigate } from 'react-router-dom';
 import { propertyService } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
+import { cn } from '../utils/cn';
+import { getDisplayStatus } from '../utils/propertyHelper';
 
 const shimmerCard = (
     <div className="rounded-2xl overflow-hidden bg-card border border-border">
@@ -117,17 +119,20 @@ const SavedPropertiesPage = () => {
                                                     <span className="text-xs text-white font-bold">{prop.rating}</span>
                                                 </div>
                                             )}
-                                            {prop.displayStatus && (
-                                                <div className={cn(
-                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border backdrop-blur-sm shadow-md",
-                                                    prop.displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
-                                                    prop.displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
-                                                    prop.displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
-                                                    "bg-rose-500/90 border-rose-400/20 text-white"
-                                                )}>
-                                                    {prop.displayStatus}
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                const displayStatus = getDisplayStatus(prop);
+                                                return displayStatus && (
+                                                    <div className={cn(
+                                                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border backdrop-blur-sm shadow-md",
+                                                        displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
+                                                        displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
+                                                        displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
+                                                        "bg-rose-500/90 border-rose-400/20 text-white"
+                                                    )}>
+                                                        {displayStatus}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                         {/* Unsave button */}
                                         <motion.button

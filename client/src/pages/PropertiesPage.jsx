@@ -7,6 +7,7 @@ import {
   Wrench, Users, Tag
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getDisplayStatus } from '../utils/propertyHelper';
 
 const STATUS_CONFIG = {
   available: { label: 'Available', class: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400', icon: CheckCircle2 },
@@ -120,7 +121,7 @@ export default function PropertiesPage() {
               }
               return { label: displayStatus || 'Sold Out', class: 'text-rose-500 bg-rose-500/10 border-rose-500/20', icon: Users };
             };
-            const sc = getStatusConfig(p.displayStatus, p.status);
+            const sc = getStatusConfig(getDisplayStatus(p), p.status);
             const StatusIcon = sc.icon;
             const TypeIcon = TYPE_ICONS[p.type] || Building2;
             return (

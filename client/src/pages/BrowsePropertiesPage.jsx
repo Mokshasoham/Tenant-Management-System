@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import useAuthStore from '../context/authStore';
 import { useTheme } from '../context/ThemeContext';
+import { getDisplayStatus } from '../utils/propertyHelper';
 
 // ── Lazy-load the map so Leaflet errors never crash the whole page ──
 const InteractivePropertyMap = lazy(() => import('../components/PropertyMap'));
@@ -81,6 +82,7 @@ function SkeletonCard({ compact = false }) {
 function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
+    const displayStatus = getDisplayStatus(p);
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
             className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
@@ -89,7 +91,17 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
                     ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
                 <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
-                {p.bookingType === 'free' && <span className="absolute bottom-1 left-1 bg-primary/90 text-white text-[7px] font-black px-1 rounded shadow-sm">DEMO</span>}
+                {displayStatus && (
+                    <span className={cn(
+                        "absolute bottom-1 right-1 text-[7px] font-black px-1 rounded shadow-sm border uppercase tracking-tighter",
+                        displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
+                        displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
+                        displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
+                        "bg-rose-500/90 border-rose-400/20 text-white"
+                    )}>
+                        {displayStatus === 'Available' ? 'AVBL' : displayStatus === 'Under Maintenance' ? 'MAINT' : displayStatus === 'Sold Out' ? 'SOLD' : 'SOON'}
+                    </span>
+                )}
             </div>
             <div className="flex-1 min-w-0">
                 <p className="font-black text-sm text-foreground truncate">{p.name}</p>
@@ -113,6 +125,7 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
 // ── Full grid card ──
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
     const color = TYPE_COLORS[p.type] || '#6366f1';
+    const displayStatus = getDisplayStatus(p);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.5) }}
@@ -132,15 +145,15 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                 <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-10">
                     <div className="flex gap-1.5 flex-wrap">
                         <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
-                        {p.displayStatus && (
+                        {displayStatus && (
                             <span className={cn(
                                 "px-3 py-1 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border uppercase tracking-wider",
-                                p.displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
-                                p.displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
-                                p.displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
+                                displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
+                                displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
+                                displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
                                 "bg-rose-500/90 border-rose-400/20 text-white"
                             )}>
-                                {p.displayStatus}
+                                {displayStatus}
                             </span>
                         )}
                     </div>

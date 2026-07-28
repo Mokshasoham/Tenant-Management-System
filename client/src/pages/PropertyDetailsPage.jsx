@@ -11,6 +11,7 @@ import {
     ChevronRight, ArrowRight, Wallet, Hammer, Video
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getDisplayStatus } from '../utils/propertyHelper';
 import RazorpayPayment from '../components/RazorpayPayment';
 
 
@@ -112,8 +113,9 @@ export default function PropertyDetailsPage() {
         ? new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
-    const isSoldOut = property?.displayStatus === 'Sold Out';
-    const isUnderMaintenance = property?.displayStatus === 'Under Maintenance';
+    const displayStatus = getDisplayStatus(property);
+    const isSoldOut = displayStatus === 'Sold Out';
+    const isUnderMaintenance = displayStatus === 'Under Maintenance';
     const isNotBookable = isSoldOut || isUnderMaintenance;
 
     return (
@@ -215,15 +217,15 @@ export default function PropertyDetailsPage() {
                                     <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
                                         {property.type}
                                     </span>
-                                    {property.displayStatus && (
+                                    {displayStatus && (
                                         <span className={cn(
                                             "flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border",
-                                            property.displayStatus === 'Available' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-                                            property.displayStatus.startsWith('Available from') ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" :
-                                            property.displayStatus === 'Under Maintenance' ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
+                                            displayStatus === 'Available' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                                            displayStatus.startsWith('Available from') ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" :
+                                            displayStatus === 'Under Maintenance' ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
                                             "bg-rose-500/10 border-rose-500/20 text-rose-400"
                                         )}>
-                                            {property.displayStatus}
+                                            {displayStatus}
                                         </span>
                                     )}
                                     {property.rentAmount < 20000 && (
