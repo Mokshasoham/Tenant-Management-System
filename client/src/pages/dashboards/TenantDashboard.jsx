@@ -681,54 +681,57 @@ export default function TenantDashboard({ user, navigate }) {
                                     transition={{ duration: 0.25, ease: 'easeInOut' }}
                                     className="overflow-hidden space-y-3 pt-3"
                                 >
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pl-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pl-1">
                                         {bookings.map((b) => {
                                             const statusDisplay = getBookingStatusDisplay(b);
                                             return (
                                                 <div
                                                     key={b._id}
-                                                    className="relative overflow-hidden p-3 rounded-xl border border-border bg-card/30 backdrop-blur-md hover:bg-card/45 transition-all duration-300 flex items-center justify-between gap-3 shadow-sm group hover:-translate-y-0.5"
+                                                    className="relative overflow-hidden p-4 rounded-xl border border-border/50 bg-gradient-to-b from-card/60 to-card/30 backdrop-blur-md hover:border-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 flex flex-col justify-between min-h-[145px] shadow-sm group hover:-translate-y-0.5"
                                                 >
-                                                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 blur-xl rounded-full" />
+                                                    {/* Glowing corner aura */}
+                                                    <div className="absolute -top-16 -right-16 w-32 h-32 bg-indigo-500/10 blur-2xl rounded-full group-hover:scale-125 transition-transform duration-500" />
                                                     
-                                                    {/* Left side: Icon + details */}
-                                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
-                                                            <Building2 className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2 mb-0.5">
-                                                                <h4 className="text-xs font-black text-foreground truncate max-w-[120px] sm:max-w-none">{b.property?.name || 'Property Booked'}</h4>
-                                                                <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider", statusDisplay.class)}>
-                                                                    {statusDisplay.label}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-[9px] text-muted-foreground/60 flex items-center gap-1">
-                                                                <Calendar className="w-3 h-3 text-muted-foreground/45" />
-                                                                {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
-                                                            </p>
-                                                        </div>
+                                                    {/* Top Header: Badge + Ref */}
+                                                    <div className="flex items-center justify-between mb-2 z-10">
+                                                        <span className={cn("px-2 py-0.5 rounded-lg border text-[7.5px] font-black uppercase tracking-wider", statusDisplay.class)}>
+                                                            {statusDisplay.label}
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-muted-foreground/45 tracking-wider">
+                                                            REF: #{b._id.slice(-6).toUpperCase()}
+                                                        </span>
                                                     </div>
 
-                                                    {/* Right side: Deposit Amount + Action */}
-                                                    <div className="flex items-center gap-3 flex-shrink-0">
-                                                        <div className="text-right">
-                                                            <p className="text-[7px] font-black text-muted-foreground/45 uppercase tracking-widest leading-none mb-0.5">Deposit</p>
-                                                            <p className="text-xs font-black text-indigo-500 leading-none">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
+                                                    {/* Middle: Title & Dates */}
+                                                    <div className="mb-3 z-10">
+                                                        <h4 className="text-xs font-black text-foreground truncate group-hover:text-indigo-400 transition-colors leading-tight mb-1">{b.property?.name || 'Property Booked'}</h4>
+                                                        <p className="text-[9px] text-muted-foreground/60 flex items-center gap-1">
+                                                            <Calendar className="w-3 h-3 text-muted-foreground/45" />
+                                                            {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Bottom: Deposit Amount & Compact Action */}
+                                                    <div className="flex items-end justify-between pt-2.5 border-t border-border/40 z-10">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[7.5px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">Security Deposit</span>
+                                                            <span className="text-xs font-black text-indigo-400 leading-none">
+                                                                ₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}
+                                                            </span>
                                                         </div>
                                                         {statusDisplay.isPayable ? (
                                                             <button
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
-                                                                className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-widest shadow-md hover:shadow-indigo-600/15 flex items-center gap-1 active:scale-95 transition-all"
+                                                                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-widest shadow-md hover:shadow-indigo-600/15 flex items-center gap-1 active:scale-95 transition-all"
                                                             >
-                                                                <Wallet className="w-3 h-3" /> Pay
+                                                                <Wallet className="w-3 h-3" /> Pay Deposit
                                                             </button>
                                                         ) : (
                                                             <button
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
-                                                                className="px-3.5 py-2 rounded-lg border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
+                                                                className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground/75 font-black text-[9px] uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
                                                             >
-                                                                View
+                                                                View Details
                                                             </button>
                                                         )}
                                                     </div>
