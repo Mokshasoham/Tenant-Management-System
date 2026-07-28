@@ -6,7 +6,7 @@ import {
     CheckCircle2, Clock, XCircle, ArrowLeft,
     Calendar, MapPin, IndianRupee, Shield,
     User, Building2, ChevronRight, FileText, Info,
-    AlertTriangle
+    AlertTriangle, X
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import RazorpayPayment from '../components/RazorpayPayment';
