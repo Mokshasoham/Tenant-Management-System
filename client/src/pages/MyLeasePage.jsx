@@ -127,6 +127,8 @@ export default function MyLeasePage() {
                 const pendingUnsigned = activeLeasesData.find(l => l.status === 'pending' && !l.signature);
                 if (pendingUnsigned) {
                     fetchChecklist(pendingUnsigned._id);
+                } else {
+                    setChecklist(null);
                 }
             }
             if (payRes.status === 'fulfilled') {
@@ -141,8 +143,11 @@ export default function MyLeasePage() {
         if (!leaseId) return;
         setChecklistLoading(true);
         try {
+            // apiClient interceptor already unwraps axios response to response.data
+            // so `res` here is the server's JSON body: { success, data: { allComplete, items, meta } }
             const res = await leaseService.getLeaseChecklist(leaseId);
-            setChecklist(res.data || null);
+            // Store the nested `data` object directly so widget can access items/meta/allComplete flatly
+            setChecklist(res?.data || null);
         } catch (e) {
             console.error('Error fetching checklist:', e);
             setChecklist(null);
@@ -153,6 +158,31 @@ export default function MyLeasePage() {
 
     useEffect(() => {
         fetchLeaseData();
+
+        // Re-fetch whenever the user returns to this page/tab (e.g. after uploading KYC)
+        // Throttled to at most once every 30 seconds to avoid hammering the server on every alt-tab
+        let lastFetchTime = Date.now();
+
+        const maybeRefresh = () => {
+            const now = Date.now();
+            if (now - lastFetchTime > 30_000) {
+                lastFetchTime = now;
+                fetchLeaseData();
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') maybeRefresh();
+        };
+        const handleFocus = () => maybeRefresh();
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
+        };
     }, []);
 
     // Canvas Drawing Helpers
@@ -407,9 +437,9 @@ export default function MyLeasePage() {
                                         <h3 className="text-sm font-black text-foreground">Pre-Lease Requirements</h3>
                                         <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-widest mt-0.5">
                                             {checklist ? (
-                                                checklist.data?.allComplete
+                                                checklist.allComplete
                                                     ? 'All requirements met — you may now sign'
-                                                    : `${Object.values(checklist.data?.items || {}).filter(Boolean).length}/4 completed`
+                                                    : `${Object.values(checklist.items || {}).filter(Boolean).length}/4 completed`
                                             ) : 'Complete all steps before signing'}
                                         </p>
                                     </div>
@@ -447,11 +477,11 @@ export default function MyLeasePage() {
                                         key: 'depositPaid',
                                         icon: CreditCardIcon,
                                         label: 'Pay Security Deposit',
-                                        desc: checklist?.data?.meta?.depositAmount
-                                            ? `₹${Number(checklist.data.meta.depositAmount).toLocaleString('en-IN')} security deposit`
+                                        desc: checklist?.meta?.depositAmount
+                                            ? `₹${Number(checklist.meta.depositAmount).toLocaleString('en-IN')} security deposit`
                                             : 'Security deposit payment',
-                                        action: checklist?.data?.meta?.bookingId
-                                            ? { label: 'Pay Now', link: `/bookings/${checklist.data.meta.bookingId}` }
+                                        action: checklist?.meta?.bookingId
+                                            ? { label: 'Pay Now', link: `/bookings/${checklist.meta.bookingId}` }
                                             : { label: 'View Bookings', link: '/dashboard' },
                                     },
                                     {
@@ -462,7 +492,7 @@ export default function MyLeasePage() {
                                         action: null, // handled inline on this page
                                     },
                                 ].map((item, i) => {
-                                    const done = checklist?.data?.items?.[item.key] ?? false;
+                                    const done = checklist?.items?.[item.key] ?? false;
                                     const Icon = item.icon;
                                     return (
                                         <div key={item.key} className={cn(
@@ -517,13 +547,13 @@ export default function MyLeasePage() {
                                 <div className="px-5 py-3 bg-muted/20 border-t border-border/40">
                                     <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1.5">
                                         <span>Progress</span>
-                                        <span>{Object.values(checklist.data?.items || {}).filter(Boolean).length} / 4</span>
+                                        <span>{Object.values(checklist.items || {}).filter(Boolean).length} / 4</span>
                                     </div>
                                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                                         <motion.div
                                             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
                                             initial={{ width: 0 }}
-                                            animate={{ width: `${(Object.values(checklist.data?.items || {}).filter(Boolean).length / 4) * 100}%` }}
+                                            animate={{ width: `${(Object.values(checklist.items || {}).filter(Boolean).length / 4) * 100}%` }}
                                             transition={{ duration: 0.6, ease: 'easeOut' }}
                                         />
                                     </div>
@@ -1079,14 +1109,14 @@ export default function MyLeasePage() {
                                     />
                                 </div>
                                 {/* Deposit-not-paid guard message */}
-                                {checklist && !checklist.data?.items?.depositPaid && (
+                                {checklist && !checklist?.items?.depositPaid && (
                                     <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400">
                                         <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                                         <p className="text-xs font-bold">
                                             Security deposit payment required before signing.{' '}
-                                            {checklist?.data?.meta?.bookingId && (
+                                            {checklist?.meta?.bookingId && (
                                                 <button
-                                                    onClick={() => navigate(`/bookings/${checklist.data.meta.bookingId}`)}
+                                                    onClick={() => navigate(`/bookings/${checklist.meta.bookingId}`)}
                                                     className="underline font-black hover:no-underline"
                                                 >
                                                     Pay now →
@@ -1097,7 +1127,7 @@ export default function MyLeasePage() {
                                 )}
                                 <button
                                     onClick={handleSignLease}
-                                    disabled={signingLoading || (checklist && !checklist.data?.items?.depositPaid)}
+                                    disabled={signingLoading || (checklist && !checklist?.items?.depositPaid)}
                                     className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     <Fingerprint className="w-4 h-4" />
