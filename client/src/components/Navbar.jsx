@@ -223,7 +223,19 @@ export default function Navbar({ toggleSidebar }) {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <nav className="sticky top-0 z-30 w-full border-b border-border bg-background/80 backdrop-blur-xl px-4 md:px-6 py-3 flex items-center justify-between gap-4 transition-colors duration-300">
+    <nav className={cn(
+      "w-full border border-white/10 dark:border-white/5 bg-[#0e1622]/45 dark:bg-[#070b12]/45 backdrop-blur-xl relative group",
+      "px-4 py-2.5 rounded-2xl flex items-center justify-between gap-4 transition-all duration-300",
+      "shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
+      role === 'admin' && "shadow-violet-500/5 hover:border-violet-500/25",
+      role === 'manager' && "shadow-blue-500/5 hover:border-blue-500/25",
+      role === 'tenant' && "shadow-emerald-500/5 hover:border-emerald-500/25"
+    )}>
+      {/* Glossy Reflection Overlay */}
+      <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-30" />
+        <div className="absolute -inset-y-12 -left-36 w-24 bg-white/10 dark:bg-white/5 blur-xl transform rotate-12 transition-all duration-1000 group-hover:left-[110%]" />
+      </div>
       {/* Left */}
       <div className="flex items-center gap-3">
         <button onClick={toggleSidebar} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all">
@@ -330,7 +342,7 @@ export default function Navbar({ toggleSidebar }) {
       {/* Spotlight Search Modal */}
       <AnimatePresence>
         {searchOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 pointer-events-auto">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
