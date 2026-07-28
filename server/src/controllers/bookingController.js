@@ -144,9 +144,12 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     if (user) {
         const tenant = await Tenant.findOne({ email: user.email });
         if (tenant) {
+            const now = new Date();
+            const isFuture = new Date(booking.startDate) > now;
+
             const lease = await Lease.findOneAndUpdate(
                 { tenant: tenant._id, property: booking.property._id, status: 'pending' },
-                { $set: { status: 'active' } },
+                { $set: { status: isFuture ? 'pending' : 'active' } },
                 { new: true }
             );
 
@@ -181,21 +184,33 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
                         url: uploadResult.Location,
                         uploadedAt: new Date()
                     });
+                    // Store signature details on the lease
+                    lease.signature = signature;
+                    lease.signatureType = 'draw';
+                    lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
+                    lease.signedAt = new Date();
                     await lease.save();
                     logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location}`);
                 } catch (pdfErr) {
                     logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
                 }
 
-                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
+                if (isFuture) {
+                    addTimeline(booking, 'active', `Lease #${lease.leaseNumber} signed and scheduled to activate on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`);
+                } else {
+                    addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
+                }
                 await booking.save();
             }
 
-            // Set Property to definitively occupied
-            await Property.findByIdAndUpdate(booking.property._id, {
-                $set: { status: 'occupied', currentTenant: tenant._id },
+            // Set Property status: only occupied if start date has arrived
+            const propertyUpdate = {
                 $pull: { bookedDates: { bookingId: booking._id } }
-            });
+            };
+            if (!isFuture) {
+                propertyUpdate.$set = { status: 'occupied', currentTenant: tenant._id };
+            }
+            await Property.findByIdAndUpdate(booking.property._id, propertyUpdate);
         }
     }
 
@@ -626,7 +641,15 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
 
         // 3. Ensure Lease (Reuse active lease if it exists, otherwise create new)
         console.log('[MockPay] Trace: Step 3 (Lease)');
-        let lease = await Lease.findOne({ tenant: tenant._id, property: propertyId, status: 'active' });
+        const now = new Date();
+        const isFuture = new Date(booking.startDate) > now;
+
+        let lease = await Lease.findOne({ 
+            tenant: tenant._id, 
+            property: propertyId, 
+            status: isFuture ? 'pending' : 'active' 
+        });
+
         if (!lease) {
             console.log('[MockPay] Trace: Creating new lease');
             lease = await Lease.create({
@@ -637,9 +660,13 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 endDate: booking.endDate,
                 rentAmount: property.rentAmount || booking.totalAmount || 1, // Actual property rent
                 depositAmount: property.depositAmount || 0,
-                status: 'active',
+                status: isFuture ? 'pending' : 'active',
                 createdBy: managerId,
-                terms: 'Simulated for demo.'
+                terms: 'Simulated for demo.',
+                signature: 'MOCK-SIGNATURE-BASE64',
+                signatureType: 'draw',
+                signedBy: `${tenant.firstName} ${tenant.lastName}`,
+                signedAt: new Date()
             });
         }
 
@@ -689,19 +716,23 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             console.error('[MockPay] PDF Step Error (Non-Fatal):', pdfErr.message);
         }
 
-        // Update property
+        // Update property status: only occupied if start date has arrived
         console.log('[MockPay] Trace: Finalizing');
-        await Property.findByIdAndUpdate(propertyId, {
-            $set: { status: 'occupied', currentTenant: tenant._id }
-        });
+        if (!isFuture) {
+            await Property.findByIdAndUpdate(propertyId, {
+                $set: { status: 'occupied', currentTenant: tenant._id }
+            });
+        }
 
         // 7. Notification
         console.log('[MockPay] Trace: Sending notification');
         await Notification.create({
             recipient: userId,
             sender: managerId,
-            title: '🏠 Lease Executed Successfully',
-            message: `Your payment was processed. Your mock lease for ${property.name} is now active!`,
+            title: isFuture ? '🏠 Lease Scheduled Successfully' : '🏠 Lease Executed Successfully',
+            message: isFuture 
+                ? `Your payment was processed. Your mock lease for ${property.name} is scheduled to start on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`
+                : `Your payment was processed. Your mock lease for ${property.name} is now active!`,
             type: 'success',
             link: '/my-lease'
         });

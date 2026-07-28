@@ -142,6 +142,9 @@ export const createLease = asyncHandler(async (req, res) => {
     throw new AppError('Tenant not found', 404);
   }
 
+  const now = new Date();
+  const isFuture = new Date(startDate) > now;
+
   const lease = await Lease.create({
     property: propertyId,
     tenant: tenantId,
@@ -151,7 +154,7 @@ export const createLease = asyncHandler(async (req, res) => {
     depositAmount,
     utilities,
     terms,
-    status: 'pending',
+    status: isFuture ? 'pending' : 'active',
     createdBy: req.user.userId,
   });
 
@@ -161,8 +164,10 @@ export const createLease = asyncHandler(async (req, res) => {
 
   // Add lease to property's leases
   property.leases.push(lease._id);
-  property.currentTenant = tenantId;
-  property.status = 'occupied';
+  if (!isFuture) {
+    property.currentTenant = tenantId;
+    property.status = 'occupied';
+  }
   await property.save();
 
   logger.info(`New lease created: ${lease.leaseNumber}`);

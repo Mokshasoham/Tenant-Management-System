@@ -190,4 +190,59 @@ export const startCronJobs = () => {
             logger.error(`[CRON ERROR] Lease Expiration daemon exception: ${error.message}`);
         }
     });
+
+    // Sweep hourly for pending leases whose start date has arrived to activate them
+    cron.schedule('*/5 * * * *', async () => {
+        logger.info('[CRON] Initializing precise 5-minute Lease Activation check sweep...');
+        try {
+            const now = new Date();
+            // Find all pending leases where the start date is <= now
+            const upcomingLeases = await Lease.find({
+                status: 'pending',
+                startDate: { $lte: now }
+            });
+
+            if (upcomingLeases.length > 0) {
+                logger.info(`[CRON] Detected ${upcomingLeases.length} upcoming leases to activate.`);
+                for (const lease of upcomingLeases) {
+                    // Double check if there's a booking for this property/tenant that is NOT paid
+                    const booking = await Booking.findOne({
+                        property: lease.property,
+                        user: { $exists: true }
+                    }).sort({ createdAt: -1 });
+
+                    // If a booking exists and it is NOT paid, do not activate the lease!
+                    if (booking && booking.paymentStatus !== 'paid') {
+                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber} activation as its booking is not paid yet.`);
+                        continue;
+                    }
+
+                    // Otherwise, activate it!
+                    lease.status = 'active';
+                    await lease.save();
+
+                    // Update property status to occupied and set currentTenant
+                    await Property.findByIdAndUpdate(lease.property, {
+                        $set: { status: 'occupied', currentTenant: lease.tenant }
+                    });
+
+                    // Send notification to Tenant
+                    const tenant = await User.findOne({ email: lease.tenant.email });
+                    const recipientId = tenant ? tenant._id : lease.createdBy;
+                    
+                    await Notification.create({
+                        recipient: recipientId,
+                        title: '🎉 Lease Activated!',
+                        message: `Your lease ${lease.leaseNumber} has officially started today and is now active.`,
+                        type: 'success',
+                        link: '/my-lease'
+                    });
+
+                    logger.info(`[CRON] Lease ${lease.leaseNumber} activated automatically. Property set to occupied.`);
+                }
+            }
+        } catch (error) {
+            logger.error(`[CRON ERROR] Lease Activation daemon exception: ${error.message}`);
+        }
+    });
 };

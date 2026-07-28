@@ -121,7 +121,10 @@ function CreateLeaseModal({ onClose, onSave }) {
 
 function ViewLeaseModal({ lease, onClose, onTerminate }) {
   if (!lease) return null;
-  const sc = STATUS_CONFIG[lease.status] || STATUS_CONFIG.pending;
+  let sc = STATUS_CONFIG[lease.status] || STATUS_CONFIG.pending;
+  if (lease.status === 'pending' && lease.signature) {
+    sc = { label: 'Upcoming', class: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20 dark:text-indigo-400', icon: Clock };
+  }
   const Icon = sc.icon;
   const days = lease.endDate ? Math.ceil((new Date(lease.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : null;
 
@@ -316,7 +319,10 @@ export default function LeasesPage() {
               ) : leases.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-16 text-muted-foreground/30">No leases found</td></tr>
               ) : leases.map((l, i) => {
-                const sc = STATUS_CONFIG[l.status] || STATUS_CONFIG.pending;
+                let sc = STATUS_CONFIG[l.status] || STATUS_CONFIG.pending;
+                if (l.status === 'pending' && l.signature) {
+                  sc = { label: 'Upcoming', class: 'text-indigo-600 bg-indigo-500/10 border-indigo-500/20 dark:text-indigo-400', icon: Clock };
+                }
                 const SIcon = sc.icon;
                 return (
                   <motion.tr key={l._id}

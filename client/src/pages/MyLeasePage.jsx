@@ -338,7 +338,7 @@ export default function MyLeasePage() {
             {!loading && activeLeases.length > 0 && (
                 <>
                     {/* ── Pending Signature Warning Banner ── */}
-                    {currentLease.status === 'pending' && (
+                    {currentLease.status === 'pending' && !currentLease.signature && (
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                             className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm">
                             <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -346,6 +346,19 @@ export default function MyLeasePage() {
                                 <h4 className="text-sm font-black uppercase tracking-wider">Lease Pending Signature</h4>
                                 <p className="text-xs opacity-80 mt-1 leading-relaxed">
                                     Please review all the terms and conditions of this lease. Once you are satisfied, draw, type, or upload your signature at the bottom of the page to activate your tenancy.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {currentLease.status === 'pending' && currentLease.signature && (
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                            className="p-4.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-start gap-3.5 shadow-sm">
+                            <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <h4 className="text-sm font-black uppercase tracking-wider">Lease Signed – Upcoming Tenancy</h4>
+                                <p className="text-xs opacity-80 mt-1 leading-relaxed">
+                                    This lease agreement has been successfully signed and verified. It is scheduled to automatically activate on {new Date(currentLease.startDate).toLocaleDateString('en-IN')}.
                                 </p>
                             </div>
                         </motion.div>
@@ -385,7 +398,12 @@ export default function MyLeasePage() {
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {activeLeases.map((actLease, idx) => {
-                                const actStatusCfg = STATUS_CONFIG[actLease.status] || STATUS_CONFIG.pending;
+                                const actStatusCfg = (actLease.status === 'pending' && actLease.signature) ? {
+                                    label: 'Upcoming',
+                                    color: 'text-indigo-200 border-indigo-500/30',
+                                    bg: 'bg-indigo-500/20',
+                                    dot: 'bg-indigo-400'
+                                } : (STATUS_CONFIG[actLease.status] || STATUS_CONFIG.pending);
                                 return (
                                     <motion.div
                                         key={actLease._id}

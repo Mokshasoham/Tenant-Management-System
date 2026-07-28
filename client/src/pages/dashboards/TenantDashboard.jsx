@@ -397,9 +397,9 @@ export default function TenantDashboard({ user, navigate }) {
                                             <div className="flex items-start justify-between mb-4">
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-1.5">
-                                                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                                                            {activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease')} • #{activeLease.leaseNumber || '—'}
+                                                        <div className={cn("w-2 h-2 rounded-full", (activeLease.status === 'pending' && activeLease.signature) ? "bg-indigo-400 animate-pulse" : "bg-emerald-400 animate-pulse")} />
+                                                        <span className={cn("text-[10px] font-black uppercase tracking-widest", (activeLease.status === 'pending' && activeLease.signature) ? "text-indigo-400" : "text-emerald-400")}>
+                                                            {(activeLease.status === 'pending' && activeLease.signature) ? 'Upcoming Lease' : (activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease'))} • #{activeLease.leaseNumber || '—'}
                                                         </span>
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
@@ -418,13 +418,18 @@ export default function TenantDashboard({ user, navigate }) {
                                             
                                             <div className="grid grid-cols-3 gap-3 mt-4">
                                                 {[
-                                                    { label: t('common.status') || 'Status', value: activeLease.status?.toUpperCase() || '—', hl: true },
+                                                    { 
+                                                        label: t('common.status') || 'Status', 
+                                                        value: (activeLease.status === 'pending' && activeLease.signature) ? 'UPCOMING' : (activeLease.status?.toUpperCase() || '—'), 
+                                                        hl: true,
+                                                        isUpcoming: (activeLease.status === 'pending' && activeLease.signature)
+                                                    },
                                                     { label: t('common.start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                                     { label: t('common.ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                                 ].map((item) => (
-                                                    <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? 'bg-emerald-500/15 border border-emerald-500/20' : 'bg-muted border border-border')}>
+                                                    <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? (item.isUpcoming ? 'bg-indigo-500/15 border border-indigo-500/20' : 'bg-emerald-500/15 border border-emerald-500/20') : 'bg-muted border border-border')}>
                                                         <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
-                                                        <p className={cn('text-[10px] font-black', item.hl ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground')}>{item.value}</p>
+                                                        <p className={cn('text-[10px] font-black', item.hl ? (item.isUpcoming ? 'text-indigo-600 dark:text-indigo-300' : 'text-emerald-600 dark:text-emerald-300') : 'text-foreground')}>{item.value}</p>
                                                     </div>
                                                 ))}
                                             </div>
