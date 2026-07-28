@@ -34,7 +34,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const serviceFee = Math.round(property.rentAmount * 0.05);
     const totalPayable = property.rentAmount + securityDeposit + serviceFee;
 
-    const handlePayNow = async () => {
+    const handlePayNow = async (sigImage) => {
         setStep('paying');
         try {
             // 1) Create Razorpay order on backend for specific approved booking
@@ -59,7 +59,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
                             bookingId: bid,
-                            signature: signatureData // Pass e-signature to backend PDF engine
+                            signature: sigImage || signatureData // Pass e-signature to backend PDF engine
                         });
                         setStep('success');
                         if (onSuccess) onSuccess(bid);
@@ -212,8 +212,21 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                                 alert('Please provide a signature to continue.');
                                                 return;
                                             }
-                                            setSignatureData(sigPad.current.getTrimmedCanvas().toDataURL('image/png'));
-                                            handlePayNow();
+                                            let sigImage = null;
+                                            try {
+                                                if (sigPad.current.getTrimmedCanvas) {
+                                                    sigImage = sigPad.current.getTrimmedCanvas().toDataURL('image/png');
+                                                } else if (sigPad.current.getCanvas) {
+                                                    sigImage = sigPad.current.getCanvas().toDataURL('image/png');
+                                                } else {
+                                                    sigImage = sigPad.current.toDataURL('image/png');
+                                                }
+                                            } catch (err) {
+                                                console.error('Error getting signature image:', err);
+                                                sigImage = sigPad.current.getCanvas?.().toDataURL('image/png') || sigPad.current.toDataURL?.('image/png');
+                                            }
+                                            setSignatureData(sigImage);
+                                            handlePayNow(sigImage);
                                         }}
                                         className="flex-1 py-3 rounded-2xl font-black text-sm text-white bg-indigo-600 shadow-lg shadow-indigo-500/30"
                                     >
