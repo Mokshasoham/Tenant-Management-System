@@ -50,9 +50,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         });
 
         const rzpOrder = await rzp.orders.create({
-            // Force strict 100 INR mock value during test-mode to safely bypass native RBI ceilings 
-            // blocking large (e.g., 7 Lakhs) test transactions on mock cards.
-            amount: 100 * 100, 
+            amount: grandTotal * 100, 
             currency: 'INR',
             receipt: `receipt_booking_${booking._id}`
         });
@@ -80,7 +78,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         data: {
             bookingId: booking._id,
             razorpayOrderId,
-            amount: testKeysActive ? (100 * 100) : (grandTotal * 100), // paise
+            amount: grandTotal * 100, // paise
             currency: 'INR',
             keyId: fallbackTestMode ? 'rzp_test_placeholder' : process.env.RAZORPAY_KEY_ID,
         },
@@ -107,7 +105,26 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
                      process.env.RAZORPAY_KEY_SECRET === 'test_secret' || 
                      process.env.RAZORPAY_KEY_SECRET === 'rzp_test_placeholder_secret';
 
-    if (!isValid && !testMode) {
+    let isPaymentValid = isValid;
+
+    // Direct fetch fallback for test modes or key mismatches
+    if (!isPaymentValid && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        try {
+            const rzpInstance = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET
+            });
+            const paymentDetails = await rzpInstance.payments.fetch(razorpayPaymentId);
+            if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
+                isPaymentValid = true;
+                logger.info(`Payment verified directly via Razorpay API: ${razorpayPaymentId}`);
+            }
+        } catch (apiErr) {
+            logger.warn(`Razorpay API verification fallback failed: ${apiErr.message}`);
+        }
+    }
+
+    if (!isPaymentValid && !testMode) {
         booking.paymentStatus = 'failed';
         await booking.save();
         throw new AppError('Payment verification failed', 400);
@@ -132,6 +149,30 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
                 { $set: { status: 'active' } },
                 { new: true }
             );
+
+            // Record Payment history entry so it appears on dashboards & receipts
+            try {
+                const payment = await Payment.create({
+                    tenant: tenant._id,
+                    property: booking.property._id,
+                    lease: lease?._id,
+                    amount: booking.totalAmount,
+                    amountPaid: booking.totalAmount,
+                    paymentDate: new Date(),
+                    status: 'paid',
+                    paymentMethod: 'card',
+                    reference: razorpayPaymentId,
+                    razorpayPaymentId: razorpayPaymentId,
+                    description: `Security deposit and initial payment for ${booking.property.name}`,
+                });
+                
+                await processPostPayment(payment).catch(err => {
+                    logger.error(`Post-payment processing failed: ${err.message}`);
+                });
+            } catch (payErr) {
+                logger.error(`Failed to record Payment entry: ${payErr.message}`);
+            }
+
             if (lease) {
                 try {
                     const uploadResult = await generateAndUploadLeasePDF(lease, tenant, booking.property, signature);
