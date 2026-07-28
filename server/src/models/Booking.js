@@ -70,7 +70,7 @@ const bookingSchema = new mongoose.Schema(
             {
                 event: {
                     type: String,
-                    enum: ['request_sent', 'payment_done', 'approved', 'active', 'completed', 'rejected', 'refunded'],
+                    enum: ['request_sent', 'payment_done', 'approved', 'active', 'completed', 'rejected', 'refunded', 'cancelled'],
                 },
                 timestamp: { type: Date, default: Date.now },
                 note: String,
