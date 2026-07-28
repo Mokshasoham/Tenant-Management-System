@@ -145,6 +145,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
     const [completedStackOpen, setCompletedStackOpen] = useState(false);
+    const [bookingsStackOpen, setBookingsStackOpen] = useState(false);
     const [activePaymentIndex, setActivePaymentIndex] = useState(0);
     const [payments, setPayments] = useState([]);
     const [maintenance, setMaintenance] = useState([]);
@@ -627,60 +628,104 @@ export default function TenantDashboard({ user, navigate }) {
 
             {/* ══ BOOKINGS & DEPOSITS SECTION ══ */}
             {bookings.length > 0 && (
-                <div className="space-y-4">
+                <div className="space-y-3 pt-3">
                     <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Booking Requests & Deposits</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {bookings.map((b) => {
-                            const statusDisplay = getBookingStatusDisplay(b);
-                            return (
+                    
+                    <div className="relative group/stack">
+                        {/* 3D Card Stack visual deck effect when collapsed */}
+                        {!bookingsStackOpen && bookings.length > 1 && (
+                            <>
+                                <div className="absolute inset-0 bg-card/25 border border-border/80 rounded-2xl translate-x-1.5 translate-y-1.5 scale-[0.98] blur-[0.5px] transition-transform duration-300 group-hover/stack:translate-x-2 group-hover/stack:translate-y-2 z-0" />
+                                {bookings.length > 2 && (
+                                    <div className="absolute inset-0 bg-card/10 border border-border/60 rounded-2xl translate-x-3 translate-y-3 scale-[0.96] blur-[1px] transition-transform duration-300 group-hover/stack:translate-x-4 group-hover/stack:translate-y-4 z-0" />
+                                )}
+                            </>
+                        )}
+
+                        {/* Main Stack Trigger Card */}
+                        <button
+                            onClick={() => setBookingsStackOpen(!bookingsStackOpen)}
+                            className="relative z-10 w-full bg-card/60 backdrop-blur-md border border-border hover:border-border/80 rounded-2xl p-5 shadow-lg flex items-center justify-between text-left group transition-all duration-300 hover:-translate-y-0.5"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 group-hover:text-primary transition-colors">
+                                    <Calendar className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black text-foreground">Active Booking Requests</h4>
+                                    <p className="text-[10px] text-muted-foreground/60 mt-0.5 uppercase tracking-wider font-bold">
+                                        {bookings.length} request{bookings.length > 1 ? 's' : ''} in total
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black uppercase text-muted-foreground/40 hidden sm:inline">
+                                    {bookingsStackOpen ? 'Hide List' : 'Reveal Stack'}
+                                </span>
+                                <ChevronDown className={cn("w-4 h-4 text-muted-foreground/60 transition-transform duration-300", bookingsStackOpen && "rotate-180")} />
+                            </div>
+                        </button>
+
+                        {/* Expanded Content list */}
+                        <AnimatePresence>
+                            {bookingsStackOpen && (
                                 <motion.div
-                                    key={b._id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-5 rounded-2xl border border-border bg-card/40 backdrop-blur-sm flex flex-col justify-between shadow-md relative overflow-hidden group"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                    className="overflow-hidden space-y-3 pt-3"
                                 >
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full" />
-                                    <div>
-                                        <div className="flex items-start justify-between gap-3 mb-3">
-                                            <div>
-                                                <span className={cn("px-2.5 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-wider inline-block mb-1.5", statusDisplay.class)}>
-                                                    {statusDisplay.label}
-                                                </span>
-                                                <h4 className="text-sm font-black text-foreground truncate">{b.property?.name || 'Property Booked'}</h4>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Security Deposit</p>
-                                                <p className="text-base font-black text-indigo-500">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 mt-2 pt-3 border-t border-border/40">
-                                        {statusDisplay.isPayable ? (
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => navigate(`/bookings/${b._id}`)}
-                                                className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest shadow-md flex items-center justify-center gap-1.5"
-                                            >
-                                                <Wallet className="w-3.5 h-3.5" /> Pay Security Deposit
-                                            </motion.button>
-                                        ) : (
-                                            <motion.button
-                                                whileHover={{ scale: 1.02 }}
-                                                whileTap={{ scale: 0.98 }}
-                                                onClick={() => navigate(`/bookings/${b._id}`)}
-                                                className="flex-1 py-2 rounded-xl border border-border text-muted-foreground font-black text-xs uppercase tracking-widest hover:bg-muted"
-                                            >
-                                                View Booking Details
-                                            </motion.button>
-                                        )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-1">
+                                        {bookings.map((b) => {
+                                            const statusDisplay = getBookingStatusDisplay(b);
+                                            return (
+                                                <div
+                                                    key={b._id}
+                                                    className="p-5 rounded-2xl border border-border bg-card/45 backdrop-blur-sm flex flex-col justify-between shadow-md relative overflow-hidden group"
+                                                >
+                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full" />
+                                                    <div>
+                                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                                            <div>
+                                                                <span className={cn("px-2.5 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-wider inline-block mb-1.5", statusDisplay.class)}>
+                                                                    {statusDisplay.label}
+                                                                </span>
+                                                                <h4 className="text-sm font-black text-foreground truncate">{b.property?.name || 'Property Booked'}</h4>
+                                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                                    {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Security Deposit</p>
+                                                                <p className="text-base font-black text-indigo-500">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2 mt-2 pt-3 border-t border-border/40">
+                                                        {statusDisplay.isPayable ? (
+                                                            <button
+                                                                onClick={() => navigate(`/bookings/${b._id}`)}
+                                                                className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                                                            >
+                                                                <Wallet className="w-3.5 h-3.5" /> Pay Security Deposit
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => navigate(`/bookings/${b._id}`)}
+                                                                className="flex-1 py-2 rounded-xl border border-border text-muted-foreground font-black text-xs uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
+                                                            >
+                                                                View Booking Details
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </motion.div>
-                            );
-                        })}
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             )}
