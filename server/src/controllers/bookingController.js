@@ -401,13 +401,18 @@ export const cancelBooking = asyncHandler(async (req, res) => {
             refundAmount = Math.round(booking.totalAmount * (refundPercentage / 100));
             const testMode = !process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET === 'test_secret';
             if (!testMode) {
-                const rzp = new Razorpay({
-                    key_id: process.env.RAZORPAY_KEY_ID,
-                    key_secret: process.env.RAZORPAY_KEY_SECRET
-                });
-                await rzp.payments.refund(booking.razorpayPaymentId, {
-                    amount: refundAmount * 100 // paise
-                });
+                try {
+                    const rzp = new Razorpay({
+                        key_id: process.env.RAZORPAY_KEY_ID,
+                        key_secret: process.env.RAZORPAY_KEY_SECRET
+                    });
+                    await rzp.payments.refund(booking.razorpayPaymentId, {
+                        amount: refundAmount * 100 // paise
+                    });
+                    logger.info(`Refund processed successfully via Razorpay for booking ${booking._id}`);
+                } catch (rzpErr) {
+                    logger.error(`Razorpay refund failed: ${rzpErr.message}. Proceeding with cancellation.`);
+                }
             }
             booking.escrowStatus = 'refunded';
             booking.paymentStatus = 'refunded';
@@ -421,29 +426,31 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     addTimeline(booking, 'cancelled', `Tenant formally withdrew the lease application.`);
     await booking.save();
 
-    // Unlock property schedule
-    await Property.updateOne(
-        { _id: property._id },
-        { 
-            $pull: { bookedDates: { bookingId: booking._id } },
-            $set: { status: 'available' }
-        }
-    );
+    if (property) {
+        // Unlock property schedule
+        await Property.updateOne(
+            { _id: property._id },
+            { 
+                $pull: { bookedDates: { bookingId: booking._id } },
+                $set: { status: 'available' }
+            }
+        );
 
-    // Disable any dangling leases
-    await Lease.updateMany(
-        { property: property._id, status: { $in: ['pending', 'active'] } },
-        { $set: { status: 'terminated' } }
-    );
+        // Disable any dangling leases
+        await Lease.updateMany(
+            { property: property._id, status: { $in: ['pending', 'active'] } },
+            { $set: { status: 'terminated' } }
+        );
 
-    await Notification.create({
-        recipient: property.manager || property.owner,
-        sender: req.user.userId,
-        title: 'Booking Cancelled By Tenant',
-        message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
-        type: 'alert',
-        link: `/bookings/${booking._id}`
-    });
+        await Notification.create({
+            recipient: property.manager || property.owner,
+            sender: req.user.userId,
+            title: 'Booking Cancelled By Tenant',
+            message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
+            type: 'alert',
+            link: `/bookings/${booking._id}`
+        });
+    }
 
     res.status(200).json({ success: true, data: booking, refundAmount });
 });
