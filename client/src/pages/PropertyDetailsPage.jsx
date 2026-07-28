@@ -48,7 +48,17 @@ export default function PropertyDetailsPage() {
         const fetchProperty = async () => {
             try {
                 const res = await propertyService.getPropertyById(id);
-                setProperty(res.data);
+                const prop = res.data;
+                setProperty(prop);
+
+                const activeLease = prop?.leases?.find(l => l && l.status === 'active');
+                if (activeLease && new Date(activeLease.endDate) > new Date()) {
+                    const nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
+                    setStartDate(nextAvail.toISOString().split('T')[0]);
+                    const end = new Date(nextAvail);
+                    end.setMonth(end.getMonth() + 1);
+                    setEndDate(end.toISOString().split('T')[0]);
+                }
 
                 // Fetch similar properties
                 const similarRes = await propertyService.getSimilarProperties(id);
@@ -96,6 +106,15 @@ export default function PropertyDetailsPage() {
             </button>
         </div>
     );
+
+    const activeLease = property?.leases?.find(l => l && l.status === 'active');
+    const minAvailableDate = activeLease && new Date(activeLease.endDate) > new Date()
+        ? new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+    const isSoldOut = property?.displayStatus === 'Sold Out';
+    const isUnderMaintenance = property?.displayStatus === 'Under Maintenance';
+    const isNotBookable = isSoldOut || isUnderMaintenance;
 
     return (
         <div className="space-y-8 pb-20">
@@ -196,9 +215,17 @@ export default function PropertyDetailsPage() {
                                     <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
                                         {property.type}
                                     </span>
-                                    <span className="flex items-center gap-1 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
-                                        <CheckCircle2 className="w-3 h-3" /> available
-                                    </span>
+                                    {property.displayStatus && (
+                                        <span className={cn(
+                                            "flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border",
+                                            property.displayStatus === 'Available' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                                            property.displayStatus.startsWith('Available from') ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" :
+                                            property.displayStatus === 'Under Maintenance' ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
+                                            "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                                        )}>
+                                            {property.displayStatus}
+                                        </span>
+                                    )}
                                     {property.rentAmount < 20000 && (
                                         <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
                                             <Zap className="w-3 h-3" /> Best Value
@@ -320,8 +347,9 @@ export default function PropertyDetailsPage() {
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                    min={minAvailableDate}
+                                    disabled={isNotBookable}
+                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     style={{ colorScheme: 'dark' }}
                                 />
                             </div>
@@ -331,15 +359,16 @@ export default function PropertyDetailsPage() {
                                     type="date"
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    min={startDate}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                    min={startDate || minAvailableDate}
+                                    disabled={isNotBookable}
+                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     style={{ colorScheme: 'dark' }}
                                 />
                             </div>
                         </div>
 
                         <button
-                            disabled={!!existingBooking || bookingLoading}
+                            disabled={!!existingBooking || bookingLoading || isNotBookable}
                             onClick={async () => {
                                 setBookingLoading(true);
                                 try {
@@ -360,11 +389,15 @@ export default function PropertyDetailsPage() {
                             }}
                             className={cn(
                                 "w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-black/10",
-                                existingBooking ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
+                                (existingBooking || isNotBookable) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
                             )}
                         >
                             <Wallet className="w-5 h-5" />
-                            {bookingLoading ? 'Processing...' : existingBooking ? 'Request Pending' : (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
+                            {bookingLoading ? 'Processing...' : 
+                             isSoldOut ? 'Sold Out' : 
+                             isUnderMaintenance ? 'Under Maintenance' :
+                             existingBooking ? 'Request Pending' : 
+                             (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
                         </button>
 
 

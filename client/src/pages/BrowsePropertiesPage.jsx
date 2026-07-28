@@ -129,8 +129,21 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
                 {/* Top-left badges */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
+                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-10">
+                    <div className="flex gap-1.5 flex-wrap">
+                        <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
+                        {p.displayStatus && (
+                            <span className={cn(
+                                "px-3 py-1 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border uppercase tracking-wider",
+                                p.displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
+                                p.displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
+                                p.displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
+                                "bg-rose-500/90 border-rose-400/20 text-white"
+                            )}>
+                                {p.displayStatus}
+                            </span>
+                        )}
+                    </div>
                     {p.bookingType === 'free' && <span className="px-3 py-1 bg-primary/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">🛡️ Demo Available</span>}
                     {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">⚡ Best Value</span>}
                 </div>
@@ -216,7 +229,6 @@ export default function BrowsePropertiesPage() {
         setLoading(true);
         try {
             const params = {
-                status: 'available',
                 limit: 80,
                 sortBy,
                 ...filters,

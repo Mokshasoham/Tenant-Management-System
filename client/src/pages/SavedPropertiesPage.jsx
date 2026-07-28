@@ -109,13 +109,26 @@ const SavedPropertiesPage = () => {
                                             className="w-full h-full object-cover"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                        {/* Rating */}
-                                        {prop.rating > 0 && (
-                                            <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
-                                                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                                                <span className="text-xs text-white font-bold">{prop.rating}</span>
-                                            </div>
-                                        )}
+                                        {/* Rating & Dynamic Status Badge */}
+                                        <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+                                            {prop.rating > 0 && (
+                                                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                                                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                                                    <span className="text-xs text-white font-bold">{prop.rating}</span>
+                                                </div>
+                                            )}
+                                            {prop.displayStatus && (
+                                                <div className={cn(
+                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border backdrop-blur-sm shadow-md",
+                                                    prop.displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
+                                                    prop.displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
+                                                    prop.displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
+                                                    "bg-rose-500/90 border-rose-400/20 text-white"
+                                                )}>
+                                                    {prop.displayStatus}
+                                                </div>
+                                            )}
+                                        </div>
                                         {/* Unsave button */}
                                         <motion.button
                                             whileTap={{ scale: 0.9 }}

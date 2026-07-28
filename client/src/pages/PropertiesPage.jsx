@@ -108,7 +108,19 @@ export default function PropertiesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {properties.map((p, i) => {
-            const sc = STATUS_CONFIG[p.status] || STATUS_CONFIG.available;
+            const getStatusConfig = (displayStatus, status) => {
+              if (displayStatus === 'Available' || (!displayStatus && status === 'available')) {
+                return { label: 'Available', class: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2 };
+              }
+              if (displayStatus?.startsWith('Available from')) {
+                return { label: displayStatus, class: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', icon: CheckCircle2 };
+              }
+              if (displayStatus === 'Under Maintenance' || (!displayStatus && status === 'maintenance')) {
+                return { label: 'Under Maintenance', class: 'text-amber-500 bg-amber-500/10 border-amber-500/20', icon: Wrench };
+              }
+              return { label: displayStatus || 'Sold Out', class: 'text-rose-500 bg-rose-500/10 border-rose-500/20', icon: Users };
+            };
+            const sc = getStatusConfig(p.displayStatus, p.status);
             const StatusIcon = sc.icon;
             const TypeIcon = TYPE_ICONS[p.type] || Building2;
             return (

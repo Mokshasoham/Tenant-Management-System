@@ -4,6 +4,7 @@ import Property from '../models/Property.js';
 import Notification from '../models/Notification.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
+import Lease from '../models/Lease.js';
 import { sendLateFeeAppliedEmail, sendRentReminderEmail } from '../services/emailService.js';
 import logger from './logger.js';
 
@@ -156,6 +157,37 @@ export const startCronJobs = () => {
             }
         } catch (error) {
             logger.error(`[CRON ERROR] Rent Reminder sweep exception: ${error.message}`);
+        }
+    });
+
+    // Sweep hourly for expired active leases to release properties back to market
+    cron.schedule('0 * * * *', async () => {
+        logger.info('[CRON] Initializing precise hourly Lease Expiration check sweep...');
+        try {
+            const now = new Date();
+            const expiredLeases = await Lease.find({
+                status: 'active',
+                endDate: { $lte: now }
+            });
+
+            if (expiredLeases.length > 0) {
+                logger.info(`[CRON] Detected ${expiredLeases.length} expired leases. Expirating...`);
+                for (const lease of expiredLeases) {
+                    lease.status = 'expired';
+                    await lease.save();
+
+                    // Update property status to available
+                    await Property.findByIdAndUpdate(lease.property, {
+                        $set: { status: 'available', currentTenant: null }
+                    });
+
+                    logger.info(`[CRON] Lease ${lease.leaseNumber} expired automatically. Property set to available.`);
+                }
+            } else {
+                logger.debug('[CRON] No expired leases detected.');
+            }
+        } catch (error) {
+            logger.error(`[CRON ERROR] Lease Expiration daemon exception: ${error.message}`);
         }
     });
 };

@@ -41,8 +41,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
       filter.$or = [{ owner: req.user.userId }, { manager: req.user.userId }];
     }
   } else if (req.user.role === 'tenant' || req.user.role === 'user') {
-    // Tenants/Users see only available properties in the marketplace
-    filter.status = 'available';
+    // Tenants/Users see available, occupied, or rented properties (so they see Sold Out & Available From)
+    filter.status = { $in: ['available', 'occupied', 'rented'] };
   } else if (req.user.role === 'admin') {
     if (owner) filter.owner = owner;
     if (status) filter.status = status;
@@ -100,7 +100,12 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     .limit(parseInt(limit))
     .populate('owner', 'firstName lastName email')
     .populate('manager', 'firstName lastName email')
-    .populate('currentTenant', 'firstName lastName email');
+    .populate('currentTenant', 'firstName lastName email')
+    .populate({
+      path: 'leases',
+      select: 'status endDate',
+      match: { status: 'active' }
+    });
 
   const total = await Property.countDocuments(filter);
 
@@ -380,7 +385,12 @@ export const getSimilarProperties = asyncHandler(async (req, res) => {
     ...geoFilter
   })
   .limit(4)
-  .populate('manager', 'firstName lastName');
+  .populate('manager', 'firstName lastName')
+  .populate({
+    path: 'leases',
+    select: 'status endDate',
+    match: { status: 'active' }
+  });
 
   res.status(200).json({
     success: true,

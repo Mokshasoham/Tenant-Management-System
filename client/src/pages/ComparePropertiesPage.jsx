@@ -15,7 +15,7 @@ const COMPARE_FEATURES = [
     { label: 'Furnishing', key: 'furnishing', format: v => v ? v.replace('-', ' ') : '—' },
     { label: 'Floor', key: 'floor', format: v => v ?? '—' },
     { label: 'Rating', key: 'rating', format: v => v > 0 ? `⭐ ${v}/5` : 'Not rated' },
-    { label: 'Status', key: 'status', format: v => v || '—' },
+    { label: 'Status', key: 'displayStatus', format: v => v || '—' },
     { label: 'Verified', key: 'verifiedBadge', format: v => v ? '✅ Yes' : '❌ No' },
 ];
 

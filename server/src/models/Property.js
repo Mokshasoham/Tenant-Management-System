@@ -139,8 +139,38 @@ const propertySchema = new mongoose.Schema(
     notes: String,
     tags: [String],   // smart badges: 'Best Value', 'Family Choice', etc.
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
+
+propertySchema.virtual('displayStatus').get(function() {
+  if (this.status === 'maintenance') {
+    return 'Under Maintenance';
+  }
+
+  // Find active lease if populated
+  const activeLease = this.leases?.find(l => l && l.status === 'active');
+  
+  if (activeLease && activeLease.endDate) {
+    const endDate = new Date(activeLease.endDate);
+    if (endDate > new Date()) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const day = endDate.getDate();
+      const month = monthNames[endDate.getMonth()];
+      const year = endDate.getFullYear();
+      return `Available from ${day} ${month}, ${year}`;
+    }
+  }
+
+  if (this.status === 'occupied' || this.status === 'rented') {
+    return 'Sold Out';
+  }
+
+  return 'Available';
+});
 
 propertySchema.index({ owner: 1 });
 propertySchema.index({ manager: 1 });
