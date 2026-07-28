@@ -681,46 +681,54 @@ export default function TenantDashboard({ user, navigate }) {
                                     transition={{ duration: 0.25, ease: 'easeInOut' }}
                                     className="overflow-hidden space-y-3 pt-3"
                                 >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-1">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 pl-1">
                                         {bookings.map((b) => {
                                             const statusDisplay = getBookingStatusDisplay(b);
                                             return (
                                                 <div
                                                     key={b._id}
-                                                    className="p-5 rounded-2xl border border-border bg-card/45 backdrop-blur-sm flex flex-col justify-between shadow-md relative overflow-hidden group"
+                                                    className="relative overflow-hidden p-3 rounded-xl border border-border bg-card/30 backdrop-blur-md hover:bg-card/45 transition-all duration-300 flex items-center justify-between gap-3 shadow-sm group hover:-translate-y-0.5"
                                                 >
-                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full" />
-                                                    <div>
-                                                        <div className="flex items-start justify-between gap-3 mb-3">
-                                                            <div>
-                                                                <span className={cn("px-2.5 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-wider inline-block mb-1.5", statusDisplay.class)}>
+                                                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 blur-xl rounded-full" />
+                                                    
+                                                    {/* Left side: Icon + details */}
+                                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                                                            <Building2 className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <h4 className="text-xs font-black text-foreground truncate max-w-[120px] sm:max-w-none">{b.property?.name || 'Property Booked'}</h4>
+                                                                <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider", statusDisplay.class)}>
                                                                     {statusDisplay.label}
                                                                 </span>
-                                                                <h4 className="text-sm font-black text-foreground truncate">{b.property?.name || 'Property Booked'}</h4>
-                                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                                    {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
-                                                                </p>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Security Deposit</p>
-                                                                <p className="text-base font-black text-indigo-500">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
-                                                            </div>
+                                                            <p className="text-[9px] text-muted-foreground/60 flex items-center gap-1">
+                                                                <Calendar className="w-3 h-3 text-muted-foreground/45" />
+                                                                {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-2 mt-2 pt-3 border-t border-border/40">
+
+                                                    {/* Right side: Deposit Amount + Action */}
+                                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                                        <div className="text-right">
+                                                            <p className="text-[7px] font-black text-muted-foreground/45 uppercase tracking-widest leading-none mb-0.5">Deposit</p>
+                                                            <p className="text-xs font-black text-indigo-500 leading-none">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
+                                                        </div>
                                                         {statusDisplay.isPayable ? (
                                                             <button
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
-                                                                className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                                                                className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-widest shadow-md hover:shadow-indigo-600/15 flex items-center gap-1 active:scale-95 transition-all"
                                                             >
-                                                                <Wallet className="w-3.5 h-3.5" /> Pay Security Deposit
+                                                                <Wallet className="w-3 h-3" /> Pay
                                                             </button>
                                                         ) : (
                                                             <button
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
-                                                                className="flex-1 py-2 rounded-xl border border-border text-muted-foreground font-black text-xs uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
+                                                                className="px-3.5 py-2 rounded-lg border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
                                                             >
-                                                                View Booking Details
+                                                                View
                                                             </button>
                                                         )}
                                                     </div>
