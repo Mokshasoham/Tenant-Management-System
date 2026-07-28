@@ -17,6 +17,10 @@ export default function BookingStatusPage() {
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showRazorpay, setShowRazorpay] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelFeedback, setCancelFeedback] = useState('');
+    const [isCancelling, setIsCancelling] = useState(false);
 
     useEffect(() => {
         const fetchBooking = async () => {
@@ -73,6 +77,16 @@ export default function BookingStatusPage() {
             border: 'border-rose-400/20',
             title: 'Request Declined',
             desc: booking.rejectionReason || 'The property manager has declined your booking request.'
+        },
+        cancelled: {
+            icon: XCircle,
+            color: 'text-rose-500',
+            bg: 'bg-rose-500/10',
+            border: 'border-rose-500/20',
+            title: 'Application Cancelled',
+            desc: booking.cancellationReason ? `Cancelled: ${booking.cancellationReason}` : 'You have formally withdrawn this lease application.',
+            showButton: false,
+            showPayButton: false
         }
     };
 
@@ -230,16 +244,7 @@ export default function BookingStatusPage() {
                     </button>
                     {booking.status !== 'cancelled' && booking.status !== 'rejected' && (
                         <button
-                            onClick={async () => {
-                                if(window.confirm('Are you certain you wish to cancel this booking? Explicit property refund limits will organically dictate escrow disbursements based on how many hours remain until the lease start date.')) {
-                                    try {
-                                        await bookingService.cancelBooking(booking._id);
-                                        window.location.reload();
-                                    } catch(e) {
-                                        alert(e.response?.data?.message || 'Failed to cancel the booking.');
-                                    }
-                                }
-                            }}
+                            onClick={() => setShowCancelModal(true)}
                             className="w-full px-8 py-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-500 w-full hover:text-white transition-all"
                         >
                             CANCEL LEASE APPLICATION
@@ -260,6 +265,124 @@ export default function BookingStatusPage() {
                     }}
                 />
             )}
+
+            {/* Cancellation Modal Dialog */}
+            <AnimatePresence>
+                {showCancelModal && (
+                    <div 
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="w-full max-w-md bg-card/90 border border-border backdrop-blur-md rounded-3xl p-6 shadow-2xl relative"
+                        >
+                            <button
+                                onClick={() => {
+                                    setShowCancelModal(false);
+                                    setCancelReason('');
+                                    setCancelFeedback('');
+                                }}
+                                className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-muted text-muted-foreground/60 hover:text-foreground transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                            
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/20 text-rose-500">
+                                    <AlertTriangle className="w-6 h-6 animate-pulse" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-foreground">Cancel Lease Application</h3>
+                                    <p className="text-xs text-muted-foreground/60">Filing this request will terminate the active draft.</p>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground/75 mb-1.5">
+                                        Cancellation Reason <span className="text-rose-500">*</span>
+                                    </label>
+                                    <select
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm text-foreground focus:outline-none focus:border-rose-500 transition-colors"
+                                        required
+                                    >
+                                        <option value="">Select a reason...</option>
+                                        <option value="Found another property">Found another property</option>
+                                        <option value="Change of plans / Relocation">Change of plans / Relocation</option>
+                                        <option value="Financial constraints">Financial constraints</option>
+                                        <option value="Manager response time / Communication issues">Manager response time / Communication issues</option>
+                                        <option value="Incorrect booking details selected">Incorrect booking details selected</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground/75 mb-1.5">
+                                        Optional Feedback
+                                    </label>
+                                    <textarea
+                                        value={cancelFeedback}
+                                        onChange={(e) => setCancelFeedback(e.target.value)}
+                                        placeholder="Share additional feedback to help us improve..."
+                                        rows={3}
+                                        className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm text-foreground focus:outline-none focus:border-rose-500 transition-colors resize-none"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setShowCancelModal(false);
+                                        setCancelReason('');
+                                        setCancelFeedback('');
+                                    }}
+                                    className="flex-1 py-3 rounded-2xl font-bold text-sm bg-muted border border-border text-muted-foreground hover:bg-muted/80 transition-colors"
+                                >
+                                    Go Back
+                                </button>
+                                <button
+                                    disabled={!cancelReason || isCancelling}
+                                    onClick={async () => {
+                                        setIsCancelling(true);
+                                        try {
+                                            await bookingService.cancelBooking(booking._id, {
+                                                reason: cancelReason,
+                                                feedback: cancelFeedback
+                                            });
+                                            setShowCancelModal(false);
+                                            // Optimistically update status to trigger re-render
+                                            setBooking(prev => ({ 
+                                                ...prev, 
+                                                status: 'cancelled',
+                                                cancellationReason: cancelReason,
+                                                cancellationFeedback: cancelFeedback 
+                                            }));
+                                        } catch (e) {
+                                            alert(e.response?.data?.message || 'Failed to cancel the booking.');
+                                        } finally {
+                                            setIsCancelling(false);
+                                        }
+                                    }}
+                                    className={cn(
+                                        "flex-1 py-3 rounded-2xl font-black text-sm text-white shadow-lg transition-all",
+                                        cancelReason && !isCancelling
+                                            ? "bg-rose-500 shadow-rose-500/25 hover:bg-rose-600 active:scale-95"
+                                            : "bg-muted text-muted-foreground cursor-not-allowed"
+                                    )}
+                                >
+                                    {isCancelling ? 'Cancelling...' : 'Confirm Cancel'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

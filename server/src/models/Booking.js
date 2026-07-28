@@ -54,6 +54,10 @@ const bookingSchema = new mongoose.Schema(
         // Rejection
         rejectionReason: String,
 
+        // Cancellation
+        cancellationReason: String,
+        cancellationFeedback: String,
+
         // PDF Agreement
         pdfAgreementUrl: String,
         agreementGenerated: { type: Boolean, default: false },

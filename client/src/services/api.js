@@ -122,7 +122,7 @@ export const bookingService = {
   getManagerBookings: () => apiClient.get('/bookings/manager'),
   getBookingById: (id) => apiClient.get(`/bookings/${id}`),
   updateBookingStatus: (id, data) => apiClient.put(`/bookings/${id}/status`, data),
-  cancelBooking: (id) => apiClient.post('/bookings/' + id + '/cancel'),
+  cancelBooking: (id, data) => apiClient.post('/bookings/' + id + '/cancel', data),
   // Razorpay payment flow
   createRazorpayOrder: (data) => apiClient.post('/bookings/razorpay/create-order', data),
   verifyRazorpayPayment: (data) => apiClient.post('/bookings/razorpay/verify', data),

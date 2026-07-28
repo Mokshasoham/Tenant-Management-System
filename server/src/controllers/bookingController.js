@@ -366,6 +366,7 @@ export const rejectBooking = asyncHandler(async (req, res) => {
 // POST /api/bookings/:id/cancel
 export const cancelBooking = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const { reason, feedback } = req.body;
     const booking = await Booking.findById(id).populate('property');
 
     if (!booking) throw new AppError('Booking not found', 404);
@@ -423,7 +424,9 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     }
 
     booking.status = 'cancelled';
-    addTimeline(booking, 'cancelled', `Tenant formally withdrew the lease application.`);
+    booking.cancellationReason = reason || 'No reason provided';
+    booking.cancellationFeedback = feedback || '';
+    addTimeline(booking, 'cancelled', `Tenant formally withdrew the lease application. Reason: ${reason || 'None'}`);
     await booking.save();
 
     if (property) {
