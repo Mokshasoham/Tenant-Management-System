@@ -103,6 +103,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [view, setView] = useState('overview');
     const [bookings, setBookings] = useState([]);
     const [bookingLoading, setBookingLoading] = useState(true);
+    const [bookingTab, setBookingTab] = useState('pending');
 
     useEffect(() => {
         const fetchBookings = async () => {
@@ -133,6 +134,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     };
 
     const pendingBookings = bookings.filter(b => b.status === 'pending');
+    const approvedBookings = bookings.filter(b => b.status === 'approved' && b.paymentStatus === 'pending');
+    const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'completed' || (b.status === 'approved' && b.paymentStatus === 'paid'));
 
     const maintenanceData = [
         { id: 'MT-1342', title: 'Leaking Faucet — Unit 4B', priority: 'high', status: 'open', time: '2h ago' },
@@ -294,68 +297,179 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
             </div>
 
             {/* Booking Requests */}
-            {pendingBookings.length > 0 && (
+            {/* Booking Requests & Deposits */}
+            {bookings.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.55, duration: 0.5 }}
                     className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5"
                 >
-                    <div className="flex items-center justify-between mb-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-border pb-4">
                         <div className="flex items-center gap-2">
                             <div className="p-2 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20">
                                 <CalendarDays className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                             </div>
-                            <p className="text-sm font-black text-foreground">Booking Requests</p>
-                            <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[10px] font-black">
-                                {pendingBookings.length} PENDING
-                            </span>
+                            <p className="text-sm font-black text-foreground">Booking Requests & Deposits</p>
+                        </div>
+                        <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto">
+                            {[
+                                { id: 'pending', label: 'Pending', count: pendingBookings.length },
+                                { id: 'approved', label: 'Awaiting Deposit', count: approvedBookings.length },
+                                { id: 'paid', label: 'Deposit Paid', count: activeBookings.length }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setBookingTab(tab.id)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                        bookingTab === tab.id
+                                            ? "bg-card text-foreground shadow-sm"
+                                            : "text-muted-foreground/60 hover:text-foreground"
+                                    )}
+                                >
+                                    {tab.label}
+                                    {tab.count > 0 && (
+                                        <span className={cn(
+                                            "px-1.5 py-0.5 rounded-full text-[8px] font-black",
+                                            bookingTab === tab.id ? "bg-indigo-600 text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                                        )}>
+                                            {tab.count}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {pendingBookings.map((b, i) => (
-                            <motion.div
-                                key={b._id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.7 + i * 0.1 }}
-                                className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
-                            >
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 font-black text-xs">
-                                            {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
-                                            <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
-                                            {b.totalAmount === 0 ? 'FREE' : `₹${b.totalAmount?.toLocaleString('en-IN')}`}
-                                        </p>
-                                        <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                                            {b.paymentReference === 'FREE-BOOKING' ? 'No Payment' : (b.paymentStatus || 'Paid')}
-                                        </p>
-                                    </div>
+                        {bookingTab === 'pending' && (
+                            pendingBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No pending booking requests.
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => handleUpdateBooking(b._id, 'approved')}
-                                        className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all"
+                            ) : (
+                                pendingBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
-                                        APPROVE
-                                    </button>
-                                    <button
-                                        onClick={() => handleUpdateBooking(b._id, 'rejected', 'Property already booked')}
-                                        className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all"
-                                    >
-                                        DECLINE
-                                    </button>
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                    {b.totalAmount === 0 ? 'FREE' : `₹${b.totalAmount?.toLocaleString('en-IN')}`}
+                                                </p>
+                                                <p className="text-[9px] text-muted-foreground uppercase font-bold">
+                                                    {b.paymentStatus || 'Pending'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleUpdateBooking(b._id, 'approved')}
+                                                className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all"
+                                            >
+                                                APPROVE
+                                            </button>
+                                            <button
+                                                onClick={() => handleUpdateBooking(b._id, 'rejected', 'Property already booked')}
+                                                className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all"
+                                            >
+                                                DECLINE
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
+
+                        {bookingTab === 'approved' && (
+                            approvedBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No bookings awaiting deposit payment.
                                 </div>
-                            </motion.div>
-                        ))}
+                            ) : (
+                                approvedBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                    Awaiting Deposit
+                                                </span>
+                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
+
+                        {bookingTab === 'paid' && (
+                            activeBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No completed/active bookings.
+                                </div>
+                            ) : (
+                                activeBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-500 dark:text-emerald-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                    Lease Active
+                                                </span>
+                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
                     </div>
                 </motion.div>
             )}

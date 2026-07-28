@@ -58,11 +58,11 @@ export default function BookingStatusPage() {
         },
         approved: {
             icon: booking?.paymentStatus === 'pending' ? AlertTriangle : CheckCircle2,
-            color: booking?.paymentStatus === 'pending' ? 'text-amber-500' : 'text-emerald-400',
-            bg: booking?.paymentStatus === 'pending' ? 'bg-amber-500/10' : 'bg-emerald-400/10',
-            border: booking?.paymentStatus === 'pending' ? 'border-amber-500/20' : 'border-emerald-400/20',
-            title: booking?.paymentStatus === 'pending' ? 'Action Required: Pay Security Deposit' : 'Booking Confirmed!',
-            desc: booking?.paymentStatus === 'pending' ? 'The manager has approved your request! Please fulfill the deposit to activate the lease.' : 'Congratulations! Your lease is active.',
+            color: booking?.paymentStatus === 'pending' ? 'text-indigo-500' : 'text-emerald-400',
+            bg: booking?.paymentStatus === 'pending' ? 'bg-indigo-500/10' : 'bg-emerald-400/10',
+            border: booking?.paymentStatus === 'pending' ? 'border-indigo-500/20' : 'border-emerald-400/20',
+            title: booking?.paymentStatus === 'pending' ? 'Approved – Awaiting Deposit Payment' : 'Booking Confirmed!',
+            desc: booking?.paymentStatus === 'pending' ? 'The manager has approved your request! Please complete the security deposit payment to activate the lease.' : 'Congratulations! Your lease is active.',
             showButton: booking?.paymentStatus !== 'pending',
             showPayButton: booking?.paymentStatus === 'pending'
         },

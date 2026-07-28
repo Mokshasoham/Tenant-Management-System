@@ -30,6 +30,28 @@ const STATUS_ICON = {
     partial: CreditCard,
 };
 
+const getBookingStatusDisplay = (b) => {
+    if (b.status === 'pending') {
+        return { label: 'Pending Approval', class: 'bg-amber-500/10 border-amber-500/20 text-amber-500', isPayable: false };
+    }
+    if (b.status === 'approved' && b.paymentStatus === 'pending') {
+        return { label: 'Approved – Awaiting Deposit Payment', class: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500 animate-pulse', isPayable: true };
+    }
+    if (b.status === 'approved' && b.paymentStatus === 'paid') {
+        return { label: 'Deposit Paid – Confirmed', class: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500', isPayable: false };
+    }
+    if (b.status === 'active' || b.status === 'completed') {
+        return { label: 'Lease Active', class: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500', isPayable: false };
+    }
+    if (b.status === 'rejected') {
+        return { label: 'Rejected', class: 'bg-rose-500/10 border-rose-500/20 text-rose-500', isPayable: false };
+    }
+    if (b.status === 'cancelled') {
+        return { label: 'Cancelled', class: 'bg-muted border-border text-muted-foreground', isPayable: false };
+    }
+    return { label: b.status?.toUpperCase() || '—', class: 'bg-blue-500/10 border-blue-500/20 text-blue-500', isPayable: false };
+};
+
 function LeaseProgress({ start, end }) {
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -602,6 +624,66 @@ export default function TenantDashboard({ user, navigate }) {
                     </div>
                 </motion.div>
             </div>
+
+            {/* ══ BOOKINGS & DEPOSITS SECTION ══ */}
+            {bookings.length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Booking Requests & Deposits</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {bookings.map((b) => {
+                            const statusDisplay = getBookingStatusDisplay(b);
+                            return (
+                                <motion.div
+                                    key={b._id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-5 rounded-2xl border border-border bg-card/40 backdrop-blur-sm flex flex-col justify-between shadow-md relative overflow-hidden group"
+                                >
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-2xl rounded-full" />
+                                    <div>
+                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                            <div>
+                                                <span className={cn("px-2.5 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-wider inline-block mb-1.5", statusDisplay.class)}>
+                                                    {statusDisplay.label}
+                                                </span>
+                                                <h4 className="text-sm font-black text-foreground truncate">{b.property?.name || 'Property Booked'}</h4>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                    {new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Security Deposit</p>
+                                                <p className="text-base font-black text-indigo-500">₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 mt-2 pt-3 border-t border-border/40">
+                                        {statusDisplay.isPayable ? (
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => navigate(`/bookings/${b._id}`)}
+                                                className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest shadow-md flex items-center justify-center gap-1.5"
+                                            >
+                                                <Wallet className="w-3.5 h-3.5" /> Pay Security Deposit
+                                            </motion.button>
+                                        ) : (
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => navigate(`/bookings/${b._id}`)}
+                                                className="flex-1 py-2 rounded-xl border border-border text-muted-foreground font-black text-xs uppercase tracking-widest hover:bg-muted"
+                                            >
+                                                View Booking Details
+                                            </motion.button>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="h-64">

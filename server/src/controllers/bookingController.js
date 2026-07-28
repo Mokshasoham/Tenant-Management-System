@@ -117,6 +117,7 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     booking.razorpayPaymentId = razorpayPaymentId;
     booking.razorpaySignature = razorpaySignature;
     booking.paymentStatus = 'paid';
+    booking.status = 'active';
     booking.escrowStatus = 'held';
     addTimeline(booking, 'payment_done', `Payment of ₹${booking.totalAmount.toLocaleString('en-IN')} locked into escrow.`);
     await booking.save();
@@ -550,7 +551,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             startDate: startDate || new Date(),
             endDate: endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             totalAmount: Number(amount) || property.rentAmount || 1,
-            status: 'approved',
+            status: 'active',
             paymentStatus: 'paid',
             paymentReference: `MOCK-${Date.now()}`,
             escrowStatus: 'released',
