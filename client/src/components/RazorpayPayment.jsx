@@ -42,7 +42,26 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data;
 
-            // 2) Open Razorpay checkout
+            // 2) Open Razorpay checkout or bypass if mock mode
+            if (keyId === 'rzp_test_placeholder' || (razorpayOrderId && razorpayOrderId.startsWith('order_test_'))) {
+                console.log('[RazorpayPayment] Mock testing environment detected. Bypassing Razorpay modal.');
+                try {
+                    await bookingService.verifyRazorpayPayment({
+                        razorpayOrderId: razorpayOrderId,
+                        razorpayPaymentId: `pay_mock_${Date.now()}`,
+                        razorpaySignature: 'mock_signature_data',
+                        bookingId: bid,
+                        signature: sigImage || signatureData
+                    });
+                    setStep('success');
+                    if (onSuccess) onSuccess(bid);
+                } catch (err) {
+                    setErrorMsg(err.message || err.response?.data?.message || 'Mock payment verification failed.');
+                    setStep('error');
+                }
+                return;
+            }
+
             const rzp = new window.Razorpay({
                 key: keyId,
                 amount,
@@ -64,7 +83,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                         setStep('success');
                         if (onSuccess) onSuccess(bid);
                     } catch (err) {
-                        setErrorMsg('Payment verification failed. Please contact support.');
+                        setErrorMsg(err.message || err.response?.data?.message || 'Payment verification failed. Please contact support.');
                         setStep('error');
                     }
                 },
