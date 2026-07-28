@@ -41,7 +41,6 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
             const res = await bookingService.createRazorpayOrder({ bookingId });
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data;
-            setBookingId(bid);
 
             // 2) Open Razorpay checkout
             const rzp = new window.Razorpay({
