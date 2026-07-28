@@ -220,6 +220,19 @@ export default function Navbar({ toggleSidebar }) {
     }
   };
 
+  const handleDeleteNotif = async (id) => {
+    try {
+      await notificationService.deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n._id !== id));
+      const deletedNotif = notifications.find(n => n._id === id);
+      if (deletedNotif && !deletedNotif.read) {
+        setUnreadCount(c => Math.max(0, c - 1));
+      }
+    } catch (err) {
+      console.error('Failed to delete notification', err);
+    }
+  };
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
@@ -301,16 +314,34 @@ export default function Navbar({ toggleSidebar }) {
                   {notifications.length === 0 ? (
                     <div className="py-10 text-center text-muted-foreground/30 text-sm">{t('common.noData') || 'No notifications yet'}</div>
                   ) : notifications.map((n) => (
-                    <button key={n._id} onClick={() => handleNotifClick(n)}
-                      className="w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors text-left">
-                      <span className="text-lg leading-none mt-0.5 flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('text-sm font-semibold truncate', n.read ? 'text-muted-foreground' : 'text-foreground')}>{n.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{n.message}</p>
-                        <p className="text-[10px] text-muted-foreground/50 mt-1">{timeAgo(n.createdAt)}</p>
+                    <div 
+                      key={n._id} 
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted transition-colors text-left relative group/item"
+                    >
+                      <div 
+                        onClick={() => handleNotifClick(n)}
+                        className="flex-1 flex items-start gap-3 cursor-pointer min-w-0"
+                      >
+                        <span className="text-lg leading-none mt-0.5 flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('text-sm font-semibold truncate', n.read ? 'text-muted-foreground' : 'text-foreground')}>{n.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground/50 mt-1">{timeAgo(n.createdAt)}</p>
+                        </div>
+                        {!n.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />}
                       </div>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />}
-                    </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteNotif(n._id);
+                        }}
+                        className="p-1 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all flex-shrink-0"
+                        title="Dismiss notification"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </motion.div>

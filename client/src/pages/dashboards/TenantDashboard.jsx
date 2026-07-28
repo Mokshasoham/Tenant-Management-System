@@ -5,7 +5,7 @@ import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
     Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
@@ -177,6 +177,19 @@ export default function TenantDashboard({ user, navigate }) {
     const paidThisYear = payments.filter(p => p.status === 'paid').length;
     const totalSpend = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
     const onTimeRate = payments.length > 0 ? Math.round((payments.filter(p => p.status === 'paid').length / payments.length) * 100) : 100;
+
+    const handleDeleteNotif = async (id) => {
+        try {
+            await notificationService.deleteNotification(id);
+            setNotifications(prev => prev.filter(n => n._id !== id));
+            const deletedNotif = notifications.find(n => n._id === id);
+            if (deletedNotif && !deletedNotif.read) {
+                setUnread(c => Math.max(0, c - 1));
+            }
+        } catch (err) {
+            console.error('Failed to delete notification', err);
+        }
+    };
 
     const getNextEstimatedPayments = () => {
         if (activeLeases.length === 0) return [];
@@ -787,12 +800,24 @@ export default function TenantDashboard({ user, navigate }) {
                     ) : (
                         <div className="space-y-2.5">
                             {notifications.slice(0, 4).map((n) => (
-                                <div key={n._id} className={cn('flex gap-3 p-2.5 rounded-xl transition-colors', n.read ? 'opacity-50' : 'bg-muted/50')}>
-                                    <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', n.read ? 'bg-muted-foreground/20' : 'bg-blue-500')} />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-foreground/80 truncate">{n.title}</p>
-                                        <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{n.message}</p>
+                                <div key={n._id} className={cn('flex items-center justify-between gap-3 p-2.5 rounded-xl transition-all duration-200 relative group/item', n.read ? 'opacity-50' : 'bg-muted/50')}>
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', n.read ? 'bg-muted-foreground/20' : 'bg-blue-500')} />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-foreground/80 truncate">{n.title}</p>
+                                            <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{n.message}</p>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteNotif(n._id);
+                                        }}
+                                        className="p-1 rounded-lg text-muted-foreground/30 hover:text-rose-500 hover:bg-rose-500/10 transition-all flex-shrink-0"
+                                        title="Dismiss notification"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             ))}
                         </div>
