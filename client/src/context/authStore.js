@@ -165,6 +165,11 @@ const useAuthStore = create((set) => ({
       throw new Error(errorMsg);
     }
   },
+
+  setUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
 }));
 
 export default useAuthStore;

@@ -147,10 +147,8 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
             const now = new Date();
             const isFuture = new Date(booking.startDate) > now;
 
-            const lease = await Lease.findOneAndUpdate(
-                { tenant: tenant._id, property: booking.property._id, status: 'pending' },
-                { $set: { status: isFuture ? 'pending' : 'active' } },
-                { new: true }
+            const lease = await Lease.findOne(
+                { tenant: tenant._id, property: booking.property._id, status: 'pending' }
             );
 
             // Record Payment history entry so it appears on dashboards & receipts
@@ -647,7 +645,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         let lease = await Lease.findOne({ 
             tenant: tenant._id, 
             property: propertyId, 
-            status: isFuture ? 'pending' : 'active' 
+            status: { $in: ['pending', 'active'] }
         });
 
         if (!lease) {

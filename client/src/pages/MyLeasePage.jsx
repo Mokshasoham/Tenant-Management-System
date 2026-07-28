@@ -165,7 +165,7 @@ export default function MyLeasePage() {
 
         const maybeRefresh = () => {
             const now = Date.now();
-            if (now - lastFetchTime > 30_000) {
+            if (now - lastFetchTime > 1_500) {
                 lastFetchTime = now;
                 fetchLeaseData();
             }
