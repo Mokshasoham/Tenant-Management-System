@@ -105,7 +105,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
       path: 'leases',
       select: 'status endDate',
       match: { status: 'active' }
-    });
+    })
+    .populate('activeLease');
 
   const total = await Property.countDocuments(filter);
 
@@ -157,7 +158,8 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         { path: 'tenant', select: 'firstName lastName email' },
         { path: 'createdBy', select: 'firstName lastName' },
       ],
-    });
+    })
+    .populate('activeLease');
 
   if (!property) {
     throw new AppError('Property not found', 404);
@@ -390,7 +392,8 @@ export const getSimilarProperties = asyncHandler(async (req, res) => {
     path: 'leases',
     select: 'status endDate',
     match: { status: 'active' }
-  });
+  })
+  .populate('activeLease');
 
   res.status(200).json({
     success: true,

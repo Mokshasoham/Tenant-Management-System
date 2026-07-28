@@ -108,7 +108,7 @@ export default function PropertyDetailsPage() {
         </div>
     );
 
-    const activeLease = property?.leases?.find(l => l && l.status === 'active');
+    const activeLease = property?.activeLease || property?.leases?.find(l => l && l.status === 'active');
     const minAvailableDate = activeLease && new Date(activeLease.endDate) > new Date()
         ? new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];

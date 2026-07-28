@@ -10,7 +10,7 @@ export const getDisplayStatus = (property) => {
     }
     
     // Find active lease
-    const activeLease = property.leases?.find(l => l && l.status === 'active');
+    const activeLease = property.activeLease || property.leases?.find(l => l && l.status === 'active');
     if (activeLease && activeLease.endDate) {
         const endDate = new Date(activeLease.endDate);
         if (endDate > new Date()) {
