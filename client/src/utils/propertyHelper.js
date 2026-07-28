@@ -1,6 +1,8 @@
 export const getDisplayStatus = (property) => {
     if (!property) return 'Available';
-    if (property.displayStatus) return property.displayStatus;
+    if (property.displayStatus) {
+        return property.displayStatus.replace(/, \d{4}$/, '');
+    }
     
     // Frontend fallback calculation
     if (property.status === 'maintenance') {
@@ -15,8 +17,7 @@ export const getDisplayStatus = (property) => {
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const day = endDate.getDate();
             const month = monthNames[endDate.getMonth()];
-            const year = endDate.getFullYear();
-            return `Available from ${day} ${month}, ${year}`;
+            return `Available from ${day} ${month}`;
         }
     }
     

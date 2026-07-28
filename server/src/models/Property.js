@@ -146,13 +146,21 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
+propertySchema.virtual('activeLease', {
+  ref: 'Lease',
+  localField: '_id',
+  foreignField: 'property',
+  justOne: true,
+  match: { status: 'active' }
+});
+
 propertySchema.virtual('displayStatus').get(function() {
   if (this.status === 'maintenance') {
     return 'Under Maintenance';
   }
 
   // Find active lease if populated
-  const activeLease = this.leases?.find(l => l && l.status === 'active');
+  const activeLease = this.activeLease || this.leases?.find(l => l && l.status === 'active');
   
   if (activeLease && activeLease.endDate) {
     const endDate = new Date(activeLease.endDate);
@@ -160,8 +168,7 @@ propertySchema.virtual('displayStatus').get(function() {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const day = endDate.getDate();
       const month = monthNames[endDate.getMonth()];
-      const year = endDate.getFullYear();
-      return `Available from ${day} ${month}, ${year}`;
+      return `Available from ${day} ${month}`;
     }
   }
 
