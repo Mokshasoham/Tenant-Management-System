@@ -8,7 +8,8 @@ import {
     Wallet, ArrowRight, RefreshCw, Info, Shield, Hash, Phone,
     Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
     PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, User, IdCard, CreditCard as CreditCardIcon,
+    CheckSquare, XCircle, ExternalLink, Loader2
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -71,6 +72,10 @@ export default function MyLeasePage() {
 
     const scrollRef = useRef(null);
 
+    // Pre-lease Checklist State
+    const [checklist, setChecklist] = useState(null);
+    const [checklistLoading, setChecklistLoading] = useState(false);
+
     const scrollActiveLeases = (direction) => {
         if (scrollRef.current) {
             const { scrollLeft, clientWidth } = scrollRef.current;
@@ -114,9 +119,15 @@ export default function MyLeasePage() {
             ]);
             if (leaseRes.status === 'fulfilled') {
                 const resVal = leaseRes.value || {};
+                const activeLeasesData = resVal.activeLeases || (resVal.data ? [resVal.data] : []);
                 setLease(resVal.data || null);
-                setActiveLeases(resVal.activeLeases || (resVal.data ? [resVal.data] : []));
+                setActiveLeases(activeLeasesData);
                 setPastLeases(resVal.pastLeases || []);
+                // Fetch checklist for pending unsigned lease
+                const pendingUnsigned = activeLeasesData.find(l => l.status === 'pending' && !l.signature);
+                if (pendingUnsigned) {
+                    fetchChecklist(pendingUnsigned._id);
+                }
             }
             if (payRes.status === 'fulfilled') {
                 const payVal = payRes.value || {};
@@ -124,6 +135,20 @@ export default function MyLeasePage() {
             }
         } catch (e) { console.error('Error fetching lease data:', e); }
         setLoading(false);
+    };
+
+    const fetchChecklist = async (leaseId) => {
+        if (!leaseId) return;
+        setChecklistLoading(true);
+        try {
+            const res = await leaseService.getLeaseChecklist(leaseId);
+            setChecklist(res.data || null);
+        } catch (e) {
+            console.error('Error fetching checklist:', e);
+            setChecklist(null);
+        } finally {
+            setChecklistLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -361,6 +386,149 @@ export default function MyLeasePage() {
                                     This lease agreement has been successfully signed and verified. It is scheduled to automatically activate on {new Date(currentLease.startDate).toLocaleDateString('en-IN')}.
                                 </p>
                             </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── Pre-Lease Requirements Checklist ── */}
+                    {currentLease.status === 'pending' && !currentLease.signature && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden shadow-sm"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                                        <CheckSquare className="w-4 h-4 text-indigo-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-foreground">Pre-Lease Requirements</h3>
+                                        <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-widest mt-0.5">
+                                            {checklist ? (
+                                                checklist.data?.allComplete
+                                                    ? 'All requirements met — you may now sign'
+                                                    : `${Object.values(checklist.data?.items || {}).filter(Boolean).length}/4 completed`
+                                            ) : 'Complete all steps before signing'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {checklistLoading ? (
+                                    <Loader2 className="w-4 h-4 text-muted-foreground/40 animate-spin" />
+                                ) : (
+                                    <button
+                                        onClick={() => fetchChecklist(currentLease._id)}
+                                        className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-colors flex items-center gap-1"
+                                    >
+                                        <RefreshCw className="w-3 h-3" /> Refresh
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Checklist Items */}
+                            <div className="divide-y divide-border/40">
+                                {[
+                                    {
+                                        key: 'profileComplete',
+                                        icon: User,
+                                        label: 'Complete Profile',
+                                        desc: 'First name, last name, and phone number',
+                                        action: { label: 'Go to Profile', link: '/profile' },
+                                    },
+                                    {
+                                        key: 'kycComplete',
+                                        icon: IdCard,
+                                        label: 'Upload Identity Document',
+                                        desc: 'Government-issued ID or proof of identity (KYC)',
+                                        action: { label: 'Upload Now', link: '/profile' },
+                                    },
+                                    {
+                                        key: 'depositPaid',
+                                        icon: CreditCardIcon,
+                                        label: 'Pay Security Deposit',
+                                        desc: checklist?.data?.meta?.depositAmount
+                                            ? `₹${Number(checklist.data.meta.depositAmount).toLocaleString('en-IN')} security deposit`
+                                            : 'Security deposit payment',
+                                        action: checklist?.data?.meta?.bookingId
+                                            ? { label: 'Pay Now', link: `/bookings/${checklist.data.meta.bookingId}` }
+                                            : { label: 'View Bookings', link: '/dashboard' },
+                                    },
+                                    {
+                                        key: 'leaseSigned',
+                                        icon: FileSignature,
+                                        label: 'Sign Lease Agreement',
+                                        desc: 'E-sign the lease agreement below',
+                                        action: null, // handled inline on this page
+                                    },
+                                ].map((item, i) => {
+                                    const done = checklist?.data?.items?.[item.key] ?? false;
+                                    const Icon = item.icon;
+                                    return (
+                                        <div key={item.key} className={cn(
+                                            'flex items-center gap-4 px-5 py-3.5 transition-colors',
+                                            done ? 'bg-emerald-500/5' : 'hover:bg-muted/40'
+                                        )}>
+                                            {/* Step Number / Check */}
+                                            <div className={cn(
+                                                'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black transition-all',
+                                                done
+                                                    ? 'bg-emerald-500/15 text-emerald-500'
+                                                    : 'bg-muted border border-border text-muted-foreground/40'
+                                            )}>
+                                                {done ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                                            </div>
+
+                                            {/* Label */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className={cn(
+                                                    'text-xs font-black leading-none mb-0.5',
+                                                    done ? 'text-emerald-600 dark:text-emerald-400 line-through opacity-70' : 'text-foreground'
+                                                )}>{item.label}</p>
+                                                <p className="text-[9px] text-muted-foreground/50 truncate">{item.desc}</p>
+                                            </div>
+
+                                            {/* Status / Action */}
+                                            <div className="flex-shrink-0">
+                                                {done ? (
+                                                    <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
+                                                        ✓ Done
+                                                    </span>
+                                                ) : item.action ? (
+                                                    <button
+                                                        onClick={() => navigate(item.action.link)}
+                                                        className="text-[8px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                                                    >
+                                                        {item.action.label} <ExternalLink className="w-2.5 h-2.5" />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                                                        Below ↓
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Footer progress bar */}
+                            {checklist && (
+                                <div className="px-5 py-3 bg-muted/20 border-t border-border/40">
+                                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1.5">
+                                        <span>Progress</span>
+                                        <span>{Object.values(checklist.data?.items || {}).filter(Boolean).length} / 4</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                        <motion.div
+                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(Object.values(checklist.data?.items || {}).filter(Boolean).length / 4) * 100}%` }}
+                                            transition={{ duration: 0.6, ease: 'easeOut' }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     )}
 
@@ -910,15 +1078,33 @@ export default function MyLeasePage() {
                                         className="w-full px-4 py-3 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all font-bold"
                                     />
                                 </div>
+                                {/* Deposit-not-paid guard message */}
+                                {checklist && !checklist.data?.items?.depositPaid && (
+                                    <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400">
+                                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                                        <p className="text-xs font-bold">
+                                            Security deposit payment required before signing.{' '}
+                                            {checklist?.data?.meta?.bookingId && (
+                                                <button
+                                                    onClick={() => navigate(`/bookings/${checklist.data.meta.bookingId}`)}
+                                                    className="underline font-black hover:no-underline"
+                                                >
+                                                    Pay now →
+                                                </button>
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
                                 <button
                                     onClick={handleSignLease}
-                                    disabled={signingLoading}
-                                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                    disabled={signingLoading || (checklist && !checklist.data?.items?.depositPaid)}
+                                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-500/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     <Fingerprint className="w-4 h-4" />
                                     {signingLoading ? 'Processing signature...' : 'Sign & Activate Lease'}
                                 </button>
                             </div>
+
                         </motion.div>
                     )}
 

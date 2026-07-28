@@ -5,8 +5,10 @@ import Notification from '../models/Notification.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 import Lease from '../models/Lease.js';
+import Tenant from '../models/Tenant.js';
 import { sendLateFeeAppliedEmail, sendRentReminderEmail } from '../services/emailService.js';
 import logger from './logger.js';
+
 
 export const startCronJobs = () => {
     // Run exactly at minute 0 of every hour
@@ -191,33 +193,54 @@ export const startCronJobs = () => {
         }
     });
 
-    // Sweep hourly for pending leases whose start date has arrived to activate them
+    // Sweep every 5 minutes for pending leases whose start date has arrived to activate them
     cron.schedule('*/5 * * * *', async () => {
         logger.info('[CRON] Initializing precise 5-minute Lease Activation check sweep...');
         try {
             const now = new Date();
-            // Find all pending leases where the start date is <= now
+            // Find all pending leases where the start date is <= now AND the lease has been signed
             const upcomingLeases = await Lease.find({
                 status: 'pending',
-                startDate: { $lte: now }
+                startDate: { $lte: now },
+                signature: { $exists: true, $ne: null },
             });
 
             if (upcomingLeases.length > 0) {
-                logger.info(`[CRON] Detected ${upcomingLeases.length} upcoming leases to activate.`);
+                logger.info(`[CRON] Detected ${upcomingLeases.length} candidate leases for activation.`);
                 for (const lease of upcomingLeases) {
-                    // Double check if there's a booking for this property/tenant that is NOT paid
+
+                    // ── Checklist Guard 1: Security deposit must be paid ──
                     const booking = await Booking.findOne({
                         property: lease.property,
-                        user: { $exists: true }
+                        status: { $in: ['approved', 'active', 'completed'] },
                     }).sort({ createdAt: -1 });
 
-                    // If a booking exists and it is NOT paid, do not activate the lease!
-                    if (booking && booking.paymentStatus !== 'paid') {
-                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber} activation as its booking is not paid yet.`);
+                    if (!booking || booking.paymentStatus !== 'paid') {
+                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber}: deposit not paid.`);
                         continue;
                     }
 
-                    // Otherwise, activate it!
+                    // ── Checklist Guard 2: Tenant profile + KYC ──
+                    // Find User record for this tenant
+                    const tenantDoc = await Tenant.findById(lease.tenant).select('email');
+                    if (!tenantDoc) {
+                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber}: tenant record not found.`);
+                        continue;
+                    }
+                    const tenantUser = await User.findOne({ email: tenantDoc.email })
+                        .select('firstName lastName phone kycDocuments');
+
+                    if (!tenantUser || !tenantUser.firstName || !tenantUser.lastName || !tenantUser.phone) {
+                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber}: tenant profile incomplete.`);
+                        continue;
+                    }
+
+                    if (!tenantUser.kycDocuments || tenantUser.kycDocuments.length === 0) {
+                        logger.debug(`[CRON] Skipping lease ${lease.leaseNumber}: KYC documents missing.`);
+                        continue;
+                    }
+
+                    // ── All checklist items passed — activate the lease ──
                     lease.status = 'active';
                     await lease.save();
 
@@ -227,11 +250,8 @@ export const startCronJobs = () => {
                     });
 
                     // Send notification to Tenant
-                    const tenant = await User.findOne({ email: lease.tenant.email });
-                    const recipientId = tenant ? tenant._id : lease.createdBy;
-                    
                     await Notification.create({
-                        recipient: recipientId,
+                        recipient: tenantUser._id,
                         title: '🎉 Lease Activated!',
                         message: `Your lease ${lease.leaseNumber} has officially started today and is now active.`,
                         type: 'success',
@@ -245,4 +265,5 @@ export const startCronJobs = () => {
             logger.error(`[CRON ERROR] Lease Activation daemon exception: ${error.message}`);
         }
     });
+
 };

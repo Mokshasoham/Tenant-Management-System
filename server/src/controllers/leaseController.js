@@ -3,8 +3,10 @@ import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
+import Booking from '../models/Booking.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+
 
 // Tenant-scoped: get the current user's own lease
 export const getMyLease = asyncHandler(async (req, res) => {
@@ -298,7 +300,7 @@ export const signLease = asyncHandler(async (req, res) => {
   }
 
   // Verify user is the tenant associated with the lease
-  const user = await User.findById(req.user.userId).select('email');
+  const user = await User.findById(req.user.userId).select('email kycDocuments firstName lastName phone');
   if (!user) {
     throw new AppError('User not found', 404);
   }
@@ -312,20 +314,120 @@ export const signLease = asyncHandler(async (req, res) => {
     throw new AppError('Lease is not pending signature or has already been signed', 400);
   }
 
+  // ── Guard 1: Security deposit must be paid before signing ──
+  const relatedBooking = await Booking.findOne({
+    property: lease.property,
+    status: { $in: ['approved', 'active', 'completed'] },
+  }).sort({ createdAt: -1 });
+
+  if (!relatedBooking || relatedBooking.paymentStatus !== 'paid') {
+    throw new AppError(
+      'Security deposit payment must be completed before signing the lease agreement.',
+      400
+    );
+  }
+
+  // ── Guard 2: Tenant profile must be complete ──
+  if (!user.firstName || !user.lastName || !user.phone) {
+    throw new AppError(
+      'Please complete your profile (first name, last name, and phone number) before signing.',
+      400
+    );
+  }
+
+  // ── Guard 3: At least one KYC document must be uploaded ──
+  if (!user.kycDocuments || user.kycDocuments.length === 0) {
+    throw new AppError(
+      'Please upload at least one identity document (KYC) before signing the lease.',
+      400
+    );
+  }
+
+  const now = new Date();
+  const isFuture = new Date(lease.startDate) > now;
+
   lease.signature = signature;
   lease.signatureType = signatureType;
   lease.signedBy = signedBy;
-  lease.signedAt = new Date();
+  lease.signedAt = now;
   lease.tenantSignatureIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
-  lease.status = 'active';
+
+  // ── Keep 'pending' if start date is in the future; activate immediately otherwise ──
+  if (!isFuture) {
+    lease.status = 'active';
+    // Mark property occupied
+    await Property.findByIdAndUpdate(lease.property, {
+      $set: { status: 'occupied', currentTenant: lease.tenant },
+    });
+  }
+  // If isFuture: status remains 'pending'; cron job will activate on start date
 
   await lease.save();
 
-  logger.info(`Lease ${lease.leaseNumber} digitally signed by ${signedBy}`);
+  logger.info(`Lease ${lease.leaseNumber} digitally signed by ${signedBy}${isFuture ? ' (activation deferred to start date)' : ' (activated immediately)'}`);
 
   res.status(200).json({
     success: true,
-    message: 'Lease signed and activated successfully',
+    message: isFuture
+      ? 'Lease signed successfully. It will activate automatically on your start date.'
+      : 'Lease signed and activated successfully.',
     data: lease,
+  });
+});
+
+// ── Pre-Lease Checklist Endpoint (tenant-accessible) ──
+export const getLeaseChecklist = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const lease = await Lease.findById(id).populate('property');
+  if (!lease) throw new AppError('Lease not found', 404);
+
+  const user = await User.findById(req.user.userId).select('firstName lastName phone kycDocuments email');
+  if (!user) throw new AppError('User not found', 404);
+
+  const tenant = await Tenant.findOne({ email: user.email });
+  if (!tenant || lease.tenant.toString() !== tenant._id.toString()) {
+    throw new AppError('You are not authorized to view this checklist', 403);
+  }
+
+  // Item 1: Profile completeness
+  const profileComplete = !!(user.firstName && user.lastName && user.phone);
+
+  // Item 2: KYC/Identity document uploaded
+  const kycComplete = !!(user.kycDocuments && user.kycDocuments.length > 0);
+
+  // Item 3: Security deposit paid
+  const relatedBooking = await Booking.findOne({
+    property: lease.property._id,
+    status: { $in: ['approved', 'active', 'completed'] },
+  }).sort({ createdAt: -1 });
+
+  const depositPaid = !!(relatedBooking && relatedBooking.paymentStatus === 'paid');
+  const depositAmount = relatedBooking?.depositAmount || (lease.property?.rentAmount * 2) || 0;
+
+  // Item 4: Lease signed
+  const leaseSigned = !!(lease.signature && lease.signedAt);
+
+  const allComplete = profileComplete && kycComplete && depositPaid && leaseSigned;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      allComplete,
+      leaseStatus: lease.status,
+      startDate: lease.startDate,
+      items: {
+        profileComplete,
+        kycComplete,
+        depositPaid,
+        leaseSigned,
+      },
+      meta: {
+        depositAmount,
+        bookingId: relatedBooking?._id || null,
+        kycDocCount: user.kycDocuments?.length || 0,
+        signedAt: lease.signedAt || null,
+      },
+    },
   });
 });

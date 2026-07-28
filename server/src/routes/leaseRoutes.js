@@ -9,6 +9,8 @@ router.use(authenticate);
 // Tenant-accessible: view their own lease
 router.get('/my-lease', leaseController.getMyLease);
 router.post('/:id/sign', leaseController.signLease);
+// Pre-lease checklist (tenant can view their own lease's checklist)
+router.get('/:id/checklist', leaseController.getLeaseChecklist);
 
 // Manager/Admin only routes
 router.get('/', managerOrAdmin, leaseController.getAllLeases);
@@ -20,4 +22,5 @@ router.post('/:id/terminate', managerOrAdmin, leaseController.terminateLease);
 router.post('/:id/documents', managerOrAdmin, leaseController.uploadLeaseDocument);
 
 export default router;
+
 

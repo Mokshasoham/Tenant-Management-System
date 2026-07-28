@@ -64,6 +64,7 @@ export const leaseService = {
   uploadDocument: (id, data) => apiClient.post(`/leases/${id}/documents`, data),
   getLeaseStats: () => apiClient.get('/leases/stats'),
   signLease: (id, data) => apiClient.post(`/leases/${id}/sign`, data),
+  getLeaseChecklist: (id) => apiClient.get(`/leases/${id}/checklist`),
 };
 
 export const paymentService = {
