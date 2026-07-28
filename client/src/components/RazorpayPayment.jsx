@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Loader2, Shield, CreditCard, AlertTriangle, IndianRupee, PenTool } from 'lucide-react';
 import { bookingService } from '../services/api';
