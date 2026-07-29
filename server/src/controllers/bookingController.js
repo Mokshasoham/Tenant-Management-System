@@ -40,6 +40,17 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
 
+    let amountInPaise = grandTotal * 100;
+    const isTestMode = keyId.startsWith('rzp_test_');
+
+    // Razorpay sandbox test mode strictly rejects any transaction amounts over ₹1,00,000 (10,000,000 paise).
+    // If we are in test mode and the amount exceeds ₹1,00,000, we cap the Razorpay order amount to ₹1,000 (100,000 paise)
+    // to allow testing the real payment modal safely without API rejections.
+    if (isTestMode && amountInPaise > 10000000) {
+        logger.warn(`Test mode transaction amount ${amountInPaise} paise exceeds ₹1,00,000. Capping Razorpay order to 100,000 paise (₹1,000).`);
+        amountInPaise = 100000;
+    }
+
     let razorpayOrderId;
     try {
         const rzp = new Razorpay({
@@ -48,7 +59,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         });
 
         const rzpOrder = await rzp.orders.create({
-            amount: grandTotal * 100, 
+            amount: amountInPaise, 
             currency: 'INR',
             receipt: `receipt_booking_${booking._id}`
         });
@@ -98,7 +109,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         data: {
             bookingId: booking._id,
             razorpayOrderId,
-            amount: grandTotal * 100, // paise
+            amount: amountInPaise,
             currency: 'INR',
             keyId: keyId,
         },
