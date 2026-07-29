@@ -26,18 +26,23 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const handlePayNow = async (sigImage) => {
         setStep('paying');
         console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', bookingId);
+        alert(`Diag: 1. Starting payment checkout flow for booking ${bookingId}`);
         try {
             // 1) Create Razorpay order on backend for specific approved booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
+            alert('Diag: 2. Calling backend create-order API...');
             const res = await bookingService.createRazorpayOrder({ bookingId, signature: sigImage || signatureData });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
             console.log('[RazorpayPayment] Parsed order details:', { razorpayOrderId, amount, keyId, bid });
+            alert(`Diag: 3. Backend responded successfully.\nOrder ID: ${razorpayOrderId}\nKey ID: ${keyId}\nAmount: ${amount}`);
 
             console.log('[RazorpayPayment] Instantiating Razorpay checkout...');
+            alert(`Diag: 4. Checking SDK presence. window.Razorpay type is: ${typeof window.Razorpay}`);
             if (!window.Razorpay) {
                 console.error('[RazorpayPayment] window.Razorpay SDK not loaded!');
+                alert('Diag ERROR: window.Razorpay is undefined/not loaded.');
                 setErrorMsg('Razorpay SDK failed to load. Please try again.');
                 setStep('error');
                 return;
@@ -46,6 +51,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
             const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
             const frontendUrl = window.location.origin;
 
+            alert(`Diag: 5. Instantiating Razorpay options. Callback destination: ${API_BASE_URL}`);
             const rzp = new window.Razorpay({
                 key: keyId,
                 amount,
@@ -85,10 +91,12 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 },
             });
             console.log('[RazorpayPayment] Opening Razorpay checkout...');
+            alert('Diag: 6. Calling rzp.open() now...');
             rzp.open();
         } catch (err) {
             console.error('[RazorpayPayment] handlePayNow parent catch error:', err);
             const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
+            alert(`Diag Parent Catch Error: ${errMsg}`);
             setErrorMsg(errMsg || 'Failed to create payment order. Please try again.');
             setStep('error');
         }
