@@ -2,9 +2,13 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { AppError } from '../utils/errorHandling.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Ensure the uploads directory exists
-const uploadDir = path.join(process.cwd(), 'uploads', 'kyc');
+const uploadDir = path.join(__dirname, '..', 'uploads', 'kyc');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -37,7 +41,7 @@ export const uploadKYC = multer({
 export const uploadChat = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = path.join(process.cwd(), 'uploads', 'chat');
+      const dir = path.join(__dirname, '..', 'uploads', 'chat');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
     },

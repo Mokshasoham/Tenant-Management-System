@@ -2,6 +2,10 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { AppError } from '../utils/errorHandling.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let s3Client;
 
@@ -18,7 +22,7 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
 export const uploadBufferToStorage = async (buffer, filename, mimeType) => {
   // Fallback to local disk if S3 isn't formally wired up
   if (!s3Client || !process.env.AWS_S3_BUCKET_NAME) {
-    const localDir = path.join(process.cwd(), 'uploads', 'properties');
+    const localDir = path.join(__dirname, '..', '..', 'uploads', 'properties');
     if (!fs.existsSync(localDir)) {
       fs.mkdirSync(localDir, { recursive: true });
     }

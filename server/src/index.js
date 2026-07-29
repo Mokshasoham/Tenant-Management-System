@@ -68,7 +68,8 @@ app.use(requestLogger);
 app.use(securityHeaders);
 
 // Serve static uploads
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsPath = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // Health check
 app.get('/api/health', (req, res) => {
