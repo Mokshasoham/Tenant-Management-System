@@ -42,9 +42,8 @@ export const uploadBufferToStorage = async (buffer, filename, mimeType) => {
       console.error('[FileStorage Fallback] Failed to persist file in MongoDB:', err.message);
     }
     
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     return {
-      Location: `${baseUrl}/uploads/properties/${filename}`,
+      Location: `/uploads/properties/${filename}`,
       Key: filename,
       filePath: localPath
     };

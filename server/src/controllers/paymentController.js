@@ -6,6 +6,28 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
 
+const resolveInvoiceUrl = (payment, req) => {
+  if (!payment) return payment;
+  const payObj = payment.toObject ? payment.toObject() : payment;
+  if (payObj.invoiceUrl) {
+    if (payObj.invoiceUrl.startsWith('https://') && !payObj.invoiceUrl.includes('localhost')) {
+      return payObj;
+    }
+    let relativePath = payObj.invoiceUrl;
+    if (payObj.invoiceUrl.includes('/uploads/')) {
+      relativePath = '/uploads/' + payObj.invoiceUrl.split('/uploads/')[1];
+    } else if (payObj.invoiceUrl.startsWith('uploads/')) {
+      relativePath = '/' + payObj.invoiceUrl;
+    } else if (!payObj.invoiceUrl.startsWith('/uploads')) {
+      relativePath = `/uploads/properties/${payObj.invoiceUrl}`;
+    }
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    payObj.invoiceUrl = `${protocol}://${host}${relativePath}`;
+  }
+  return payObj;
+};
+
 // Tenant-scoped: get the logged-in user's own payment history
 export const getMyPayments = asyncHandler(async (req, res) => {
   // JWT has userId + role only — look up email via User model
@@ -21,7 +43,8 @@ export const getMyPayments = asyncHandler(async (req, res) => {
     .populate('lease', 'leaseNumber rentAmount')
     .populate('property', 'name address');
 
-  res.status(200).json({ success: true, data: payments });
+  const resolvedPayments = payments.map(p => resolveInvoiceUrl(p, req));
+  res.status(200).json({ success: true, data: resolvedPayments });
 });
 
 
@@ -44,9 +67,10 @@ export const getAllPayments = asyncHandler(async (req, res) => {
 
   const total = await Payment.countDocuments(filter);
 
+  const resolvedPayments = payments.map(p => resolveInvoiceUrl(p, req));
   res.status(200).json({
     success: true,
-    data: payments,
+    data: resolvedPayments,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -68,7 +92,7 @@ export const getPaymentById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: payment,
+    data: resolveInvoiceUrl(payment, req),
   });
 });
 
@@ -98,7 +122,7 @@ export const createPayment = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Payment created successfully',
-    data: payment,
+    data: resolveInvoiceUrl(payment, req),
   });
 });
 
@@ -142,7 +166,7 @@ export const recordPayment = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Payment recorded successfully',
-    data: payment,
+    data: resolveInvoiceUrl(payment, req),
   });
 });
 
@@ -173,7 +197,7 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Payment status updated successfully',
-    data: payment,
+    data: resolveInvoiceUrl(payment, req),
   });
 });
 
