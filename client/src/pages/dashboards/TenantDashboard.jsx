@@ -155,6 +155,67 @@ export default function TenantDashboard({ user, navigate }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // My Messages calendar states and helper functions
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(null);
+
+    const getDaysInMonth = (date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        return new Date(year, month + 1, 0).getDate();
+    };
+
+    const getFirstDayOfMonth = (date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        return new Date(year, month, 1).getDay();
+    };
+
+    const handlePrevMonth = () => {
+        setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    };
+
+    const handleNextMonth = () => {
+        setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    };
+
+    const getLocalDateString = (dateObj) => {
+        if (!dateObj) return '';
+        const d = new Date(dateObj);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const recordDates = new Set(
+        notifications.map(n => getLocalDateString(n.createdAt))
+    );
+
+    const formatTimeAgo = (dateStr) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) {
+            if (date.getDate() === now.getDate()) {
+                return `${diffHours}h ago`;
+            }
+            return 'Yesterday';
+        }
+        if (diffHours < 48 && date.getDate() === new Date(now - 86400000).getDate()) return 'Yesterday';
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+
+    const displayedNotifications = selectedDate 
+        ? notifications.filter(n => getLocalDateString(n.createdAt) === selectedDate)
+        : notifications;
+
     const scrollRef = useRef(null);
 
     const scrollActiveLeases = (direction) => {
@@ -174,7 +235,7 @@ export default function TenantDashboard({ user, navigate }) {
                     leaseService.getMyLease(),
                     paymentService.getMyPayments(),
                     maintenanceService.getAllRequests({ limit: 5 }),
-                    notificationService.getMyNotifications({ limit: 10 }),
+                    notificationService.getMyNotifications({ limit: 100 }),
                     notificationService.getUnreadCount(),
                     bookingService.getMyBookings(),
                 ]);
@@ -945,43 +1006,239 @@ export default function TenantDashboard({ user, navigate }) {
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                    className="rounded-2xl border border-border bg-card p-5">
-                    <div className="flex items-center justify-between mb-4">
+                    className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
                         <p className="text-sm font-black text-foreground flex items-center gap-2">
-                            {t('dashboard.notifications')}
+                            My Messages
                             {unread > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">{unread}</span>
                             )}
                         </p>
+                        <button
+                            onClick={() => setShowCalendar(!showCalendar)}
+                            className={cn(
+                                "p-1.5 rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-bold border",
+                                showCalendar 
+                                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" 
+                                    : "bg-muted/40 border-border text-muted-foreground/80 hover:text-foreground"
+                            )}
+                            title="Filter by Date"
+                        >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Calendar</span>
+                        </button>
                     </div>
-                    {notifications.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground/30 text-sm">
-                            <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                            {t('dashboard.noNotifications')}
+
+                    {/* Inline Calendar Drawer */}
+                    <AnimatePresence>
+                        {showCalendar && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden border border-border/60 bg-muted/20 rounded-xl p-3"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[11px] font-bold text-foreground">
+                                        {calendarMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={handlePrevMonth} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                                            <ChevronLeft className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button onClick={handleNextMonth} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-muted-foreground/50 mb-2">
+                                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d}>{d}</div>)}
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-1">
+                                    {Array.from({ length: getFirstDayOfMonth(calendarMonth) }).map((_, i) => (
+                                        <div key={`empty-${i}`} />
+                                    ))}
+                                    {Array.from({ length: getDaysInMonth(calendarMonth) }).map((_, i) => {
+                                        const day = i + 1;
+                                        const dayDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+                                        const dateStr = getLocalDateString(dayDate);
+                                        const hasRecords = recordDates.has(dateStr);
+                                        const isSelected = selectedDate === dateStr;
+                                        const isToday = getLocalDateString(new Date()) === dateStr;
+
+                                        return (
+                                            <button
+                                                key={day}
+                                                onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                                                className={cn(
+                                                    "relative flex flex-col items-center justify-center h-7 rounded-lg text-[10px] font-medium transition-all",
+                                                    isSelected 
+                                                        ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/25" 
+                                                        : isToday
+                                                            ? "border border-indigo-500/30 text-indigo-400 font-bold bg-indigo-500/5"
+                                                            : "text-foreground/80 hover:bg-muted/70",
+                                                    hasRecords && !isSelected && "font-bold text-foreground"
+                                                )}
+                                            >
+                                                <span>{day}</span>
+                                                {hasRecords && (
+                                                    <span className={cn(
+                                                        "absolute bottom-0.5 w-1 h-1 rounded-full",
+                                                        isSelected ? "bg-white" : "bg-indigo-500"
+                                                    )} />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {selectedDate && (
+                                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/40 text-[9px]">
+                                        <span className="text-muted-foreground">
+                                            Filtered: <strong className="text-foreground">{new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                                        </span>
+                                        <button 
+                                            onClick={() => setSelectedDate(null)}
+                                            className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline"
+                                        >
+                                            Show All
+                                        </button>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Stacked Messages Cards List */}
+                    {displayedNotifications.length === 0 ? (
+                        <div className="text-center py-10 text-muted-foreground/30 text-xs">
+                            <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            {selectedDate ? "No records found for this date." : "No messages or events yet."}
                         </div>
                     ) : (
-                        <div className="space-y-2.5">
-                            {notifications.slice(0, 4).map((n) => (
-                                <div key={n._id} className={cn('flex items-center justify-between gap-3 p-2.5 rounded-xl transition-all duration-200 relative group/item', n.read ? 'opacity-50' : 'bg-muted/50')}>
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                                        <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', n.read ? 'bg-muted-foreground/20' : 'bg-blue-500')} />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-foreground/80 truncate">{n.title}</p>
-                                            <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{n.message}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteNotif(n._id);
+                        <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                            {displayedNotifications.slice(0, 15).map((n) => {
+                                // Dynamic Event Icon mapping
+                                let IconComp = Bell;
+                                let iconColorClass = 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+                                
+                                if (n.type === 'message' || n.relatedModel === 'Message') {
+                                    IconComp = MessageSquare;
+                                    iconColorClass = 'text-sky-500 bg-sky-500/10 border-sky-500/20';
+                                } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment') {
+                                    IconComp = CreditCard;
+                                    if (n.type === 'payment_overdue') {
+                                        iconColorClass = 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+                                    } else if (n.type === 'payment_received') {
+                                        iconColorClass = 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+                                    } else {
+                                        iconColorClass = 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+                                    }
+                                } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
+                                    IconComp = Wrench;
+                                    iconColorClass = 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+                                } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease') {
+                                    IconComp = FileSignature;
+                                    iconColorClass = 'text-purple-500 bg-purple-500/10 border-purple-500/20';
+                                } else if (n.type === 'booking') {
+                                    IconComp = Building2;
+                                    iconColorClass = 'text-teal-500 bg-teal-500/10 border-teal-500/20';
+                                } else if (n.type === 'success') {
+                                    IconComp = CheckCircle2;
+                                    iconColorClass = 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+                                } else if (n.type === 'alert') {
+                                    IconComp = AlertTriangle;
+                                    iconColorClass = 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+                                }
+
+                                // Priority determination
+                                let priorityBadge = null;
+                                const lowerTitle = (n.title || '').toLowerCase();
+                                const lowerMsg = (n.message || '').toLowerCase();
+                                const isHighPriority = n.type === 'payment_overdue' || n.type === 'alert' || lowerTitle.includes('urgent') || lowerTitle.includes('overdue') || lowerTitle.includes('rejected') || lowerMsg.includes('urgent');
+                                const isMediumPriority = n.type === 'payment_due' || n.type === 'maintenance_update' || lowerTitle.includes('pending') || lowerTitle.includes('action');
+                                
+                                if (isHighPriority) {
+                                    priorityBadge = <span className="px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[8px] font-black uppercase">High</span>;
+                                } else if (isMediumPriority) {
+                                    priorityBadge = <span className="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] font-black uppercase">Medium</span>;
+                                }
+
+                                return (
+                                    <div 
+                                        key={n._id} 
+                                        onClick={async () => {
+                                            // Dynamic Redirect
+                                            let redirectPath = '/dashboard';
+                                            if (n.type === 'message' || n.relatedModel === 'Message') {
+                                                redirectPath = '/messages';
+                                            } else if (n.type === 'booking') {
+                                                redirectPath = n.relatedId ? `/bookings/${n.relatedId}` : '/browse';
+                                            } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease') {
+                                                redirectPath = '/my-lease';
+                                            } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment') {
+                                                redirectPath = n.type.includes('due') || n.type.includes('overdue') ? '/payments' : '/bills';
+                                            } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
+                                                redirectPath = '/maintenance';
+                                            } else if (n.type === 'property_created' || n.relatedModel === 'Property') {
+                                                redirectPath = n.relatedId ? `/properties/${n.relatedId}` : '/browse';
+                                            }
+                                            
+                                            // Mark as read in background
+                                            if (!n.read) {
+                                                try {
+                                                    await notificationService.markRead(n._id);
+                                                    setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, read: true } : item));
+                                                    setUnread(c => Math.max(0, c - 1));
+                                                } catch (err) {
+                                                    console.error('Failed to mark read', err);
+                                                }
+                                            }
+
+                                            navigate(redirectPath);
                                         }}
-                                        className="p-1 rounded-lg text-muted-foreground/30 hover:text-rose-500 hover:bg-rose-500/10 transition-all flex-shrink-0"
-                                        title="Dismiss notification"
+                                        className={cn(
+                                            'flex items-start justify-between gap-3 p-3 rounded-xl border border-border transition-all duration-200 cursor-pointer hover:bg-muted/45 relative group/item', 
+                                            n.read ? 'bg-card/50 opacity-75' : 'bg-muted/70 shadow-sm border-indigo-500/15'
+                                        )}
                                     >
-                                        <X className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            ))}
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                            {/* Left Icon with color indicator */}
+                                            <div className={cn('p-1.5 rounded-lg border flex-shrink-0 mt-0.5', iconColorClass.split(' ').slice(1).join(' '))}>
+                                                <IconComp className={cn('w-4 h-4', iconColorClass.split(' ')[0])} />
+                                            </div>
+                                            
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <p className="text-xs font-black text-foreground/90 truncate">{n.title}</p>
+                                                    {priorityBadge}
+                                                    {!n.read && (
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{n.message}</p>
+                                                <p className="text-[9px] text-muted-foreground/50 mt-1 flex items-center gap-1 font-bold">
+                                                    <span>•</span>
+                                                    <span>{formatTimeAgo(n.createdAt)}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                await handleDeleteNotif(n._id);
+                                            }}
+                                            className="p-1 rounded-lg text-muted-foreground/30 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover/item:opacity-100 transition-all flex-shrink-0"
+                                            title="Dismiss notification"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </motion.div>
