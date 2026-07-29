@@ -34,41 +34,32 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const [errorMsg, setErrorMsg] = useState('');
     const [signatureData, setSignatureData] = useState(null);
     const sigPad = useRef(null);
-    const securityDeposit = property.rentAmount * 2;
-    const serviceFee = Math.round(property.rentAmount * 0.05);
-    const totalPayable = property.rentAmount + securityDeposit + serviceFee;
+    const securityDeposit = property.depositAmount || (property.rentAmount * 2);
+    const totalPayable = securityDeposit;
 
     const handlePayNow = async (sigImage) => {
         setStep('paying');
         console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', bookingId);
-        alert(`Diag: 1. Starting payment checkout flow for booking ${bookingId}`);
         try {
             // 1) Create Razorpay order on backend for specific approved booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
-            alert('Diag: 2. Calling backend create-order API...');
             const res = await bookingService.createRazorpayOrder({ bookingId, signature: sigImage || signatureData });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
             console.log('[RazorpayPayment] Parsed order details:', { razorpayOrderId, amount, keyId, bid });
-            alert(`Diag: 3. Backend responded successfully.\nOrder ID: ${razorpayOrderId}\nKey ID: ${keyId}\nAmount: ${amount}`);
 
             console.log('[RazorpayPayment] Instantiating Razorpay checkout...');
-            alert(`Diag: 4. Dynamically checking/loading SDK presence...`);
             const loaded = await loadRazorpayScript();
-            alert(`Diag: 4b. Script load result: ${loaded}. window.Razorpay type: ${typeof window.Razorpay}`);
             if (!loaded || !window.Razorpay) {
                 console.error('[RazorpayPayment] window.Razorpay SDK not loaded!');
-                alert('Diag ERROR: window.Razorpay is undefined/not loaded.');
                 setErrorMsg('Razorpay SDK failed to load. Please try again.');
                 setStep('error');
                 return;
             }
 
             const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-            const frontendUrl = window.location.origin;
 
-            alert(`Diag: 5. Instantiating Razorpay options. Callback destination: ${API_BASE_URL}`);
             const rzp = new window.Razorpay({
                 key: keyId,
                 amount,
@@ -94,7 +85,6 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                     } catch (err) {
                         console.error('[RazorpayPayment] Real verification error:', err);
                         const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-                        alert(`Payment Verification Failed: ${errMsg}`);
                         setErrorMsg(errMsg || 'Payment verification failed. Please contact support.');
                         setStep('error');
                     }
@@ -107,12 +97,10 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 },
             });
             console.log('[RazorpayPayment] Opening Razorpay checkout...');
-            alert('Diag: 6. Calling rzp.open() now...');
             rzp.open();
         } catch (err) {
             console.error('[RazorpayPayment] handlePayNow parent catch error:', err);
             const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-            alert(`Diag Parent Catch Error: ${errMsg}`);
             setErrorMsg(errMsg || 'Failed to create payment order. Please try again.');
             setStep('error');
         }
@@ -155,9 +143,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                 <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)' }}>
                                     <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Payment Breakdown</p>
                                     {[
-                                        { label: 'Month 1 Rent', amount: property.rentAmount },
-                                        { label: 'Security Deposit (2 months)', amount: securityDeposit },
-                                        { label: 'Platform Service Fee (5%)', amount: serviceFee },
+                                        { label: 'Security Deposit', amount: securityDeposit },
                                     ].map(row => (
                                         <div key={row.label} className="flex items-center justify-between text-sm">
                                             <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>

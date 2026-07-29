@@ -25,31 +25,16 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     if (booking.status !== 'approved') throw new AppError('Booking is not approved', 400);
 
     const property = booking.property;
-    const totalAmount = booking.agreedRent || property.rentAmount;
     
-    // Strict match to frontend presentation matrix
-    const securityDeposit = property.rentAmount * 2;
-    const serviceFee = Math.round(property.rentAmount * 0.05); // 5% platform fee
-    const managerCommission = Math.round(property.rentAmount * 0.10); // 10% manager cut
-    const ownerPayout = Math.round(property.rentAmount - managerCommission); // 90% to owner
-
-    const grandTotal = totalAmount + securityDeposit + serviceFee;
+    // Use the exact security deposit amount selected for the booking or property
+    const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2);
 
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
     logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
 
-    let amountInPaise = grandTotal * 100;
-    const isTestMode = keyId.startsWith('rzp_test_');
-
-    // Razorpay sandbox test mode strictly rejects any transaction amounts over ₹1,00,000 (10,000,000 paise).
-    // If we are in test mode and the amount exceeds ₹1,00,000, we cap the Razorpay order amount to ₹1,000 (100,000 paise)
-    // to allow testing the real payment modal safely without API rejections.
-    if (isTestMode && amountInPaise > 10000000) {
-        logger.warn(`Test mode transaction amount ${amountInPaise} paise exceeds ₹1,00,000. Capping Razorpay order to 100,000 paise (₹1,000).`);
-        amountInPaise = 100000;
-    }
+    const amountInPaise = securityDeposit * 100;
 
     let razorpayOrderId;
     try {
@@ -72,11 +57,10 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     }
 
     booking.razorpayOrderId = razorpayOrderId;
-    booking.platformFee = serviceFee;
-    booking.managerEarnings = managerCommission;
-    // Owner payout consists of their slice of rent PLUS the full 2x security deposit
-    booking.ownerEarnings = ownerPayout + securityDeposit;
-    booking.totalAmount = grandTotal; // Lock in the final total
+    booking.platformFee = 0;
+    booking.managerEarnings = 0;
+    booking.ownerEarnings = securityDeposit;
+    booking.totalAmount = securityDeposit; // Lock in the final total as exactly the security deposit amount
     await booking.save();
 
     // Save signature to the pending lease if provided
