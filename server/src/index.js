@@ -10,7 +10,6 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import path from 'path';
 import { createServer } from 'http';
 import connectDB from './config/database.js';
 import config from './config/config.js';
