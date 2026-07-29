@@ -22,17 +22,18 @@ export default function BookingStatusPage() {
     const [cancelFeedback, setCancelFeedback] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
 
+    const fetchBooking = async () => {
+        try {
+            const res = await bookingService.getBookingById(id);
+            setBooking(res.data?.data || res.data || res);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchBooking = async () => {
-            try {
-                const res = await bookingService.getBookingById(id);
-                setBooking(res.data);
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchBooking();
     }, [id]);
 
@@ -262,7 +263,7 @@ export default function BookingStatusPage() {
                     onClose={() => setShowRazorpay(false)}
                     onSuccess={() => {
                         setShowRazorpay(false);
-                        window.location.reload();
+                        fetchBooking();
                     }}
                 />
             )}
