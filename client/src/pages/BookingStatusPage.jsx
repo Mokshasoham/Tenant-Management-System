@@ -90,7 +90,8 @@ export default function BookingStatusPage() {
         }
     };
 
-    const config = statusConfig[booking.status] || statusConfig.pending;
+    const displayStatus = (booking.status === 'active' || booking.status === 'completed') ? 'approved' : booking.status;
+    const config = statusConfig[displayStatus] || statusConfig.pending;
     const Icon = config.icon;
 
     const handleDownloadReceipt = () => {
