@@ -35,33 +35,23 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     const grandTotal = totalAmount + securityDeposit + serviceFee;
 
-    let razorpayOrderId;
-    let fallbackTestMode = false;
+    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ';
+
+    logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
+
+    const rzp = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret
+    });
+
+    const rzpOrder = await rzp.orders.create({
+        amount: grandTotal * 100, 
+        currency: 'INR',
+        receipt: `receipt_booking_${booking._id}`
+    });
     
-    const testKeysActive = process.env.RAZORPAY_KEY_ID && 
-                           process.env.RAZORPAY_KEY_SECRET && 
-                           process.env.RAZORPAY_KEY_ID !== 'rzp_test_placeholder_key';
-
-    // To natively spawn the Razorpay Test Popup widget (for test Cards/UPI), we must authenticate an order.
-    if (testKeysActive) {
-        const rzp = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET
-        });
-
-        const rzpOrder = await rzp.orders.create({
-            amount: grandTotal * 100, 
-            currency: 'INR',
-            receipt: `receipt_booking_${booking._id}`
-        });
-        
-        razorpayOrderId = rzpOrder.id;
-    } else {
-        // Fallback for isolated local testing without Keys
-        razorpayOrderId = `order_test_${Date.now()}`;
-        fallbackTestMode = true;
-        logger.warn('RAZORPAY_KEY_ID is missing. Defaulting to mock escrow bypass mechanism.');
-    }
+    const razorpayOrderId = rzpOrder.id;
 
     booking.razorpayOrderId = razorpayOrderId;
     booking.platformFee = serviceFee;
@@ -103,7 +93,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
             razorpayOrderId,
             amount: grandTotal * 100, // paise
             currency: 'INR',
-            keyId: fallbackTestMode ? 'rzp_test_placeholder' : process.env.RAZORPAY_KEY_ID,
+            keyId: keyId,
         },
     });
 });
@@ -122,9 +112,11 @@ const verifyAndProcessPaymentInternal = async ({
 
     // Verify signature
     const body = razorpayOrderId + '|' + razorpayPaymentId;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'test_secret';
+    const resolvedKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1';
+    const resolvedKeySecret = process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ';
+    
     const expectedSig = crypto
-        .createHmac('sha256', keySecret)
+        .createHmac('sha256', resolvedKeySecret)
         .update(body)
         .digest('hex');
 
@@ -138,16 +130,16 @@ const verifyAndProcessPaymentInternal = async ({
                      (razorpayOrderId && razorpayOrderId.startsWith('order_test_')) ||
                      razorpaySignature === 'mock_signature_data';
 
-    logger.info(`Signature verification: isValid=${isValid}, expectedSig=${expectedSig}, receivedSig=${razorpaySignature}, testModeActive=${testMode}, keySecretPrefix=${keySecret.slice(0, 4)}...`);
+    logger.info(`Signature verification: isValid=${isValid}, expectedSig=${expectedSig}, receivedSig=${razorpaySignature}, testModeActive=${testMode}`);
 
     let isPaymentValid = isValid;
 
     // Direct fetch fallback for test modes or key mismatches
-    if (!isPaymentValid && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_KEY_ID !== 'rzp_test_placeholder') {
+    if (!isPaymentValid) {
         try {
             const rzpInstance = new Razorpay({
-                key_id: process.env.RAZORPAY_KEY_ID,
-                key_secret: process.env.RAZORPAY_KEY_SECRET
+                key_id: resolvedKeyId,
+                key_secret: resolvedKeySecret
             });
             const paymentDetails = await rzpInstance.payments.fetch(razorpayPaymentId);
             if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
