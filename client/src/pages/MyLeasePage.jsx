@@ -901,7 +901,7 @@ export default function MyLeasePage() {
                     </motion.div>
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
-                    {currentLease.status === 'pending' && (
+                    {currentLease.status === 'pending' && !currentLease.signature && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                             className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-xl space-y-6">
                             
@@ -1139,7 +1139,7 @@ export default function MyLeasePage() {
                     )}
 
                     {/* ── Digital Signature Stamp Section ── */}
-                    {currentLease.status === 'active' && currentLease.signature && (
+                    {((currentLease.status === 'active') || (currentLease.status === 'pending' && currentLease.signature)) && currentLease.signature && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                             className="rounded-3xl border border-emerald-500/20 bg-card p-6 md:p-8 shadow-lg relative overflow-hidden">
                             {/* Watermark background icon */}

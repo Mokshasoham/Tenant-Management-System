@@ -5,7 +5,7 @@ import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
     Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown,
-    ChevronLeft, ChevronRight, X
+    ChevronLeft, ChevronRight, X, FileSignature
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
@@ -449,16 +449,30 @@ export default function TenantDashboard({ user, navigate }) {
                                         </div>
 
                                         <div className="flex gap-2.5 mt-5 pt-3 border-t border-border/60">
-                                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
-                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:opacity-90 transition-all">
-                                                <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
-                                            </motion.button>
-                                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
-                                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
-                                                <Wrench className="w-3.5 h-3.5" /> {t('dashboard.reportIssue')}
-                                            </motion.button>
+                                            {activeLease.status === 'pending' && !activeLease.signature ? (
+                                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                    onClick={() => navigate('/my-lease')}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs shadow-md hover:opacity-90 transition-all uppercase tracking-wider">
+                                                    <FileSignature className="w-3.5 h-3.5" /> Sign Lease
+                                                </motion.button>
+                                            ) : (
+                                                <>
+                                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                        onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
+                                                        disabled={activeLease.status === 'pending'}
+                                                        className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-90 transition-all", activeLease.status === 'pending' ? "bg-muted text-muted-foreground/45 cursor-not-allowed shadow-none" : "bg-gradient-to-r from-emerald-600 to-teal-600")}
+                                                    >
+                                                        <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
+                                                    </motion.button>
+                                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                                                        onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
+                                                        disabled={activeLease.status === 'pending'}
+                                                        className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all", activeLease.status === 'pending' ? "opacity-40 cursor-not-allowed hover:bg-transparent" : "")}
+                                                    >
+                                                        <Wrench className="w-3.5 h-3.5" /> {t('dashboard.reportIssue')}
+                                                    </motion.button>
+                                                </>
+                                            )}
                                             {activeLease.property?.manager && (
                                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                                     onClick={() => navigate('/messages', { state: { recipientId: activeLease.property.manager._id, recipientName: `${activeLease.property.manager.firstName} ${activeLease.property.manager.lastName}` } })}
