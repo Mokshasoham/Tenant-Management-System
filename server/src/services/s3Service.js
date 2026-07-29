@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { AppError } from '../utils/errorHandling.js';
 import fs from 'fs';
 import path from 'path';
+import FileStorage from '../models/FileStorage.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +30,17 @@ export const uploadBufferToStorage = async (buffer, filename, mimeType) => {
     
     const localPath = path.join(localDir, filename);
     await fs.promises.writeFile(localPath, buffer);
+    
+    // Save to Mongoose FileStorage as persistent database backup fallback
+    try {
+      await FileStorage.findOneAndUpdate(
+        { filename },
+        { filename, mimeType, data: buffer },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error('[FileStorage Fallback] Failed to persist file in MongoDB:', err.message);
+    }
     
     const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     return {
