@@ -403,7 +403,12 @@ export default function TenantDashboard({ user, navigate }) {
                                                         </span>
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
-                                                    <h2 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">{activeLease?.property?.name || 'Not Assigned'}</h2>
+                                                    <h2 
+                                                        onClick={() => navigate('/my-lease', { state: { leaseId: activeLease._id } })}
+                                                        className="text-xl font-black text-foreground hover:text-emerald-500 cursor-pointer transition-colors"
+                                                    >
+                                                        {activeLease?.property?.name || 'Not Assigned'}
+                                                    </h2>
                                                     <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                                                         {activeLease?.property?.address || 'Property details will appear once assigned'}

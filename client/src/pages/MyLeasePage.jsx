@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { leaseService, paymentService } from '../services/api';
 import {
     Home, Calendar, CreditCard, FileText, CheckCircle2, Clock,
@@ -62,6 +62,7 @@ function LeaseProgressBar({ startDate, endDate }) {
 
 export default function MyLeasePage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
@@ -123,12 +124,13 @@ export default function MyLeasePage() {
                 setLease(resVal.data || null);
                 setActiveLeases(activeLeasesData);
                 setPastLeases(resVal.pastLeases || []);
-                // Fetch checklist for pending unsigned lease
-                const pendingUnsigned = activeLeasesData.find(l => l.status === 'pending' && !l.signature);
-                if (pendingUnsigned) {
-                    fetchChecklist(pendingUnsigned._id);
-                } else {
-                    setChecklist(null);
+
+                const targetLeaseId = location.state?.leaseId;
+                if (targetLeaseId) {
+                    const idx = activeLeasesData.findIndex(l => l._id === targetLeaseId);
+                    if (idx !== -1) {
+                        setSelectedLeaseIndex(idx);
+                    }
                 }
             }
             if (payRes.status === 'fulfilled') {
@@ -138,6 +140,16 @@ export default function MyLeasePage() {
         } catch (e) { console.error('Error fetching lease data:', e); }
         setLoading(false);
     };
+
+    // Fetch checklist dynamically for the currently selected lease
+    useEffect(() => {
+        const currentLease = activeLeases[selectedLeaseIndex];
+        if (currentLease && currentLease.status === 'pending' && !currentLease.signature) {
+            fetchChecklist(currentLease._id);
+        } else {
+            setChecklist(null);
+        }
+    }, [selectedLeaseIndex, activeLeases]);
 
     const fetchChecklist = async (leaseId) => {
         if (!leaseId) return;
