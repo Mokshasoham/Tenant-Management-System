@@ -268,7 +268,7 @@ const verifyAndProcessPaymentInternal = async ({
         recipient: booking.manager,
         sender: booking.user,
         title: 'Escrow Secured — Lease Active',
-        message: `Payment received in escrow for booking ${booking._id.slice(-8)}. Lease is now active.`,
+        message: `Payment received in escrow for booking ${booking._id.toString().slice(-8)}. Lease is now active.`,
         type: 'success',
         link: `/bookings/${booking._id}`,
     });
