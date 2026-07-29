@@ -8,6 +8,9 @@ import { uploadBufferToStorage } from './s3Service.js';
 export const generateAndUploadLeasePDF = async (lease, tenant, property, base64Signature) => {
     return new Promise((resolve, reject) => {
         try {
+            const safeTenant = tenant || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+            const safeProperty = property || { name: 'Assigned Residence', address: 'Property Address', city: 'City', zipCode: '000000' };
+
             const doc = new PDFDocument({ margin: 50 });
             const buffers = [];
 
@@ -33,13 +36,13 @@ export const generateAndUploadLeasePDF = async (lease, tenant, property, base64S
             doc.moveDown(2);
 
             doc.fontSize(14).font('Helvetica-Bold').text('1. THE PARTIES', { underline: true });
-            doc.fontSize(12).font('Helvetica').text(`Landlord/Manager: ${property.manager?.firstName || 'TMS'} ${property.manager?.lastName || 'Management'}`);
-            doc.text(`Tenant: ${tenant.firstName} ${tenant.lastName}`);
+            doc.fontSize(12).font('Helvetica').text(`Landlord/Manager: ${safeProperty.manager?.firstName || 'TMS'} ${safeProperty.manager?.lastName || 'Management'}`);
+            doc.text(`Tenant: ${safeTenant.firstName} ${safeTenant.lastName}`);
             doc.moveDown();
 
             doc.fontSize(14).font('Helvetica-Bold').text('2. THE PREMISES', { underline: true });
-            doc.fontSize(12).font('Helvetica').text(`Property Name: ${property.name}`);
-            doc.text(`Address: ${property.address}, ${property.city}, ${property.zipCode || ''}`);
+            doc.fontSize(12).font('Helvetica').text(`Property Name: ${safeProperty.name}`);
+            doc.text(`Address: ${safeProperty.address}, ${safeProperty.city}, ${safeProperty.zipCode || ''}`);
             doc.moveDown();
 
             doc.fontSize(14).font('Helvetica-Bold').text('3. LEASE TERMS & FINANCIALS', { underline: true });
@@ -62,7 +65,7 @@ export const generateAndUploadLeasePDF = async (lease, tenant, property, base64S
                 const base64Data = base64Signature.replace(/^data:image\/\w+;base64,/, "");
                 const signatureBuffer = Buffer.from(base64Data, 'base64');
                 
-                doc.fontSize(12).font('Helvetica').text(`Tenant e-Signature Executed By: ${tenant.firstName} ${tenant.lastName}`);
+                doc.fontSize(12).font('Helvetica').text(`Tenant e-Signature Executed By: ${safeTenant.firstName} ${safeTenant.lastName}`);
                 doc.moveDown();
                 // Embed Base64 Image onto coordinate layout
                 doc.image(signatureBuffer, { width: 180 });
@@ -88,6 +91,9 @@ export const generateAndUploadLeasePDF = async (lease, tenant, property, base64S
 export const generateInvoicePDF = async (payment, tenant, property) => {
     return new Promise((resolve, reject) => {
         try {
+            const safeTenant = tenant || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+            const safeProperty = property || { name: 'Assigned Residence', address: 'Property Address' };
+
             const doc = new PDFDocument({ margin: 50 });
             const buffers = [];
 
@@ -110,13 +116,13 @@ export const generateInvoicePDF = async (payment, tenant, property) => {
             doc.moveDown();
 
             doc.fontSize(12).font('Helvetica-Bold').text('Bill To:');
-            doc.font('Helvetica').text(`${tenant.firstName} ${tenant.lastName}`);
-            doc.text(tenant.email);
+            doc.font('Helvetica').text(`${safeTenant.firstName} ${safeTenant.lastName}`);
+            doc.text(safeTenant.email);
             doc.moveDown();
 
             doc.fontSize(12).font('Helvetica-Bold').text('Property:');
-            doc.font('Helvetica').text(property.name);
-            doc.text(property.address);
+            doc.font('Helvetica').text(safeProperty.name);
+            doc.text(safeProperty.address);
             doc.moveDown(2);
 
             // Invoice Details Table-like structure

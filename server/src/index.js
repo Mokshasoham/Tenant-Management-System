@@ -75,6 +75,7 @@ const uploadsPath = path.join(__dirname, '..', 'uploads');
 app.get('/uploads/:category/:filename', async (req, res, next) => {
   const { category, filename } = req.params;
   const filePath = path.join(uploadsPath, category, filename);
+  logger.info(`[Uploads Interceptor] Category: ${category}, Filename: ${filename}`);
 
   if (fs.existsSync(filePath)) {
     return res.sendFile(filePath);
@@ -109,15 +110,14 @@ app.get('/uploads/:category/:filename', async (req, res, next) => {
 
           const payment = await Payment.findById(paymentId);
           if (payment) {
-            const tenant = await Tenant.findById(payment.tenant);
-            const property = await Property.findById(payment.property);
-            if (tenant && property) {
-              logger.info(`On-the-fly regenerating missing invoice PDF: ${filename}`);
-              const { generateInvoicePDF } = await import('./services/pdfService.js');
-              await generateInvoicePDF(payment, tenant, property);
-              if (fs.existsSync(filePath)) {
-                return res.sendFile(filePath);
-              }
+            const tenant = await Tenant.findById(payment.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+            const property = await Property.findById(payment.property) || { name: 'Assigned Residence', address: 'Property Address' };
+            
+            logger.info(`On-the-fly regenerating missing invoice PDF: ${filename}`);
+            const { generateInvoicePDF } = await import('./services/pdfService.js');
+            await generateInvoicePDF(payment, tenant, property);
+            if (fs.existsSync(filePath)) {
+              return res.sendFile(filePath);
             }
           }
         }
@@ -133,15 +133,14 @@ app.get('/uploads/:category/:filename', async (req, res, next) => {
         }
 
         if (lease) {
-          const tenant = await Tenant.findById(lease.tenant);
-          const property = await Property.findById(lease.property);
-          if (tenant && property) {
-            logger.info(`On-the-fly regenerating missing lease PDF: ${filename}`);
-            const { generateAndUploadLeasePDF } = await import('./services/pdfService.js');
-            await generateAndUploadLeasePDF(lease, tenant, property, lease.signature);
-            if (fs.existsSync(filePath)) {
-              return res.sendFile(filePath);
-            }
+          const tenant = await Tenant.findById(lease.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+          const property = await Property.findById(lease.property) || { name: 'Assigned Residence', address: 'Property Address', city: 'City', zipCode: '000000' };
+          
+          logger.info(`On-the-fly regenerating missing lease PDF: ${filename}`);
+          const { generateAndUploadLeasePDF } = await import('./services/pdfService.js');
+          await generateAndUploadLeasePDF(lease, tenant, property, lease.signature);
+          if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
           }
         }
       }
