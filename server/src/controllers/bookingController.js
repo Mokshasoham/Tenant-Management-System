@@ -55,8 +55,9 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         
         razorpayOrderId = rzpOrder.id;
     } catch (rzpErr) {
-        logger.error(`Razorpay API Order Creation Failed: ${rzpErr.message || JSON.stringify(rzpErr)}`);
-        throw new AppError(`Razorpay API Order Creation Failed: ${rzpErr.message || 'Unknown Razorpay error'}`, 400);
+        const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
+        logger.error(`Razorpay API Order Creation Failed: ${errMsg}`);
+        throw new AppError(`Razorpay API Order Creation Failed: ${errMsg}`, 400);
     }
 
     booking.razorpayOrderId = razorpayOrderId;
