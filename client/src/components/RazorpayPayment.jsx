@@ -5,6 +5,21 @@ import { bookingService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
 
+const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+        if (window.Razorpay) {
+            resolve(true);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+};
+
 /**
  * RazorpayPayment — drop-in Razorpay booking + payment flow component
  *
@@ -39,8 +54,10 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
             alert(`Diag: 3. Backend responded successfully.\nOrder ID: ${razorpayOrderId}\nKey ID: ${keyId}\nAmount: ${amount}`);
 
             console.log('[RazorpayPayment] Instantiating Razorpay checkout...');
-            alert(`Diag: 4. Checking SDK presence. window.Razorpay type is: ${typeof window.Razorpay}`);
-            if (!window.Razorpay) {
+            alert(`Diag: 4. Dynamically checking/loading SDK presence...`);
+            const loaded = await loadRazorpayScript();
+            alert(`Diag: 4b. Script load result: ${loaded}. window.Razorpay type: ${typeof window.Razorpay}`);
+            if (!loaded || !window.Razorpay) {
                 console.error('[RazorpayPayment] window.Razorpay SDK not loaded!');
                 alert('Diag ERROR: window.Razorpay is undefined/not loaded.');
                 setErrorMsg('Razorpay SDK failed to load. Please try again.');
