@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { HelmetProvider } from 'react-helmet-async';
 import useAuthStore from './context/authStore';
@@ -37,8 +37,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  if (!isAuthenticated) return <Navigate to="/login" />;
-  return children;
+  return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
 const ManagerRoute = ({ children }) => {
@@ -57,6 +56,28 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+const PaymentRedirectHandler = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const bookingId = searchParams.get('bookingId');
+    const paymentStatus = searchParams.get('paymentStatus');
+
+    if (bookingId && paymentStatus) {
+      console.log(`[PaymentRedirectHandler] Intercepted payment callback redirect: bookingId=${bookingId}, status=${paymentStatus}`);
+      // Remove query parameters from url cleanly
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+
+      // Navigate route internally to prevent 404
+      navigate(`/bookings/${bookingId}`);
+    }
+  }, [searchParams, navigate]);
+
+  return null;
+};
+
 function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const user = useAuthStore((state) => state.user);
@@ -71,6 +92,7 @@ function App() {
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '345345345345-dummy.apps.googleusercontent.com'}>
         <Router>
           <ChatProvider>
+            <PaymentRedirectHandler />
             <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />

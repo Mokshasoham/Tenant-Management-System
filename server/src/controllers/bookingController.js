@@ -18,7 +18,7 @@ const addTimeline = (booking, event, note = '') => {
 };
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
-    const { bookingId } = req.body;
+    const { bookingId, signature } = req.body;
 
     const booking = await Booking.findById(bookingId).populate('property');
     if (!booking) throw new AppError('Booking not found', 404);
@@ -71,6 +71,29 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     booking.totalAmount = grandTotal; // Lock in the final total
     await booking.save();
 
+    // Save signature to the pending lease if provided
+    if (signature) {
+        const user = await User.findById(booking.user);
+        if (user) {
+            const tenant = await Tenant.findOne({ email: user.email });
+            if (tenant) {
+                const lease = await Lease.findOne({
+                    tenant: tenant._id,
+                    property: booking.property._id,
+                    status: 'pending'
+                });
+                if (lease) {
+                    lease.signature = signature;
+                    lease.signatureType = 'draw';
+                    lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
+                    lease.signedAt = new Date();
+                    await lease.save();
+                    logger.info(`Saved signature to lease ${lease._id} during order creation.`);
+                }
+            }
+        }
+    }
+
     logger.info(`Razorpay order generated: ${razorpayOrderId} for existing booking ${booking._id}`);
 
     res.status(201).json({
@@ -85,13 +108,17 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     });
 });
 
-export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
-    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature, signature } = req.body;
-
+const verifyAndProcessPaymentInternal = async ({
+    bookingId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+    signature
+}) => {
     const booking = await Booking.findById(bookingId).populate('property');
     if (!booking) throw new AppError('Booking not found', 404);
 
-    logger.info(`verifyRazorpayPayment received params: bookingId=${bookingId}, orderId=${razorpayOrderId}, paymentId=${razorpayPaymentId}, hasSignature=${!!razorpaySignature}`);
+    logger.info(`Processing payment verification: bookingId=${bookingId}, orderId=${razorpayOrderId}, paymentId=${razorpayPaymentId}, hasSignature=${!!razorpaySignature}`);
 
     // Verify signature
     const body = razorpayOrderId + '|' + razorpayPaymentId;
@@ -187,7 +214,8 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
 
             if (lease) {
                 // Generate and upload lease PDF in the background to prevent blocking
-                generateAndUploadLeasePDF(lease, tenant, booking.property, signature)
+                const signatureToUse = signature || lease.signature;
+                generateAndUploadLeasePDF(lease, tenant, booking.property, signatureToUse)
                     .then(async (uploadResult) => {
                         lease.documents.push({
                             name: 'Signed Lease Agreement',
@@ -195,7 +223,7 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
                             uploadedAt: new Date()
                         });
                         // Store signature details on the lease
-                        lease.signature = signature;
+                        lease.signature = signatureToUse;
                         lease.signatureType = 'draw';
                         lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
                         lease.signedAt = new Date();
@@ -235,7 +263,48 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
         link: `/bookings/${booking._id}`,
     });
 
+    return booking;
+};
+
+export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
+    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature, signature } = req.body;
+    const booking = await verifyAndProcessPaymentInternal({
+        bookingId,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        signature
+    });
     res.status(200).json({ success: true, data: booking });
+});
+
+export const razorpayCallback = asyncHandler(async (req, res) => {
+    const bookingId = req.query.bookingId;
+    const frontendUrl = req.query.frontendUrl || 'http://localhost:3000';
+    
+    // Extract standard Razorpay callback body parameters
+    const {
+        razorpay_order_id: razorpayOrderId,
+        razorpay_payment_id: razorpayPaymentId,
+        razorpay_signature: razorpaySignature
+    } = req.body;
+
+    logger.info(`Razorpay callback received: bookingId=${bookingId}, orderId=${razorpayOrderId}, paymentId=${razorpayPaymentId}, frontendUrl=${frontendUrl}`);
+
+    try {
+        await verifyAndProcessPaymentInternal({
+            bookingId,
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature
+        });
+        // Redirect browser to success state on frontend
+        return res.redirect(`${frontendUrl}/bookings/${bookingId}?status=success`);
+    } catch (err) {
+        logger.error(`Razorpay callback verification failed: ${err.message}`);
+        // Redirect browser to failure state on frontend
+        return res.redirect(`${frontendUrl}/bookings/${bookingId}?status=failed&error=${encodeURIComponent(err.message)}`);
+    }
 });
 
 // PUT /api/bookings/:id/approve

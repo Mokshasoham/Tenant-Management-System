@@ -40,7 +40,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
         try {
             // 1) Create Razorpay order on backend for specific approved booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
-            const res = await bookingService.createRazorpayOrder({ bookingId });
+            const res = await bookingService.createRazorpayOrder({ bookingId, signature: sigImage || signatureData });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
@@ -54,6 +54,9 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 return;
             }
 
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+            const frontendUrl = window.location.origin;
+
             const rzp = new window.Razorpay({
                 key: keyId,
                 amount,
@@ -62,6 +65,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 name: 'TMS Platform',
                 description: `Booking for ${property.name}`,
                 theme: { color: '#6366f1' },
+                callback_url: `${API_BASE_URL}/bookings/razorpay/callback?bookingId=${bid}&frontendUrl=${encodeURIComponent(frontendUrl)}`,
                 handler: async (response) => {
                     console.log('[RazorpayPayment] Razorpay handler success callback:', response);
                     // 3) Verify payment on backend

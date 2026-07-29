@@ -7,6 +7,7 @@ import {
     getBookingById,
     createRazorpayOrder,
     verifyRazorpayPayment,
+    razorpayCallback,
     approveBooking,
     rejectBooking,
     cancelBooking,
@@ -15,6 +16,9 @@ import {
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Public callback endpoint for Razorpay redirect responses
+router.post('/razorpay/callback', razorpayCallback);
 
 router.use(authenticate);
 
