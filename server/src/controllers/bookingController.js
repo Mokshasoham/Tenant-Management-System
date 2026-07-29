@@ -35,23 +35,29 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     const grandTotal = totalAmount + securityDeposit + serviceFee;
 
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ';
+    const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
     logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
 
-    const rzp = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret
-    });
+    let razorpayOrderId;
+    try {
+        const rzp = new Razorpay({
+            key_id: keyId,
+            key_secret: keySecret
+        });
 
-    const rzpOrder = await rzp.orders.create({
-        amount: grandTotal * 100, 
-        currency: 'INR',
-        receipt: `receipt_booking_${booking._id}`
-    });
-    
-    const razorpayOrderId = rzpOrder.id;
+        const rzpOrder = await rzp.orders.create({
+            amount: grandTotal * 100, 
+            currency: 'INR',
+            receipt: `receipt_booking_${booking._id}`
+        });
+        
+        razorpayOrderId = rzpOrder.id;
+    } catch (rzpErr) {
+        logger.error(`Razorpay API Order Creation Failed: ${rzpErr.message || JSON.stringify(rzpErr)}`);
+        throw new AppError(`Razorpay API Order Creation Failed: ${rzpErr.message || 'Unknown Razorpay error'}`, 400);
+    }
 
     booking.razorpayOrderId = razorpayOrderId;
     booking.platformFee = serviceFee;
