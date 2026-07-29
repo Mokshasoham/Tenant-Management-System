@@ -48,9 +48,27 @@ export const uploadChat = multer({
   }),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain'];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new AppError('File type not supported for chat', 400), false);
+    const mimePrefixes = ['image/', 'video/', 'audio/', 'text/'];
+    const mimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/zip',
+      'application/x-zip-compressed'
+    ];
+    
+    const isAllowedPrefix = mimePrefixes.some(prefix => file.mimetype.startsWith(prefix));
+    const isAllowedMime = mimeTypes.includes(file.mimetype);
+    
+    if (isAllowedPrefix || isAllowedMime) {
+      cb(null, true);
+    } else {
+      cb(new AppError('File type not supported for chat. Allowed: Images, Videos, Audio, PDFs, Documents, Text, ZIP', 400), false);
+    }
   }
 });
 

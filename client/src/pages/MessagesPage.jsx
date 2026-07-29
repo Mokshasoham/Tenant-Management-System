@@ -5,7 +5,8 @@ import { messageService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     Send, Search, Plus, MessageSquare, ArrowLeft, MoreVertical,
-    Check, CheckCheck, Smile, Paperclip, Phone, Video, X, Image as ImageIcon
+    Check, CheckCheck, Smile, Paperclip, Phone, Video, X, Image as ImageIcon,
+    Download, FileText
 } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { cn } from '../utils/cn';
@@ -60,6 +61,28 @@ export default function MessagesPage() {
     const [showMsgSearch, setShowMsgSearch] = useState(false);
     
     const location = useLocation();
+
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const serverUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+
+    const getFullUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) return url;
+        return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
+    const EMOJIS = [
+        '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+        '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+        '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸',
+        '👍', '👎', '👌', '🤌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+        '👉', '👆', '🖕', '👇', '☝️', '👋', '🤚', '🖐️', '✋', '🖖',
+        '✍️', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💅', '🤳', '❤️',
+        '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '🏠',
+        '🔑', '🚪', '🛋️', '📦', '💰', '📄', '📎', '📅', '💬'
+    ];
 
     const role = user?.role;
     const myTheme = ROLE_COLORS[role] || ROLE_COLORS.tenant;
@@ -143,6 +166,7 @@ export default function MessagesPage() {
             await emitMessage(receiverId, newMessage.trim(), attachments);
             setNewMessage('');
             setAttachments([]);
+            setShowEmojiPicker(false);
             sendTyping(receiverId, false);
         } catch (err) {
             console.error('Send error', err);
@@ -199,7 +223,8 @@ export default function MessagesPage() {
 
     const filteredConversations = (chatConversations || []).filter(c =>
         search === '' ||
-        `${c.user?.firstName} ${c.user?.lastName}`.toLowerCase().includes(search.toLowerCase())
+        `${c.user?.firstName} ${c.user?.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        c.lastMessage?.content?.toLowerCase().includes(search.toLowerCase())
     );
 
     const filteredAvailable = (availableUsers || []).filter(u =>
@@ -453,21 +478,74 @@ export default function MessagesPage() {
                                                 )}>
                                                     {msg.content}
                                                     {msg.attachments?.length > 0 && (
-                                                        <div className="mt-2 space-y-2">
-                                                            {msg.attachments.map((att, idx) => (
-                                                                <div key={idx} className="rounded-lg overflow-hidden border border-white/10">
-                                                                    {att.fileType?.startsWith('image/') ? (
-                                                                        <img src={att.url} alt={att.fileName} className="max-w-full h-auto" />
-                                                                    ) : (
-                                                                        <div className="p-2 flex items-center gap-2 bg-black/20">
-                                                                            <Paperclip className="w-4 h-4" />
-                                                                            <span className="text-[10px] truncate">{att.fileName}</span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                         <div className="mt-2 space-y-2 max-w-sm">
+                                                             {msg.attachments.map((att, idx) => {
+                                                                 const fullUrl = getFullUrl(att.url);
+                                                                 const isImage = att.fileType?.startsWith('image/');
+                                                                 const isVideo = att.fileType?.startsWith('video/');
+                                                                 const isAudio = att.fileType?.startsWith('audio/');
+
+                                                                 return (
+                                                                     <div key={idx} className="rounded-xl overflow-hidden border border-white/10 shadow-sm bg-black/10">
+                                                                         {isImage ? (
+                                                                             <div className="relative group">
+                                                                                 <img 
+                                                                                     src={fullUrl} 
+                                                                                     alt={att.fileName} 
+                                                                                     className="max-w-full h-auto max-h-60 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" 
+                                                                                     onClick={() => window.open(fullUrl, '_blank')} 
+                                                                                 />
+                                                                                 <a 
+                                                                                     href={fullUrl} 
+                                                                                     download={att.fileName} 
+                                                                                     target="_blank" 
+                                                                                     rel="noopener noreferrer"
+                                                                                     className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                                     title="Download image"
+                                                                                 >
+                                                                                     <Download className="w-3.5 h-3.5" />
+                                                                                 </a>
+                                                                             </div>
+                                                                         ) : isVideo ? (
+                                                                             <video 
+                                                                                 src={fullUrl} 
+                                                                                 controls 
+                                                                                 className="max-w-full h-auto max-h-60 rounded-lg" 
+                                                                             />
+                                                                         ) : isAudio ? (
+                                                                             <audio 
+                                                                                 src={fullUrl} 
+                                                                                 controls 
+                                                                                 className="max-w-full p-1" 
+                                                                             />
+                                                                         ) : (
+                                                                             <div className="p-3 flex items-center justify-between gap-3 min-w-[200px]">
+                                                                                 <div className="flex items-center gap-2.5 min-w-0">
+                                                                                     <div className="p-2 rounded-lg bg-white/10 text-white flex-shrink-0">
+                                                                                         <FileText className="w-4 h-4" />
+                                                                                     </div>
+                                                                                     <div className="min-w-0">
+                                                                                         <p className="text-xs font-bold truncate text-white">{att.fileName}</p>
+                                                                                         <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">{(att.fileType || 'file').split('/')[1] || 'document'}</p>
+                                                                                     </div>
+                                                                                 </div>
+                                                                                 <a 
+                                                                                     href={fullUrl} 
+                                                                                     download={att.fileName} 
+                                                                                     target="_blank" 
+                                                                                     rel="noopener noreferrer"
+                                                                                     className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all flex-shrink-0"
+                                                                                     title="Download file"
+                                                                                 >
+                                                                                     <Download className="w-3.5 h-3.5" />
+                                                                                 </a>
+                                                                             </div>
+                                                                         )}
+                                                                     </div>
+                                                                 );
+                                                             })}
+                                                         </div>
+                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-1 px-1">
                                                     <span className="text-[9px] text-muted-foreground/30 font-black">{formatTime(msg.createdAt)}</span>
@@ -499,7 +577,7 @@ export default function MessagesPage() {
                                 {attachments.map((att, idx) => (
                                     <div key={idx} className="relative group flex-shrink-0">
                                         {att.fileType?.startsWith('image/') ? (
-                                            <img src={att.url} alt="preview" className="w-12 h-12 rounded-lg object-cover border border-border" />
+                                            <img src={getFullUrl(att.url)} alt="preview" className="w-12 h-12 rounded-lg object-cover border border-border" />
                                         ) : (
                                             <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center border border-border">
                                                 <Paperclip className="w-5 h-5 opacity-40" />
@@ -525,9 +603,40 @@ export default function MessagesPage() {
                                 'flex items-center gap-3 bg-muted border border-border rounded-2xl px-4 py-3',
                                 'focus-within:ring-2 focus-within:ring-primary/20 transition-all'
                             )}>
-                                <button type="button" className="text-muted-foreground/40 hover:text-primary transition-colors">
-                                    <Smile className="w-5 h-5" />
-                                </button>
+                                <div className="relative">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                        className={cn("text-muted-foreground/40 hover:text-primary transition-colors", showEmojiPicker && "text-primary")}
+                                    >
+                                        <Smile className="w-5 h-5" />
+                                    </button>
+                                    
+                                    {showEmojiPicker && (
+                                        <div className="absolute bottom-12 left-0 z-50 w-72 bg-card border border-border rounded-2xl shadow-2xl p-3 flex flex-col gap-2">
+                                            <div className="flex justify-between items-center pb-2 border-b border-border">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Emojis</span>
+                                                <button type="button" onClick={() => setShowEmojiPicker(false)} className="text-muted-foreground/40 hover:text-foreground">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                                                {EMOJIS.map((emoji, idx) => (
+                                                    <button 
+                                                        key={idx} 
+                                                        type="button" 
+                                                        onClick={() => {
+                                                            setNewMessage(prev => prev + emoji);
+                                                        }}
+                                                        className="text-lg hover:bg-muted p-1 rounded-lg transition-colors text-center"
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <input
                                     type="text"
                                     value={newMessage}

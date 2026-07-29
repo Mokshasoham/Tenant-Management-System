@@ -26,7 +26,9 @@ export const ChatProvider = ({ children }) => {
     // Initialize Socket
     useEffect(() => {
         if (token) {
-            const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+            const socketUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+            const newSocket = io(socketUrl, {
                 auth: { token }
             });
 
