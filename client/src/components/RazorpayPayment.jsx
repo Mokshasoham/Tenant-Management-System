@@ -19,17 +19,6 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const [errorMsg, setErrorMsg] = useState('');
     const [signatureData, setSignatureData] = useState(null);
     const sigPad = useRef(null);
-
-    // Guard: if Razorpay SDK not loaded, inject it
-    useEffect(() => {
-        if (!window.Razorpay) {
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.async = true;
-            document.body.appendChild(script);
-        }
-    }, []);
-
     const securityDeposit = property.rentAmount * 2;
     const serviceFee = Math.round(property.rentAmount * 0.05);
     const totalPayable = property.rentAmount + securityDeposit + serviceFee;
