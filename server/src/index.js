@@ -11,6 +11,8 @@ import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
 import { createServer } from 'http';
+import fs from 'fs';
+import mongoose from 'mongoose';
 import connectDB from './config/database.js';
 import config from './config/config.js';
 import logger from './utils/logger.js';
@@ -67,8 +69,71 @@ app.use(express.urlencoded({ limit: '16mb', extended: true }));
 app.use(requestLogger);
 app.use(securityHeaders);
 
-// Serve static uploads
+// Serve static uploads with automatic on-the-fly regeneration for missing invoices & leases
 const uploadsPath = path.join(__dirname, '..', 'uploads');
+
+app.get('/uploads/properties/:filename', async (req, res, next) => {
+  const { filename } = req.params;
+  const filePath = path.join(uploadsPath, 'properties', filename);
+
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+
+  // File does not exist locally (e.g. ephemeral disk wiped or missing in S3)
+  try {
+    if (filename.startsWith('invoice_') && filename.endsWith('.pdf')) {
+      const paymentId = filename.replace('invoice_', '').replace('.pdf', '');
+      if (mongoose.Types.ObjectId.isValid(paymentId)) {
+        const Payment = mongoose.model('Payment');
+        const Tenant = mongoose.model('Tenant');
+        const Property = mongoose.model('Property');
+
+        const payment = await Payment.findById(paymentId);
+        if (payment) {
+          const tenant = await Tenant.findById(payment.tenant);
+          const property = await Property.findById(payment.property);
+          if (tenant && property) {
+            logger.info(`On-the-fly regenerating missing invoice PDF: ${filename}`);
+            const { generateInvoicePDF } = await import('./services/pdfService.js');
+            await generateInvoicePDF(payment, tenant, property);
+            if (fs.existsSync(filePath)) {
+              return res.sendFile(filePath);
+            }
+          }
+        }
+      }
+    } else if (filename.startsWith('lease_') && filename.endsWith('.pdf')) {
+      const leaseRef = filename.replace('lease_', '').replace('.pdf', '');
+      const Lease = mongoose.model('Lease');
+      const Tenant = mongoose.model('Tenant');
+      const Property = mongoose.model('Property');
+
+      let lease = await Lease.findOne({ leaseNumber: leaseRef });
+      if (!lease && mongoose.Types.ObjectId.isValid(leaseRef)) {
+        lease = await Lease.findById(leaseRef);
+      }
+
+      if (lease) {
+        const tenant = await Tenant.findById(lease.tenant);
+        const property = await Property.findById(lease.property);
+        if (tenant && property) {
+          logger.info(`On-the-fly regenerating missing lease PDF: ${filename}`);
+          const { generateAndUploadLeasePDF } = await import('./services/pdfService.js');
+          await generateAndUploadLeasePDF(lease, tenant, property, lease.signature);
+          if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(`Error regenerating file ${filename} on-the-fly:`, err);
+  }
+
+  next();
+});
+
 app.use('/uploads', express.static(uploadsPath));
 
 // Health check
