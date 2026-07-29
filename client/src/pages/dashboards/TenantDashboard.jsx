@@ -419,13 +419,13 @@ export default function TenantDashboard({ user, navigate }) {
                                             <div className="grid grid-cols-3 gap-3 mt-4">
                                                 {[
                                                     { 
-                                                        label: t('common.status') || 'Status', 
+                                                        label: t('status') || 'Status', 
                                                         value: (activeLease.status === 'pending' && activeLease.signature) ? 'UPCOMING' : (activeLease.status?.toUpperCase() || '—'), 
                                                         hl: true,
                                                         isUpcoming: (activeLease.status === 'pending' && activeLease.signature)
                                                     },
-                                                    { label: t('common.start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                                                    { label: t('common.ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                    { label: t('start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                    { label: t('ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                                 ].map((item) => (
                                                     <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? (item.isUpcoming ? 'bg-indigo-500/15 border border-indigo-500/20' : 'bg-emerald-500/15 border border-emerald-500/20') : 'bg-muted border border-border')}>
                                                         <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
