@@ -735,10 +735,10 @@ export default function MessagesPage() {
                         {/* Message Input Form */}
                         <form
                             onSubmit={handleSend}
-                            className="px-5 py-4 border-t border-border/60 bg-card/25 backdrop-blur-lg"
+                            className="px-5 py-4 border-t border-border/60 bg-card/25 backdrop-blur-lg flex items-center gap-3"
                         >
                             <div className={cn(
-                                'flex items-center gap-3 bg-muted/50 border border-border/80 rounded-2xl px-4.5 py-3 relative',
+                                'flex-1 flex items-center gap-3 bg-muted/50 border border-border/80 rounded-2xl px-4.5 py-3 relative',
                                 'focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-300'
                             )}>
                                 <div className="relative">
@@ -803,21 +803,30 @@ export default function MessagesPage() {
                                     className="hidden"
                                     onChange={handleFileChange}
                                 />
-                                <motion.button
-                                    type="submit"
-                                    disabled={(!newMessage.trim() && attachments.length === 0) || sendingMsg}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className={cn(
-                                        'w-9.5 h-9.5 rounded-xl flex items-center justify-center transition-all shadow-lg',
-                                        (newMessage.trim() || attachments.length > 0)
-                                            ? cn('bg-gradient-to-br text-white', myTheme.bubble)
-                                            : 'bg-muted text-muted-foreground/15 cursor-not-allowed border border-border'
-                                    )}
-                                >
-                                    <Send className="w-4.5 h-4.5" />
-                                </motion.button>
                             </div>
+
+                            {/* Premium Floating Send Button */}
+                            <motion.button
+                                type="submit"
+                                disabled={(!newMessage.trim() && attachments.length === 0) || sendingMsg}
+                                whileHover={{ scale: 1.08, y: -2 }}
+                                whileTap={{ scale: 0.92 }}
+                                className={cn(
+                                    'w-12 h-12 rounded-full flex items-center justify-center transition-all relative overflow-hidden flex-shrink-0 shadow-lg border',
+                                    (newMessage.trim() || attachments.length > 0)
+                                        ? cn('bg-gradient-to-tr text-white shadow-emerald-500/30 border-emerald-500/20', myTheme.bubble)
+                                        : 'bg-muted text-muted-foreground/20 cursor-not-allowed border-border/80 shadow-none'
+                                )}
+                            >
+                                {/* Glowing light layer when user types */}
+                                {(newMessage.trim() || attachments.length > 0) && (
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 rotate-45 pointer-events-none animate-pulse" />
+                                )}
+                                <Send className={cn(
+                                    "w-5 h-5 transition-transform duration-300", 
+                                    (newMessage.trim() || attachments.length > 0) ? "translate-x-0.5 -translate-y-0.5 text-white filter drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]" : "text-muted-foreground/25"
+                                )} />
+                            </motion.button>
                         </form>
                     </>
                 ) : (
