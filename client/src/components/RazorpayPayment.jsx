@@ -18,6 +18,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const [step, setStep] = useState('confirm'); // confirm | signature | paying | success | error
     const [errorMsg, setErrorMsg] = useState('');
     const [signatureData, setSignatureData] = useState(null);
+    const [orderData, setOrderData] = useState(null);
     const sigPad = useRef(null);
 
     // Guard: if Razorpay SDK not loaded, inject it
@@ -48,24 +49,9 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
 
             // 2) Open Razorpay checkout or bypass if mock mode
             if (keyId === 'rzp_test_placeholder' || (razorpayOrderId && razorpayOrderId.startsWith('order_test_'))) {
-                console.log('[RazorpayPayment] Mock testing environment detected. Bypassing Razorpay modal.');
-                try {
-                    const verifyRes = await bookingService.verifyRazorpayPayment({
-                        razorpayOrderId: razorpayOrderId,
-                        razorpayPaymentId: `pay_mock_${Date.now()}`,
-                        razorpaySignature: 'mock_signature_data',
-                        bookingId: bid,
-                        signature: sigImage || signatureData
-                    });
-                    console.log('[RazorpayPayment] Mock verification response:', verifyRes);
-                    setStep('success');
-                    if (onSuccess) onSuccess(bid);
-                } catch (err) {
-                    console.error('[RazorpayPayment] Mock verification error:', err);
-                    const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-                    setErrorMsg(errMsg || 'Mock payment verification failed.');
-                    setStep('error');
-                }
+                console.log('[RazorpayPayment] Mock testing environment detected. Transitioning to mock_checkout.');
+                setOrderData({ razorpayOrderId, amount, keyId, bid, sigImage });
+                setStep('mock_checkout');
                 return;
             }
 
@@ -324,6 +310,73 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                 >
                                     Track Booking →
                                 </motion.button>
+                            </motion.div>
+                        )}
+
+                        {/* ── MOCK CHECKOUT STEP ── */}
+                        {step === 'mock_checkout' && orderData && (
+                            <motion.div key="mock_checkout" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                                className="flex flex-col items-center py-6 gap-6 text-center">
+                                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.15)' }}>
+                                    <Shield className="w-8 h-8 text-indigo-400" />
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="font-black text-xl" style={{ color: 'var(--text-primary)' }}>Razorpay Sandbox Simulator</p>
+                                    <p className="text-xs max-w-xs mx-auto" style={{ color: 'var(--text-secondary)' }}>
+                                        No live Razorpay keys are active on this environment. Select an option to simulate the transaction.
+                                    </p>
+                                </div>
+
+                                <div className="w-full rounded-2xl p-4 space-y-2.5 text-left text-xs" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)' }}>
+                                    <div className="flex justify-between">
+                                        <span style={{ color: 'var(--text-muted)' }}>Order ID:</span>
+                                        <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{orderData.razorpayOrderId}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span style={{ color: 'var(--text-muted)' }}>Amount:</span>
+                                        <span className="font-bold text-indigo-400">₹{(orderData.amount / 100).toLocaleString('en-IN')}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 w-full">
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={async () => {
+                                            setStep('paying');
+                                            try {
+                                                await bookingService.verifyRazorpayPayment({
+                                                    razorpayOrderId: orderData.razorpayOrderId,
+                                                    razorpayPaymentId: `pay_mock_${Date.now()}`,
+                                                    razorpaySignature: 'mock_signature_data',
+                                                    bookingId: orderData.bid,
+                                                    signature: orderData.sigImage || signatureData
+                                                });
+                                                setStep('success');
+                                                if (onSuccess) onSuccess(orderData.bid);
+                                            } catch (err) {
+                                                console.error('[RazorpayPayment] Mock verification error:', err);
+                                                const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
+                                                setErrorMsg(errMsg || 'Mock payment verification failed.');
+                                                setStep('error');
+                                            }
+                                        }}
+                                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white"
+                                        style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 20px rgba(16,185,129,0.3)' }}
+                                    >
+                                        Simulate Success Payment
+                                    </motion.button>
+                                    <button
+                                        onClick={() => {
+                                            setErrorMsg('Payment cancelled by user in simulator.');
+                                            setStep('error');
+                                        }}
+                                        className="w-full py-3 rounded-2xl font-bold text-sm"
+                                        style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                                    >
+                                        Simulate Cancel/Failure
+                                    </button>
+                                </div>
                             </motion.div>
                         )}
 
