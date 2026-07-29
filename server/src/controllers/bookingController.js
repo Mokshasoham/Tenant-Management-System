@@ -177,7 +177,8 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
                     description: `Security deposit and initial payment for ${booking.property.name}`,
                 });
                 
-                await processPostPayment(payment).catch(err => {
+                // Run post-payment automation asynchronously in the background
+                processPostPayment(payment).catch(err => {
                     logger.error(`Post-payment processing failed: ${err.message}`);
                 });
             } catch (payErr) {
@@ -185,23 +186,25 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
             }
 
             if (lease) {
-                try {
-                    const uploadResult = await generateAndUploadLeasePDF(lease, tenant, booking.property, signature);
-                    lease.documents.push({
-                        name: 'Signed Lease Agreement',
-                        url: uploadResult.Location,
-                        uploadedAt: new Date()
+                // Generate and upload lease PDF in the background to prevent blocking
+                generateAndUploadLeasePDF(lease, tenant, booking.property, signature)
+                    .then(async (uploadResult) => {
+                        lease.documents.push({
+                            name: 'Signed Lease Agreement',
+                            url: uploadResult.Location,
+                            uploadedAt: new Date()
+                        });
+                        // Store signature details on the lease
+                        lease.signature = signature;
+                        lease.signatureType = 'draw';
+                        lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
+                        lease.signedAt = new Date();
+                        await lease.save();
+                        logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location}`);
+                    })
+                    .catch(pdfErr => {
+                        logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
                     });
-                    // Store signature details on the lease
-                    lease.signature = signature;
-                    lease.signatureType = 'draw';
-                    lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
-                    lease.signedAt = new Date();
-                    await lease.save();
-                    logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location}`);
-                } catch (pdfErr) {
-                    logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
-                }
 
                 if (isFuture) {
                     addTimeline(booking, 'active', `Lease #${lease.leaseNumber} signed and scheduled to activate on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`);

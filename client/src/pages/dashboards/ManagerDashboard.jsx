@@ -134,7 +134,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     };
 
     const pendingBookings = bookings.filter(b => b.status === 'pending');
-    const approvedBookings = bookings.filter(b => b.status === 'approved' && b.paymentStatus === 'pending');
+    const approvedBookings = bookings.filter(b => b.status === 'approved' && (b.paymentStatus === 'pending' || b.paymentStatus === 'failed'));
     const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'completed' || (b.status === 'approved' && b.paymentStatus === 'paid'));
 
     const maintenanceData = [

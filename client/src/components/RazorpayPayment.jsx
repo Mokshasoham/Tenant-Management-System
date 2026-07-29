@@ -37,23 +37,18 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const handlePayNow = async (sigImage) => {
         setStep('paying');
         console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', bookingId);
-        alert(`Debug: Initiating handlePayNow for bookingId: ${bookingId}`);
         try {
             // 1) Create Razorpay order on backend for specific approved booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
-            alert('Debug: Sending API request to create Razorpay Order...');
             const res = await bookingService.createRazorpayOrder({ bookingId });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
-            alert(`Debug: Backend response received: ${JSON.stringify(res)}`);
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
             console.log('[RazorpayPayment] Parsed order details:', { razorpayOrderId, amount, keyId, bid });
-            alert(`Debug: Parsed order Details: Key=${keyId}, Order=${razorpayOrderId}, Amount=${amount}`);
 
             // 2) Open Razorpay checkout or bypass if mock mode
             if (keyId === 'rzp_test_placeholder' || (razorpayOrderId && razorpayOrderId.startsWith('order_test_'))) {
                 console.log('[RazorpayPayment] Mock testing environment detected. Bypassing Razorpay modal.');
-                alert('Debug: Mock testing detected. Bypassing Razorpay modal...');
                 try {
                     const verifyRes = await bookingService.verifyRazorpayPayment({
                         razorpayOrderId: razorpayOrderId,
@@ -63,13 +58,11 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                         signature: sigImage || signatureData
                     });
                     console.log('[RazorpayPayment] Mock verification response:', verifyRes);
-                    alert(`Debug: Mock verification success: ${JSON.stringify(verifyRes)}`);
                     setStep('success');
                     if (onSuccess) onSuccess(bid);
                 } catch (err) {
                     console.error('[RazorpayPayment] Mock verification error:', err);
                     const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-                    alert(`Debug Error: Mock verification failed: ${errMsg}`);
                     setErrorMsg(errMsg || 'Mock payment verification failed.');
                     setStep('error');
                 }
@@ -77,10 +70,8 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
             }
 
             console.log('[RazorpayPayment] Instantiating Razorpay checkout...');
-            alert('Debug: Instantiating Razorpay checkout...');
             if (!window.Razorpay) {
                 console.error('[RazorpayPayment] window.Razorpay SDK not loaded!');
-                alert('Debug Error: Razorpay SDK not loaded in window! Please check your network/CDN connection.');
                 setErrorMsg('Razorpay SDK failed to load. Please try again.');
                 setStep('error');
                 return;
@@ -96,7 +87,6 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 theme: { color: '#6366f1' },
                 handler: async (response) => {
                     console.log('[RazorpayPayment] Razorpay handler success callback:', response);
-                    alert(`Debug: Razorpay callback received: ${JSON.stringify(response)}`);
                     // 3) Verify payment on backend
                     try {
                         const verifyRes = await bookingService.verifyRazorpayPayment({
@@ -107,13 +97,11 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                             signature: sigImage || signatureData // Pass e-signature to backend PDF engine
                         });
                         console.log('[RazorpayPayment] Real verification response:', verifyRes);
-                        alert(`Debug: Real verification success: ${JSON.stringify(verifyRes)}`);
                         setStep('success');
                         if (onSuccess) onSuccess(bid);
                     } catch (err) {
                         console.error('[RazorpayPayment] Real verification error:', err);
                         const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-                        alert(`Debug Error: Real verification failed: ${errMsg}`);
                         setErrorMsg(errMsg || 'Payment verification failed. Please contact support.');
                         setStep('error');
                     }
@@ -121,18 +109,15 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 modal: {
                     ondismiss: () => {
                         console.log('[RazorpayPayment] Razorpay modal dismissed by user');
-                        alert('Debug: Razorpay modal dismissed.');
                         setStep('confirm');
                     },
                 },
             });
             console.log('[RazorpayPayment] Opening Razorpay checkout...');
-            alert('Debug: Opening Razorpay checkout modal now...');
             rzp.open();
         } catch (err) {
             console.error('[RazorpayPayment] handlePayNow parent catch error:', err);
             const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-            alert(`Debug Error: handlePayNow failed: ${errMsg}`);
             setErrorMsg(errMsg || 'Failed to create payment order. Please try again.');
             setStep('error');
         }

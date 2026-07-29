@@ -61,14 +61,14 @@ export default function BookingStatusPage() {
             desc: 'The property manager is reviewing your request. You will be notified once they respond.'
         },
         approved: {
-            icon: booking?.paymentStatus === 'pending' ? AlertTriangle : CheckCircle2,
-            color: booking?.paymentStatus === 'pending' ? 'text-indigo-500' : 'text-emerald-400',
-            bg: booking?.paymentStatus === 'pending' ? 'bg-indigo-500/10' : 'bg-emerald-400/10',
-            border: booking?.paymentStatus === 'pending' ? 'border-indigo-500/20' : 'border-emerald-400/20',
-            title: booking?.paymentStatus === 'pending' ? 'Approved – Awaiting Deposit Payment' : 'Booking Confirmed!',
-            desc: booking?.paymentStatus === 'pending' ? 'The manager has approved your request! Please complete the security deposit payment to activate the lease.' : 'Congratulations! Your lease is active.',
-            showButton: booking?.paymentStatus !== 'pending',
-            showPayButton: booking?.paymentStatus === 'pending'
+            icon: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? AlertTriangle : CheckCircle2,
+            color: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'text-indigo-500' : 'text-emerald-400',
+            bg: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'bg-indigo-500/10' : 'bg-emerald-400/10',
+            border: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'border-indigo-500/20' : 'border-emerald-400/20',
+            title: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'Approved – Awaiting Deposit Payment' : 'Booking Confirmed!',
+            desc: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'The manager has approved your request! Please complete the security deposit payment to activate the lease.' : 'Congratulations! Your lease is active.',
+            showButton: booking?.paymentStatus !== 'pending' && booking?.paymentStatus !== 'failed',
+            showPayButton: booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed'
         },
         rejected: {
             icon: XCircle,

@@ -34,7 +34,7 @@ const getBookingStatusDisplay = (b) => {
     if (b.status === 'pending') {
         return { label: 'Pending Approval', class: 'bg-amber-500/10 border-amber-500/20 text-amber-500', isPayable: false };
     }
-    if (b.status === 'approved' && b.paymentStatus === 'pending') {
+    if (b.status === 'approved' && (b.paymentStatus === 'pending' || b.paymentStatus === 'failed')) {
         return { label: 'Approved – Awaiting Deposit Payment', class: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500 animate-pulse', isPayable: true };
     }
     if (b.status === 'approved' && b.paymentStatus === 'paid') {
