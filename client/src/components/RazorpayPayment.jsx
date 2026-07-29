@@ -83,6 +83,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                     } catch (err) {
                         console.error('[RazorpayPayment] Real verification error:', err);
                         const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
+                        alert(`Payment Verification Failed: ${errMsg}`);
                         setErrorMsg(errMsg || 'Payment verification failed. Please contact support.');
                         setStep('error');
                     }
