@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Loader2, Shield, CreditCard, AlertTriangle, IndianRupee, PenTool } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Shield, CreditCard, AlertTriangle, IndianRupee } from 'lucide-react';
 import { bookingService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import SignatureCanvas from 'react-signature-canvas';
 
 const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -30,20 +29,18 @@ const loadRazorpayScript = () => {
  */
 export default function RazorpayPayment({ bookingId, property, onClose, onSuccess }) {
     const navigate = useNavigate();
-    const [step, setStep] = useState('confirm'); // confirm | signature | paying | success | error
+    const [step, setStep] = useState('confirm'); // confirm | paying | success | error
     const [errorMsg, setErrorMsg] = useState('');
-    const [signatureData, setSignatureData] = useState(null);
-    const sigPad = useRef(null);
     const securityDeposit = property.depositAmount || (property.rentAmount * 2);
     const totalPayable = securityDeposit;
 
-    const handlePayNow = async (sigImage) => {
+    const handlePayNow = async () => {
         setStep('paying');
         console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', bookingId);
         try {
             // 1) Create Razorpay order on backend for specific approved booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
-            const res = await bookingService.createRazorpayOrder({ bookingId, signature: sigImage || signatureData });
+            const res = await bookingService.createRazorpayOrder({ bookingId });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
 
             const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
@@ -76,8 +73,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                             razorpayOrderId: response.razorpay_order_id,
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
-                            bookingId: bid,
-                            signature: sigImage || signatureData // Pass e-signature to backend PDF engine
+                            bookingId: bid
                         });
                         console.log('[RazorpayPayment] Real verification response:', verifyRes);
                         setStep('success');
@@ -187,73 +183,11 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                     <motion.button
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
-                                        onClick={() => setStep('signature')}
+                                        onClick={() => handlePayNow()}
                                         className="flex-1 py-3.5 rounded-2xl font-black text-sm text-white shadow-lg transition-all"
                                         style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}
                                     >
-                                        Proceed to Sign
-                                    </motion.button>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* ── SIGNATURE STEP ── */}
-                        {step === 'signature' && (
-                            <motion.div key="signature" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                                <div className="text-center space-y-1 mb-2">
-                                    <PenTool className="w-8 h-8 mx-auto text-indigo-400 mb-2" />
-                                    <h3 className="text-lg font-black text-foreground">Digital Signature</h3>
-                                    <p className="text-xs text-muted-foreground">Please draw your signature to execute the formal lease agreement before entering escrow.</p>
-                                </div>
-                                <div className="bg-white rounded-2xl border-2 border-indigo-100 overflow-hidden shadow-inner">
-                                    <SignatureCanvas 
-                                        ref={sigPad}
-                                        penColor="black"
-                                        canvasProps={{ className: 'w-full h-40 cursor-crosshair' }} 
-                                    />
-                                </div>
-                                <div className="flex justify-between items-center px-2">
-                                    <button 
-                                        onClick={() => sigPad.current?.clear()}
-                                        className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-rose-500 transition-colors"
-                                    >
-                                        Clear Signature
-                                    </button>
-                                </div>
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        onClick={() => setStep('confirm')}
-                                        className="flex-1 py-3 rounded-2xl font-bold text-sm bg-muted text-muted-foreground border border-border"
-                                    >
-                                        Back
-                                    </button>
-                                    <motion.button
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => {
-                                            if (sigPad.current?.isEmpty()) {
-                                                alert('Please provide a signature to continue.');
-                                                return;
-                                            }
-                                            let sigImage = null;
-                                            try {
-                                                if (sigPad.current.getTrimmedCanvas) {
-                                                    sigImage = sigPad.current.getTrimmedCanvas().toDataURL('image/png');
-                                                } else if (sigPad.current.getCanvas) {
-                                                    sigImage = sigPad.current.getCanvas().toDataURL('image/png');
-                                                } else {
-                                                    sigImage = sigPad.current.toDataURL('image/png');
-                                                }
-                                            } catch (err) {
-                                                console.error('Error getting signature image:', err);
-                                                sigImage = sigPad.current.getCanvas?.().toDataURL('image/png') || sigPad.current.toDataURL?.('image/png');
-                                            }
-                                            setSignatureData(sigImage);
-                                            handlePayNow(sigImage);
-                                        }}
-                                        className="flex-1 py-3 rounded-2xl font-black text-sm text-white bg-indigo-600 shadow-lg shadow-indigo-500/30"
-                                    >
-                                        Sign & Pay ₹{totalPayable.toLocaleString('en-IN')}
+                                        Pay Security Deposit
                                     </motion.button>
                                 </div>
                             </motion.div>

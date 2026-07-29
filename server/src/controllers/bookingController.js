@@ -34,7 +34,13 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
 
-    const amountInPaise = securityDeposit * 100;
+    let amountInPaise = securityDeposit * 100;
+    const isTestMode = keyId.startsWith('rzp_test_');
+
+    if (isTestMode && amountInPaise > 10000000) {
+        logger.warn(`Test mode transaction amount ${amountInPaise} paise exceeds ₹1,00,000. Capping Razorpay order to 100,000 paise (₹1,000).`);
+        amountInPaise = 100000;
+    }
 
     let razorpayOrderId;
     try {
