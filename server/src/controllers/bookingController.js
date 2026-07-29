@@ -298,12 +298,12 @@ export const razorpayCallback = asyncHandler(async (req, res) => {
             razorpayPaymentId,
             razorpaySignature
         });
-        // Redirect browser to success state on frontend
-        return res.redirect(`${frontendUrl}/bookings/${bookingId}?status=success`);
+        // Redirect browser to success state on frontend root to avoid SPA 404 router issues, using 303 See Other
+        return res.redirect(303, `${frontendUrl}/?bookingId=${bookingId}&paymentStatus=success`);
     } catch (err) {
         logger.error(`Razorpay callback verification failed: ${err.message}`);
-        // Redirect browser to failure state on frontend
-        return res.redirect(`${frontendUrl}/bookings/${bookingId}?status=failed&error=${encodeURIComponent(err.message)}`);
+        // Redirect browser to failure state on frontend root to avoid SPA 404 router issues, using 303 See Other
+        return res.redirect(303, `${frontendUrl}/?bookingId=${bookingId}&paymentStatus=failed&error=${encodeURIComponent(err.message)}`);
     }
 });
 
