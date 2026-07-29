@@ -77,7 +77,6 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 name: 'TMS Platform',
                 description: `Booking for ${property.name}`,
                 theme: { color: '#6366f1' },
-                callback_url: `${API_BASE_URL}/bookings/razorpay/callback?bookingId=${bid}&frontendUrl=${encodeURIComponent(frontendUrl)}`,
                 handler: async (response) => {
                     console.log('[RazorpayPayment] Razorpay handler success callback:', response);
                     // 3) Verify payment on backend
