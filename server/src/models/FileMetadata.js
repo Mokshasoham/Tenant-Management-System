@@ -1,0 +1,54 @@
+import mongoose from 'mongoose';
+
+const FileMetadataSchema = new mongoose.Schema(
+  {
+    filename: {
+      type: String,
+      required: true,
+    },
+    mimeType: {
+      type: String,
+      required: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+    },
+    url: {
+      type: String,
+      required: true,
+    },
+    key: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    uploader: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+    relatedEntity: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+    },
+    relatedModel: {
+      type: String,
+      required: false,
+    },
+    category: {
+      type: String,
+      enum: ['chat', 'kyc', 'properties', 'leases', 'invoices', 'reviews'],
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+FileMetadataSchema.index({ key: 1 });
+FileMetadataSchema.index({ uploader: 1 });
+FileMetadataSchema.index({ relatedEntity: 1, relatedModel: 1 });
+
+export default mongoose.model('FileMetadata', FileMetadataSchema);

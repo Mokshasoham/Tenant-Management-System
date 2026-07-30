@@ -2,8 +2,7 @@ import Message from '../models/Message.js';
 import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
-import fs from 'fs';
-import mongoose from 'mongoose';
+import { uploadFileBuffer } from '../services/fileService.js';
 
 export const getAvailableUsers = asyncHandler(async (req, res) => {
     const currentUser = req.user;
@@ -169,27 +168,20 @@ export const searchMessages = asyncHandler(async (req, res) => {
 export const uploadAttachment = asyncHandler(async (req, res) => {
     if (!req.file) throw new AppError('No file uploaded', 400);
 
-    const fileUrl = `/uploads/chat/${req.file.filename}`;
-    
-    // Save to FileStorage database backup persistence
-    try {
-        const FileStorage = mongoose.model('FileStorage');
-        const buffer = await fs.promises.readFile(req.file.path);
-        await FileStorage.findOneAndUpdate(
-            { filename: req.file.filename },
-            { filename: req.file.filename, mimeType: req.file.mimetype, data: buffer },
-            { upsert: true, new: true }
-        );
-    } catch (err) {
-        logger.error('[FileStorage Chat] Failed to persist file in MongoDB:', err);
-    }
+    const fileRecord = await uploadFileBuffer({
+        buffer: req.file.buffer,
+        filename: req.file.originalname,
+        mimeType: req.file.mimetype,
+        category: 'chat',
+        uploaderId: req.user.userId
+    });
 
     res.status(200).json({
         success: true,
         data: {
-            url: fileUrl,
-            fileName: req.file.originalname,
-            fileType: req.file.mimetype
+            url: fileRecord.url,
+            fileName: fileRecord.filename,
+            fileType: fileRecord.mimeType
         }
     });
 });

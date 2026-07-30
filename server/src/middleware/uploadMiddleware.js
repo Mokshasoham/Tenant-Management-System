@@ -1,30 +1,7 @@
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import { AppError } from '../utils/errorHandling.js';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure the uploads directory exists
-const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'kyc');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const filename = `kyc-${req.user.userId}-${Date.now()}${ext}`;
-    cb(null, filename);
-  }
-});
-
-const fileFilter = (req, file, cb) => {
+const kycFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
     cb(null, true);
   } else {
@@ -33,23 +10,13 @@ const fileFilter = (req, file, cb) => {
 };
 
 export const uploadKYC = multer({
-  storage,
-  fileFilter,
+  storage: multer.memoryStorage(),
+  fileFilter: kycFilter,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 export const uploadChat = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(__dirname, '..', '..', 'uploads', 'chat');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `chat-${Date.now()}${ext}`);
-    }
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
     const mimePrefixes = ['image/', 'video/', 'audio/', 'text/'];

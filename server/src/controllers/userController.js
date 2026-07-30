@@ -2,8 +2,7 @@ import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import { hashPassword } from '../utils/password.js';
 import logger from '../utils/logger.js';
-import fs from 'fs';
-import mongoose from 'mongoose';
+import { uploadFileBuffer } from '../services/fileService.js';
 
 export const getAllUsers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, role, search } = req.query;
@@ -200,23 +199,19 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  const fileUrls = req.files.map(file => `/uploads/kyc/${file.filename}`);
-
-  // Save to FileStorage database backup persistence
-  try {
-    const FileStorage = mongoose.model('FileStorage');
-    for (const file of req.files) {
-      const buffer = await fs.promises.readFile(file.path);
-      await FileStorage.findOneAndUpdate(
-        { filename: file.filename },
-        { filename: file.filename, mimeType: file.mimetype, data: buffer },
-        { upsert: true, new: true }
-      );
-    }
-  } catch (err) {
-    logger.error('[FileStorage KYC] Failed to persist file in MongoDB:', err);
+  const fileRecords = [];
+  for (const file of req.files) {
+    const record = await uploadFileBuffer({
+      buffer: file.buffer,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      category: 'kyc',
+      uploaderId: req.user.userId || req.user._id
+    });
+    fileRecords.push(record);
   }
 
+  const fileUrls = fileRecords.map(r => r.url);
   user.kycDocuments = [...user.kycDocuments, ...fileUrls];
   user.kycStatus = 'pending';
   await user.save();
