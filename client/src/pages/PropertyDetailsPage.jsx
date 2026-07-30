@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService, bookingService, visitService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
@@ -8,7 +8,7 @@ import {
     ArrowLeft, Shield, CheckCircle2, Star,
     Calendar, User, Home, Building2, Zap,
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
-    ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle
+    ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus } from '../utils/propertyHelper';
@@ -29,6 +29,7 @@ const AMENITY_ICONS = {
 export default function PropertyDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [property, setProperty] = useState(null);
     const [similarProperties, setSimilarProperties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export default function PropertyDetailsPage() {
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [bookingError, setBookingError] = useState('');
 
-    const [activeBookingTab, setActiveBookingTab] = useState('book');
+    const [activeBookingTab, setActiveBookingTab] = useState(location.state?.activeBookingTab || 'book');
     const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
     const [visitSlot, setVisitSlot] = useState('10:00 AM - 11:00 AM');
     const [visitLoading, setVisitLoading] = useState(false);
@@ -129,11 +130,28 @@ export default function PropertyDetailsPage() {
     );
 
     if (!property) return (
-        <div className="text-center py-20 bg-card border border-border rounded-[2.5rem] shadow-sm">
-            <h2 className="text-2xl font-black text-foreground">Property not found</h2>
-            <button onClick={() => navigate('/browse')} className="mt-4 text-blue-400 font-bold flex items-center gap-2 mx-auto">
-                <ArrowLeft className="w-4 h-4" /> Back to listings
-            </button>
+        <div className="max-w-md mx-auto my-20 p-8 rounded-[2.5rem] bg-card/60 backdrop-blur-sm border border-border/80 text-center space-y-5 shadow-2xl">
+            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto text-rose-400">
+                <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-black text-foreground">This record is no longer available</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+                The property you are trying to view does not exist or has been removed.
+            </p>
+            <div className="flex gap-3 justify-center pt-2">
+                <button
+                    onClick={() => navigate('/browse')}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all"
+                >
+                    View Listings
+                </button>
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs font-black uppercase tracking-wider transition-all hover:bg-white/10"
+                >
+                    Dashboard
+                </button>
+            </div>
         </div>
     );
 

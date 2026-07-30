@@ -44,11 +44,28 @@ export default function BookingStatusPage() {
     );
 
     if (!booking) return (
-        <div className="text-center py-20">
-            <h2 className="text-2xl font-black text-foreground">Booking not found</h2>
-            <button onClick={() => navigate('/dashboard')} className="mt-4 text-primary font-black hover:underline flex items-center gap-2 mx-auto uppercase tracking-widest text-xs">
-                <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-            </button>
+        <div className="max-w-md mx-auto my-20 p-8 rounded-[2.5rem] bg-card/60 backdrop-blur-sm border border-border/80 text-center space-y-5 shadow-2xl">
+            <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto text-rose-400">
+                <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-black text-foreground">This record is no longer available</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+                The booking request or visit schedule you are trying to view does not exist or has been removed.
+            </p>
+            <div className="flex gap-3 justify-center pt-2">
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all"
+                >
+                    Dashboard
+                </button>
+                <button
+                    onClick={() => navigate('/dashboard', { state: { activeTab: 'messages' } })}
+                    className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs font-black uppercase tracking-wider transition-all hover:bg-white/10"
+                >
+                    My Messages
+                </button>
+            </div>
         </div>
     );
 

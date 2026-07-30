@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leaseService, paymentService, maintenanceService, notificationService, bookingService } from '../../services/api';
+import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService } from '../../services/api';
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
@@ -1172,18 +1172,104 @@ export default function TenantDashboard({ user, navigate }) {
                                         onClick={async () => {
                                             // Dynamic Redirect
                                             let redirectPath = '/dashboard';
-                                            if (n.type === 'message' || n.relatedModel === 'Message') {
+                                            let navigationState = {};
+                                            const lowerTitle = n.title?.toLowerCase() || '';
+                                            const lowerMsg = n.message?.toLowerCase() || '';
+                                            const isVisit = lowerTitle.includes('visit') || lowerMsg.includes('visit');
+
+                                            if (isVisit) {
+                                                let propertyId = n.relatedId;
+                                                try {
+                                                    const myVisitsRes = await visitService.getMyVisits();
+                                                    const matchedVisit = myVisitsRes.data?.find(v => v._id === n.relatedId || v.property?._id === n.relatedId);
+                                                    if (matchedVisit) {
+                                                        propertyId = matchedVisit.property?._id || matchedVisit.property;
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Failed to resolve property visit link:', err);
+                                                }
+                                                // Validate that property exists
+                                                let propertyExists = false;
+                                                if (propertyId) {
+                                                    try {
+                                                        await propertyService.getPropertyById(propertyId);
+                                                        propertyExists = true;
+                                                    } catch (err) {
+                                                        propertyExists = false;
+                                                    }
+                                                }
+                                                if (!propertyExists) {
+                                                    alert('This record is no longer available');
+                                                    return;
+                                                }
+                                                redirectPath = `/properties/${propertyId}`;
+                                                navigationState = { activeBookingTab: 'visit' };
+                                            } else if (n.type === 'message' || n.relatedModel === 'Message') {
                                                 redirectPath = '/messages';
+                                                if (n.relatedId) {
+                                                    navigationState = { recipientId: n.relatedId };
+                                                }
                                             } else if (n.type === 'booking') {
-                                                redirectPath = n.relatedId ? `/bookings/${n.relatedId}` : '/browse';
+                                                if (n.relatedId) {
+                                                    // Validate that booking exists
+                                                    let bookingExists = false;
+                                                    try {
+                                                        await bookingService.getBookingById(n.relatedId);
+                                                        bookingExists = true;
+                                                    } catch (err) {
+                                                        bookingExists = false;
+                                                    }
+                                                    if (!bookingExists) {
+                                                        alert('This record is no longer available');
+                                                        return;
+                                                    }
+                                                    redirectPath = `/bookings/${n.relatedId}`;
+                                                } else {
+                                                    redirectPath = '/browse';
+                                                }
                                             } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease') {
+                                                if (n.relatedId) {
+                                                    let leaseExists = false;
+                                                    try {
+                                                        await leaseService.getLeaseById(n.relatedId);
+                                                        leaseExists = true;
+                                                    } catch (err) {
+                                                        leaseExists = false;
+                                                    }
+                                                    if (!leaseExists) {
+                                                        alert('This record is no longer available');
+                                                        return;
+                                                    }
+                                                }
                                                 redirectPath = '/my-lease';
                                             } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment') {
-                                                redirectPath = n.type.includes('due') || n.type.includes('overdue') ? '/payments' : '/bills';
+                                                if (n.type.includes('due') || n.type.includes('overdue')) {
+                                                    redirectPath = '/pay-now';
+                                                    if (n.relatedId) {
+                                                        navigationState = { paymentId: n.relatedId };
+                                                    }
+                                                } else {
+                                                    redirectPath = '/bills';
+                                                }
                                             } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
                                                 redirectPath = '/maintenance';
                                             } else if (n.type === 'property_created' || n.relatedModel === 'Property') {
-                                                redirectPath = n.relatedId ? `/properties/${n.relatedId}` : '/browse';
+                                                if (n.relatedId) {
+                                                    let propExists = false;
+                                                    try {
+                                                        await propertyService.getPropertyById(n.relatedId);
+                                                        propExists = true;
+                                                    } catch (err) {
+                                                        propExists = false;
+                                                    }
+                                                    if (!propExists) {
+                                                        alert('This record is no longer available');
+                                                        return;
+                                                    }
+                                                    redirectPath = `/properties/${n.relatedId}`;
+                                                } else {
+                                                    redirectPath = '/browse';
+                                                }
                                             }
                                             
                                             // Mark as read in background
@@ -1197,7 +1283,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                 }
                                             }
 
-                                            navigate(redirectPath);
+                                            navigate(redirectPath, { state: navigationState });
                                         }}
                                         className={cn(
                                             'flex items-start justify-between gap-3 p-3 rounded-xl border border-border transition-all duration-200 cursor-pointer hover:bg-muted/45 relative group/item', 
