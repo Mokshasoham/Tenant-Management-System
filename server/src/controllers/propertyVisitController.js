@@ -28,7 +28,7 @@ export const requestVisit = asyncHandler(async (req, res) => {
     const visit = await PropertyVisit.create({
         property: propertyId,
         tenant: req.user.userId,
-        manager: property.manager,
+        manager: property.manager || property.owner,
         visitDate: new Date(visitDate),
         timeSlot,
         status: 'pending'
@@ -37,7 +37,7 @@ export const requestVisit = asyncHandler(async (req, res) => {
     // Notify manager
     try {
         await Notification.create({
-            recipient: property.manager,
+            recipient: property.manager || property.owner,
             type: 'booking',
             title: 'New Property Visit Request',
             message: `A tenant has requested to visit "${property.name}" on ${new Date(visitDate).toLocaleDateString()} at ${timeSlot}.`,
