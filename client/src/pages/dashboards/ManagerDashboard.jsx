@@ -5,7 +5,7 @@ import {
     BarChart3, CalendarDays, CheckCircle2, Clock, XCircle
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { bookingService } from '../../services/api';
+import { bookingService, visitService } from '../../services/api';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 
@@ -105,6 +105,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [bookingLoading, setBookingLoading] = useState(true);
     const [bookingTab, setBookingTab] = useState('pending');
 
+    const [visits, setVisits] = useState([]);
+    const [visitsLoading, setVisitsLoading] = useState(true);
+    const [visitTab, setVisitTab] = useState('pending');
+
+    const [reschedulingId, setReschedulingId] = useState(null);
+    const [reschedDate, setReschedDate] = useState('');
+    const [reschedSlot, setReschedSlot] = useState('10:00 AM - 11:00 AM');
+
     useEffect(() => {
         const fetchBookings = async () => {
             try {
@@ -116,7 +124,20 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 setBookingLoading(false);
             }
         };
+
+        const fetchVisits = async () => {
+            try {
+                const res = await visitService.getManagerVisits();
+                setVisits(res.data);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setVisitsLoading(false);
+            }
+        };
+
         fetchBookings();
+        fetchVisits();
     }, []);
 
     const handleUpdateBooking = async (id, status, reason = '') => {
@@ -133,9 +154,28 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         }
     };
 
+    const handleUpdateVisit = async (id, status, visitDate = null, timeSlot = '') => {
+        try {
+            const body = { status };
+            if (visitDate) body.visitDate = visitDate;
+            if (timeSlot) body.timeSlot = timeSlot;
+
+            const res = await visitService.updateVisitStatus(id, body);
+            setVisits(prev => prev.map(v => v._id === id ? res.data : v));
+        } catch (e) {
+            console.error(e);
+            const errorMsg = e.response?.data?.message || e.message || 'Unknown error';
+            alert(`Failed to update visit request: ${errorMsg}`);
+        }
+    };
+
     const pendingBookings = bookings.filter(b => b.status === 'pending');
     const approvedBookings = bookings.filter(b => b.status === 'approved' && (b.paymentStatus === 'pending' || b.paymentStatus === 'failed'));
     const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'completed' || (b.status === 'approved' && b.paymentStatus === 'paid'));
+
+    const pendingVisits = visits.filter(v => v.status === 'pending');
+    const approvedVisits = visits.filter(v => v.status === 'approved');
+    const completedVisits = visits.filter(v => v.status === 'completed' || v.status === 'rejected');
 
     const maintenanceData = [
         { id: 'MT-1342', title: 'Leaking Faucet — Unit 4B', priority: 'high', status: 'open', time: '2h ago' },
@@ -467,6 +507,226 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                             </div>
                                         </div>
                                     </motion.div>
+                                ))
+                            )
+                        )}
+                    </div>
+                </motion.div>
+            )}
+            {/* Property Visit Requests */}
+            {visits.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.58, duration: 0.5 }}
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 space-y-4"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20">
+                                <CalendarDays className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                            </div>
+                            <p className="text-sm font-black text-foreground">Property Inspection Visits</p>
+                        </div>
+                        <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto">
+                            {[
+                                { id: 'pending', label: 'Pending Requests', count: pendingVisits.length },
+                                { id: 'approved', label: 'Scheduled Visits', count: approvedVisits.length },
+                                { id: 'completed', label: 'Past & Feedback', count: completedVisits.length }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setVisitTab(tab.id)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                        visitTab === tab.id
+                                            ? "bg-card text-foreground shadow-sm"
+                                            : "text-muted-foreground/60 hover:text-foreground"
+                                    )}
+                                >
+                                    {tab.label}
+                                    {tab.count > 0 && (
+                                        <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[8px] font-bold">
+                                            {tab.count}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {visitTab === 'pending' && (
+                            pendingVisits.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-8">No pending property visit requests.</p>
+                            ) : (
+                                pendingVisits.map(v => (
+                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-3">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                <p className="text-xs text-muted-foreground">{v.property?.address}</p>
+                                                <p className="text-xs text-indigo-400 mt-1 font-semibold">
+                                                    Requested Date: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                </p>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    onClick={() => handleUpdateVisit(v._id, 'approved')}
+                                                    className="px-2.5 py-1 rounded bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all"
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUpdateVisit(v._id, 'rejected')}
+                                                    className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
+                                                >
+                                                    Reject
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setReschedulingId(v._id);
+                                                        setReschedDate(v.visitDate ? new Date(v.visitDate).toISOString().split('T')[0] : '');
+                                                        setReschedSlot(v.timeSlot || '10:00 AM - 11:00 AM');
+                                                    }}
+                                                    className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
+                                                >
+                                                    Reschedule
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {reschedulingId === v._id && (
+                                            <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-3 mt-2">
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-white/80">Select New Slot</p>
+                                                <div className="flex flex-wrap gap-3">
+                                                    <div className="flex-1 min-w-[120px]">
+                                                        <label className="text-[9px] text-white/50 block mb-1">Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={reschedDate}
+                                                            onChange={(e) => setReschedDate(e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-xs text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[150px]">
+                                                        <label className="text-[9px] text-white/50 block mb-1">Time Slot</label>
+                                                        <select
+                                                            value={reschedSlot}
+                                                            onChange={(e) => setReschedSlot(e.target.value)}
+                                                            className="w-full bg-black border border-white/10 rounded p-1.5 text-xs text-white"
+                                                        >
+                                                            {['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:00 PM - 04:00 PM', '04:00 PM - 05:00 PM'].map(slot => (
+                                                                <option key={slot} value={slot}>{slot}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => setReschedulingId(null)}
+                                                        className="px-2 py-1 rounded bg-white/10 text-white text-[9px] font-bold uppercase"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            await handleUpdateVisit(v._id, 'approved', reschedDate, reschedSlot);
+                                                            setReschedulingId(null);
+                                                        }}
+                                                        className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[9px] font-black uppercase"
+                                                    >
+                                                        Confirm & Approve
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )
+                        )}
+
+                        {visitTab === 'approved' && (
+                            approvedVisits.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-8">No scheduled inspection visits.</p>
+                            ) : (
+                                approvedVisits.map(v => (
+                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                            <p className="text-xs text-muted-foreground">{v.property?.address}</p>
+                                            <p className="text-xs text-emerald-400 mt-1 font-semibold">
+                                                Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleUpdateVisit(v._id, 'completed')}
+                                            className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase transition-all"
+                                        >
+                                            Mark Completed
+                                        </button>
+                                    </div>
+                                ))
+                            )
+                        )}
+
+                        {visitTab === 'completed' && (
+                            completedVisits.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-8">No past inspection visits.</p>
+                            ) : (
+                                completedVisits.map(v => (
+                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-2">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                <p className="text-xs text-muted-foreground">{v.property?.address}</p>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName}
+                                                </p>
+                                            </div>
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                                                v.status === 'completed' ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500" : "bg-rose-500/10 border border-rose-500/20 text-rose-500"
+                                            )}>
+                                                {v.status}
+                                            </span>
+                                        </div>
+
+                                        {v.feedback && v.feedback.rating ? (
+                                            <div className="p-3 rounded-lg bg-black/40 border border-white/5 text-[11px] space-y-1.5">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-indigo-400">Feedback: {v.feedback.rating} ⭐️</span>
+                                                    <span className="text-[9px] text-muted-foreground">Recommend: {v.feedback.recommend ? '✅ Yes' : '❌ No'}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[9px] text-muted-foreground pt-1 border-t border-white/5">
+                                                    <span>Condition: {v.feedback.propertyCondition}/5</span>
+                                                    <span>Manager: {v.feedback.managerExperience}/5</span>
+                                                    <span>Cleanliness: {v.feedback.cleanliness}/5</span>
+                                                    <span>Location: {v.feedback.locationSatisfaction}/5</span>
+                                                </div>
+                                                {v.feedback.comments && (
+                                                    <p className="text-white/70 italic mt-1 font-medium bg-white/2 p-2 rounded">
+                                                        "{v.feedback.comments}"
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            v.status === 'completed' && (
+                                                <p className="text-[10px] text-muted-foreground italic">Awaiting tenant review submission...</p>
+                                            )
+                                        )}
+                                        {v.notInterested && (
+                                            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold inline-block">
+                                                Not Interested post-visit
+                                            </span>
+                                        )}
+                                    </div>
                                 ))
                             )
                         )}

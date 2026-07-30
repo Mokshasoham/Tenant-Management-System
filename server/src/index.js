@@ -38,6 +38,7 @@ import offerRoutes from './routes/offerRoutes.js';
 import stripeRoutes from './routes/stripeRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import payoutRoutes from './routes/payoutRoutes.js';
+import propertyVisitRoutes from './routes/propertyVisitRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 
 
@@ -177,6 +178,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/visits', propertyVisitRoutes);
 
 // General auth-protected Stripe routes
 app.use('/api/stripe', stripeRoutes);

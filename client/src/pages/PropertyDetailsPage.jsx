@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { propertyService, bookingService } from '../services/api';
+import { propertyService, bookingService, visitService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
 import {
     MapPin, IndianRupee, Bed, Bath, Square,
     ArrowLeft, Shield, CheckCircle2, Star,
     Calendar, User, Home, Building2, Zap,
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
-    ChevronRight, ArrowRight, Wallet, Hammer, Video
+    ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus } from '../utils/propertyHelper';
@@ -39,6 +39,24 @@ export default function PropertyDetailsPage() {
     const [showRazorpay, setShowRazorpay] = useState(false);
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [bookingError, setBookingError] = useState('');
+
+    const [activeBookingTab, setActiveBookingTab] = useState('book');
+    const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
+    const [visitSlot, setVisitSlot] = useState('10:00 AM - 11:00 AM');
+    const [visitLoading, setVisitLoading] = useState(false);
+    const [visitSuccess, setVisitSuccess] = useState(false);
+    const [visitError, setVisitError] = useState('');
+    const [existingVisit, setExistingVisit] = useState(null);
+
+    // Feedback review states
+    const [feedbackRating, setFeedbackRating] = useState(5);
+    const [feedbackCondition, setFeedbackCondition] = useState(5);
+    const [feedbackManager, setFeedbackManager] = useState(5);
+    const [feedbackCleanliness, setFeedbackCleanliness] = useState(5);
+    const [feedbackLocation, setFeedbackLocation] = useState(5);
+    const [feedbackComments, setFeedbackComments] = useState('');
+    const [feedbackRecommend, setFeedbackRecommend] = useState(true);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
     // Initialize date locks 1 month out by default
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -74,6 +92,15 @@ export default function PropertyDetailsPage() {
                     setExistingBooking(current);
                 } catch (err) {
                     console.log('User not logged in or failed to fetch bookings');
+                }
+
+                // Check for existing visit request
+                try {
+                    const myVisitsRes = await visitService.getMyVisits();
+                    const currentVisit = myVisitsRes.data.find(v => v.property?._id === id);
+                    setExistingVisit(currentVisit);
+                } catch (err) {
+                    console.log('User not logged in or failed to fetch visits');
                 }
             } catch (e) {
                 console.error(e);
@@ -320,114 +347,406 @@ export default function PropertyDetailsPage() {
                             </p>
                         </div>
 
-                        {property.bookingType === 'free' ? (
-                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                <p className="text-sm font-black text-white text-center">
-                                    Available for <br />
-                                    <span className="text-emerald-300 text-lg uppercase tracking-widest">Free Demo Booking</span>
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Monthly Cost</p>
-                                    <div className="flex items-baseline justify-between">
-                                        <p className="text-2xl font-black text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
-                                        <p className="text-xs text-white/60 font-medium">+ utilities</p>
-                                    </div>
-                                </div>
-                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Deposit</p>
-                                    <p className="text-xl font-black text-white">₹{property.depositAmount?.toLocaleString('en-IN')}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Booking Schedule Selector */}
-                        <div className="flex gap-4">
-                            <div className="flex-1 space-y-1">
-                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    min={minAvailableDate}
-                                    disabled={isNotBookable}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{ colorScheme: 'dark' }}
-                                />
-                            </div>
-                            <div className="flex-1 space-y-1">
-                                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    min={startDate || minAvailableDate}
-                                    disabled={isNotBookable}
-                                    className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{ colorScheme: 'dark' }}
-                                />
-                            </div>
+                        {/* Option Tab Selector */}
+                        <div className="grid grid-cols-2 p-1 bg-white/5 rounded-xl border border-white/10">
+                            <button
+                                type="button"
+                                onClick={() => setActiveBookingTab('book')}
+                                className={cn(
+                                    "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
+                                    activeBookingTab === 'book' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
+                                )}
+                            >
+                                Proceed to Book
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveBookingTab('visit')}
+                                className={cn(
+                                    "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
+                                    activeBookingTab === 'visit' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
+                                )}
+                            >
+                                Request Visit
+                            </button>
                         </div>
 
-                        {bookingSuccess && (
-                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold space-y-1">
-                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Request Sent!
-                                </p>
-                                <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium">
-                                    Booking request has been sent to the manager. Please wait for approval.
-                                </p>
+                        {activeBookingTab === 'book' ? (
+                            <>
+                                {property.bookingType === 'free' ? (
+                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                        <p className="text-sm font-black text-white text-center">
+                                            Available for <br />
+                                            <span className="text-emerald-300 text-lg uppercase tracking-widest">Free Demo Booking</span>
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Monthly Cost</p>
+                                            <div className="flex items-baseline justify-between">
+                                                <p className="text-2xl font-black text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
+                                                <p className="text-xs text-white/60 font-medium">+ utilities</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Deposit</p>
+                                            <p className="text-xl font-black text-white">₹{property.depositAmount?.toLocaleString('en-IN')}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Booking Schedule Selector */}
+                                <div className="flex gap-4">
+                                    <div className="flex-1 space-y-1">
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            min={minAvailableDate}
+                                            disabled={isNotBookable}
+                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            style={{ colorScheme: 'dark' }}
+                                        />
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            min={startDate || minAvailableDate}
+                                            disabled={isNotBookable}
+                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            style={{ colorScheme: 'dark' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {bookingSuccess && (
+                                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold space-y-1">
+                                        <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Request Sent!
+                                        </p>
+                                        <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium">
+                                            Booking request has been sent to the manager. Please wait for approval.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {bookingError && (
+                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold space-y-1">
+                                        <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                            <XCircle className="w-4 h-4 text-rose-400" /> Request Failed
+                                        </p>
+                                        <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
+                                            {bookingError}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <button
+                                    disabled={!!existingBooking || bookingLoading || isNotBookable}
+                                    onClick={async () => {
+                                        setBookingLoading(true);
+                                        setBookingSuccess(false);
+                                        setBookingError('');
+                                        try {
+                                            const res = await bookingService.requestBooking({
+                                                propertyId: id,
+                                                startDate: new Date(startDate).toISOString(),
+                                                endDate: new Date(endDate).toISOString(),
+                                                totalAmount: property.rentAmount,
+                                                paymentReference: property.bookingType === 'free' ? 'FREE-BOOKING' : 'PENDING'
+                                            });
+                                            setBookingSuccess(true);
+                                            // Update the existing booking state on the page immediately with the returned booking details
+                                            setExistingBooking(res.data?.booking || res.data || { status: 'pending' });
+                                        } catch (err) {
+                                            setBookingError(err.response?.data?.message || 'Failed to request booking. Please try again.');
+                                        } finally {
+                                            setBookingLoading(false);
+                                        }
+                                    }}
+                                    className={cn(
+                                        "w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-black/10",
+                                        (existingBooking || isNotBookable || bookingLoading) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
+                                    )}
+                                >
+                                    <Wallet className="w-5 h-5" />
+                                    {bookingLoading ? 'Sending request to manager...' : 
+                                     isSoldOut ? 'Sold Out' : 
+                                     isUnderMaintenance ? 'Under Maintenance' :
+                                     existingBooking ? 'Request Pending' : 
+                                     (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
+                                </button>
+                            </>
+                        ) : (
+                            /* Request Visit tab */
+                            <div className="space-y-4 text-white">
+                                {!existingVisit ? (
+                                    <>
+                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-3">
+                                            <p className="text-xs font-bold text-white/80">Schedule an Inspection Visit</p>
+                                            
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-white/40">Select Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={visitDate}
+                                                    onChange={(e) => setVisitDate(e.target.value)}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs"
+                                                    style={{ colorScheme: 'dark' }}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-wider text-white/40">Select Time Slot</label>
+                                                <select
+                                                    value={visitSlot}
+                                                    onChange={(e) => setVisitSlot(e.target.value)}
+                                                    className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-white font-bold text-xs"
+                                                >
+                                                    {['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:00 PM - 04:00 PM', '04:00 PM - 05:00 PM'].map(slot => (
+                                                        <option key={slot} value={slot}>{slot}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {visitSuccess && (
+                                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold">
+                                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Visit Requested!
+                                                </p>
+                                                <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium mt-1">
+                                                    Visit request has been sent to the manager. Please wait for approval.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {visitError && (
+                                            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold">
+                                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                                    <XCircle className="w-4 h-4 text-rose-400" /> Visit Request Failed
+                                                </p>
+                                                <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium mt-1">
+                                                    {visitError}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            disabled={visitLoading}
+                                            onClick={async () => {
+                                                setVisitLoading(true);
+                                                setVisitSuccess(false);
+                                                setVisitError('');
+                                                try {
+                                                    const res = await visitService.requestVisit({
+                                                        propertyId: id,
+                                                        visitDate,
+                                                        timeSlot: visitSlot
+                                                    });
+                                                    setVisitSuccess(true);
+                                                    setExistingVisit(res.data);
+                                                } catch (err) {
+                                                    setVisitError(err.response?.data?.message || 'Failed to submit visit request. Please try again.');
+                                                } finally {
+                                                    setVisitLoading(false);
+                                                }
+                                            }}
+                                            className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                                        >
+                                            <Calendar className="w-5 h-5 text-primary" />
+                                            {visitLoading ? 'Sending request to manager...' : 'Request Property Visit'}
+                                        </button>
+                                    </>
+                                ) : (
+                                    /* Handle existing visit statuses */
+                                    <div className="space-y-4">
+                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <p className="text-xs font-black uppercase tracking-wider text-white/80">Visit Request Details</p>
+                                                <span className={cn(
+                                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                                                    existingVisit.status === 'approved' && "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                                                    existingVisit.status === 'pending' && "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                                                    existingVisit.status === 'completed' && "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+                                                    existingVisit.status === 'rejected' && "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                                )}>
+                                                    {existingVisit.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-white/70">
+                                                Scheduled Date: <span className="font-bold text-white">{new Date(existingVisit.visitDate).toLocaleDateString()}</span>
+                                            </p>
+                                            <p className="text-xs text-white/70">
+                                                Time Slot: <span className="font-bold text-white">{existingVisit.timeSlot}</span>
+                                            </p>
+                                        </div>
+
+                                        {existingVisit.status === 'pending' && (
+                                            <p className="text-[10px] text-center text-white/60 italic">
+                                                Visit is pending manager review. You will be notified once approved or rescheduled.
+                                            </p>
+                                        )}
+
+                                        {existingVisit.status === 'approved' && (
+                                            <p className="text-[10px] text-center text-white/60 italic">
+                                                Visit is scheduled! You can meet the manager at the property on the scheduled slot.
+                                            </p>
+                                        )}
+
+                                        {existingVisit.status === 'completed' && (
+                                            /* Review is mandatory to complete visit workflow */
+                                            (!existingVisit.feedback || !existingVisit.feedback.submittedAt) ? (
+                                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-4 text-xs">
+                                                    <div className="border-b border-white/10 pb-2">
+                                                        <p className="font-black text-indigo-300 uppercase tracking-wider text-[10px]">Mandatory Visit Review</p>
+                                                        <p className="text-[9px] text-white/60">Please share your experience to complete the visit request.</p>
+                                                    </div>
+
+                                                    {/* Star ratings selector block */}
+                                                    <div className="space-y-3">
+                                                        {[
+                                                            { label: 'Overall Experience', val: feedbackRating, setVal: setFeedbackRating },
+                                                            { label: 'Property Condition', val: feedbackCondition, setVal: setFeedbackCondition },
+                                                            { label: 'Manager Experience', val: feedbackManager, setVal: setFeedbackManager },
+                                                            { label: 'Cleanliness', val: feedbackCleanliness, setVal: setFeedbackCleanliness },
+                                                            { label: 'Location Satisfaction', val: feedbackLocation, setVal: setFeedbackLocation }
+                                                        ].map(item => (
+                                                            <div key={item.label} className="flex justify-between items-center">
+                                                                <span className="text-[10px] font-bold text-white/80">{item.label}</span>
+                                                                <div className="flex gap-1">
+                                                                    {[1, 2, 3, 4, 5].map(star => (
+                                                                        <button
+                                                                            type="button"
+                                                                            key={star}
+                                                                            onClick={() => item.setVal(star)}
+                                                                            className="focus:outline-none"
+                                                                        >
+                                                                            <Star className={cn(
+                                                                                "w-3.5 h-3.5 transition-colors",
+                                                                                star <= item.val ? "text-amber-400 fill-amber-400" : "text-white/20"
+                                                                            )} />
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-black uppercase text-white/40">Comments & Suggestions</label>
+                                                        <textarea
+                                                            rows={3}
+                                                            value={feedbackComments}
+                                                            onChange={(e) => setFeedbackComments(e.target.value)}
+                                                            placeholder="Describe the visit experience..."
+                                                            className="w-full p-2.5 rounded-xl bg-black border border-white/10 text-white text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                                                        <span className="text-[10px] font-bold text-white/80">Would you recommend this property?</span>
+                                                        <div className="flex gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFeedbackRecommend(true)}
+                                                                className={cn(
+                                                                    "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                                                    feedbackRecommend ? "bg-emerald-500 text-white" : "bg-white/5 text-white/60"
+                                                                )}
+                                                            >
+                                                                Yes
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFeedbackRecommend(false)}
+                                                                className={cn(
+                                                                    "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                                                    !feedbackRecommend ? "bg-rose-500 text-white" : "bg-white/5 text-white/60"
+                                                                )}
+                                                            >
+                                                                No
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={feedbackSubmitting}
+                                                        onClick={async () => {
+                                                            setFeedbackSubmitting(true);
+                                                            try {
+                                                                const res = await visitService.submitFeedback(existingVisit._id, {
+                                                                    rating: feedbackRating,
+                                                                    propertyCondition: feedbackCondition,
+                                                                    managerExperience: feedbackManager,
+                                                                    cleanliness: feedbackCleanliness,
+                                                                    locationSatisfaction: feedbackLocation,
+                                                                    comments: feedbackComments,
+                                                                    recommend: feedbackRecommend
+                                                                });
+                                                                setExistingVisit(res.data);
+                                                            } catch (err) {
+                                                                alert('Failed to submit feedback. Please try again.');
+                                                            } finally {
+                                                                setFeedbackSubmitting(false);
+                                                            }
+                                                        }}
+                                                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                    >
+                                                        {feedbackSubmitting ? 'Submitting Review...' : 'Submit Review & Complete Visit'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                /* Feedback is submitted */
+                                                existingVisit.notInterested ? (
+                                                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1">
+                                                        <p className="text-xs font-bold text-white/80">Workflow Closed</p>
+                                                        <p className="text-[10px] text-white/50">You have marked this property as not interested. Thank you for your feedback!</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-3">
+                                                        <p className="text-xs font-bold text-center text-indigo-300">Visit Review Submitted!</p>
+                                                        <p className="text-[10px] text-center text-white/60">Are you interested in proceeding to book this property?</p>
+                                                        
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveBookingTab('book')}
+                                                                className="flex-1 py-2.5 rounded-xl bg-white text-primary text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                            >
+                                                                Proceed to Book
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        const res = await visitService.setNotInterested(existingVisit._id);
+                                                                        setExistingVisit(res.data);
+                                                                    } catch (err) {
+                                                                        alert('Failed to update status. Please try again.');
+                                                                    }
+                                                                }}
+                                                                className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                            >
+                                                                Not Interested
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            )
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                        {bookingError && (
-                            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold space-y-1">
-                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                    <XCircle className="w-4 h-4 text-rose-400" /> Request Failed
-                                </p>
-                                <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
-                                    {bookingError}
-                                </p>
-                            </div>
-                        )}
-
-                        <button
-                            disabled={!!existingBooking || bookingLoading || isNotBookable}
-                            onClick={async () => {
-                                setBookingLoading(true);
-                                setBookingSuccess(false);
-                                setBookingError('');
-                                try {
-                                    const res = await bookingService.requestBooking({
-                                        propertyId: id,
-                                        startDate: new Date(startDate).toISOString(),
-                                        endDate: new Date(endDate).toISOString(),
-                                        totalAmount: property.rentAmount,
-                                        paymentReference: property.bookingType === 'free' ? 'FREE-BOOKING' : 'PENDING'
-                                    });
-                                    setBookingSuccess(true);
-                                    // Update the existing booking state on the page immediately with the returned booking details
-                                    setExistingBooking(res.data?.booking || res.data || { status: 'pending' });
-                                } catch (err) {
-                                    setBookingError(err.response?.data?.message || 'Failed to request booking. Please try again.');
-                                } finally {
-                                    setBookingLoading(false);
-                                }
-                            }}
-                            className={cn(
-                                "w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-black/10",
-                                (existingBooking || isNotBookable || bookingLoading) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
-                            )}
-                        >
-                            <Wallet className="w-5 h-5" />
-                            {bookingLoading ? 'Sending request to manager...' : 
-                             isSoldOut ? 'Sold Out' : 
-                             isUnderMaintenance ? 'Under Maintenance' :
-                             existingBooking ? 'Request Pending' : 
-                             (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
-                        </button>
 
                         <p className="text-center text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">
                             {property.bookingType === 'free' ? 'No Credit Card Needed' : '100% Secure Transaction'}
