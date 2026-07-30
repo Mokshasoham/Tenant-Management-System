@@ -111,11 +111,13 @@ export const updateUser = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const user = await User.findByIdAndDelete(id);
+  const user = await User.findById(id);
 
   if (!user) {
     throw new AppError('User not found', 404);
   }
+
+  await user.deleteOne();
 
   logger.info(`User deleted: ${user.email}`);
 
@@ -206,7 +208,9 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
       filename: file.originalname,
       mimeType: file.mimetype,
       category: 'kyc',
-      uploaderId: req.user.userId || req.user._id
+      uploaderId: req.user.userId || req.user._id,
+      relatedEntityId: user._id,
+      relatedModelName: 'User'
     });
     fileRecords.push(record);
   }

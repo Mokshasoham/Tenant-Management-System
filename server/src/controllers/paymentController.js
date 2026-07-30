@@ -10,16 +10,15 @@ const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
   const payObj = payment.toObject ? payment.toObject() : payment;
   if (payObj.invoiceUrl) {
-    if (payObj.invoiceUrl.startsWith('https://') && !payObj.invoiceUrl.includes('localhost')) {
+    // Already an absolute URL — return as-is
+    if (payObj.invoiceUrl.startsWith('https://') || payObj.invoiceUrl.startsWith('http://')) {
       return payObj;
     }
+    // New centralized file service URL — prepend server host
+    // e.g. /api/files/download/:fileId or /api/files/signed-url/:fileId
     let relativePath = payObj.invoiceUrl;
-    if (payObj.invoiceUrl.includes('/uploads/')) {
-      relativePath = '/uploads/' + payObj.invoiceUrl.split('/uploads/')[1];
-    } else if (payObj.invoiceUrl.startsWith('uploads/')) {
-      relativePath = '/' + payObj.invoiceUrl;
-    } else if (!payObj.invoiceUrl.startsWith('/uploads')) {
-      relativePath = `/uploads/properties/${payObj.invoiceUrl}`;
+    if (!relativePath.startsWith('/')) {
+      relativePath = '/' + relativePath;
     }
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
@@ -27,6 +26,7 @@ const resolveInvoiceUrl = (payment, req) => {
   }
   return payObj;
 };
+
 
 // Tenant-scoped: get the logged-in user's own payment history
 export const getMyPayments = asyncHandler(async (req, res) => {

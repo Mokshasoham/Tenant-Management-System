@@ -8,6 +8,7 @@ import {
   ExternalLink, ArrowDownToLine, Wallet, Clock
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { openSecureFile } from '../utils/fileAccess';
 
 const STATUS_CONFIG = {
   paid: { label: 'Settled', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2 },
@@ -61,7 +62,7 @@ export default function BillsPage() {
 
   const handleDownload = (invoiceUrl) => {
     if (!invoiceUrl) return;
-    window.open(invoiceUrl, '_blank');
+    openSecureFile(invoiceUrl);
   };
 
   return (
@@ -226,7 +227,7 @@ export default function BillsPage() {
                   )}
                   {isSettled && bill.invoiceUrl && (
                     <button
-                      onClick={() => window.open(bill.invoiceUrl, '_blank')}
+                      onClick={() => openSecureFile(bill.invoiceUrl)}
                       className="p-2.5 rounded-xl border border-border text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/5 transition-all"
                       title="View Online"
                     >

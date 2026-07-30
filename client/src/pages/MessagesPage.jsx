@@ -121,6 +121,36 @@ export default function MessagesPage() {
         return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
     };
 
+    /**
+     * Fetches a secure signed URL from /api/files/signed-url/:fileId.
+     * Falls back to getFullUrl(att.url) for legacy attachments without a fileId.
+     */
+    const fetchSignedUrl = async (att) => {
+        if (!att.fileId) return getFullUrl(att.url);
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${apiBase}/files/signed-url/${att.fileId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to get signed URL');
+            const data = await res.json();
+            if (data.success && data.url) {
+                const url = data.url;
+                return url.startsWith('http') ? url : `${serverUrl}${url}`;
+            }
+        } catch (err) {
+            console.error('[fetchSignedUrl] Error:', err);
+        }
+        return getFullUrl(att.url); // graceful fallback
+    };
+
+    const openAttachment = async (att) => {
+        const url = await fetchSignedUrl(att);
+        if (url) window.open(url, '_blank');
+    };
+
+
+
     const EMOJIS = [
         '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
         '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
@@ -617,18 +647,16 @@ export default function MessagesPage() {
                                                                                      src={fullUrl} 
                                                                                      alt={att.fileName} 
                                                                                      className="max-w-full h-auto max-h-60 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" 
-                                                                                     onClick={() => window.open(fullUrl, '_blank')} 
+                                                                                     onClick={() => openAttachment(att)} 
                                                                                  />
-                                                                                 <a 
-                                                                                     href={fullUrl} 
-                                                                                     download={att.fileName} 
-                                                                                     target="_blank" 
-                                                                                     rel="noopener noreferrer"
+                                                                                 <button
+                                                                                     type="button"
+                                                                                     onClick={() => openAttachment(att)}
                                                                                      className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/60 text-white opacity-0 group-hover/att:opacity-100 transition-opacity"
                                                                                      title="Download image"
                                                                                  >
                                                                                      <Download className="w-3.5 h-3.5" />
-                                                                                 </a>
+                                                                                 </button>
                                                                              </div>
                                                                          ) : isVideo ? (
                                                                              <video 
@@ -653,16 +681,14 @@ export default function MessagesPage() {
                                                                                          <p className="text-[8px] text-white/50 uppercase tracking-widest font-black mt-1">{(att.fileType || 'file').split('/')[1] || 'document'}</p>
                                                                                      </div>
                                                                                  </div>
-                                                                                 <a 
-                                                                                     href={fullUrl} 
-                                                                                     download={att.fileName} 
-                                                                                     target="_blank" 
-                                                                                     rel="noopener noreferrer"
+                                                                                 <button
+                                                                                     type="button"
+                                                                                     onClick={() => openAttachment(att)}
                                                                                      className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex-shrink-0 shadow-inner"
-                                                                                     title="Download file"
+                                                                                     title="Open file"
                                                                                  >
                                                                                      <Download className="w-3.5 h-3.5" />
-                                                                                 </a>
+                                                                                 </button>
                                                                              </div>
                                                                          )}
                                                                      </div>

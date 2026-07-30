@@ -54,6 +54,7 @@ const leaseSchema = new mongoose.Schema(
     },
     documents: [
       {
+        fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
         name: String,
         url: String,
         uploadedAt: {
@@ -95,5 +96,35 @@ leaseSchema.pre('validate', async function (next) {
 leaseSchema.index({ property: 1 });
 leaseSchema.index({ tenant: 1 });
 leaseSchema.index({ status: 1 });
+
+/**
+ * Post-delete hook: clean up all lease document files from FileMetadata and storage.
+ */
+leaseSchema.post('deleteOne', { document: true, query: false }, async function () {
+  if (this.documents && this.documents.length > 0) {
+    try {
+      const FileMetadata = mongoose.model('FileMetadata');
+      const { deleteFileFromStorage } = await import('../services/fileService.js');
+      for (const doc of this.documents) {
+        if (doc.fileId) {
+          const meta = await FileMetadata.findByIdAndDelete(doc.fileId);
+          if (meta) {
+            const cleanFilename = meta.key.split('/').pop();
+            await deleteFileFromStorage(meta.key, cleanFilename);
+          }
+        }
+      }
+      // Also clean up any FileMetadata records where relatedEntity is this lease _id
+      const relatedFiles = await FileMetadata.find({ relatedEntity: this._id, relatedModel: 'Lease' });
+      for (const meta of relatedFiles) {
+        const cleanFilename = meta.key.split('/').pop();
+        await deleteFileFromStorage(meta.key, cleanFilename);
+        await meta.deleteOne();
+      }
+    } catch (err) {
+      console.error('[Lease.post(deleteOne)] File cleanup error:', err);
+    }
+  }
+});
 
 export default mongoose.model('Lease', leaseSchema);

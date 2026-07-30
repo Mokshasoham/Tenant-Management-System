@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { uploadBufferToStorage } from './s3Service.js';
+import { uploadFileBuffer } from './fileService.js';
 
 /**
  * Generates an official lease PDF document using PDFKit, overlays the e-signature,
@@ -20,8 +20,19 @@ export const generateAndUploadLeasePDF = async (lease, tenant, property, base64S
                 const filename = `lease_${lease.leaseNumber}.pdf`;
                 
                 try {
-                    const uploadResult = await uploadBufferToStorage(pdfBuffer, filename, 'application/pdf');
-                    resolve(uploadResult);
+                    const record = await uploadFileBuffer({
+                        buffer: pdfBuffer,
+                        filename,
+                        mimeType: 'application/pdf',
+                        category: 'leases',
+                        relatedEntityId: lease._id,
+                        relatedModelName: 'Lease'
+                    });
+                    resolve({
+                        Location: record.url,
+                        Key: record.key,
+                        fileId: record._id
+                    });
                 } catch (err) {
                     reject(err);
                 }
@@ -103,8 +114,19 @@ export const generateInvoicePDF = async (payment, tenant, property) => {
                 const filename = `invoice_${payment._id}.pdf`;
                 
                 try {
-                    const uploadResult = await uploadBufferToStorage(pdfBuffer, filename, 'application/pdf');
-                    resolve(uploadResult);
+                    const record = await uploadFileBuffer({
+                        buffer: pdfBuffer,
+                        filename,
+                        mimeType: 'application/pdf',
+                        category: 'invoices',
+                        relatedEntityId: payment._id,
+                        relatedModelName: 'Payment'
+                    });
+                    resolve({
+                        Location: record.url,
+                        Key: record.key,
+                        fileId: record._id
+                    });
                 } catch (err) {
                     reject(err);
                 }

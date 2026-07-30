@@ -99,4 +99,29 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
+/**
+ * Post-delete hook: clean up KYC documents and avatar files when a user is hard-deleted.
+ */
+userSchema.post('deleteOne', { document: true, query: false }, async function () {
+  try {
+    const FileMetadata = mongoose.model('FileMetadata');
+    const { deleteFileFromStorage } = await import('../services/fileService.js');
+    // Find all FileMetadata records uploaded by this user (KYC, avatars)
+    const relatedFiles = await FileMetadata.find({
+      $or: [
+        { uploader: this._id, category: 'kyc' },
+        { relatedEntity: this._id, relatedModel: 'User' }
+      ]
+    });
+    for (const meta of relatedFiles) {
+      const cleanFilename = meta.key.split('/').pop();
+      await deleteFileFromStorage(meta.key, cleanFilename);
+      await meta.deleteOne();
+    }
+  } catch (err) {
+    console.error('[User.post(deleteOne)] File cleanup error:', err);
+  }
+});
+
 export default mongoose.model('User', userSchema);
+

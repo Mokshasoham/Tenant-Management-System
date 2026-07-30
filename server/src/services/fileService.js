@@ -1,12 +1,15 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AppError } from '../utils/errorHandling.js';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 import FileMetadata from '../models/FileMetadata.js';
 import FileStorage from '../models/FileStorage.js';
 import logger from '../utils/logger.js';
+import config from '../config/config.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -102,7 +105,6 @@ export const uploadFileBuffer = async ({
       url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
     } catch (err) {
       logger.error('[FileService S3 Error] Upload failed, falling back to database storage:', err);
-      // Fallback if S3 fails dynamically
       s3Client = null; 
     }
   }
@@ -116,7 +118,7 @@ export const uploadFileBuffer = async ({
         { filename: cleanFilename, mimeType, data: buffer },
         { upsert: true, new: true }
       );
-      url = `/uploads/${category}/${cleanFilename}`;
+      url = `/api/files/access/${cleanFilename}`;
       
       // Mirror to disk uploads directory for fast local static serving if directory exists
       const localDir = path.join(__dirname, '..', '..', 'uploads', category);
@@ -143,6 +145,138 @@ export const uploadFileBuffer = async ({
     category
   });
 
-  logger.info(`[FileService Success] Centralized metadata created for key: ${key}`);
+  // Fix local fallback URL to use the MongoDB _id for metadata-driven access
+  if (!s3Client || !process.env.AWS_S3_BUCKET_NAME) {
+    fileRecord.url = `/api/files/download/${fileRecord._id}`;
+    await fileRecord.save();
+  }
+
+  logger.info(`[FileService Success] Centralized metadata created for key: ${key}, fileId: ${fileRecord._id}`);
   return fileRecord;
+};
+
+/**
+ * Generates secure temporary signed S3 URL.
+ */
+export const generateSecureS3Url = async (fileRecord) => {
+  if (s3Client && process.env.AWS_S3_BUCKET_NAME) {
+    const command = new GetObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Key: fileRecord.key,
+      ResponseContentType: fileRecord.mimeType,
+      ResponseContentDisposition: `inline; filename="${fileRecord.filename}"`
+    });
+    return await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15m
+  }
+  return null;
+};
+
+/**
+ * Generates short-lived local access token for DB fallbacks.
+ */
+export const generateLocalOneTimeToken = (fileId, userId) => {
+  return jwt.sign({ fileId, userId }, config.JWT_SECRET, { expiresIn: '15m' });
+};
+
+/**
+ * Verifies short-lived local token.
+ */
+export const verifyLocalOneTimeToken = (token, fileId) => {
+  try {
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+    return decoded.fileId === fileId;
+  } catch (err) {
+    return false;
+  }
+};
+
+/**
+ * Centralized permissions checker.
+ */
+export const verifyFileAccessPermission = async (user, fileRecord) => {
+  if (user.role === 'admin') return true;
+
+  const { category, uploader, relatedEntity } = fileRecord;
+  const currentUserId = user.userId || user._id;
+
+  if (uploader && uploader.toString() === currentUserId?.toString()) {
+    return true;
+  }
+
+  if (['properties', 'reviews'].includes(category)) {
+    return true;
+  }
+
+  if (user.role === 'manager' && category !== 'chat') {
+    return true;
+  }
+
+  if (category === 'chat') {
+    const Message = mongoose.model('Message');
+    const msg = await Message.findOne({
+      $or: [
+        { attachments: { $elemMatch: { url: fileRecord.url } } },
+        { attachments: { $elemMatch: { key: fileRecord.key } } }
+      ]
+    });
+    if (msg) {
+      if (msg.sender.toString() === currentUserId?.toString() || msg.receiver.toString() === currentUserId?.toString()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (category === 'kyc') {
+    return relatedEntity && relatedEntity.toString() === currentUserId?.toString();
+  }
+
+  if (category === 'leases') {
+    const Lease = mongoose.model('Lease');
+    const lease = await Lease.findById(relatedEntity);
+    if (lease && lease.tenant.toString() === currentUserId?.toString()) {
+      return true;
+    }
+    return false;
+  }
+
+  if (category === 'invoices') {
+    const Payment = mongoose.model('Payment');
+    const payment = await Payment.findById(relatedEntity);
+    if (payment && payment.tenant.toString() === currentUserId?.toString()) {
+      return true;
+    }
+    return false;
+  }
+
+  return false;
+};
+
+/**
+ * Deletes file from S3 bucket and local fallback storages.
+ */
+export const deleteFileFromStorage = async (key, filename) => {
+  if (s3Client && process.env.AWS_S3_BUCKET_NAME) {
+    logger.info(`[FileService] Deleting S3 key: ${key}`);
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: key
+      });
+      await s3Client.send(command);
+    } catch (err) {
+      logger.error(`[FileService S3 Delete Error] Key: ${key}:`, err);
+    }
+  }
+
+  try {
+    await FileStorage.deleteOne({ filename });
+    const localDir = path.join(__dirname, '..', '..', 'uploads', key.split('/')[0]);
+    const localPath = path.join(localDir, filename);
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+    }
+  } catch (err) {
+    logger.error(`[FileService Local Delete Error] Filename: ${filename}:`, err);
+  }
 };

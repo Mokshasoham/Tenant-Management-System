@@ -85,4 +85,24 @@ paymentSchema.index({ owner: 1 });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ dueDate: 1 });
 
+/**
+ * Post-delete hook: clean up invoice FileMetadata records and storage when a payment is deleted.
+ */
+paymentSchema.post('deleteOne', { document: true, query: false }, async function () {
+  try {
+    const FileMetadata = mongoose.model('FileMetadata');
+    const { deleteFileFromStorage } = await import('../services/fileService.js');
+    // Find all FileMetadata records related to this payment (invoice PDFs)
+    const relatedFiles = await FileMetadata.find({ relatedEntity: this._id, relatedModel: 'Payment' });
+    for (const meta of relatedFiles) {
+      const cleanFilename = meta.key.split('/').pop();
+      await deleteFileFromStorage(meta.key, cleanFilename);
+      await meta.deleteOne();
+    }
+  } catch (err) {
+    console.error('[Payment.post(deleteOne)] File cleanup error:', err);
+  }
+});
+
 export default mongoose.model('Payment', paymentSchema);
+

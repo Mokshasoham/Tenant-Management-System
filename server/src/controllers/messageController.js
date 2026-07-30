@@ -179,6 +179,7 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
+            fileId: fileRecord._id,
             url: fileRecord.url,
             fileName: fileRecord.filename,
             fileType: fileRecord.mimeType

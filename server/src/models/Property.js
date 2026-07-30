@@ -222,7 +222,42 @@ propertySchema.pre('save', function (next) {
     this.geo.coordinates = [this.location.lng, this.location.lat];
   }
 
+  // Auto-sync images and videos from media array for frontend/backward compatibility
+  if (this.isModified('media')) {
+    this.images = this.media.filter(m => m.mediaType === 'image').map(m => m.url);
+    this.videos = this.media.filter(m => m.mediaType === 'video').map(m => m.url);
+  }
+
   next();
+});
+
+/**
+ * Post-delete hook: clean up all property media files from FileMetadata and storage.
+ */
+propertySchema.post('deleteOne', { document: true, query: false }, async function () {
+  try {
+    const FileMetadata = mongoose.model('FileMetadata');
+    const { deleteFileFromStorage } = await import('../services/fileService.js');
+    
+    if (this.media && this.media.length > 0) {
+      for (const item of this.media) {
+        if (item.key) {
+          const cleanFilename = item.key.split('/').pop();
+          await deleteFileFromStorage(item.key, cleanFilename);
+          await FileMetadata.deleteOne({ key: item.key });
+        }
+      }
+    }
+
+    const relatedFiles = await FileMetadata.find({ relatedEntity: this._id, relatedModel: 'Property' });
+    for (const meta of relatedFiles) {
+      const cleanFilename = meta.key.split('/').pop();
+      await deleteFileFromStorage(meta.key, cleanFilename);
+      await meta.deleteOne();
+    }
+  } catch (err) {
+    console.error('[Property.post(deleteOne)] File cleanup error:', err);
+  }
 });
 
 export default mongoose.model('Property', propertySchema);

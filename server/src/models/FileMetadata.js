@@ -41,6 +41,14 @@ const FileMetadataSchema = new mongoose.Schema(
       enum: ['chat', 'kyc', 'properties', 'leases', 'invoices', 'reviews'],
       required: true,
     },
+    downloadCount: {
+      type: Number,
+      default: 0,
+    },
+    lastAccessedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

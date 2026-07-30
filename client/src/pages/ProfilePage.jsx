@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../context/authStore';
 import { authService, userService } from '../services/api';
 import { User, Mail, Phone, Shield, Lock, Check, AlertTriangle, Eye, EyeOff, QrCode, Upload, FileText } from 'lucide-react';
+import { openSecureFile } from '../utils/fileAccess';
 
 const ROLE_COLORS = {
   admin: { from: 'from-violet-500', to: 'to-purple-600', text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
@@ -387,9 +388,9 @@ export default function ProfilePage() {
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Uploaded Documents</p>
               <div className="grid grid-cols-2 gap-2">
                 {user.kycDocuments.map((doc, idx) => (
-                  <a key={idx} href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${doc}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm p-3 bg-muted rounded-lg border border-border hover:border-primary transition-colors hover:text-primary">
+                  <button key={idx} type="button" onClick={() => openSecureFile(doc)} className="flex items-center text-sm p-3 bg-muted rounded-lg border border-border hover:border-primary transition-colors hover:text-primary text-left w-full">
                     <FileText className="w-4 h-4 mr-2" /> Document {idx + 1}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>

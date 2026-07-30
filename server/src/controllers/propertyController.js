@@ -2,7 +2,7 @@ import Property from '../models/Property.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import sharp from 'sharp';
-import { uploadBufferToStorage } from '../services/s3Service.js';
+import { uploadFileBuffer } from '../services/fileService.js';
 
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
@@ -220,11 +220,13 @@ export const updateProperty = asyncHandler(async (req, res) => {
 export const deleteProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const property = await Property.findByIdAndDelete(id);
+  const property = await Property.findById(id);
 
   if (!property) {
     throw new AppError('Property not found', 404);
   }
+
+  await property.deleteOne();
 
   logger.info(`Property deleted: ${property.name}`);
 
@@ -332,12 +334,19 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
       filename += `.${ext}`;
     }
 
-    const uploadResult = await uploadBufferToStorage(processedBuffer, filename, mimeType);
+    const uploadResult = await uploadFileBuffer({
+      buffer: processedBuffer,
+      filename,
+      mimeType,
+      category: 'properties',
+      relatedEntityId: property._id,
+      relatedModelName: 'Property'
+    });
     
     mediaUrls.push({
-      url: uploadResult.Location,
+      url: uploadResult.url,
       mediaType: isVideo ? 'video' : 'image',
-      key: uploadResult.Key
+      key: uploadResult.key
     });
   }
 
