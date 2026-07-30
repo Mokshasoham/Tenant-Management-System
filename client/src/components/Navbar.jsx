@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../context/authStore';
 import { notificationService, propertyService, paymentService, tenantService, maintenanceService } from '../services/api';
-import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -233,6 +233,14 @@ export default function Navbar({ toggleSidebar }) {
     }
   };
 
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
@@ -253,6 +261,14 @@ export default function Navbar({ toggleSidebar }) {
       <div className="flex items-center gap-3">
         <button onClick={toggleSidebar} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all">
           <Menu className="w-5 h-5" />
+        </button>
+        <button 
+          onClick={handleBack}
+          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl border border-white/5 bg-white/5 transition-all flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider shadow-inner"
+          title="Go Back"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Back</span>
         </button>
         <button 
           onClick={() => setSearchOpen(true)}
