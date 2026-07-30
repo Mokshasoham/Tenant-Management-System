@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import { hashPassword } from '../utils/password.js';
 import logger from '../utils/logger.js';
+import fs from 'fs';
+import mongoose from 'mongoose';
 
 export const getAllUsers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, role, search } = req.query;
@@ -199,6 +201,21 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
   }
 
   const fileUrls = req.files.map(file => `/uploads/kyc/${file.filename}`);
+
+  // Save to FileStorage database backup persistence
+  try {
+    const FileStorage = mongoose.model('FileStorage');
+    for (const file of req.files) {
+      const buffer = await fs.promises.readFile(file.path);
+      await FileStorage.findOneAndUpdate(
+        { filename: file.filename },
+        { filename: file.filename, mimeType: file.mimetype, data: buffer },
+        { upsert: true, new: true }
+      );
+    }
+  } catch (err) {
+    logger.error('[FileStorage KYC] Failed to persist file in MongoDB:', err);
+  }
 
   user.kycDocuments = [...user.kycDocuments, ...fileUrls];
   user.kycStatus = 'pending';

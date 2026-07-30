@@ -1,7 +1,9 @@
 import Message from '../models/Message.js';
-import User from '../models/User.js'
+import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import fs from 'fs';
+import mongoose from 'mongoose';
 
 export const getAvailableUsers = asyncHandler(async (req, res) => {
     const currentUser = req.user;
@@ -169,6 +171,19 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
 
     const fileUrl = `/uploads/chat/${req.file.filename}`;
     
+    // Save to FileStorage database backup persistence
+    try {
+        const FileStorage = mongoose.model('FileStorage');
+        const buffer = await fs.promises.readFile(req.file.path);
+        await FileStorage.findOneAndUpdate(
+            { filename: req.file.filename },
+            { filename: req.file.filename, mimeType: req.file.mimetype, data: buffer },
+            { upsert: true, new: true }
+        );
+    } catch (err) {
+        logger.error('[FileStorage Chat] Failed to persist file in MongoDB:', err);
+    }
+
     res.status(200).json({
         success: true,
         data: {
