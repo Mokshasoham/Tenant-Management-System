@@ -151,7 +151,7 @@ export const ChatProvider = ({ children }) => {
         formData.append('file', file);
         try {
             const res = await messageService.uploadAttachment(formData);
-            return res.data; // { url, fileName, fileType }
+            return res.data?.data || res.data; // { url, fileName, fileType }
         } catch (err) {
             console.error('File upload failed', err);
             throw err;
