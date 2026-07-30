@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../context/authStore';
 import { notificationService, propertyService, paymentService, tenantService, maintenanceService, bookingService, visitService, leaseService } from '../services/api';
-import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -60,6 +60,7 @@ export default function Navbar({ toggleSidebar }) {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expandedNotifs, setExpandedNotifs] = useState({});
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -440,7 +441,7 @@ export default function Navbar({ toggleSidebar }) {
                   ) : notifications.map((n) => (
                     <div 
                       key={n._id} 
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted transition-colors text-left relative group/item"
+                      className="w-full flex items-start justify-between gap-3 px-4 py-3 hover:bg-muted transition-colors text-left relative group/item"
                     >
                       <div 
                         onClick={() => handleNotifClick(n)}
@@ -449,8 +450,47 @@ export default function Navbar({ toggleSidebar }) {
                         <span className="text-lg leading-none mt-0.5 flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
                         <div className="flex-1 min-w-0">
                           <p className={cn('text-sm font-semibold truncate', n.read ? 'text-muted-foreground' : 'text-foreground')}>{n.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{n.message}</p>
-                          <p className="text-[10px] text-muted-foreground/50 mt-1">{timeAgo(n.createdAt)}</p>
+                          <motion.p 
+                            layout
+                            className={cn(
+                              'text-xs text-muted-foreground mt-0.5 transition-all duration-300 leading-relaxed', 
+                              !expandedNotifs[n._id] && 'line-clamp-1'
+                            )}
+                          >
+                            {n.message}
+                          </motion.p>
+                          
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            <p className="text-[10px] text-muted-foreground/50">{timeAgo(n.createdAt)}</p>
+                            
+                            {n.message?.length > 40 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNotifs(prev => ({ ...prev, [n._id]: !prev[n._id] }));
+                                }}
+                                className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 flex items-center gap-0.5 uppercase tracking-wider transition-colors"
+                              >
+                                {expandedNotifs[n._id] ? (
+                                  <>Collapse <ChevronUp className="w-2.5 h-2.5" /></>
+                                ) : (
+                                  <>Read More <ChevronDown className="w-2.5 h-2.5" /></>
+                                )}
+                              </button>
+                            )}
+
+                            {expandedNotifs[n._id] && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNotifClick(n);
+                                }}
+                                className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                              >
+                                View Details
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {!n.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />}
                       </div>

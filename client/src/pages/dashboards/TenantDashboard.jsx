@@ -4,7 +4,7 @@ import { leaseService, paymentService, maintenanceService, notificationService, 
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
-    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown,
+    Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown, ChevronUp,
     ChevronLeft, ChevronRight, X, FileSignature
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -151,6 +151,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [maintenance, setMaintenance] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [unread, setUnread] = useState(0);
+    const [expandedNotifs, setExpandedNotifs] = useState({});
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -1169,19 +1170,28 @@ export default function TenantDashboard({ user, navigate }) {
                                 return (
                                     <div 
                                         key={n._id} 
+                                        id={`notif-card-${n._id}`}
                                         onClick={async () => {
                                             // Dynamic Redirect
-                                            let redirectPath = '/dashboard';
+                                            let redirectPath = n.link || '/dashboard';
                                             let navigationState = {};
                                             const lowerTitle = n.title?.toLowerCase() || '';
                                             const lowerMsg = n.message?.toLowerCase() || '';
                                             const isVisit = lowerTitle.includes('visit') || lowerMsg.includes('visit');
 
+                                            let resourceId = n.relatedId;
+                                            if (!resourceId && n.link) {
+                                                const match = n.link.match(/\/([a-fA-F0-9]{24})/);
+                                                if (match) {
+                                                    resourceId = match[1];
+                                                }
+                                            }
+
                                             if (isVisit) {
-                                                let propertyId = n.relatedId;
+                                                let propertyId = resourceId;
                                                 try {
                                                     const myVisitsRes = await visitService.getMyVisits();
-                                                    const matchedVisit = myVisitsRes.data?.find(v => v._id === n.relatedId || v.property?._id === n.relatedId);
+                                                    const matchedVisit = myVisitsRes.data?.find(v => v._id === resourceId || v.property?._id === resourceId);
                                                     if (matchedVisit) {
                                                         propertyId = matchedVisit.property?._id || matchedVisit.property;
                                                     }
@@ -1206,15 +1216,15 @@ export default function TenantDashboard({ user, navigate }) {
                                                 navigationState = { activeBookingTab: 'visit' };
                                             } else if (n.type === 'message' || n.relatedModel === 'Message') {
                                                 redirectPath = '/messages';
-                                                if (n.relatedId) {
-                                                    navigationState = { recipientId: n.relatedId };
+                                                if (resourceId) {
+                                                    navigationState = { recipientId: resourceId };
                                                 }
-                                            } else if (n.type === 'booking') {
-                                                if (n.relatedId) {
+                                            } else if (n.type === 'booking' || redirectPath.startsWith('/bookings/') || lowerTitle.includes('booking') || lowerMsg.includes('booking')) {
+                                                if (resourceId) {
                                                     // Validate that booking exists
                                                     let bookingExists = false;
                                                     try {
-                                                        await bookingService.getBookingById(n.relatedId);
+                                                        await bookingService.getBookingById(resourceId);
                                                         bookingExists = true;
                                                     } catch (err) {
                                                         bookingExists = false;
@@ -1223,15 +1233,15 @@ export default function TenantDashboard({ user, navigate }) {
                                                         alert('This record is no longer available');
                                                         return;
                                                     }
-                                                    redirectPath = `/bookings/${n.relatedId}`;
+                                                    redirectPath = `/bookings/${resourceId}`;
                                                 } else {
                                                     redirectPath = '/browse';
                                                 }
-                                            } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease') {
-                                                if (n.relatedId) {
+                                            } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease' || redirectPath.startsWith('/my-lease')) {
+                                                if (resourceId) {
                                                     let leaseExists = false;
                                                     try {
-                                                        await leaseService.getLeaseById(n.relatedId);
+                                                        await leaseService.getLeaseById(resourceId);
                                                         leaseExists = true;
                                                     } catch (err) {
                                                         leaseExists = false;
@@ -1242,11 +1252,11 @@ export default function TenantDashboard({ user, navigate }) {
                                                     }
                                                 }
                                                 redirectPath = '/my-lease';
-                                            } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment') {
-                                                if (n.type.includes('due') || n.type.includes('overdue')) {
+                                            } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment' || redirectPath.startsWith('/pay-now')) {
+                                                if (n.type?.includes('due') || n.type?.includes('overdue') || redirectPath.startsWith('/pay-now')) {
                                                     redirectPath = '/pay-now';
-                                                    if (n.relatedId) {
-                                                        navigationState = { paymentId: n.relatedId };
+                                                    if (resourceId) {
+                                                        navigationState = { paymentId: resourceId };
                                                     }
                                                 } else {
                                                     redirectPath = '/bills';
@@ -1254,10 +1264,10 @@ export default function TenantDashboard({ user, navigate }) {
                                             } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
                                                 redirectPath = '/maintenance';
                                             } else if (n.type === 'property_created' || n.relatedModel === 'Property') {
-                                                if (n.relatedId) {
+                                                if (resourceId) {
                                                     let propExists = false;
                                                     try {
-                                                        await propertyService.getPropertyById(n.relatedId);
+                                                        await propertyService.getPropertyById(resourceId);
                                                         propExists = true;
                                                     } catch (err) {
                                                         propExists = false;
@@ -1266,7 +1276,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                         alert('This record is no longer available');
                                                         return;
                                                     }
-                                                    redirectPath = `/properties/${n.relatedId}`;
+                                                    redirectPath = `/properties/${resourceId}`;
                                                 } else {
                                                     redirectPath = '/browse';
                                                 }
@@ -1304,11 +1314,51 @@ export default function TenantDashboard({ user, navigate }) {
                                                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse flex-shrink-0" />
                                                     )}
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{n.message}</p>
-                                                <p className="text-[9px] text-muted-foreground/50 mt-1 flex items-center gap-1 font-bold">
-                                                    <span>•</span>
-                                                    <span>{formatTimeAgo(n.createdAt)}</span>
-                                                </p>
+                                                <motion.p 
+                                                    layout
+                                                    className={cn(
+                                                        "text-[10px] text-muted-foreground mt-0.5 leading-relaxed transition-all duration-300", 
+                                                        !expandedNotifs[n._id] && "line-clamp-2"
+                                                    )}
+                                                >
+                                                    {n.message}
+                                                </motion.p>
+                                                
+                                                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                    <p className="text-[9px] text-muted-foreground/50 flex items-center gap-1 font-bold">
+                                                        <span>•</span>
+                                                        <span>{formatTimeAgo(n.createdAt)}</span>
+                                                    </p>
+                                                    
+                                                    {n.message?.length > 60 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setExpandedNotifs(prev => ({ ...prev, [n._id]: !prev[n._id] }));
+                                                            }}
+                                                            className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 flex items-center gap-0.5 uppercase tracking-wider transition-colors"
+                                                        >
+                                                            {expandedNotifs[n._id] ? (
+                                                                <>Collapse <ChevronUp className="w-2.5 h-2.5" /></>
+                                                            ) : (
+                                                                <>Read More <ChevronDown className="w-2.5 h-2.5" /></>
+                                                            )}
+                                                        </button>
+                                                    )}
+
+                                                    {expandedNotifs[n._id] && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const clickEvent = document.getElementById(`notif-card-${n._id}`);
+                                                                if (clickEvent) clickEvent.click();
+                                                            }}
+                                                            className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                                                        >
+                                                            View Details
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
