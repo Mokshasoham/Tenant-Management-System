@@ -37,6 +37,8 @@ export default function PropertyDetailsPage() {
     const [existingBooking, setExistingBooking] = useState(null);
     const [bookingLoading, setBookingLoading] = useState(false);
     const [showRazorpay, setShowRazorpay] = useState(false);
+    const [bookingSuccess, setBookingSuccess] = useState(false);
+    const [bookingError, setBookingError] = useState('');
 
     // Initialize date locks 1 month out by default
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -369,39 +371,63 @@ export default function PropertyDetailsPage() {
                             </div>
                         </div>
 
+                        {bookingSuccess && (
+                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold space-y-1">
+                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Request Sent!
+                                </p>
+                                <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium">
+                                    Booking request has been sent to the manager. Please wait for approval.
+                                </p>
+                            </div>
+                        )}
+
+                        {bookingError && (
+                            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold space-y-1">
+                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
+                                    <XCircle className="w-4 h-4 text-rose-400" /> Request Failed
+                                </p>
+                                <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
+                                    {bookingError}
+                                </p>
+                            </div>
+                        )}
+
                         <button
                             disabled={!!existingBooking || bookingLoading || isNotBookable}
                             onClick={async () => {
                                 setBookingLoading(true);
+                                setBookingSuccess(false);
+                                setBookingError('');
                                 try {
-                                    await bookingService.requestBooking({
+                                    const res = await bookingService.requestBooking({
                                         propertyId: id,
                                         startDate: new Date(startDate).toISOString(),
                                         endDate: new Date(endDate).toISOString(),
                                         totalAmount: property.rentAmount,
                                         paymentReference: property.bookingType === 'free' ? 'FREE-BOOKING' : 'PENDING'
                                     });
-                                    // Navigate to a success or status page
-                                    navigate('/dashboard');
+                                    setBookingSuccess(true);
+                                    // Update the existing booking state on the page immediately with the returned booking details
+                                    setExistingBooking(res.data?.booking || res.data || { status: 'pending' });
                                 } catch (err) {
-                                    alert('Failed to request booking. Please try again.');
+                                    setBookingError(err.response?.data?.message || 'Failed to request booking. Please try again.');
                                 } finally {
                                     setBookingLoading(false);
                                 }
                             }}
                             className={cn(
                                 "w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-black/10",
-                                (existingBooking || isNotBookable) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
+                                (existingBooking || isNotBookable || bookingLoading) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
                             )}
                         >
                             <Wallet className="w-5 h-5" />
-                            {bookingLoading ? 'Processing...' : 
+                            {bookingLoading ? 'Sending request to manager...' : 
                              isSoldOut ? 'Sold Out' : 
                              isUnderMaintenance ? 'Under Maintenance' :
                              existingBooking ? 'Request Pending' : 
                              (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
                         </button>
-
 
                         <p className="text-center text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">
                             {property.bookingType === 'free' ? 'No Credit Card Needed' : '100% Secure Transaction'}
