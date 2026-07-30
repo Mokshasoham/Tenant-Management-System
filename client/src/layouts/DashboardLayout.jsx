@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import useAuthStore from '../context/authStore';
@@ -36,6 +38,14 @@ export default function DashboardLayout({ children }) {
   const role = user?.role || 'tenant';
   const roleBg = ROLE_BG[role] || ROLE_BG.tenant;
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const showBackButton = window.history.state && 
+                         window.history.state.idx > 0 && 
+                         location.pathname !== '/dashboard' && 
+                         location.pathname !== '/';
+
   return (
     <div className={cn(
       'flex h-screen overflow-hidden relative transition-colors duration-300',
@@ -61,6 +71,17 @@ export default function DashboardLayout({ children }) {
         {/* Page Content */}
         <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[92px]">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
+            {showBackButton && (
+              <div className="mb-6 flex justify-start">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="px-4 py-2 rounded-2xl border border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 flex items-center gap-2 text-xs font-black uppercase tracking-wider shadow-sm select-none"
+                >
+                  <ArrowLeft className="w-4 h-4 text-primary" />
+                  <span>Back</span>
+                </button>
+              </div>
+            )}
             {children}
           </div>
         </main>
