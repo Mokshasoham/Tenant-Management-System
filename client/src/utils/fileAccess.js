@@ -6,7 +6,7 @@ export const openSecureFile = async (docUrl) => {
   if (!docUrl) return;
 
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-  const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
   const token = localStorage.getItem('authToken');
 
   // Normalize legacy URLs containing /uploads/ by replacing the origin with the configured serverUrl
@@ -49,12 +49,13 @@ export const openSecureFile = async (docUrl) => {
     if (url) {
       const cleanUrl = url.startsWith('/') ? url : '/' + url;
       const fullUrl = url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
+      console.log("Opening URL:", fullUrl);
       window.open(fullUrl, '_blank');
     } else {
       // Treat as a legacy URL or direct URL and open directly
       const cleanDocUrl = normalizedUrl.startsWith('/') ? normalizedUrl : '/' + normalizedUrl;
       const fallbackUrl = normalizedUrl.startsWith('http') ? normalizedUrl : `${cleanServerUrl}${cleanDocUrl}`;
-      console.log("Opening directly (fallbackUrl) =", fallbackUrl);
+      console.log("Opening URL:", fallbackUrl);
       window.open(fallbackUrl, '_blank');
     }
   } catch (err) {
@@ -62,6 +63,7 @@ export const openSecureFile = async (docUrl) => {
     const cleanServerUrl = serverUrl.replace(/\/$/, '');
     const cleanDocUrl = normalizedUrl.startsWith('/') ? normalizedUrl : '/' + normalizedUrl;
     const fallbackUrl = normalizedUrl.startsWith('http') ? normalizedUrl : `${cleanServerUrl}${cleanDocUrl}`;
+    console.log("Opening URL:", fallbackUrl);
     window.open(fallbackUrl, '_blank');
   }
 };
