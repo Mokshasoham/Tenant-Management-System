@@ -44,17 +44,23 @@ export const openSecureFile = async (docUrl) => {
       }
     }
 
+    const cleanServerUrl = serverUrl.replace(/\/$/, '');
+
     if (url) {
-      const fullUrl = url.startsWith('http') ? url : `${serverUrl}${url}`;
+      const cleanUrl = url.startsWith('/') ? url : '/' + url;
+      const fullUrl = url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
       window.open(fullUrl, '_blank');
     } else {
       // Graceful fallback to original URL (authenticated query redirection handled by server if applicable)
-      const fallbackUrl = docUrl.startsWith('http') ? docUrl : `${serverUrl}${docUrl}`;
+      const cleanDocUrl = docUrl.startsWith('/') ? docUrl : '/' + docUrl;
+      const fallbackUrl = docUrl.startsWith('http') ? docUrl : `${cleanServerUrl}${cleanDocUrl}`;
       window.open(fallbackUrl, '_blank');
     }
   } catch (err) {
     console.error('[openSecureFile] Failed to resolve secure URL:', err);
-    const fallbackUrl = docUrl.startsWith('http') ? docUrl : `${serverUrl}${docUrl}`;
+    const cleanServerUrl = serverUrl.replace(/\/$/, '');
+    const cleanDocUrl = docUrl.startsWith('/') ? docUrl : '/' + docUrl;
+    const fallbackUrl = docUrl.startsWith('http') ? docUrl : `${cleanServerUrl}${cleanDocUrl}`;
     window.open(fallbackUrl, '_blank');
   }
 };

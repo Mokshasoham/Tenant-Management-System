@@ -77,72 +77,87 @@ app.use(securityHeaders);
 const uploadsPath = path.join(__dirname, '..', 'uploads');
 
 // Step 1: Try centralized FileMetadata lookup (covers all new uploads)
-app.get('/uploads/:category/:filename', resolveLegacyUploadAlias, async (req, res, next) => {
-  // Step 2: Legacy fallback — try disk (covers old seeded/existing records)
-  const { category, filename } = req.params;
-  const filePath = path.join(uploadsPath, category, filename);
+// Step 1: Try centralized FileMetadata lookup (covers all new uploads)
+app.get(/^\/+(?:uploads)\/+(properties|leases|invoices|chat|kyc)\/+(.+)$/i, async (req, res, next) => {
+  const category = req.params[0];
+  const filename = req.params[1];
+  
+  req.params.category = category;
+  req.params.filename = filename;
 
-  if (fs.existsSync(filePath)) {
-    logger.info(`[Legacy Uploads Alias] Serving from disk: ${filePath}`);
-    return res.sendFile(filePath);
-  }
-
-  // Step 3: Try MongoDB FileStorage binary backup
-  try {
-    const FileStorage = mongoose.model('FileStorage');
-    const storedFile = await FileStorage.findOne({ filename });
-    if (storedFile) {
-      const targetDir = path.dirname(filePath);
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      await fs.promises.writeFile(filePath, storedFile.data);
-      res.setHeader('Content-Type', storedFile.mimeType);
-      return res.send(storedFile.data);
+  return resolveLegacyUploadAlias(req, res, async () => {
+    // Step 2: Legacy fallback — try disk (covers old seeded/existing records)
+    let resolvedCategory = category;
+    if (filename.startsWith('invoice_')) {
+      resolvedCategory = 'invoices';
+    } else if (filename.startsWith('lease_')) {
+      resolvedCategory = 'leases';
     }
-  } catch (err) {
-    logger.error(`[Legacy Uploads Alias] DB FileStorage lookup error for ${filename}:`, err);
-  }
+    
+    const filePath = path.join(uploadsPath, resolvedCategory, filename);
 
-  // Step 4: On-the-fly PDF regeneration (invoices & leases only)
-  try {
-    if (filename.startsWith('invoice_') && filename.endsWith('.pdf')) {
-      const paymentId = filename.replace('invoice_', '').replace('.pdf', '');
-      if (mongoose.Types.ObjectId.isValid(paymentId)) {
-        const Payment = mongoose.model('Payment');
+    if (fs.existsSync(filePath)) {
+      logger.info(`[Legacy Uploads Alias] Serving from disk: ${filePath}`);
+      return res.sendFile(filePath);
+    }
+
+    // Step 3: Try MongoDB FileStorage binary backup
+    try {
+      const FileStorage = mongoose.model('FileStorage');
+      const storedFile = await FileStorage.findOne({ filename });
+      if (storedFile) {
+        const targetDir = path.dirname(filePath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        await fs.promises.writeFile(filePath, storedFile.data);
+        res.setHeader('Content-Type', storedFile.mimeType);
+        return res.send(storedFile.data);
+      }
+    } catch (err) {
+      logger.error(`[Legacy Uploads Alias] DB FileStorage lookup error for ${filename}:`, err);
+    }
+
+    // Step 4: On-the-fly PDF regeneration (invoices & leases only)
+    try {
+      if (filename.startsWith('invoice_') && filename.endsWith('.pdf')) {
+        const paymentId = filename.replace('invoice_', '').replace('.pdf', '');
+        if (mongoose.Types.ObjectId.isValid(paymentId)) {
+          const Payment = mongoose.model('Payment');
+          const Tenant = mongoose.model('Tenant');
+          const Property = mongoose.model('Property');
+          const payment = await Payment.findById(paymentId);
+          if (payment) {
+            const tenant = await Tenant.findById(payment.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+            const property = await Property.findById(payment.property) || { name: 'Assigned Residence', address: 'Property Address' };
+            logger.info(`[Legacy Uploads Alias] On-the-fly regenerating invoice: ${filename}`);
+            const { generateInvoicePDF } = await import('./services/pdfService.js');
+            await generateInvoicePDF(payment, tenant, property);
+            if (fs.existsSync(filePath)) return res.sendFile(filePath);
+          }
+        }
+      } else if (filename.startsWith('lease_') && filename.endsWith('.pdf')) {
+        const leaseRef = filename.replace('lease_', '').replace('.pdf', '');
+        const Lease = mongoose.model('Lease');
         const Tenant = mongoose.model('Tenant');
         const Property = mongoose.model('Property');
-        const payment = await Payment.findById(paymentId);
-        if (payment) {
-          const tenant = await Tenant.findById(payment.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
-          const property = await Property.findById(payment.property) || { name: 'Assigned Residence', address: 'Property Address' };
-          logger.info(`[Legacy Uploads Alias] On-the-fly regenerating invoice: ${filename}`);
-          const { generateInvoicePDF } = await import('./services/pdfService.js');
-          await generateInvoicePDF(payment, tenant, property);
+        let lease = await Lease.findOne({ leaseNumber: leaseRef });
+        if (!lease && mongoose.Types.ObjectId.isValid(leaseRef)) lease = await Lease.findById(leaseRef);
+        if (lease) {
+          const tenant = await Tenant.findById(lease.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
+          const property = await Property.findById(lease.property) || { name: 'Assigned Residence', address: 'Property Address', city: 'City', zipCode: '000000' };
+          logger.info(`[Legacy Uploads Alias] On-the-fly regenerating lease: ${filename}`);
+          const { generateAndUploadLeasePDF } = await import('./services/pdfService.js');
+          await generateAndUploadLeasePDF(lease, tenant, property, lease.signature);
           if (fs.existsSync(filePath)) return res.sendFile(filePath);
         }
       }
-    } else if (filename.startsWith('lease_') && filename.endsWith('.pdf')) {
-      const leaseRef = filename.replace('lease_', '').replace('.pdf', '');
-      const Lease = mongoose.model('Lease');
-      const Tenant = mongoose.model('Tenant');
-      const Property = mongoose.model('Property');
-      let lease = await Lease.findOne({ leaseNumber: leaseRef });
-      if (!lease && mongoose.Types.ObjectId.isValid(leaseRef)) lease = await Lease.findById(leaseRef);
-      if (lease) {
-        const tenant = await Tenant.findById(lease.tenant) || { firstName: 'Valued', lastName: 'Tenant', email: 'tenant@tms.com' };
-        const property = await Property.findById(lease.property) || { name: 'Assigned Residence', address: 'Property Address', city: 'City', zipCode: '000000' };
-        logger.info(`[Legacy Uploads Alias] On-the-fly regenerating lease: ${filename}`);
-        const { generateAndUploadLeasePDF } = await import('./services/pdfService.js');
-        await generateAndUploadLeasePDF(lease, tenant, property, lease.signature);
-        if (fs.existsSync(filePath)) return res.sendFile(filePath);
-      }
+    } catch (err) {
+      logger.error(`[Legacy Uploads Alias] On-the-fly regeneration error for ${filename}:`, err);
     }
-  } catch (err) {
-    logger.error(`[Legacy Uploads Alias] On-the-fly regeneration error for ${filename}:`, err);
-  }
 
-  next();
+    next();
+  });
 });
 
 // Legacy static fallback for any remaining seeded files

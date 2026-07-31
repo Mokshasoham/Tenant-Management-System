@@ -118,7 +118,9 @@ export default function MessagesPage() {
     const getFullUrl = (url) => {
         if (!url) return '';
         if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) return url;
-        return `${serverUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+        const cleanServerUrl = serverUrl.replace(/\/$/, '');
+        const cleanUrl = url.startsWith('/') ? url : '/' + url;
+        return `${cleanServerUrl}${cleanUrl}`;
     };
 
     /**
@@ -136,7 +138,9 @@ export default function MessagesPage() {
             const data = await res.json();
             if (data.success && data.url) {
                 const url = data.url;
-                return url.startsWith('http') ? url : `${serverUrl}${url}`;
+                const cleanServerUrl = serverUrl.replace(/\/$/, '');
+                const cleanUrl = url.startsWith('/') ? url : '/' + url;
+                return url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
             }
         } catch (err) {
             console.error('[fetchSignedUrl] Error:', err);
