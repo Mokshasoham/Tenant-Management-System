@@ -718,6 +718,36 @@ export const getExitReportPDF = asyncHandler(async (req, res) => {
   const lease = await Lease.findById(id).populate('property');
   if (!lease) throw new AppError('Lease not found', 404);
 
+  // Permission Check
+  const User = mongoose.model('User');
+  const Tenant = mongoose.model('Tenant');
+
+  const currentUserRecord = await User.findById(req.user.userId).select('email role');
+  if (!currentUserRecord) throw new AppError('User not found', 404);
+
+  const tenantRecord = await Tenant.findOne({ email: currentUserRecord.email });
+
+  let hasAccess = false;
+  if (req.user.role === 'admin') {
+    hasAccess = true;
+  } else if (tenantRecord && lease.tenant.toString() === tenantRecord._id.toString()) {
+    hasAccess = true;
+  } else if (req.user.role === 'manager') {
+    if (lease.createdBy?.toString() === req.user.userId) {
+      hasAccess = true;
+    } else {
+      const Property = mongoose.model('Property');
+      const property = await Property.findById(lease.property);
+      if (property && (property.manager?.toString() === req.user.userId || property.owner?.toString() === req.user.userId)) {
+        hasAccess = true;
+      }
+    }
+  }
+
+  if (!hasAccess) {
+    throw new AppError('Forbidden: Access denied to this report resource', 403);
+  }
+
   const tenant = await Tenant.findById(lease.tenant);
   const feedback = await ExitFeedback.findOne({ lease: id });
   const inspection = await PropertyInspection.findOne({ lease: id });
@@ -786,6 +816,32 @@ export const getRenewalReportPDF = asyncHandler(async (req, res) => {
   const { id } = req.params; // lease renewal ID
   const renewal = await LeaseRenewal.findById(id).populate('lease property tenant');
   if (!renewal) throw new AppError('Renewal record not found', 404);
+
+  // Permission Check
+  const User = mongoose.model('User');
+  const Tenant = mongoose.model('Tenant');
+
+  const currentUserRecord = await User.findById(req.user.userId).select('email role');
+  if (!currentUserRecord) throw new AppError('User not found', 404);
+
+  const tenantRecord = await Tenant.findOne({ email: currentUserRecord.email });
+
+  let hasAccess = false;
+  if (req.user.role === 'admin') {
+    hasAccess = true;
+  } else if (tenantRecord && renewal.tenant?._id.toString() === tenantRecord._id.toString()) {
+    hasAccess = true;
+  } else if (req.user.role === 'manager') {
+    const Property = mongoose.model('Property');
+    const property = await Property.findById(renewal.property);
+    if (property && (property.manager?.toString() === req.user.userId || property.owner?.toString() === req.user.userId)) {
+      hasAccess = true;
+    }
+  }
+
+  if (!hasAccess) {
+    throw new AppError('Forbidden: Access denied to this report resource', 403);
+  }
 
   const doc = new PDFDocument({ margin: 50 });
   res.setHeader('Content-Type', 'application/pdf');
