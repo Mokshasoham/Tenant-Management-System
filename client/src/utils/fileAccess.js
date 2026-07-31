@@ -18,6 +18,9 @@ export const openSecureFile = async (docUrl) => {
     }
 
     let url = '';
+    console.log("docUrl =", docUrl);
+    console.log("resolved fileId =", fileId);
+    console.log("request =", `${apiBase}/files/signed-url/${fileId}`);
     if (fileId) {
       const res = await fetch(`${apiBase}/files/signed-url/${fileId}`, {
         headers: { Authorization: `Bearer ${token}` }
