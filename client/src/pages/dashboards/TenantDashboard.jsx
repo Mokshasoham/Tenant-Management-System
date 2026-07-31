@@ -603,7 +603,7 @@ export default function TenantDashboard({ user, navigate }) {
                         <div className="text-center py-8 rounded-2xl border border-dashed border-border bg-card/10">
                             <Home className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                             <p className="text-sm font-bold text-muted-foreground">No active rentals</p>
-                            <button onClick={() => navigate('/properties')} className="mt-2 text-xs font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto">
+                            <button onClick={() => navigate('/browse')} className="mt-2 text-xs font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto">
                                 Browse Properties <ArrowRight className="w-3 h-3" />
                             </button>
                         </div>
