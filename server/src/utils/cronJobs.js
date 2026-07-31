@@ -249,6 +249,35 @@ export const startCronJobs = () => {
                         $set: { status: 'occupied', currentTenant: lease.tenant }
                     });
 
+                    // Find and complete the corresponding booking
+                    const booking = await Booking.findOne({
+                        property: lease.property,
+                        user: tenantUser._id,
+                        status: 'approved',
+                    }).sort({ createdAt: -1 });
+
+                    if (booking) {
+                        booking.status = 'completed';
+                        booking.completedDate = new Date();
+                        booking.timeline.push({
+                            event: 'completed',
+                            timestamp: new Date(),
+                            note: 'Lease activated. Booking formally marked completed.'
+                        });
+                        await booking.save();
+                        logger.info(`[CRON] Booking ${booking._id} set to completed as lease started.`);
+
+                        // Send Booking Completed notification
+                        await Notification.create({
+                            recipient: booking.user,
+                            sender: lease.createdBy,
+                            title: 'Booking Completed',
+                            message: `Your booking for property under lease ${lease.leaseNumber} has been successfully completed.`,
+                            type: 'success',
+                            link: `/bookings/${booking._id}`
+                        });
+                    }
+
                     // Send notification to Tenant
                     await Notification.create({
                         recipient: tenantUser._id,

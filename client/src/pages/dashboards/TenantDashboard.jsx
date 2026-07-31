@@ -346,6 +346,11 @@ export default function TenantDashboard({ user, navigate }) {
     ];
     const uniqueCompletedLeases = Array.from(new Map(completedLeases.map(l => [l._id, l])).values());
 
+    const pendingTenantBookings = bookings.filter(b => b.status === 'pending');
+    const approvedTenantBookings = bookings.filter(b => b.status === 'approved');
+    const upcomingMoveIns = bookings.filter(b => b.status === 'approved' && b.paymentStatus === 'paid' && new Date(b.startDate) > new Date());
+    const historicalBookings = bookings.filter(b => ['completed', 'rejected', 'cancelled'].includes(b.status));
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -716,6 +721,26 @@ export default function TenantDashboard({ user, navigate }) {
             {bookings.length > 0 && (
                 <div className="space-y-3 pt-3">
                     <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Booking Requests & Deposits</h3>
+
+                    {/* Booking Stats Summary Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                        <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Pending</span>
+                            <span className="text-xl font-black text-amber-500 leading-none">{pendingTenantBookings.length}</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Approved</span>
+                            <span className="text-xl font-black text-indigo-500 leading-none">{approvedTenantBookings.length}</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Upcoming Move-ins</span>
+                            <span className="text-xl font-black text-emerald-500 leading-none">{upcomingMoveIns.length}</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">History</span>
+                            <span className="text-xl font-black text-muted-foreground/60 leading-none">{historicalBookings.length}</span>
+                        </div>
+                    </div>
                     
                     <div className="relative group/stack">
                         {/* 3D Card Stack visual deck effect when collapsed */}

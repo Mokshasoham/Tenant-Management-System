@@ -171,8 +171,9 @@ const verifyAndProcessPaymentInternal = async ({
     booking.razorpayPaymentId = razorpayPaymentId;
     booking.razorpaySignature = razorpaySignature;
     booking.paymentStatus = 'paid';
-    booking.status = 'active';
+    booking.status = 'approved';
     booking.escrowStatus = 'held';
+    booking.paymentDate = new Date();
     addTimeline(booking, 'payment_done', `Payment of ₹${booking.totalAmount.toLocaleString('en-IN')} locked into escrow.`);
     await booking.save();
 
@@ -264,6 +265,16 @@ const verifyAndProcessPaymentInternal = async ({
         link: `/bookings/${booking._id}`,
     });
 
+    // Notify tenant
+    await Notification.create({
+        recipient: booking.user,
+        sender: booking.manager,
+        title: 'Payment Successful',
+        message: `Your payment of ₹${booking.totalAmount.toLocaleString('en-IN')} for booking ${booking._id.toString().slice(-8)} has been received and verified successfully.`,
+        type: 'success',
+        link: `/my-lease`,
+    });
+
     return booking;
 };
 
@@ -319,20 +330,25 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
             throw new AppError('Not authorized', 403);
         }
 
+        // Tenants cannot approve or reject their own bookings
+        if (booking.user.toString() === req.user.userId) {
+            throw new AppError('Tenants cannot approve or reject their own bookings.', 403);
+        }
+
         // --- 1. Prevent overlapping approvals (Double-Booking Engine) ---
         const reqStart = new Date(booking.startDate);
         const reqEnd = new Date(booking.endDate);
 
-        const isConflict = booking.property.bookedDates?.some(block => {
-            if (block.status === 'cancelled') return false;
-            
-            const blockStart = new Date(block.startDate);
-            const blockEnd = new Date(block.endDate);
-            
-            return reqStart < blockEnd && blockStart < reqEnd;
+        const overlappingApprovedBooking = await Booking.findOne({
+            _id: { $ne: booking._id },
+            property: booking.property._id,
+            status: 'approved',
+            $or: [
+                { startDate: { $lt: reqEnd }, endDate: { $gt: reqStart } }
+            ]
         });
 
-        if (isConflict) {
+        if (overlappingApprovedBooking) {
             throw new AppError('CRITICAL: Another approved lease already occupies this exact timeline. You cannot double-book this property.', 409);
         }
         // ----------------------------------------------------------------
@@ -391,6 +407,8 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
 
         booking.status = 'approved';
         booking.paymentStatus = 'pending';
+        booking.approvalDate = new Date();
+        booking.approvedBy = req.user.userId;
         addTimeline(booking, 'approved', 'Booking approved. Pending security deposit & payment.');
         await booking.save();
 
@@ -432,6 +450,11 @@ export const rejectBooking = asyncHandler(async (req, res) => {
         throw new AppError('Not authorized', 403);
     }
 
+    // Tenants cannot approve or reject their own bookings
+    if (booking.user.toString() === req.user.userId) {
+        throw new AppError('Tenants cannot approve or reject their own bookings.', 403);
+    }
+
     booking.status = 'rejected';
     booking.rejectionReason = rejectionReason || 'No reason provided';
     booking.escrowStatus = 'refunded';
@@ -466,10 +489,22 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(id).populate('property');
 
     if (!booking) throw new AppError('Booking not found', 404);
-    if (booking.user.toString() !== req.user.userId && req.user.role !== 'admin') {
-        throw new AppError('Not authorized', 403);
+
+    const isTenant = booking.user.toString() === req.user.userId;
+    const isManager = booking.manager.toString() === req.user.userId;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isTenant && !isManager && !isAdmin) {
+        throw new AppError('Not authorized to cancel this booking.', 403);
     }
-    if (booking.status === 'cancelled') throw new AppError('Booking is already legally cancelled', 400);
+
+    if (isTenant && booking.status !== 'pending') {
+        throw new AppError('Tenants can only cancel pending bookings. Approved bookings must be cancelled by a manager or admin.', 403);
+    }
+
+    if (booking.status === 'cancelled') throw new AppError('Booking is already cancelled.', 400);
+    if (booking.status === 'completed') throw new AppError('Completed bookings cannot be cancelled.', 400);
+    if (booking.status === 'rejected') throw new AppError('Rejected bookings cannot be cancelled.', 400);
 
     const property = booking.property;
     const now = new Date();
@@ -502,7 +537,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
                     const rzp = new Razorpay({
                         key_id: process.env.RAZORPAY_KEY_ID,
                         key_secret: process.env.RAZORPAY_KEY_SECRET
-                    });
+                     });
                     await rzp.payments.refund(booking.razorpayPaymentId, {
                         amount: refundAmount * 100 // paise
                     });
@@ -522,7 +557,8 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     booking.status = 'cancelled';
     booking.cancellationReason = reason || 'No reason provided';
     booking.cancellationFeedback = feedback || '';
-    addTimeline(booking, 'cancelled', `Tenant formally withdrew the lease application. Reason: ${reason || 'None'}`);
+    booking.cancellationDate = new Date();
+    addTimeline(booking, 'cancelled', `${isTenant ? 'Tenant' : 'Manager'} formally withdrew the lease application. Reason: ${reason || 'None'}`);
     await booking.save();
 
     if (property) {
@@ -541,14 +577,39 @@ export const cancelBooking = asyncHandler(async (req, res) => {
             { $set: { status: 'terminated' } }
         );
 
-        await Notification.create({
-            recipient: property.manager || property.owner,
-            sender: req.user.userId,
-            title: 'Booking Cancelled By Tenant',
-            message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
-            type: 'alert',
-            link: `/bookings/${booking._id}`
-        });
+        if (!isTenant) {
+            // Manager/Admin cancelled it -> notify tenant
+            await Notification.create({
+                recipient: booking.user,
+                sender: req.user.userId,
+                title: 'Booking Cancelled By Manager',
+                message: `Your booking for ${property?.name || 'property'} has been cancelled by the manager. Reason: ${reason || 'None'}.`,
+                type: 'alert',
+                link: `/bookings/${booking._id}`
+            });
+        } else {
+            // Tenant cancelled it -> notify manager
+            await Notification.create({
+                recipient: property.manager || property.owner,
+                sender: req.user.userId,
+                title: 'Booking Cancelled By Tenant',
+                message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
+                type: 'alert',
+                link: `/bookings/${booking._id}`
+            });
+        }
+
+        // Always notify the tenant that their booking has been cancelled
+        if (isTenant) {
+            await Notification.create({
+                recipient: booking.user,
+                sender: req.user.userId,
+                title: 'Booking Cancelled Successfully',
+                message: `Your booking for ${property?.name || 'property'} has been cancelled successfully.`,
+                type: 'info',
+                link: `/bookings/${booking._id}`
+            });
+        }
     }
 
     res.status(200).json({ success: true, data: booking, refundAmount });
@@ -561,25 +622,36 @@ export const requestBooking = asyncHandler(async (req, res) => {
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);
 
-    // --- 1. Calendar Lock / Collision Algorithm ---
+    // Enforce property validation rules: must be published and status must be available
+    if (property.publishStatus !== 'published' || property.status !== 'available') {
+        throw new AppError('This property is not actually available for booking (it may be inactive, occupied, rented, or under maintenance).', 400);
+    }
+
+    // Validate 7-day lead time rule (move-in date must be at least 7 days from now)
+    const now = new Date();
     const reqStart = new Date(startDate);
     const reqEnd = new Date(endDate);
 
-    const isConflict = property.bookedDates?.some(block => {
-        if (block.status === 'cancelled') return false;
-        
-        const blockStart = new Date(block.startDate);
-        const blockEnd = new Date(block.endDate);
-        
-        // Two date ranges [start1, end1] and [start2, end2] overlap if:
-        // start1 < end2 AND start2 < end1
-        return reqStart < blockEnd && blockStart < reqEnd;
+    const minStartDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    minStartDate.setHours(0, 0, 0, 0);
+    reqStart.setHours(0, 0, 0, 0);
+
+    if (reqStart < minStartDate) {
+        throw new AppError('Tenants must submit a booking request at least 7 days before the intended move-in date.', 400);
+    }
+
+    // Enforce overlapping bookings check for Pending/Approved status in Booking collection
+    const overlappingBooking = await Booking.findOne({
+        property: propertyId,
+        status: { $in: ['pending', 'approved'] },
+        $or: [
+            { startDate: { $lt: reqEnd }, endDate: { $gt: reqStart } }
+        ]
     });
 
-    if (isConflict) {
-        throw new AppError('The selected dates are already physically locked. Please choose a different timeline.', 409);
+    if (overlappingBooking) {
+        throw new AppError('The property is already booked or has a pending request for the selected dates.', 409);
     }
-    // ----------------------------------------------
 
     const isFree = property.bookingType === 'free';
 
@@ -594,6 +666,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
         paymentReference: isFree ? 'FREE-BOOKING' : 'PENDING',
         status: 'pending',
         escrowStatus: isFree ? 'not_started' : 'not_started',
+        bookingDate: new Date(),
     });
 
     addTimeline(booking, 'request_sent');
@@ -601,12 +674,35 @@ export const requestBooking = asyncHandler(async (req, res) => {
 
     await booking.save();
 
+    // Push the pending booking to the property's bookedDates
+    await Property.findByIdAndUpdate(propertyId, {
+        $push: {
+            bookedDates: {
+                startDate,
+                endDate,
+                bookingId: booking._id,
+                status: 'pending'
+            }
+        }
+    });
+
+    // Notify Manager
     await Notification.create({
         recipient: property.manager || property.owner,
         sender: req.user.userId,
         title: isFree ? 'New Demo Booking Request' : 'New Booking Request',
         message: `You have a new ${isFree ? 'free/demo ' : ''}booking request for ${property.name}.`,
         type: 'booking',
+        link: `/bookings/${booking._id}`,
+    });
+
+    // Notify Tenant
+    await Notification.create({
+        recipient: req.user.userId,
+        sender: property.manager || property.owner,
+        title: 'Booking Request Submitted',
+        message: `Your booking request for ${property.name} has been submitted successfully and is pending manager approval.`,
+        type: 'info',
         link: `/bookings/${booking._id}`,
     });
 
@@ -691,17 +787,21 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
 
         // 1. Create Booking
         console.log('[MockPay] Trace: Step 1 (Booking)');
+        const start = startDate ? new Date(startDate) : new Date();
+
         const booking = await Booking.create({
             user: userId,
             property: propertyId,
             manager: managerId,
-            startDate: startDate || new Date(),
+            startDate: start,
             endDate: endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             totalAmount: Number(amount) || property.rentAmount || 1,
-            status: 'active',
+            status: 'approved',
             paymentStatus: 'paid',
             paymentReference: `MOCK-${Date.now()}`,
             escrowStatus: 'released',
+            bookingDate: new Date(),
+            paymentDate: new Date(),
         });
 
         // 2. Ensure Tenant
@@ -722,8 +822,6 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
 
         // 3. Ensure Lease (Reuse active lease if it exists, otherwise create new)
         console.log('[MockPay] Trace: Step 3 (Lease)');
-        const now = new Date();
-        const isFuture = new Date(booking.startDate) > now;
 
         let lease = await Lease.findOne({ 
             tenant: tenant._id, 
@@ -741,7 +839,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 endDate: booking.endDate,
                 rentAmount: property.rentAmount || booking.totalAmount || 1, // Actual property rent
                 depositAmount: property.depositAmount || 0,
-                status: isFuture ? 'pending' : 'active',
+                status: 'pending', // Always start as pending; cron job activates it and completes booking
                 createdBy: managerId,
                 terms: 'Simulated for demo.',
                 signature: 'MOCK-SIGNATURE-BASE64',

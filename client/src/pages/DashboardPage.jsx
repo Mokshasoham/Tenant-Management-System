@@ -15,6 +15,9 @@ export default function DashboardPage() {
     totalProperties: 0,
     totalLeases: 0,
     totalPayments: 0,
+    availableProperties: 0,
+    occupiedProperties: 0,
+    maintenanceProperties: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -37,8 +40,13 @@ export default function DashboardPage() {
             paymentService.getPaymentStats(),
           ]);
 
+          const propData = propertyStats.data?.data || propertyStats.data || {};
+
           data.totalTenants = tenantStats.data?.totalTenants || tenantStats.data?.data?.totalTenants || 0;
-          data.totalProperties = propertyStats.data?.totalProperties || propertyStats.data?.data?.totalProperties || 0;
+          data.totalProperties = propData.totalProperties || 0;
+          data.availableProperties = propData.availableProperties || 0;
+          data.occupiedProperties = propData.occupiedProperties || 0;
+          data.maintenanceProperties = propData.maintenanceProperties || 0;
           data.totalLeases = leaseStats.data?.totalLeases || leaseStats.data?.data?.totalLeases || 0;
           data.totalPayments = paymentStats.data?.totalPayments || paymentStats.data?.data?.totalPayments || 0;
           data.totalRevenue = paymentStats.data?.totalRevenue || paymentStats.data?.data?.totalCollected || 0;

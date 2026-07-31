@@ -105,6 +105,11 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [bookingLoading, setBookingLoading] = useState(true);
     const [bookingTab, setBookingTab] = useState('pending');
 
+    const occupied = stats?.occupiedProperties !== undefined ? stats.occupiedProperties : 46;
+    const vacant = stats?.availableProperties !== undefined ? stats.availableProperties : 6;
+    const total = occupied + vacant;
+    const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+
     const [visits, setVisits] = useState([]);
     const [visitsLoading, setVisitsLoading] = useState(true);
     const [visitTab, setVisitTab] = useState('pending');
@@ -171,7 +176,10 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
 
     const pendingBookings = bookings.filter(b => b.status === 'pending');
     const approvedBookings = bookings.filter(b => b.status === 'approved' && (b.paymentStatus === 'pending' || b.paymentStatus === 'failed'));
-    const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'completed' || (b.status === 'approved' && b.paymentStatus === 'paid'));
+    const paidBookings = bookings.filter(b => b.status === 'approved' && b.paymentStatus === 'paid');
+    const completedBookings = bookings.filter(b => b.status === 'completed' || b.status === 'active');
+    const rejectedBookings = bookings.filter(b => b.status === 'rejected');
+    const cancelledBookings = bookings.filter(b => b.status === 'cancelled');
 
     const pendingVisits = visits.filter(v => v.status === 'pending');
     const approvedVisits = visits.filter(v => v.status === 'approved');
@@ -311,14 +319,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 >
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Unit Occupancy</p>
                     <div className="flex flex-col items-center gap-4 flex-1 justify-center">
-                        <RingChart percentage={88} color="#3b82f6" size={120} />
+                        <RingChart percentage={pct} color="#3b82f6" size={120} />
                         <div className="grid grid-cols-2 gap-3 w-full">
                             <div className="text-center p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 dark:bg-blue-500/10">
-                                <p className="text-lg font-black text-foreground">46</p>
+                                <p className="text-lg font-black text-foreground">{occupied}</p>
                                 <p className="text-[9px] text-blue-500/80 dark:text-blue-300/60 font-black uppercase">Occupied</p>
                             </div>
                             <div className="text-center p-3 rounded-xl bg-muted border border-border">
-                                <p className="text-lg font-black text-foreground">6</p>
+                                <p className="text-lg font-black text-foreground">{vacant}</p>
                                 <p className="text-[9px] text-muted-foreground font-black uppercase">Vacant</p>
                             </div>
                         </div>
@@ -352,17 +360,20 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             </div>
                             <p className="text-sm font-black text-foreground">Booking Requests & Deposits</p>
                         </div>
-                        <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto">
+                        <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto overflow-x-auto scrollbar-none">
                             {[
                                 { id: 'pending', label: 'Pending', count: pendingBookings.length },
                                 { id: 'approved', label: 'Awaiting Deposit', count: approvedBookings.length },
-                                { id: 'paid', label: 'Deposit Paid', count: activeBookings.length }
+                                { id: 'paid', label: 'Deposit Paid', count: paidBookings.length },
+                                { id: 'completed', label: 'Completed', count: completedBookings.length },
+                                { id: 'rejected', label: 'Rejected', count: rejectedBookings.length },
+                                { id: 'cancelled', label: 'Cancelled', count: cancelledBookings.length }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setBookingTab(tab.id)}
                                     className={cn(
-                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                        "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 whitespace-nowrap",
                                         bookingTab === tab.id
                                             ? "bg-card text-foreground shadow-sm"
                                             : "text-muted-foreground/60 hover:text-foreground"
@@ -395,7 +406,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex items-center gap-3">
@@ -416,7 +428,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleUpdateBooking(b._id, 'approved')}
                                                 className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all"
@@ -447,7 +459,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -474,18 +487,19 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                         )}
 
                         {bookingTab === 'paid' && (
-                            activeBookings.length === 0 ? (
+                            paidBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No completed/active bookings.
+                                    No bookings with paid deposit.
                                 </div>
                             ) : (
-                                activeBookings.map((b, i) => (
+                                paidBookings.map((b, i) => (
                                     <motion.div
                                         key={b._id}
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -499,7 +513,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                             </div>
                                             <div className="text-right">
                                                 <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Lease Active
+                                                    Deposit Paid
                                                 </span>
                                                 <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
                                                     ₹{b.totalAmount?.toLocaleString('en-IN')}
@@ -510,6 +524,124 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                 ))
                             )
                         )}
+
+                        {bookingTab === 'completed' && (
+                            completedBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No completed/active bookings.
+                                </div>
+                            ) : (
+                                completedBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                    Completed
+                                                </span>
+                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
+
+                        {bookingTab === 'rejected' && (
+                            rejectedBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No rejected bookings.
+                                </div>
+                            ) : (
+                                rejectedBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                    Rejected
+                                                </span>
+                                                <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-rose-400">
+                                                    {b.rejectionReason || 'No reason'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
+
+                        {bookingTab === 'cancelled' && (
+                            cancelledBookings.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
+                                    No cancelled bookings.
+                                </div>
+                            ) : (
+                                cancelledBookings.map((b, i) => (
+                                    <motion.div
+                                        key={b._id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
+                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-500/10 dark:bg-gray-500/20 flex items-center justify-center text-gray-500 dark:text-gray-400 font-black text-xs">
+                                                    {b.user?.firstName?.[0]}{b.user?.lastName?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.user?.firstName} {b.user?.lastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="px-2 py-0.5 rounded bg-gray-500/10 border border-gray-500/20 text-gray-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                    Cancelled
+                                                </span>
+                                                <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-muted-foreground/60">
+                                                    {b.cancellationReason || 'No reason'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
+                        )}
+                    </div>
                     </div>
                 </motion.div>
             )}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { bookingService } from '../services/api';
+import useAuthStore from '../context/authStore';
 import {
     CheckCircle2, Clock, XCircle, ArrowLeft,
     Calendar, MapPin, IndianRupee, Shield,
@@ -14,6 +15,7 @@ import RazorpayPayment from '../components/RazorpayPayment';
 export default function BookingStatusPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showRazorpay, setShowRazorpay] = useState(false);
@@ -261,13 +263,15 @@ export default function BookingStatusPage() {
                     >
                         CHAT WITH MANAGER
                     </button>
-                    {booking.status !== 'cancelled' && booking.status !== 'rejected' && (
-                        <button
-                            onClick={() => setShowCancelModal(true)}
-                            className="w-full px-8 py-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-500 w-full hover:text-white transition-all"
-                        >
-                            CANCEL LEASE APPLICATION
-                        </button>
+                    {booking.status !== 'cancelled' && booking.status !== 'rejected' && booking.status !== 'completed' && (
+                        (user?.role !== 'tenant' || booking.status === 'pending') ? (
+                            <button
+                                onClick={() => setShowCancelModal(true)}
+                                className="w-full px-8 py-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-500 w-full hover:text-white transition-all"
+                            >
+                                CANCEL LEASE APPLICATION
+                            </button>
+                        ) : null
                     )}
                 </div>
             </div>

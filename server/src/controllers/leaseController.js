@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Lease from '../models/Lease.js';
 import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
@@ -377,6 +378,53 @@ export const signLease = asyncHandler(async (req, res) => {
     await Property.findByIdAndUpdate(lease.property, {
       $set: { status: 'occupied', currentTenant: lease.tenant },
     });
+
+    try {
+        const tenantModel = mongoose.model('Tenant');
+        const userModel = mongoose.model('User');
+        const bookingModel = mongoose.model('Booking');
+
+        const tenant = await tenantModel.findById(lease.tenant);
+        if (tenant) {
+            const user = await userModel.findOne({ email: tenant.email });
+            if (user) {
+                const booking = await bookingModel.findOne({
+                    property: lease.property,
+                    user: user._id,
+                    status: 'approved'
+                }).sort({ createdAt: -1 });
+
+                if (booking) {
+                    booking.status = 'completed';
+                    booking.completedDate = new Date();
+                    booking.timeline.push({
+                        event: 'completed',
+                        timestamp: new Date(),
+                        note: 'Lease signed & activated immediately. Booking formally marked completed.'
+                    });
+                    await booking.save();
+                    logger.info(`Booking ${booking._id} set to completed upon immediate lease signature activation.`);
+
+                    // Send Booking Completed notification
+                    try {
+                        const notificationModel = mongoose.model('Notification');
+                        await notificationModel.create({
+                            recipient: booking.user,
+                            sender: lease.createdBy,
+                            title: 'Booking Completed',
+                            message: `Your booking for property under lease ${lease.leaseNumber} has been successfully completed.`,
+                            type: 'success',
+                            link: `/bookings/${booking._id}`
+                        });
+                    } catch (notifErr) {
+                        logger.error(`Failed to send Booking Completed notification during lease signature: ${notifErr.message}`);
+                    }
+                }
+            }
+        }
+    } catch (bookingErr) {
+        logger.error(`Failed to transition booking to completed during lease activation: ${bookingErr.message}`);
+    }
   }
   // If isFuture: status remains 'pending'; cron job will activate on start date
 

@@ -59,11 +59,21 @@ export default function PropertyDetailsPage() {
     const [feedbackRecommend, setFeedbackRecommend] = useState(true);
     const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
-    // Initialize date locks 1 month out by default
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    const [endDate, setEndDate] = useState(nextMonth.toISOString().split('T')[0]);
+    // Initialize date locks with 7-day lead time rule
+    const getSevenDaysOutStr = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        return d.toISOString().split('T')[0];
+    };
+    const getOneMonthSevenDaysOutStr = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        d.setMonth(d.getMonth() + 1);
+        return d.toISOString().split('T')[0];
+    };
+
+    const [startDate, setStartDate] = useState(getSevenDaysOutStr());
+    const [endDate, setEndDate] = useState(getOneMonthSevenDaysOutStr());
 
 
     useEffect(() => {
@@ -75,7 +85,12 @@ export default function PropertyDetailsPage() {
 
                 const activeLease = prop?.leases?.find(l => l && l.status === 'active');
                 if (activeLease && new Date(activeLease.endDate) > new Date()) {
-                    const nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
+                    let nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
+                    const sevenDaysOut = new Date();
+                    sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+                    if (nextAvail < sevenDaysOut) {
+                        nextAvail = sevenDaysOut;
+                    }
                     setStartDate(nextAvail.toISOString().split('T')[0]);
                     const end = new Date(nextAvail);
                     end.setMonth(end.getMonth() + 1);
@@ -156,9 +171,11 @@ export default function PropertyDetailsPage() {
     );
 
     const activeLease = property?.activeLease || property?.leases?.find(l => l && l.status === 'active');
-    const minAvailableDate = activeLease && new Date(activeLease.endDate) > new Date()
+    const sevenDaysOut = new Date();
+    sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+    const minAvailableDate = activeLease && new Date(activeLease.endDate) > sevenDaysOut
         ? new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0];
+        : sevenDaysOut.toISOString().split('T')[0];
 
     const displayStatus = getDisplayStatus(property);
     const isSoldOut = displayStatus === 'Sold Out';

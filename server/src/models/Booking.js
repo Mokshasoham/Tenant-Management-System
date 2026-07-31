@@ -53,10 +53,19 @@ const bookingSchema = new mongoose.Schema(
 
         // Rejection
         rejectionReason: String,
+        approvalDate: Date,
+        approvedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
 
         // Cancellation
         cancellationReason: String,
         cancellationFeedback: String,
+        cancellationDate: Date,
+        bookingDate: { type: Date, default: Date.now },
+        paymentDate: Date,
+        completedDate: Date,
 
         // PDF Agreement
         pdfAgreementUrl: String,
