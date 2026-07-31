@@ -642,7 +642,6 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             )
                         )}
                     </div>
-                    </div>
                 </motion.div>
             )}
             {/* Property Visit Requests */}
