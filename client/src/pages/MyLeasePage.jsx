@@ -665,6 +665,32 @@ export default function MyLeasePage() {
                                                 <LeaseProgressBar startDate={actLease.startDate} endDate={actLease.endDate} />
                                             </div>
 
+                                            {(() => {
+                                                const end = new Date(actLease.endDate).getTime();
+                                                const now = new Date().getTime();
+                                                const diff = end - now;
+                                                const daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                                if (daysRemaining <= 30) {
+                                                    return (
+                                                        <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                                            <div>
+                                                                <p className="text-sm font-black text-amber-500">Attention: Lease Expiry Approaching</p>
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    Your lease expires in {daysRemaining} days. Please select your renewal preference before expiration.
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => navigate('/lease-decision')}
+                                                                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-all w-full md:w-auto"
+                                                            >
+                                                                Renew or Move Out
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+
                                             {/* Key dates grid */}
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 {[

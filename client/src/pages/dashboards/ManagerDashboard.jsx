@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
     Building2, Users, Wrench, CreditCard, Plus, ArrowUpRight,
@@ -104,6 +105,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [bookings, setBookings] = useState([]);
     const [bookingLoading, setBookingLoading] = useState(true);
     const [bookingTab, setBookingTab] = useState('pending');
+    const [renewals, setRenewals] = useState([]);
 
     const occupied = stats?.occupiedProperties !== undefined ? stats.occupiedProperties : 46;
     const vacant = stats?.availableProperties !== undefined ? stats.availableProperties : 6;
@@ -141,8 +143,21 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
             }
         };
 
+        const fetchRenewals = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await axios.get('/api/renewals', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setRenewals(res.data.data || res.data || []);
+            } catch (e) {
+                console.error('Error fetching renewals:', e);
+            }
+        };
+
         fetchBookings();
         fetchVisits();
+        fetchRenewals();
     }, []);
 
     const handleUpdateBooking = async (id, status, reason = '') => {
@@ -644,6 +659,90 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     </div>
                 </motion.div>
             )}
+            {/* Lease Renewals Section */}
+            {renewals.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.56, duration: 0.5 }}
+                    className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 space-y-4 mb-6"
+                >
+                    <div className="flex items-center gap-2 border-b border-border pb-4">
+                        <div className="p-2 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20">
+                            <CalendarDays className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                        </div>
+                        <p className="text-sm font-black text-foreground">Lease Renewals & Offers</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {renewals.map((r) => (
+                            <div key={r._id} className="p-4 rounded-xl border border-border bg-muted/20 flex flex-col justify-between gap-3">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-sm font-bold text-foreground">{r.tenant?.firstName} {r.tenant?.lastName}</p>
+                                        <p className="text-xs text-muted-foreground">{r.property?.name}</p>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
+                                            Proposed Period: {new Date(r.requestedStartDate).toLocaleDateString()} - {new Date(r.requestedEndDate).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                                        r.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
+                                        r.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
+                                        'bg-rose-500/10 text-rose-500'
+                                    )}>
+                                        {r.status}
+                                    </span>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    {r.status === 'pending' && (
+                                        <>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const token = localStorage.getItem('token');
+                                                        await axios.put(`/api/renewals/${r._id}/approve`, {}, {
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        });
+                                                        alert('Renewal approved successfully!');
+                                                        window.location.reload();
+                                                    } catch (e) {
+                                                        alert(e.response?.data?.message || 'Failed to approve renewal');
+                                                    }
+                                                }}
+                                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all"
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    const reason = prompt('Reason for rejection:');
+                                                    if (!reason) return;
+                                                    try {
+                                                        const token = localStorage.getItem('token');
+                                                        await axios.put(`/api/renewals/${r._id}/reject`, { rejectionReason: reason }, {
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        });
+                                                        alert('Renewal rejected.');
+                                                        window.location.reload();
+                                                    } catch (e) {
+                                                        alert(e.response?.data?.message || 'Failed to reject renewal');
+                                                    }
+                                                }}
+                                                className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all"
+                                            >
+                                                Reject
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
+
             {/* Property Visit Requests */}
             {visits.length > 0 && (
                 <motion.div

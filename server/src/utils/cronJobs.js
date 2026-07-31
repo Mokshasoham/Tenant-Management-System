@@ -162,36 +162,6 @@ export const startCronJobs = () => {
         }
     });
 
-    // Sweep hourly for expired active leases to release properties back to market
-    cron.schedule('0 * * * *', async () => {
-        logger.info('[CRON] Initializing precise hourly Lease Expiration check sweep...');
-        try {
-            const now = new Date();
-            const expiredLeases = await Lease.find({
-                status: 'active',
-                endDate: { $lte: now }
-            });
-
-            if (expiredLeases.length > 0) {
-                logger.info(`[CRON] Detected ${expiredLeases.length} expired leases. Expirating...`);
-                for (const lease of expiredLeases) {
-                    lease.status = 'expired';
-                    await lease.save();
-
-                    // Update property status to available
-                    await Property.findByIdAndUpdate(lease.property, {
-                        $set: { status: 'available', currentTenant: null }
-                    });
-
-                    logger.info(`[CRON] Lease ${lease.leaseNumber} expired automatically. Property set to available.`);
-                }
-            } else {
-                logger.debug('[CRON] No expired leases detected.');
-            }
-        } catch (error) {
-            logger.error(`[CRON ERROR] Lease Expiration daemon exception: ${error.message}`);
-        }
-    });
 
     // Sweep every 5 minutes for pending leases whose start date has arrived to activate them
     cron.schedule('*/5 * * * *', async () => {
@@ -292,6 +262,111 @@ export const startCronJobs = () => {
             }
         } catch (error) {
             logger.error(`[CRON ERROR] Lease Activation daemon exception: ${error.message}`);
+        }
+    });
+
+    // Daily sweep for Lease Expiry Reminders and Rollover/Activation
+    cron.schedule('0 0 * * *', async () => {
+        logger.info('[CRON] Initializing daily Lease Expiry and Rollover sweep...');
+        try {
+            const now = new Date();
+            const activeLeases = await Lease.find({ status: 'active' });
+            for (const lease of activeLeases) {
+                const diffTime = new Date(lease.endDate) - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                // Reminders at 30, 15, 7, 1 days
+                const intervals = [30, 15, 7, 1];
+                if (intervals.includes(diffDays)) {
+                    if (!lease.sentReminders.includes(diffDays)) {
+                        const tenantRecord = await Tenant.findById(lease.tenant);
+                        const tenantUser = await User.findOne({ email: tenantRecord?.email });
+                        const propertyRecord = await Property.findById(lease.property);
+                        const propName = propertyRecord?.name || 'residence';
+
+                        // Notify Tenant
+                        if (tenantUser) {
+                            await Notification.create({
+                                recipient: tenantUser._id,
+                                sender: lease.createdBy,
+                                title: 'Lease Expiry Warning',
+                                message: `Your lease for ${propName} will expire on ${new Date(lease.endDate).toLocaleDateString()}. Please choose whether you want to Renew your lease or Move Out.`,
+                                type: 'warning',
+                                link: '/my-lease'
+                            });
+                        }
+
+                        // Notify Manager
+                        await Notification.create({
+                            recipient: lease.createdBy,
+                            sender: lease.createdBy,
+                            title: 'Lease Approaching Expiry',
+                            message: `Tenant's lease for ${propName} will expire soon. Awaiting tenant response.`,
+                            type: 'info',
+                            link: '/leases'
+                        });
+
+                        lease.sentReminders.push(diffDays);
+                        lease.lastReminderSent = now;
+                        
+                        const idx = intervals.indexOf(diffDays);
+                        if (idx !== -1 && idx < intervals.length - 1) {
+                            const nextInterval = intervals[idx + 1];
+                            const nextDate = new Date(lease.endDate);
+                            nextDate.setDate(nextDate.getDate() - nextInterval);
+                            lease.nextReminderDate = nextDate;
+                        }
+                        await lease.save();
+                    }
+                }
+
+                // Daily Expiry Check
+                if (diffDays <= 0) {
+                    lease.status = 'expired';
+                    lease.leaseDecision = 'expired';
+                    await lease.save();
+
+                    logger.info(`[CRON] Lease ${lease.leaseNumber} expired.`);
+
+                    // If a pending future lease exists for this property, activate it!
+                    const futureLease = await Lease.findOne({
+                        property: lease.property,
+                        status: 'pending',
+                        renewedFrom: lease._id
+                    });
+
+                    if (futureLease) {
+                        futureLease.status = 'active';
+                        await futureLease.save();
+
+                        const tenantRecord = await Tenant.findById(futureLease.tenant);
+                        const tenantUser = await User.findOne({ email: tenantRecord?.email });
+                        if (tenantUser) {
+                            const booking = await Booking.findOne({
+                                property: lease.property,
+                                user: tenantUser._id,
+                                status: 'approved'
+                            });
+                            if (booking) {
+                                booking.status = 'completed';
+                                booking.completedDate = new Date();
+                                await booking.save();
+                            }
+                        }
+                        logger.info(`[CRON] Future lease ${futureLease.leaseNumber} activated automatically upon expiry of old lease.`);
+                    } else {
+                        const propertyRecord = await Property.findById(lease.property);
+                        if (propertyRecord) {
+                            propertyRecord.currentTenant = null;
+                            propertyRecord.status = 'available';
+                            propertyRecord.leases = propertyRecord.leases.filter(l => l.toString() !== lease._id.toString());
+                            await propertyRecord.save();
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            logger.error(`[CRON ERROR] Daily lease expiry runner exception: ${err.message}`);
         }
     });
 

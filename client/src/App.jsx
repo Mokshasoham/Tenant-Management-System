@@ -31,6 +31,14 @@ import SavedPropertiesPage from './pages/SavedPropertiesPage';
 import ComparePropertiesPage from './pages/ComparePropertiesPage';
 import ReviewsPage from './pages/ReviewsPage';
 import SettingsPage from './pages/SettingsPage';
+import LeaseDecisionPage from './pages/LeaseDecisionPage';
+import LeaseRenewalPage from './pages/LeaseRenewalPage';
+import MoveOutPage from './pages/MoveOutPage';
+import ExitFeedbackPage from './pages/ExitFeedbackPage';
+import InspectionPage from './pages/InspectionPage';
+import DepositSettlementPage from './pages/DepositSettlementPage';
+import LeaseHistoryPage from './pages/LeaseHistoryPage';
+import RenewalHistoryPage from './pages/RenewalHistoryPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -117,6 +125,14 @@ function App() {
               <Route path="/compare" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/reviews/:propertyId" element={<ProtectedRoute><DashboardLayout><ReviewsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/lease-decision" element={<ProtectedRoute><DashboardLayout><LeaseDecisionPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/lease-renewal" element={<ProtectedRoute><DashboardLayout><LeaseRenewalPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/move-out" element={<ProtectedRoute><DashboardLayout><MoveOutPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/exit-feedback" element={<ProtectedRoute><DashboardLayout><ExitFeedbackPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/inspection/:id" element={<ProtectedRoute><DashboardLayout><InspectionPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/deposit-settlement/:id" element={<ProtectedRoute><DashboardLayout><DepositSettlementPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/lease-history" element={<ProtectedRoute><DashboardLayout><LeaseHistoryPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/renewal-history" element={<ProtectedRoute><DashboardLayout><RenewalHistoryPage /></DashboardLayout></ProtectedRoute>} />
 
               {/* Manager + Admin */}
               <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />

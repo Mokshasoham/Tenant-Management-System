@@ -47,6 +47,35 @@ const leaseSchema = new mongoose.Schema(
       enum: ['active', 'terminated', 'expired', 'pending'],
       default: 'pending',
     },
+    leaseDecision: {
+      type: String,
+      enum: ['pending', 'offer_sent', 'renewal_requested', 'moving_out', 'renewed', 'expired'],
+      default: 'pending',
+    },
+    moveOutStatus: {
+      type: String,
+      enum: ['none', 'requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing', 'completed'],
+      default: 'none',
+    },
+    renewedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lease',
+    },
+    renewedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lease',
+    },
+    leaseVersion: {
+      type: Number,
+      default: 1,
+    },
+    parentLease: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Lease',
+    },
+    lastReminderSent: Date,
+    nextReminderDate: Date,
+    sentReminders: [{ type: Number }],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

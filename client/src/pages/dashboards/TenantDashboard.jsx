@@ -362,6 +362,39 @@ export default function TenantDashboard({ user, navigate }) {
         );
     }
 
+    const isLeaseExpired = lease && new Date(lease.endDate) < new Date();
+    if (isLeaseExpired && lease.leaseDecision === 'pending') {
+        return (
+            <div className="min-h-[70vh] flex flex-col justify-center items-center px-4 py-8">
+                <div className="w-full max-w-xl bg-card border border-border rounded-3xl p-8 text-center space-y-6 shadow-2xl">
+                    <div className="mx-auto w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                        <AlertTriangle className="w-8 h-8 text-rose-500" />
+                    </div>
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-black text-foreground">Lease Expired</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Your lease agreement has expired. You must select whether to request a renewal or submit a move-out notice to proceed.
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                        <button
+                            onClick={() => navigate('/lease-renewal')}
+                            className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all"
+                        >
+                            Renew Lease
+                        </button>
+                        <button
+                            onClick={() => navigate('/move-out')}
+                            className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all"
+                        >
+                            Move Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-5 pb-8">
             <style dangerouslySetInnerHTML={{__html: `
@@ -505,6 +538,15 @@ export default function TenantDashboard({ user, navigate }) {
                                                     </div>
                                                 ))}
                                             </div>
+
+                                            {activeLease.leaseDecision && activeLease.leaseDecision !== 'pending' && (
+                                                <div className="mt-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs">
+                                                    <p className="font-bold capitalize">Lease Decision: {activeLease.leaseDecision.replace('_', ' ')}</p>
+                                                    {activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none' && (
+                                                        <p className="mt-1 text-[10px] text-muted-foreground capitalize">Move-out Stage: {activeLease.moveOutStatus.replace('_', ' ')}</p>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {activeLease.property?.amenities?.length > 0 && (
                                                 <div className="mt-4 pt-3 border-t border-border/60">
