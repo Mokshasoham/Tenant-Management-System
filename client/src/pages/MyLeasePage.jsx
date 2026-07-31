@@ -111,8 +111,8 @@ export default function MyLeasePage() {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
-    const fetchLeaseData = async () => {
-        setLoading(true);
+    const fetchLeaseData = async (isSilent = false) => {
+        if (!isSilent) setLoading(true);
         try {
             const [leaseRes, payRes] = await Promise.allSettled([
                 leaseService.getMyLease(),
@@ -138,7 +138,7 @@ export default function MyLeasePage() {
                 setPayments(payVal.data || (Array.isArray(payVal) ? payVal : []));
             }
         } catch (e) { console.error('Error fetching lease data:', e); }
-        setLoading(false);
+        if (!isSilent) setLoading(false);
     };
 
     // Fetch checklist dynamically for the currently selected lease
@@ -179,7 +179,7 @@ export default function MyLeasePage() {
             const now = Date.now();
             if (now - lastFetchTime > 1_500) {
                 lastFetchTime = now;
-                fetchLeaseData();
+                fetchLeaseData(true); // Silent background refresh!
             }
         };
 
