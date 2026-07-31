@@ -632,11 +632,23 @@ export const requestBooking = asyncHandler(async (req, res) => {
     const reqStart = new Date(startDate);
     const reqEnd = new Date(endDate);
 
-    const minStartDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    minStartDate.setHours(0, 0, 0, 0);
-    reqStart.setHours(0, 0, 0, 0);
+    const getLocalDateString = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-    if (reqStart < minStartDate) {
+    const nowStr = getLocalDateString(now);
+    const startStr = startDate.split('T')[0];
+
+    const d1 = new Date(nowStr);
+    const d2 = new Date(startStr);
+
+    const diffTime = d2.getTime() - d1.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 7) {
         throw new AppError('Tenants must submit a booking request at least 7 days before the intended move-in date.', 400);
     }
 

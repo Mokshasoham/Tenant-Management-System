@@ -59,17 +59,24 @@ export default function PropertyDetailsPage() {
     const [feedbackRecommend, setFeedbackRecommend] = useState(true);
     const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
+    const getLocalFormattedDate = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     // Initialize date locks with 7-day lead time rule
     const getSevenDaysOutStr = () => {
         const d = new Date();
         d.setDate(d.getDate() + 7);
-        return d.toISOString().split('T')[0];
+        return getLocalFormattedDate(d);
     };
     const getOneMonthSevenDaysOutStr = () => {
         const d = new Date();
         d.setDate(d.getDate() + 7);
         d.setMonth(d.getMonth() + 1);
-        return d.toISOString().split('T')[0];
+        return getLocalFormattedDate(d);
     };
 
     const [startDate, setStartDate] = useState(getSevenDaysOutStr());
@@ -91,10 +98,10 @@ export default function PropertyDetailsPage() {
                     if (nextAvail < sevenDaysOut) {
                         nextAvail = sevenDaysOut;
                     }
-                    setStartDate(nextAvail.toISOString().split('T')[0]);
+                    setStartDate(getLocalFormattedDate(nextAvail));
                     const end = new Date(nextAvail);
                     end.setMonth(end.getMonth() + 1);
-                    setEndDate(end.toISOString().split('T')[0]);
+                    setEndDate(getLocalFormattedDate(end));
                 }
 
                 // Fetch similar properties
@@ -174,8 +181,8 @@ export default function PropertyDetailsPage() {
     const sevenDaysOut = new Date();
     sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
     const minAvailableDate = activeLease && new Date(activeLease.endDate) > sevenDaysOut
-        ? new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        : sevenDaysOut.toISOString().split('T')[0];
+        ? getLocalFormattedDate(new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000))
+        : getLocalFormattedDate(sevenDaysOut);
 
     const displayStatus = getDisplayStatus(property);
     const isSoldOut = displayStatus === 'Sold Out';
