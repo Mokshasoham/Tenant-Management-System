@@ -10,7 +10,7 @@ export const openSecureFile = async (docUrl) => {
   const token = localStorage.getItem('authToken');
 
   try {
-    // 1. Extract fileId from local download path /api/files/download/:fileId
+    // 1. Extract fileId from download path /api/files/download/:fileId (must be a 24-char hex ObjectId)
     let fileId = '';
     const downloadMatch = docUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
     if (downloadMatch) {
@@ -20,23 +20,11 @@ export const openSecureFile = async (docUrl) => {
     let url = '';
     console.log("docUrl =", docUrl);
     console.log("resolved fileId =", fileId);
-    console.log("request =", `${apiBase}/files/signed-url/${fileId}`);
-    if (fileId) {
-      const res = await fetch(`${apiBase}/files/signed-url/${fileId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.url) {
-          url = data.url;
-        }
-      }
-    }
 
-    // 2. If no fileId (e.g., direct S3 URL or legacy URL), resolve by query param
-    if (!url) {
-      const encodedUrl = encodeURIComponent(docUrl);
-      const res = await fetch(`${apiBase}/files/signed-url/resolve?url=${encodedUrl}`, {
+    // Only fetch signed URL if we have a valid 24-character ObjectId
+    if (fileId && /^[a-f\d]{24}$/i.test(fileId)) {
+      console.log("request =", `${apiBase}/files/signed-url/${fileId}`);
+      const res = await fetch(`${apiBase}/files/signed-url/${fileId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -54,9 +42,10 @@ export const openSecureFile = async (docUrl) => {
       const fullUrl = url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
       window.open(fullUrl, '_blank');
     } else {
-      // Graceful fallback to original URL (authenticated query redirection handled by server if applicable)
+      // Treat as a legacy URL or direct URL and open directly
       const cleanDocUrl = docUrl.startsWith('/') ? docUrl : '/' + docUrl;
       const fallbackUrl = docUrl.startsWith('http') ? docUrl : `${cleanServerUrl}${cleanDocUrl}`;
+      console.log("Opening directly (fallbackUrl) =", fallbackUrl);
       window.open(fallbackUrl, '_blank');
     }
   } catch (err) {
