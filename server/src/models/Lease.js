@@ -57,6 +57,7 @@ const leaseSchema = new mongoose.Schema(
         fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
         name: String,
         url: String,
+        legacyUrl: String,
         uploadedAt: {
           type: Date,
           default: Date.now,

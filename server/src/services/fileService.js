@@ -133,6 +133,7 @@ export const uploadFileBuffer = async ({
   }
 
   // 5. Store Metadata record in MongoDB
+  const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
   const fileRecord = await FileMetadata.create({
     filename,
     mimeType,
@@ -142,7 +143,8 @@ export const uploadFileBuffer = async ({
     uploader: uploaderId,
     relatedEntity: relatedEntityId,
     relatedModel: relatedModelName,
-    category
+    category,
+    sha256
   });
 
   // Fix local fallback URL to use the MongoDB _id for metadata-driven access

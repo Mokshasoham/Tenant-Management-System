@@ -4,6 +4,25 @@ import { hashPassword } from '../utils/password.js';
 import logger from '../utils/logger.js';
 import { uploadFileBuffer } from '../services/fileService.js';
 
+const resolveUserUrls = (user, req) => {
+  if (!user) return user;
+  const userObj = user.toObject ? user.toObject() : user;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  
+  if (userObj.kycFileIds && userObj.kycFileIds.length > 0) {
+    userObj.kycDocuments = userObj.kycFileIds.map(fileId => `${protocol}://${host}/api/files/download/${fileId}`);
+  } else if (userObj.kycDocuments && userObj.kycDocuments.length > 0) {
+    userObj.kycDocuments = userObj.kycDocuments.map(doc => {
+      if (doc && !doc.startsWith('http')) {
+        return `${protocol}://${host}/${doc.startsWith('/') ? '' : '/'}${doc}`;
+      }
+      return doc;
+    });
+  }
+  return userObj;
+};
+
 export const getAllUsers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, role, search } = req.query;
 
@@ -28,7 +47,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: users,
+    data: users.map(u => resolveUserUrls(u, req)),
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -47,7 +66,7 @@ export const getUserById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: user,
+    data: resolveUserUrls(user, req),
   });
 });
 
@@ -79,7 +98,7 @@ export const createUser = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'User created successfully',
-    data: user,
+    data: resolveUserUrls(user, req),
   });
 });
 
@@ -104,7 +123,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'User updated successfully',
-    data: user,
+    data: resolveUserUrls(user, req),
   });
 });
 
@@ -227,7 +246,7 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
     message: 'KYC documents uploaded successfully. They are pending review.',
     data: {
       kycStatus: user.kycStatus,
-      kycDocuments: user.kycDocuments,
+      kycDocuments: resolveUserUrls(user, req).kycDocuments,
     }
   });
 });

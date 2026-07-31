@@ -9,14 +9,20 @@ import { processPostPayment } from '../services/paymentAutomation.js';
 const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
   const payObj = payment.toObject ? payment.toObject() : payment;
+  if (payObj.fileId) {
+    payObj.invoiceUrl = `/api/files/download/${payObj.fileId}`;
+  }
   if (payObj.invoiceUrl) {
-    // Already an absolute URL — return as-is
-    if (payObj.invoiceUrl.startsWith('https://') || payObj.invoiceUrl.startsWith('http://')) {
+    if (payObj.invoiceUrl.startsWith('https://') || (payObj.invoiceUrl.startsWith('http://') && !payObj.invoiceUrl.includes('/api/files/download/'))) {
       return payObj;
     }
-    // New centralized file service URL — prepend server host
-    // e.g. /api/files/download/:fileId or /api/files/signed-url/:fileId
     let relativePath = payObj.invoiceUrl;
+    try {
+      if (relativePath.startsWith('http')) {
+        const parsed = new URL(relativePath);
+        relativePath = parsed.pathname + parsed.search;
+      }
+    } catch (_) {}
     if (!relativePath.startsWith('/')) {
       relativePath = '/' + relativePath;
     }

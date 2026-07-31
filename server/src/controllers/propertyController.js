@@ -4,6 +4,44 @@ import logger from '../utils/logger.js';
 import sharp from 'sharp';
 import { uploadFileBuffer } from '../services/fileService.js';
 
+const resolvePropertyUrls = (property, req) => {
+  if (!property) return property;
+  const propObj = property.toObject ? property.toObject() : property;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  
+  if (propObj.media && propObj.media.length > 0) {
+    propObj.media = propObj.media.map(item => {
+      if (item.fileId) {
+        item.url = `${protocol}://${host}/api/files/download/${item.fileId}`;
+      } else if (item.url && !item.url.startsWith('http')) {
+        item.url = `${protocol}://${host}/${item.url.startsWith('/') ? '' : '/'}${item.url}`;
+      }
+      return item;
+    });
+  }
+  
+  if (propObj.images && propObj.images.length > 0) {
+    propObj.images = propObj.images.map(img => {
+      if (img && !img.startsWith('http')) {
+        return `${protocol}://${host}/${img.startsWith('/') ? '' : '/'}${img}`;
+      }
+      return img;
+    });
+  }
+  
+  if (propObj.videos && propObj.videos.length > 0) {
+    propObj.videos = propObj.videos.map(vid => {
+      if (vid && !vid.startsWith('http')) {
+        return `${protocol}://${host}/${vid.startsWith('/') ? '' : '/'}${vid}`;
+      }
+      return vid;
+    });
+  }
+  
+  return propObj;
+};
+
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -112,7 +150,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: properties,
+    data: properties.map(p => resolvePropertyUrls(p, req)),
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -167,7 +205,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: property,
+    data: resolvePropertyUrls(property, req),
   });
 });
 
@@ -185,7 +223,7 @@ export const createProperty = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Property created successfully',
-    data: property,
+    data: resolvePropertyUrls(property, req),
   });
 });
 
@@ -213,7 +251,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Property updated successfully',
-    data: property,
+    data: resolvePropertyUrls(property, req),
   });
 });
 
@@ -358,7 +396,7 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Media uploaded successfully',
-    data: property.media,
+    data: resolvePropertyUrls(property, req).media,
   });
 });
 
@@ -406,6 +444,6 @@ export const getSimilarProperties = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: similarProps,
+    data: similarProps.map(p => resolvePropertyUrls(p, req)),
   });
 });

@@ -65,9 +65,11 @@ const propertySchema = new mongoose.Schema(
     videos: [String],
     media: [
       {
+        fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
         url: String,
         mediaType: { type: String, enum: ['image', 'video'] },
-        key: String // S3 Bucket Key
+        key: String, // S3 Bucket Key
+        legacyUrl: String
       }
     ],
     virtualTourUrl: String,

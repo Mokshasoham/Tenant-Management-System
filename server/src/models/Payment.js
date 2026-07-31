@@ -60,6 +60,8 @@ const paymentSchema = new mongoose.Schema(
     stripePaymentIntentId: String,
     razorpayPaymentId: String,
     invoiceUrl: String,
+    fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
+    legacyUrl: String,
     notes: String,
     lateFeeApplied: {
       type: Boolean,

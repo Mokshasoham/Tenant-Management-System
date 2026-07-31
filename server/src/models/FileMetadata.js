@@ -49,6 +49,10 @@ const FileMetadataSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    sha256: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,
@@ -58,5 +62,6 @@ const FileMetadataSchema = new mongoose.Schema(
 FileMetadataSchema.index({ key: 1 });
 FileMetadataSchema.index({ uploader: 1 });
 FileMetadataSchema.index({ relatedEntity: 1, relatedModel: 1 });
+FileMetadataSchema.index({ sha256: 1, relatedEntity: 1 });
 
 export default mongoose.model('FileMetadata', FileMetadataSchema);

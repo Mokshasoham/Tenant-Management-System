@@ -29,6 +29,7 @@ const messageSchema = new mongoose.Schema(
             {
                 fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
                 url: String,
+                legacyUrl: String,
                 fileType: String,
                 fileName: String,
             }

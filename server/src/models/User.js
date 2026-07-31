@@ -87,6 +87,13 @@ const userSchema = new mongoose.Schema(
     kycDocuments: [{
       type: String,
     }],
+    kycFileIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FileMetadata'
+    }],
+    kycLegacyUrls: [{
+      type: String,
+    }],
     passwordResetToken: String,
     passwordResetExpires: Date,
   },

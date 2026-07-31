@@ -12,6 +12,25 @@ import qrcode from 'qrcode';
 
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
 
+const resolveUserUrls = (user, req) => {
+  if (!user) return user;
+  const userObj = user.toObject ? user.toObject() : user;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  
+  if (userObj.kycFileIds && userObj.kycFileIds.length > 0) {
+    userObj.kycDocuments = userObj.kycFileIds.map(fileId => `${protocol}://${host}/api/files/download/${fileId}`);
+  } else if (userObj.kycDocuments && userObj.kycDocuments.length > 0) {
+    userObj.kycDocuments = userObj.kycDocuments.map(doc => {
+      if (doc && !doc.startsWith('http')) {
+        return `${protocol}://${host}/${doc.startsWith('/') ? '' : '/'}${doc}`;
+      }
+      return doc;
+    });
+  }
+  return userObj;
+};
+
 
 export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
@@ -135,7 +154,7 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: user,
+    data: resolveUserUrls(user, req),
   });
 });
 
@@ -162,7 +181,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Profile updated successfully',
-    data: user,
+    data: resolveUserUrls(user, req),
   });
 });
 

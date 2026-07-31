@@ -7,6 +7,24 @@ import Booking from '../models/Booking.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 
+const resolveLeaseUrls = (lease, req) => {
+  if (!lease) return lease;
+  const leaseObj = lease.toObject ? lease.toObject() : lease;
+  if (leaseObj.documents && leaseObj.documents.length > 0) {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    leaseObj.documents = leaseObj.documents.map(doc => {
+      if (doc.fileId) {
+        doc.url = `${protocol}://${host}/api/files/download/${doc.fileId}`;
+      } else if (doc.url && !doc.url.startsWith('http')) {
+        doc.url = `${protocol}://${host}/${doc.url.startsWith('/') ? '' : '/'}${doc.url}`;
+      }
+      return doc;
+    });
+  }
+  return leaseObj;
+};
+
 
 // Tenant-scoped: get the current user's own lease
 export const getMyLease = asyncHandler(async (req, res) => {
@@ -61,9 +79,9 @@ export const getMyLease = asyncHandler(async (req, res) => {
 
   res.status(200).json({ 
     success: true, 
-    data: activeLeases[0] || null, 
-    activeLeases, 
-    pastLeases 
+    data: activeLeases[0] ? resolveLeaseUrls(activeLeases[0], req) : null, 
+    activeLeases: activeLeases.map(l => resolveLeaseUrls(l, req)), 
+    pastLeases: pastLeases.map(l => resolveLeaseUrls(l, req)) 
   });
 });
 
@@ -90,7 +108,7 @@ export const getAllLeases = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: leases,
+    data: leases.map(l => resolveLeaseUrls(l, req)),
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -112,7 +130,7 @@ export const getLeaseById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 
@@ -177,7 +195,7 @@ export const createLease = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Lease created successfully',
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 
@@ -202,7 +220,7 @@ export const updateLease = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Lease updated successfully',
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 
@@ -230,7 +248,7 @@ export const terminateLease = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Lease terminated successfully',
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 
@@ -260,7 +278,7 @@ export const uploadLeaseDocument = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Document uploaded successfully',
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 
@@ -371,7 +389,7 @@ export const signLease = asyncHandler(async (req, res) => {
     message: isFuture
       ? 'Lease signed successfully. It will activate automatically on your start date.'
       : 'Lease signed and activated successfully.',
-    data: lease,
+    data: resolveLeaseUrls(lease, req),
   });
 });
 

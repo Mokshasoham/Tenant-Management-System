@@ -1,0 +1,50 @@
+[
+  {
+    "collection": "payments",
+    "docId": "69c3c8bfa55104ca6d5b2a9b",
+    "legacyUrl": "http://localhost:5000/uploads/properties/invoice_69c3c8bfa55104ca6d5b2a9b.pdf",
+    "timestamp": "2026-07-31T04:23:55.174Z"
+  },
+  {
+    "collection": "payments",
+    "docId": "6a66f04e1d6c934f0ee1ded1",
+    "legacyUrl": "http://localhost:5000/uploads/properties/invoice_6a66f04e1d6c934f0ee1ded1.pdf",
+    "timestamp": "2026-07-31T04:23:55.187Z"
+  },
+  {
+    "collection": "payments",
+    "docId": "6a67028f0d818c7edb169b4d",
+    "legacyUrl": "http://localhost:5000/uploads/properties/invoice_6a67028f0d818c7edb169b4d.pdf",
+    "timestamp": "2026-07-31T04:23:55.198Z"
+  },
+  {
+    "collection": "payments",
+    "docId": "6a673b557627bfb8ec7c636a",
+    "legacyUrl": "http://localhost:5000/uploads/properties/invoice_6a673b557627bfb8ec7c636a.pdf",
+    "timestamp": "2026-07-31T04:23:55.212Z"
+  },
+  {
+    "collection": "leases",
+    "docId": "6a61a0b1723ce65889521335",
+    "legacyUrl": "http://localhost:5000/uploads/properties/lease_LEASE-1784783025036-6833.pdf",
+    "timestamp": "2026-07-31T04:23:55.237Z"
+  },
+  {
+    "collection": "messages",
+    "docId": "6a66fe9581612820769b22c6",
+    "legacyUrl": "/uploads/chat/chat-1785134731639.png",
+    "timestamp": "2026-07-31T04:23:55.258Z"
+  },
+  {
+    "collection": "properties",
+    "docId": "69c193c4b157ca6010bc51d5",
+    "legacyUrl": "/uploads/properties/property-69c193c4b157ca6010bc51d5-1774293956422-gx69v2.webp",
+    "timestamp": "2026-07-31T04:23:55.282Z"
+  },
+  {
+    "collection": "properties",
+    "docId": "6a67235ff8eb0f30a7099033",
+    "legacyUrl": "http://localhost:5000/uploads/properties/property-6a67235ff8eb0f30a7099033-1785144159926-6tqnefl.webp",
+    "timestamp": "2026-07-31T04:23:55.295Z"
+  }
+]
