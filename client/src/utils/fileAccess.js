@@ -49,21 +49,14 @@ export const openSecureFile = async (docUrl) => {
     if (url) {
       const cleanUrl = url.startsWith('/') ? url : '/' + url;
       const fullUrl = url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
-      console.log("Opening URL:", fullUrl);
+      console.log("Opening secure URL:", fullUrl);
       window.open(fullUrl, '_blank');
     } else {
-      // Treat as a legacy URL or direct URL and open directly
-      const cleanDocUrl = normalizedUrl.startsWith('/') ? normalizedUrl : '/' + normalizedUrl;
-      const fallbackUrl = normalizedUrl.startsWith('http') ? normalizedUrl : `${cleanServerUrl}${cleanDocUrl}`;
-      console.log("Opening URL:", fallbackUrl);
-      window.open(fallbackUrl, '_blank');
+      console.error('[openSecureFile] Authorization failed: No secure URL generated.');
+      alert('Access Denied: You do not have permission to view this document.');
     }
   } catch (err) {
     console.error('[openSecureFile] Failed to resolve secure URL:', err);
-    const cleanServerUrl = serverUrl.replace(/\/$/, '');
-    const cleanDocUrl = normalizedUrl.startsWith('/') ? normalizedUrl : '/' + normalizedUrl;
-    const fallbackUrl = normalizedUrl.startsWith('http') ? normalizedUrl : `${cleanServerUrl}${cleanDocUrl}`;
-    console.log("Opening URL:", fallbackUrl);
-    window.open(fallbackUrl, '_blank');
+    alert('Access Denied: You do not have permission to view this document.');
   }
 };

@@ -196,22 +196,31 @@ export const verifyLocalOneTimeToken = (token, fileId) => {
  * Centralized permissions checker.
  */
 export const verifyFileAccessPermission = async (user, fileRecord) => {
+  if (!user) return false;
   if (user.role === 'admin') return true;
 
-  const { category, uploader, relatedEntity } = fileRecord;
   const currentUserId = user.userId || user._id;
+  const { category, uploader, relatedEntity } = fileRecord;
 
+  // Uploader always has access
   if (uploader && uploader.toString() === currentUserId?.toString()) {
     return true;
   }
 
+  // Public categories
   if (['properties', 'reviews'].includes(category)) {
     return true;
   }
 
-  if (user.role === 'manager' && category !== 'chat') {
-    return true;
-  }
+  const User = mongoose.model('User');
+  const Tenant = mongoose.model('Tenant');
+
+  // Load User record to get email and role
+  const currentUserRecord = await User.findById(currentUserId).select('email role');
+  if (!currentUserRecord) return false;
+
+  // Resolve corresponding Tenant profile (if exists)
+  const tenantRecord = await Tenant.findOne({ email: currentUserRecord.email });
 
   if (category === 'chat') {
     const Message = mongoose.model('Message');
@@ -222,7 +231,7 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
       ]
     });
     if (msg) {
-      if (msg.sender.toString() === currentUserId?.toString() || msg.receiver.toString() === currentUserId?.toString()) {
+      if (msg.sender.toString() === currentUserId.toString() || msg.receiver.toString() === currentUserId.toString()) {
         return true;
       }
     }
@@ -230,14 +239,29 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
   }
 
   if (category === 'kyc') {
-    return relatedEntity && relatedEntity.toString() === currentUserId?.toString();
+    // KYC relates to the User ID
+    return relatedEntity && relatedEntity.toString() === currentUserId.toString();
   }
 
   if (category === 'leases') {
     const Lease = mongoose.model('Lease');
     const lease = await Lease.findById(relatedEntity);
-    if (lease && lease.tenant.toString() === currentUserId?.toString()) {
+    if (!lease) return false;
+
+    // Tenant Check (compares Tenant IDs)
+    if (tenantRecord && lease.tenant.toString() === tenantRecord._id.toString()) {
       return true;
+    }
+
+    // Manager/Owner Check
+    if (currentUserRecord.role === 'manager') {
+      if (lease.createdBy.toString() === currentUserId.toString()) return true;
+
+      const Property = mongoose.model('Property');
+      const property = await Property.findById(lease.property);
+      if (property && (property.manager?.toString() === currentUserId.toString() || property.owner?.toString() === currentUserId.toString())) {
+        return true;
+      }
     }
     return false;
   }
@@ -245,8 +269,22 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
   if (category === 'invoices') {
     const Payment = mongoose.model('Payment');
     const payment = await Payment.findById(relatedEntity);
-    if (payment && payment.tenant.toString() === currentUserId?.toString()) {
+    if (!payment) return false;
+
+    // Tenant Check (compares Tenant IDs)
+    if (tenantRecord && payment.tenant.toString() === tenantRecord._id.toString()) {
       return true;
+    }
+
+    // Manager/Owner Check
+    if (currentUserRecord.role === 'manager') {
+      if (payment.createdBy?.toString() === currentUserId.toString()) return true;
+
+      const Property = mongoose.model('Property');
+      const property = await Property.findById(payment.property);
+      if (property && (property.manager?.toString() === currentUserId.toString() || property.owner?.toString() === currentUserId.toString())) {
+        return true;
+      }
     }
     return false;
   }
