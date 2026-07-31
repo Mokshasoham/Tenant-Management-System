@@ -250,31 +250,31 @@ export const startCronJobs = () => {
                     });
 
                     // Find and complete the corresponding booking
-                    const booking = await Booking.findOne({
+                    const approvedBooking = await Booking.findOne({
                         property: lease.property,
                         user: tenantUser._id,
                         status: 'approved',
                     }).sort({ createdAt: -1 });
 
-                    if (booking) {
-                        booking.status = 'completed';
-                        booking.completedDate = new Date();
-                        booking.timeline.push({
+                    if (approvedBooking) {
+                        approvedBooking.status = 'completed';
+                        approvedBooking.completedDate = new Date();
+                        approvedBooking.timeline.push({
                             event: 'completed',
                             timestamp: new Date(),
                             note: 'Lease activated. Booking formally marked completed.'
                         });
-                        await booking.save();
-                        logger.info(`[CRON] Booking ${booking._id} set to completed as lease started.`);
+                        await approvedBooking.save();
+                        logger.info(`[CRON] Booking ${approvedBooking._id} set to completed as lease started.`);
 
                         // Send Booking Completed notification
                         await Notification.create({
-                            recipient: booking.user,
+                            recipient: approvedBooking.user,
                             sender: lease.createdBy,
                             title: 'Booking Completed',
                             message: `Your booking for property under lease ${lease.leaseNumber} has been successfully completed.`,
                             type: 'success',
-                            link: `/bookings/${booking._id}`
+                            link: `/bookings/${approvedBooking._id}`
                         });
                     }
 
