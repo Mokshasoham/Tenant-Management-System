@@ -6,7 +6,8 @@ import {
   Receipt, Download, Search, Filter, Calendar,
   IndianRupee, CheckCircle2, AlertCircle, FileText,
   ExternalLink, ArrowDownToLine, Wallet, Clock, Plus,
-  Trash2, X, FileSpreadsheet, Eye, Ban, CreditCard
+  Trash2, X, FileSpreadsheet, Eye, Ban, CreditCard,
+  Zap, Droplet, Wrench, Car, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { openSecureFile } from '../utils/fileAccess';
@@ -46,11 +47,7 @@ export default function BillsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-
-  // Legacy tab states
-  const [activeTab, setActiveTab] = useState('bills');
   const [legacyPayments, setLegacyPayments] = useState([]);
-  const [legacyLoading, setLegacyLoading] = useState(false);
   const [generatingInvoiceIds, setGeneratingInvoiceIds] = useState({});
 
   // Modal States
@@ -85,7 +82,6 @@ export default function BillsPage() {
 
   // Fetch Bills
   const fetchBills = useCallback(async () => {
-    setLoading(true);
     try {
       if (isManagerOrAdmin) {
         const res = await billService.getAllBills({ limit: 100 });
@@ -105,12 +101,10 @@ export default function BillsPage() {
     } catch (err) {
       console.error('Failed to load bills:', err);
     }
-    setLoading(false);
   }, [isManagerOrAdmin]);
 
   // Fetch Legacy Payments
   const fetchLegacyPayments = useCallback(async () => {
-    setLegacyLoading(true);
     try {
       let res;
       if (isManagerOrAdmin) {
@@ -122,16 +116,17 @@ export default function BillsPage() {
     } catch (err) {
       console.error('Failed to load legacy payments:', err);
     }
-    setLegacyLoading(false);
   }, [isManagerOrAdmin]);
 
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([fetchBills(), fetchLegacyPayments()]);
+    setLoading(false);
+  }, [fetchBills, fetchLegacyPayments]);
+
   useEffect(() => {
-    if (activeTab === 'bills') {
-      fetchBills();
-    } else {
-      fetchLegacyPayments();
-    }
-  }, [activeTab, fetchBills, fetchLegacyPayments]);
+    refreshData();
+  }, [refreshData]);
 
   const handleDownloadLegacyInvoice = async (paymentId) => {
     // Optimistically lock button to prevent double-clicks
@@ -148,7 +143,7 @@ export default function BillsPage() {
       } else {
         alert('Failed to resolve secure download URL.');
       }
-      await fetchLegacyPayments();
+      await refreshData();
     } catch (err) {
       console.error('Failed to resolve legacy invoice:', err);
       alert('Error fetching invoice. Please try again.');
@@ -187,7 +182,7 @@ export default function BillsPage() {
       await billService.createBill(payload);
       setShowGenerateModal(false);
       resetGenForm();
-      fetchBills();
+      refreshData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to generate bill');
     }
@@ -207,7 +202,7 @@ export default function BillsPage() {
       setShowRecordModal(false);
       setSelectedBill(null);
       resetRecordForm();
-      fetchBills();
+      refreshData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to record payment');
     }
@@ -218,7 +213,7 @@ export default function BillsPage() {
     if (reason === null) return;
     try {
       await billService.voidBill(billId, { reason });
-      fetchBills();
+      refreshData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to void bill');
     }
@@ -262,6 +257,59 @@ export default function BillsPage() {
   };
 
   // Filters
+  const getTypeConfig = (type) => {
+    switch (type) {
+      case 'rent':
+        return {
+          icon: Receipt,
+          bgClass: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-500',
+          label: 'RENT'
+        };
+      case 'electricity':
+        return {
+          icon: Zap,
+          bgClass: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-500',
+          label: 'ELECTRICITY'
+        };
+      case 'water':
+        return {
+          icon: Droplet,
+          bgClass: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-500',
+          label: 'WATER'
+        };
+      case 'maintenance':
+        return {
+          icon: Wrench,
+          bgClass: 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-500',
+          label: 'MAINTENANCE'
+        };
+      case 'parking':
+        return {
+          icon: Car,
+          bgClass: 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500',
+          label: 'PARKING'
+        };
+      case 'security_deposit':
+        return {
+          icon: ShieldCheck,
+          bgClass: 'bg-violet-500/10 dark:bg-violet-500/20 text-violet-500',
+          label: 'SECURITY DEPOSIT'
+        };
+      case 'late_fee':
+        return {
+          icon: AlertTriangle,
+          bgClass: 'bg-red-500/10 dark:bg-red-500/20 text-red-500',
+          label: 'LATE FEE'
+        };
+      default:
+        return {
+          icon: FileText,
+          bgClass: 'bg-slate-500/10 dark:bg-slate-500/20 text-slate-500',
+          label: (type || 'miscellaneous').toUpperCase().replace('_', ' ')
+        };
+    }
+  };
+
   const filteredBills = bills.filter((b) => {
     const propertyName = b.property?.name || '';
     const tenantName = b.tenant ? `${b.tenant.firstName} ${b.tenant.lastName}` : '';
@@ -298,6 +346,19 @@ export default function BillsPage() {
 
     return matchSearch && matchStatus && matchType;
   });
+
+  const unifiedItems = [
+    ...filteredBills.map((b) => ({
+      ...b,
+      isLegacy: false,
+      date: new Date(b.dueDate)
+    })),
+    ...filteredLegacyPayments.map((p) => ({
+      ...p,
+      isLegacy: true,
+      date: new Date(p.paymentDate || p.createdAt)
+    }))
+  ].sort((a, b) => b.date - a.date);
 
   return (
     <div className="space-y-6 pb-12">
@@ -365,32 +426,6 @@ export default function BillsPage() {
         </div>
       )}
 
-      {/* Tab Selector */}
-      <div className="flex border-b border-border gap-6">
-        <button
-          onClick={() => { setActiveTab('bills'); setSearchQuery(''); }}
-          className={cn(
-            "pb-3 text-sm font-black tracking-tight border-b-2 transition-all duration-200",
-            activeTab === 'bills'
-              ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Standard Invoices
-        </button>
-        <button
-          onClick={() => { setActiveTab('legacy'); setSearchQuery(''); }}
-          className={cn(
-            "pb-3 text-sm font-black tracking-tight border-b-2 transition-all duration-200",
-            activeTab === 'legacy'
-              ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Legacy Payments
-        </button>
-      </div>
-
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1 group">
@@ -434,265 +469,209 @@ export default function BillsPage() {
       </div>
 
       {/* Invoices List Grid */}
-      {activeTab === 'bills' ? (
-        loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-56 bg-card border border-border rounded-2xl animate-pulse" />
-            ))}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-56 bg-card border border-border rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      ) : unifiedItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-card border border-dashed border-border rounded-3xl text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Receipt className="w-8 h-8 text-muted-foreground/30" />
           </div>
-        ) : filteredBills.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-card border border-dashed border-border rounded-3xl text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Receipt className="w-8 h-8 text-muted-foreground/30" />
-            </div>
-            <h3 className="text-lg font-black text-foreground">No invoices matching criteria</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
-              No bills or ledger statements were found in the selected period.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredBills.map((bill, index) => {
-              const status = STATUS_CONFIG[bill.status] || STATUS_CONFIG.pending;
-              const StatusIcon = status.icon;
-              const isSettled = bill.status === 'paid';
-              const balance = bill.amountDue - bill.amountPaid;
-
-              return (
-                <motion.div
-                  key={bill._id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
-                  className={cn(
-                    "group relative bg-card border rounded-2xl p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300",
-                    isSettled ? "border-emerald-500/10" : balance > 0 && bill.status === 'overdue' ? "border-red-500/20 shadow-red-500/5 shadow-md" : "border-border"
-                  )}
-                >
-                  {/* Status Ribbon */}
-                  <div className={cn(
-                    "absolute top-5 right-5 flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider",
-                    status.color
-                  )}>
-                    <StatusIcon className="w-2.5 h-2.5" />
-                    {status.label}
-                  </div>
-
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                      <FileText className="w-5.5 h-5.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[9px] font-bold text-muted-foreground/50 tracking-wider block">
-                        {bill.billNumber}
-                      </span>
-                      <h3 className="text-sm font-black text-foreground truncate uppercase tracking-tight">
-                        {bill.type.replace('_', ' ')}
-                      </h3>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {bill.property?.name || 'TMS'}  ·  {bill.tenant ? `${bill.tenant.firstName} ${bill.tenant.lastName}` : ''}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Amount breakdown */}
-                  <div className="space-y-2 mb-4 text-xs border-y border-border py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Amount Invoiced</span>
-                      <span className="font-bold text-foreground">₹{bill.amountDue.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Settled to Date</span>
-                      <span className="font-bold text-emerald-500">₹{bill.amountPaid.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Due Balance</span>
-                      <span className={cn("font-extrabold", balance > 0 ? "text-red-500" : "text-foreground")}>
-                        ₹{balance.toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Due: {new Date(bill.dueDate).toLocaleDateString()}
-                    </span>
-                    {bill.billingPeriodStart && (
-                      <span>
-                        {new Date(bill.billingPeriodStart).toLocaleDateString('en-IN', { month: 'short' })} Billing
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Actions Row */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { setSelectedBill(bill); setShowDetailModal(true); }}
-                      className="p-2.5 rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
-                      title="Invoice Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-
-                    {bill.invoiceUrl ? (
-                      <button
-                        onClick={() => openSecureFile(bill.invoiceUrl)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border bg-card text-xs font-black hover:bg-muted transition-all"
-                      >
-                        <Download className="w-4 h-4 text-emerald-500" />
-                        Invoice PDF
-                      </button>
-                    ) : (
-                      <div className="flex-1 text-center py-2 text-[10px] font-bold text-muted-foreground border border-dashed rounded-xl">
-                        Processing PDF...
-                      </div>
-                    )}
-
-                    {!isSettled && bill.status !== 'voided' && (
-                      isManagerOrAdmin ? (
-                        <button
-                          onClick={() => { setSelectedBill(bill); setRecordAmount(balance); setShowRecordModal(true); }}
-                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-sm"
-                        >
-                          Record Pay
-                        </button>
-                      ) : (
-                        <Link
-                          to={`/pay-now?billId=${bill._id}`}
-                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-sm text-center"
-                        >
-                          <CreditCard className="w-3.5 h-3.5" />
-                          Pay Now
-                        </Link>
-                      )
-                    )}
-
-                    {isManagerOrAdmin && bill.status !== 'voided' && !isSettled && (
-                      <button
-                        onClick={() => handleVoidBill(bill._id)}
-                        className="p-2.5 rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500/5 transition-all"
-                        title="Void Bill"
-                      >
-                        <Ban className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )
+          <h3 className="text-lg font-black text-foreground">No invoices matching criteria</h3>
+          <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
+            No bills or settled ledger payments were found in the selected period.
+          </p>
+        </div>
       ) : (
-        legacyLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-56 bg-card border border-border rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        ) : filteredLegacyPayments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-card border border-dashed border-border rounded-3xl text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Receipt className="w-8 h-8 text-muted-foreground/30" />
-            </div>
-            <h3 className="text-lg font-black text-foreground">No legacy payments matching criteria</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
-              No unlinked historical payments were found in the selected period.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredLegacyPayments.map((payment, index) => {
-              const paymentDate = payment.paymentDate || payment.createdAt;
-              const dateObj = new Date(paymentDate);
-              const yearStr = dateObj.getFullYear();
-              const cosmeticInvoiceNum = `INV-${yearStr}-${String(payment._id).slice(-6).toUpperCase()}`;
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {unifiedItems.map((item, index) => {
+            const typeConfig = getTypeConfig(item.type);
+            const TypeIcon = typeConfig.icon;
 
-              const isGenerating = !!generatingInvoiceIds[payment._id];
-              const hasFile = !!payment.fileId;
+            let statusStyle = STATUS_CONFIG.pending;
+            let StatusStyleIcon = AlertCircle;
+            let amountLabel = 'AMOUNT DUE';
+            let amountValue = 0;
+            let dateLabel = 'Due';
+            let dateValue = '';
+            let methodIcon = <Clock className="w-4 h-4 text-muted-foreground/40" />;
+            let methodLabel = '';
+            let primaryButton = null;
 
-              return (
-                <motion.div
-                  key={payment._id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="group relative bg-card border rounded-2xl p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border-border"
-                >
-                  {/* Status Ribbon (Always Settled/Paid for completed historical payments) */}
-                  <div className="absolute top-5 right-5 flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10">
-                    <CheckCircle2 className="w-2.5 h-2.5" />
-                    Settled
-                  </div>
+            if (item.isLegacy) {
+              statusStyle = STATUS_CONFIG.paid;
+              StatusStyleIcon = CheckCircle2;
+              amountLabel = 'AMOUNT PAID';
+              amountValue = item.amount;
+              dateLabel = 'Paid';
+              dateValue = new Date(item.paymentDate || item.createdAt).toLocaleDateString();
+              methodIcon = item.paymentMethod === 'card' ? <CreditCard className="w-4 h-4 text-muted-foreground/40" /> : <Wallet className="w-4 h-4 text-muted-foreground/40" />;
+              methodLabel = item.paymentMethod || 'Card';
 
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                      <FileText className="w-5.5 h-5.5" />
+              const isGenerating = !!generatingInvoiceIds[item._id];
+              if (isGenerating) {
+                primaryButton = (
+                  <button disabled className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500/50 text-white text-xs font-black cursor-not-allowed">
+                    Generating...
+                  </button>
+                );
+              } else {
+                primaryButton = (
+                  <button
+                    onClick={() => handleDownloadLegacyInvoice(item._id)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Invoice
+                  </button>
+                );
+              }
+            } else {
+              // Standard Bill
+              statusStyle = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending;
+              StatusStyleIcon = statusStyle.icon;
+              
+              const balance = item.amountDue - item.amountPaid;
+              const isSettled = item.status === 'paid';
+
+              if (isSettled) {
+                amountLabel = 'AMOUNT PAID';
+                amountValue = item.amountPaid;
+              } else if (item.amountPaid > 0) {
+                amountLabel = 'BALANCE DUE';
+                amountValue = balance;
+              } else {
+                amountLabel = 'AMOUNT DUE';
+                amountValue = item.amountDue;
+              }
+
+              dateLabel = 'Due';
+              dateValue = new Date(item.dueDate).toLocaleDateString();
+              methodIcon = <Clock className="w-4 h-4 text-muted-foreground/40" />;
+              methodLabel = item.billingPeriodStart 
+                ? `${new Date(item.billingPeriodStart).toLocaleDateString('en-IN', { month: 'short' })} Billing`
+                : 'One-time';
+
+              if (isSettled) {
+                if (item.invoiceUrl) {
+                  primaryButton = (
+                    <button
+                      onClick={() => openSecureFile(item.invoiceUrl)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Invoice
+                    </button>
+                  );
+                } else {
+                  primaryButton = (
+                    <button disabled className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-500/50 text-white text-xs font-black cursor-not-allowed">
+                      Processing PDF...
+                    </button>
+                  );
+                }
+              } else if (item.status !== 'voided') {
+                if (isManagerOrAdmin) {
+                  primaryButton = (
+                    <button
+                      onClick={() => { setSelectedBill(item); setRecordAmount(balance); setShowRecordModal(true); }}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer"
+                    >
+                      Record Pay
+                    </button>
+                  );
+                } else {
+                  primaryButton = (
+                    <Link
+                      to={`/pay-now?billId=${item._id}`}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all duration-200 text-center"
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      Pay Now
+                    </Link>
+                  );
+                }
+              } else {
+                primaryButton = (
+                  <button disabled className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-500/30 text-slate-400 text-xs font-black cursor-not-allowed">
+                    Voided Invoice
+                  </button>
+                );
+              }
+            }
+
+            return (
+              <motion.div
+                key={item._id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.03 }}
+                className="flex flex-col h-full bg-card border border-border/40 rounded-2xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm",
+                      typeConfig.bgClass
+                    )}>
+                      <TypeIcon className="w-5.5 h-5.5" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[9px] font-bold text-muted-foreground/50 tracking-wider block">
-                        {cosmeticInvoiceNum}
-                      </span>
-                      <h3 className="text-sm font-black text-foreground truncate uppercase tracking-tight">
-                        {payment.type.replace('_', ' ')}
+                    <div>
+                      <h3 className="text-sm font-black text-foreground tracking-tight uppercase leading-tight">
+                        {typeConfig.label}
                       </h3>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {payment.property?.name || 'TMS'} {isManagerOrAdmin && payment.tenant ? ` · ${payment.tenant.firstName} ${payment.tenant.lastName}` : ''}
+                      <p className="text-[11px] text-muted-foreground font-medium truncate max-w-[140px]">
+                        {item.property?.name || 'TMS'} {isManagerOrAdmin && item.tenant ? ` · ${item.tenant.firstName}` : ''}
                       </p>
                     </div>
                   </div>
 
-                  {/* Amount details */}
-                  <div className="space-y-2 mb-4 text-xs border-y border-border py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Amount Settled</span>
-                      <span className="font-bold text-foreground">₹{payment.amount.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Method</span>
-                      <span className="font-bold text-foreground capitalize">{payment.paymentMethod || 'Online'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground/60">Reference</span>
-                      <span className="font-mono text-[10px] text-foreground truncate max-w-[120px]">{payment.reference || '—'}</span>
-                    </div>
+                  <div className={cn(
+                    "flex items-center gap-1 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider",
+                    statusStyle.color
+                  )}>
+                    <StatusStyleIcon className="w-3 h-3" />
+                    {statusStyle.label}
                   </div>
+                </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Paid: {dateObj.toLocaleDateString()}
-                    </span>
-                  </div>
+                <div className="flex items-baseline justify-between mb-6">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    {amountLabel}
+                  </span>
+                  <span className="text-2xl font-black text-foreground font-mono">
+                    ₹{amountValue.toLocaleString('en-IN')}
+                  </span>
+                </div>
 
-                  {/* Actions Row */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleDownloadLegacyInvoice(payment._id)}
-                      disabled={isGenerating}
-                      className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-black transition-all",
-                        hasFile 
-                          ? "border border-border bg-card text-foreground hover:bg-muted" 
-                          : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/10",
-                        isGenerating && "opacity-60 cursor-not-allowed"
-                      )}
-                    >
-                      <Download className={cn("w-4 h-4", hasFile ? "text-emerald-500" : "text-white")} />
-                      {isGenerating 
-                        ? 'Generating...' 
-                        : hasFile 
-                          ? 'Download Invoice' 
-                          : 'Generate Invoice'
-                      }
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )
+                <div className="flex items-center justify-between text-xs text-muted-foreground/60 mb-6">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Calendar className="w-4 h-4 text-muted-foreground/40" />
+                    {dateLabel}: {dateValue}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-medium capitalize">
+                    {methodIcon}
+                    {methodLabel}
+                  </span>
+                </div>
+
+                <div className="flex gap-2.5 mt-auto">
+                  {primaryButton}
+                  <button
+                    onClick={() => { setSelectedBill(item); setShowDetailModal(true); }}
+                    className="p-3 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 flex items-center justify-center"
+                    title="View Details"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
 
       {/* Generate Invoice Modal */}
@@ -976,85 +955,123 @@ export default function BillsPage() {
               <X className="w-4 h-4" />
             </button>
 
-            <h2 className="text-lg font-black text-foreground mb-1">Invoice Details</h2>
+            <h2 className="text-lg font-black text-foreground mb-1">
+              {selectedBill.isLegacy ? 'Receipt Details' : 'Invoice Details'}
+            </h2>
             <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase mb-4">
-              {selectedBill.billNumber}
+              {selectedBill.isLegacy 
+                ? `INV-${new Date(selectedBill.paymentDate || selectedBill.createdAt).getFullYear()}-${String(selectedBill._id).slice(-6).toUpperCase()}`
+                : selectedBill.billNumber}
             </p>
 
-            <div className="space-y-4">
-              {/* Core Details */}
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="text-muted-foreground/60 block">Billing Period</span>
-                  <span className="font-bold">
-                    {selectedBill.billingPeriodStart ? (
-                      `${new Date(selectedBill.billingPeriodStart).toLocaleDateString()} - ${new Date(selectedBill.billingPeriodEnd).toLocaleDateString()}`
-                    ) : 'One-time'}
-                  </span>
+            {selectedBill.isLegacy ? (
+              <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-muted-foreground/60 block mb-0.5">Receipt Date</span>
+                    <span className="font-bold text-foreground">{new Date(selectedBill.paymentDate || selectedBill.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60 block mb-0.5">Payment Method</span>
+                    <span className="font-bold text-foreground capitalize">{selectedBill.paymentMethod || 'Online'}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-muted-foreground/60 block">Grace Period</span>
-                  <span className="font-bold">{selectedBill.gracePeriodDays} days</span>
-                </div>
-              </div>
 
-              {/* Utility Readings */}
-              {selectedBill.meterReading?.current !== undefined && (
-                <div className="bg-muted p-3 rounded-lg border border-border text-xs">
-                  <p className="font-bold text-emerald-500 mb-1.5">Meter Diagnostics</p>
-                  <div className="grid grid-cols-3 gap-2 text-[10px]">
-                    <div>
-                      <span className="text-muted-foreground/60 block">Previous</span>
-                      <span className="font-bold">{selectedBill.meterReading.previous} units</span>
+                <div>
+                  <span className="text-muted-foreground/60 block mb-0.5">Transaction Reference</span>
+                  <span className="font-mono font-bold text-foreground break-all">{selectedBill.reference || '—'}</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-muted-foreground">Settlement Summary</span>
+                  <div className="bg-muted rounded-xl p-3.5 space-y-2 border border-border">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Invoiced Type</span>
+                      <span className="font-bold uppercase text-foreground">{selectedBill.type.replace('_', ' ')}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground/60 block">Current</span>
-                      <span className="font-bold">{selectedBill.meterReading.current} units</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground/60 block">Rate</span>
-                      <span className="font-bold">₹{selectedBill.meterReading.rate}/unit</span>
+                    <div className="flex justify-between items-center border-t border-border pt-2 font-black text-foreground">
+                      <span>Amount Settled</span>
+                      <span>₹{selectedBill.amount.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Breakdown */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-bold text-muted-foreground">Charges Breakdown</span>
-                <div className="bg-muted rounded-xl p-3.5 space-y-2 border border-border text-xs">
-                  {selectedBill.breakdown.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center">
-                      <span className="text-muted-foreground">{item.label}</span>
-                      <span className="font-bold">₹{item.amount.toLocaleString('en-IN')}</span>
-                    </div>
-                  ))}
-                  <div className="border-t border-border pt-2 flex justify-between font-black text-foreground">
-                    <span>Total Bill</span>
-                    <span>₹{selectedBill.amountDue.toLocaleString('en-IN')}</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Core Details */}
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground/60 block">Billing Period</span>
+                    <span className="font-bold">
+                      {selectedBill.billingPeriodStart ? (
+                        `${new Date(selectedBill.billingPeriodStart).toLocaleDateString()} - ${new Date(selectedBill.billingPeriodEnd).toLocaleDateString()}`
+                      ) : 'One-time'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60 block">Grace Period</span>
+                    <span className="font-bold">{selectedBill.gracePeriodDays} days</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Ledger Timeline */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-muted-foreground">Audit Timeline</span>
-                <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border pl-6">
-                  {selectedBill.timeline.map((entry, idx) => (
-                    <div key={idx} className="relative text-xs">
-                      <div className="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold text-foreground capitalize">{entry.status}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </span>
+                {/* Utility Readings */}
+                {selectedBill.meterReading?.current !== undefined && (
+                  <div className="bg-muted p-3 rounded-lg border border-border text-xs">
+                    <p className="font-bold text-emerald-500 mb-1.5">Meter Diagnostics</p>
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      <div>
+                        <span className="text-muted-foreground/60 block">Previous</span>
+                        <span className="font-bold">{selectedBill.meterReading.previous} units</span>
                       </div>
-                      {entry.note && <p className="text-[11px] text-muted-foreground mt-0.5">{entry.note}</p>}
+                      <div>
+                        <span className="text-muted-foreground/60 block">Current</span>
+                        <span className="font-bold">{selectedBill.meterReading.current} units</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground/60 block">Rate</span>
+                        <span className="font-bold">₹{selectedBill.meterReading.rate}/unit</span>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* Breakdown */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-muted-foreground">Charges Breakdown</span>
+                  <div className="bg-muted rounded-xl p-3.5 space-y-2 border border-border text-xs">
+                    {selectedBill.breakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{item.label}</span>
+                        <span className="font-bold">₹{item.amount.toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                    <div className="border-t border-border pt-2 flex justify-between font-black text-foreground">
+                      <span>Total Bill</span>
+                      <span>₹{selectedBill.amountDue.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ledger Timeline */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-muted-foreground">Audit Timeline</span>
+                  <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border pl-6">
+                    {selectedBill.timeline.map((entry, idx) => (
+                      <div key={idx} className="relative text-xs">
+                        <div className="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-foreground capitalize">{entry.status}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(entry.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        {entry.note && <p className="text-[11px] text-muted-foreground mt-0.5">{entry.note}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </div>
       )}
