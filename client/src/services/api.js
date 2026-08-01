@@ -69,13 +69,22 @@ export const leaseService = {
 
 export const paymentService = {
   getAllPayments: (params) => apiClient.get('/payments', { params }),
-  getMyPayments: () => apiClient.get('/payments/my-payments'),
+  getMyPayments: (params) => apiClient.get('/payments/my-payments', { params }),
   getPaymentById: (id) => apiClient.get(`/payments/${id}`),
   createPayment: (data) => apiClient.post('/payments', data),
   recordPayment: (id, data) => apiClient.post(`/payments/${id}/record`, data),
   updatePaymentStatus: (id, status) =>
     apiClient.put(`/payments/${id}/status`, { status }),
   getPaymentStats: () => apiClient.get('/payments/stats'),
+  getPaymentInvoice: (id) => apiClient.get(`/payments/${id}/invoice`),
+  getLegacyPayments: (params) => {
+    // Branch based on role is handled in controller query strings, 
+    // but we support custom parameters like ?bill=null
+    return apiClient.get('/payments', { params: { ...params, bill: 'null' } });
+  },
+  getMyLegacyPayments: (params) => {
+    return apiClient.get('/payments/my-payments', { params: { ...params, bill: 'null' } });
+  }
 };
 
 export const billService = {

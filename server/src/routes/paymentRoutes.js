@@ -13,6 +13,7 @@ router.get('/my-payments', paymentController.getMyPayments);
 router.get('/', paymentController.getAllPayments);
 router.get('/stats', managerOrAdmin, paymentController.getPaymentStats);
 router.get('/:id', paymentController.getPaymentById);
+router.get('/:id/invoice', paymentController.getPaymentInvoice);
 
 // Manager/admin only
 router.post('/', managerOrAdmin, paymentController.createPayment);

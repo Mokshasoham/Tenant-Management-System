@@ -1,10 +1,14 @@
+import mongoose from 'mongoose';
 import Payment from '../models/Payment.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import User from '../models/User.js';
+import Property from '../models/Property.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
+import { generateInvoicePDF } from '../services/pdfService.js';
+import { getSignedUrlForFile } from './fileController.js';
 
 const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
@@ -43,10 +47,19 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   const tenant = await Tenant.findOne({ email: user.email });
   if (!tenant) return res.status(200).json({ success: true, data: [] });
 
-  const payments = await Payment.find({ tenant: tenant._id })
+  const filter = { tenant: tenant._id };
+  if (req.query.bill === 'null') {
+    filter.$or = [
+      { bill: null },
+      { bill: { $exists: false } }
+    ];
+  }
+
+  const payments = await Payment.find(filter)
     .sort({ dueDate: -1 })
-    .limit(24)
+    .limit(100)
     .populate('lease', 'leaseNumber rentAmount')
+    .populate('tenant', 'firstName lastName email')
     .populate('property', 'name address');
 
   const resolvedPayments = payments.map(p => resolveInvoiceUrl(p, req));
@@ -61,6 +74,12 @@ export const getAllPayments = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
   if (leaseId) filter.lease = leaseId;
   if (tenantId) filter.tenant = tenantId;
+  if (req.query.bill === 'null') {
+    filter.$or = [
+      { bill: null },
+      { bill: { $exists: false } }
+    ];
+  }
 
   const skip = (page - 1) * limit;
 
@@ -100,6 +119,81 @@ export const getPaymentById = asyncHandler(async (req, res) => {
     success: true,
     data: resolveInvoiceUrl(payment, req),
   });
+});
+
+export const getPaymentInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const payment = await Payment.findById(id).populate('lease');
+  if (!payment) throw new AppError('Payment not found', 404);
+
+  // Authenticate ownership: tenants can only see their own payments
+  if (req.user.role === 'tenant') {
+    const user = await User.findById(req.user.userId).select('email');
+    const tenant = await Tenant.findOne({ email: user.email });
+    if (!tenant || payment.tenant.toString() !== tenant._id.toString()) {
+      throw new AppError('Forbidden: Access denied', 403);
+    }
+  }
+
+  // 1. If payment has a linked bill, delegate to the Bill download flow
+  if (payment.bill) {
+    const Bill = (await import('../models/Bill.js')).default;
+    const bill = await Bill.findById(payment.bill);
+    if (!bill) throw new AppError('Linked bill not found', 404);
+    if (!bill.fileId) throw new AppError('Invoice file metadata not generated yet', 404);
+    
+    req.params.fileId = bill.fileId.toString();
+    return getSignedUrlForFile(req, res);
+  }
+
+  // 2. Generate legacy PDF invoice on the fly if not already done
+  if (!payment.fileId) {
+    const placeholderId = new mongoose.Types.ObjectId();
+    // Try to claim the generation lock atomically
+    const lockedPayment = await Payment.findOneAndUpdate(
+      { _id: payment._id, fileId: { $exists: false } },
+      { $set: { fileId: placeholderId } },
+      { new: true }
+    );
+
+    if (lockedPayment && lockedPayment.fileId.toString() === placeholderId.toString()) {
+      try {
+        const tenant = await Tenant.findById(payment.tenant);
+        const property = await Property.findById(payment.property);
+        const pdfData = await generateInvoicePDF(payment, tenant, property, payment.lease);
+        
+        payment.fileId = pdfData.fileId;
+        // Clean up legacy invoiceUrl to ensure signed URL security is enforced
+        payment.invoiceUrl = undefined;
+        await payment.save();
+      } catch (err) {
+        // Rollback on failure
+        await Payment.updateOne({ _id: payment._id, fileId: placeholderId }, { $unset: { fileId: 1 } });
+        throw err;
+      }
+    } else {
+      // Wait for parallel generation to finish
+      let pollCount = 0;
+      let freshPayment = payment;
+      while (pollCount < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        freshPayment = await Payment.findById(payment._id);
+        if (freshPayment.fileId && freshPayment.fileId.toString() !== placeholderId.toString()) {
+          break;
+        }
+        pollCount++;
+      }
+      
+      if (!freshPayment.fileId || freshPayment.fileId.toString() === placeholderId.toString()) {
+        throw new AppError('PDF generation timed out. Please try again.', 408);
+      }
+      payment.fileId = freshPayment.fileId;
+    }
+  }
+
+  // 3. Return fresh short-lived signed URL
+  req.params.fileId = payment.fileId.toString();
+  return getSignedUrlForFile(req, res);
 });
 
 export const createPayment = asyncHandler(async (req, res) => {
