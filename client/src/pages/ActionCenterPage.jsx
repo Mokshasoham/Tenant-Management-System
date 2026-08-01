@@ -882,6 +882,25 @@ export default function ActionCenterPage() {
                       CONTINUE {selectedActivity.action.toUpperCase()} WORKFLOW
                       <ArrowUpRight className="w-4 h-4" />
                     </button>
+                  ) : (selectedActivity.redirectUrl || selectedActivity.link || selectedActivity.entityId || selectedActivity.relatedId) ? (
+                    <>
+                      <button
+                        onClick={() => setIsDrawerOpen(false)}
+                        className="flex-1 py-3 rounded-xl border border-border/40 hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-black transition-all cursor-pointer"
+                      >
+                        CLOSE
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsDrawerOpen(false);
+                          handleContinuation(selectedActivity);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                      >
+                        VIEW DETAILS
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={() => setIsDrawerOpen(false)}

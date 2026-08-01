@@ -92,7 +92,7 @@ export const useActionCenterNavigation = () => {
             navigationState = { targetEntityId: entityId, openDetails: true, highlight: true };
           }
         } else if (category === 'lease' || entityType === 'Lease') {
-          if (entityId) {
+          if (entityId && role !== 'tenant') {
             await leaseService.getLeaseById(entityId);
           }
           redirectPath = role === 'tenant' ? '/my-lease' : '/leases';
