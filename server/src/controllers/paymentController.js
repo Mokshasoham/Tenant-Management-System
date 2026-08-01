@@ -178,7 +178,11 @@ export const getPaymentInvoice = asyncHandler(async (req, res) => {
       while (pollCount < 10) {
         await new Promise(resolve => setTimeout(resolve, 500));
         freshPayment = await Payment.findById(payment._id);
-        if (freshPayment.fileId && freshPayment.fileId.toString() !== placeholderId.toString()) {
+        if (!freshPayment.fileId) {
+          // Winning thread failed and rolled back the lock
+          break;
+        }
+        if (freshPayment.fileId.toString() !== placeholderId.toString()) {
           break;
         }
         pollCount++;
