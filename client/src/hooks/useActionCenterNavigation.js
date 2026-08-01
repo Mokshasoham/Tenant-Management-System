@@ -9,7 +9,7 @@ import { executeNavigation } from '../navigation/navigationExecutor';
 export const useActionCenterNavigation = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const role = user?.role;
+  const role = (user?.role || '').toLowerCase();
 
   /**
    * Dispatches and routes action elements.

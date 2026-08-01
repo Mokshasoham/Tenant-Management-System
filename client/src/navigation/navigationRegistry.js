@@ -24,10 +24,14 @@ export const ROUTES = {
     state: { bookingId }
   }),
 
-  lease: (role) => ({
-    path: role === 'tenant' ? '/my-lease' : '/leases',
-    state: {}
-  }),
+  lease: (role) => {
+    const normalizedRole = (role || '').toLowerCase();
+    const isManagerOrAdmin = normalizedRole === 'manager' || normalizedRole === 'admin';
+    return {
+      path: isManagerOrAdmin ? '/leases' : '/my-lease',
+      state: {}
+    };
+  },
 
   renewal: (event) => ({
     path: event === 'approved' ? '/lease-history' : '/lease-renewal',
