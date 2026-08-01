@@ -138,7 +138,7 @@ export default function BillsPage() {
     setGeneratingInvoiceIds(prev => ({ ...prev, [paymentId]: true }));
     try {
       const res = await paymentService.getPaymentInvoice(paymentId);
-      const data = res.data;
+      const data = res.data || res;
       if (data.success && data.url) {
         const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const cleanServerUrl = serverUrl.replace(/\/$/, '');
