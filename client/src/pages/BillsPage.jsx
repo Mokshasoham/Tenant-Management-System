@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { openSecureFile } from '../utils/fileAccess';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 const STATUS_CONFIG = {
   paid: { label: 'Settled', color: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10', icon: CheckCircle2 },
@@ -39,6 +39,7 @@ const BILL_TYPES = [
 export default function BillsPage() {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
+  const { id: urlBillId } = useParams();
   const isManagerOrAdmin = ['manager', 'admin'].includes(user?.role);
 
   // States
@@ -61,7 +62,7 @@ export default function BillsPage() {
   // Deep Link parser to handle auto-scroll, yellow glow, and auto-details drawer opening
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const targetId = location.state?.targetEntityId || params.get('billId') || params.get('paymentId');
+    const targetId = urlBillId || location.state?.targetEntityId || params.get('billId') || params.get('paymentId');
 
     if (targetId && !loading && (bills.length > 0 || legacyPayments.length > 0)) {
       // Find the standard bill or legacy payment matching target ID

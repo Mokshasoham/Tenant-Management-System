@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { maintenanceService } from '../services/api';
 import useAuthStore from '../context/authStore';
@@ -577,6 +577,7 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 export default function MaintenancePage() {
     const { user } = useAuthStore();
     const location = useLocation();
+    const { id: urlMaintId } = useParams();
     const searchId = location.state?.searchId;
     const isManager = user?.role === 'manager' || user?.role === 'admin';
     const [requests, setRequests] = useState([]);
@@ -591,7 +592,7 @@ export default function MaintenancePage() {
     // Deep link parser to handle auto-scroll and glow highlights
     useEffect(() => {
         const params = new URLSearchParams(location.search);
-        const targetId = location.state?.targetEntityId || params.get('maintenanceId') || searchId;
+        const targetId = urlMaintId || location.state?.targetEntityId || params.get('maintenanceId') || searchId;
 
         if (targetId && !loading && requests.length > 0) {
             const matched = requests.find(r => r._id === targetId);

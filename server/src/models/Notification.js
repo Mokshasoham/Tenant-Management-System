@@ -57,6 +57,7 @@ const notificationSchema = new mongoose.Schema(
                 'renewal',
                 'move-out',
                 'inspection',
+                'deposit_settlement',
                 'maintenance',
                 'documents',
                 'messages',

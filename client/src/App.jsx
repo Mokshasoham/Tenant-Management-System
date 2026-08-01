@@ -114,7 +114,9 @@ function App() {
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/payments" element={<ProtectedRoute><DashboardLayout><PaymentsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/bills" element={<ProtectedRoute><DashboardLayout><BillsPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/bills/:id" element={<ProtectedRoute><DashboardLayout><BillsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/maintenance" element={<ProtectedRoute><DashboardLayout><MaintenancePage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/maintenance/:id" element={<ProtectedRoute><DashboardLayout><MaintenancePage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><DashboardLayout><MessagesPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><DashboardLayout><ProfilePage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/my-lease" element={<ProtectedRoute><DashboardLayout><MyLeasePage /></DashboardLayout></ProtectedRoute>} />
