@@ -15,6 +15,7 @@ export default function MoveOutPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    console.log('[MoveOutPage] Destination page loaded');
     const fetchLease = async () => {
       try {
         const token = localStorage.getItem('token');

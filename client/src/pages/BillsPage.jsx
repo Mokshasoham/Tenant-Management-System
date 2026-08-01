@@ -61,6 +61,7 @@ export default function BillsPage() {
 
   // Deep Link parser to handle auto-scroll, yellow glow, and auto-details drawer opening
   useEffect(() => {
+    console.log('[BillsPage] Destination page loaded', { urlBillId, state: location.state });
     const params = new URLSearchParams(location.search);
     const targetId = urlBillId || location.state?.targetEntityId || params.get('billId') || params.get('paymentId');
 

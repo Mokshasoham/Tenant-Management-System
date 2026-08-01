@@ -16,6 +16,7 @@ export default function LeaseRenewalPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    console.log('[LeaseRenewalPage] Destination page loaded');
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');

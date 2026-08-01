@@ -225,18 +225,8 @@ export default function Navbar({ toggleSidebar }) {
   };
 
   const handleNotifClick = async (n) => {
-    if (!n.isRead && !n.read) {
-      try {
-        await notificationService.markRead(n._id);
-        setUnreadCount(c => Math.max(0, c - 1));
-        setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true, isRead: true } : x));
-      } catch (_) { }
-    }
-
-    // Close notifications panel
+    console.log('[Navbar] View Details / Notification clicked:', n);
     setShowNotif(false);
-
-    // Call unified Action Center Router
     handleAction(n);
   };
 
@@ -374,17 +364,15 @@ export default function Navbar({ toggleSidebar }) {
                               </button>
                             )}
 
-                            {expandedNotifs[n._id] && (
-                              <button
+                             <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleNotifClick(n);
                                 }}
-                                className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                                className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors cursor-pointer"
                               >
                                 View Details
                               </button>
-                            )}
                           </div>
                         </div>
                         {!n.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />}

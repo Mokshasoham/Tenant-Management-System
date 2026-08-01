@@ -18,6 +18,21 @@ export const useActionCenterNavigation = () => {
    * @param {function} [openDrawerCallback] - Optional callback to trigger sidebar drawers
    */
   const handleAction = async (item, openDrawerCallback) => {
+    console.log('[Navigation] handleAction invoked with item:', {
+      _id: item?._id,
+      category: item?.category,
+      event: item?.event,
+      entityType: item?.entityType,
+      entityId: item?.entityId,
+      redirectUrl: item?.redirectUrl,
+      action: item?.action,
+      metadata: item?.metadata,
+      relatedId: item?.relatedId,
+      relatedModel: item?.relatedModel,
+      link: item?.link,
+      type: item?.type
+    });
+
     if (openDrawerCallback) {
       openDrawerCallback(item);
       return;

@@ -17,6 +17,7 @@ export default function DepositSettlementPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    console.log('[DepositSettlementPage] Destination page loaded', { settlementId: id });
     const fetchLease = async () => {
       try {
         const token = localStorage.getItem('token');

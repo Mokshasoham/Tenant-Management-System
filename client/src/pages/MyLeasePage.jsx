@@ -169,6 +169,7 @@ export default function MyLeasePage() {
     };
 
     useEffect(() => {
+        console.log('[MyLeasePage] Destination page loaded');
         fetchLeaseData();
 
         // Re-fetch whenever the user returns to this page/tab (e.g. after uploading KYC)

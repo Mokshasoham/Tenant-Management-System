@@ -34,6 +34,7 @@ export default function InspectionPage() {
   const [actualRepairCost, setActualRepairCost] = useState(0);
 
   useEffect(() => {
+    console.log('[InspectionPage] Destination page loaded', { inspectionId: id });
     const fetchInspection = async () => {
       try {
         const token = localStorage.getItem('token');

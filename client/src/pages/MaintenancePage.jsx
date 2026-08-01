@@ -591,6 +591,7 @@ export default function MaintenancePage() {
 
     // Deep link parser to handle auto-scroll and glow highlights
     useEffect(() => {
+        console.log('[MaintenancePage] Destination page loaded', { urlMaintId, state: location.state });
         const params = new URLSearchParams(location.search);
         const targetId = urlMaintId || location.state?.targetEntityId || params.get('maintenanceId') || searchId;
 

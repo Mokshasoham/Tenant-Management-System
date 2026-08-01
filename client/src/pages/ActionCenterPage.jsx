@@ -190,7 +190,7 @@ export default function ActionCenterPage() {
 
   // Workflow dispatch trigger
   const handleContinuation = (activity) => {
-    handleMarkRead(activity);
+    console.log('[ActionCenterPage] Workflow continuation / View Details clicked:', activity);
     handleAction(activity);
   };
 

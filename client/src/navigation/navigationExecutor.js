@@ -16,6 +16,7 @@ export const executeNavigation = async (navigate, item, resolution, role) => {
 
   try {
     // 1. Execute React Router Navigation First
+    console.log('[NavigationExecutor] Invoking navigate() with:', { path, state });
     navigate(path, { state });
 
     // 2. Post-Navigation Background Mark-As-Read

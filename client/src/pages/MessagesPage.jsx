@@ -168,6 +168,7 @@ export default function MessagesPage() {
 
     useEffect(() => {
         if (!user) return;
+        console.log('[MessagesPage] Destination page loaded', { state: location.state });
         fetchConversations();
         fetchAvailableUsers();
         

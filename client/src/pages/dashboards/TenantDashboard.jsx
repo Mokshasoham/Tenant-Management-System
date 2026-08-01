@@ -1260,16 +1260,8 @@ export default function TenantDashboard({ user, navigate }) {
                                     <div 
                                         key={n._id} 
                                         id={`notif-card-${n._id}`}
-                                        onClick={async () => {
-                                            if (!n.isRead && !n.read) {
-                                                try {
-                                                    await notificationService.markRead(n._id);
-                                                    setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, read: true, isRead: true } : item));
-                                                    setUnread(c => Math.max(0, c - 1));
-                                                } catch (err) {
-                                                    console.error('Failed to mark read', err);
-                                                }
-                                            }
+                                        onClick={() => {
+                                            console.log('[TenantDashboard] Notification card clicked:', n);
                                             handleAction(n);
                                         }}
                                         className={cn(
@@ -1327,10 +1319,10 @@ export default function TenantDashboard({ user, navigate }) {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const clickEvent = document.getElementById(`notif-card-${n._id}`);
-                                                                if (clickEvent) clickEvent.click();
+                                                                console.log('[TenantDashboard] View Details clicked:', n);
+                                                                handleAction(n);
                                                             }}
-                                                            className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors"
+                                                            className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors cursor-pointer"
                                                         >
                                                             View Details
                                                         </button>

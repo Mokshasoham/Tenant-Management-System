@@ -36,6 +36,7 @@ export default function BookingStatusPage() {
     };
 
     useEffect(() => {
+        console.log('[BookingStatusPage] Destination page loaded', { bookingId: id });
         fetchBooking();
     }, [id]);
 
