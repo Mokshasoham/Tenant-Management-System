@@ -140,7 +140,8 @@ export default function BillsPage() {
       const res = await paymentService.getPaymentInvoice(paymentId);
       const data = res.data || res;
       if (data.success && data.url) {
-        const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+        const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
         const cleanServerUrl = serverUrl.replace(/\/$/, '');
         const fullUrl = data.url.startsWith('http') ? data.url : `${cleanServerUrl}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
         window.open(fullUrl, '_blank');
