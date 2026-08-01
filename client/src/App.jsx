@@ -24,6 +24,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import MessagesPage from './pages/MessagesPage';
 import MyLeasePage from './pages/MyLeasePage';
 import PayNowPage from './pages/PayNowPage';
+import ActionCenterPage from './pages/ActionCenterPage';
 import BrowsePropertiesPage from './pages/BrowsePropertiesPage';
 import PropertyDetailsPage from './pages/PropertyDetailsPage';
 import BookingStatusPage from './pages/BookingStatusPage';
@@ -118,6 +119,7 @@ function App() {
               <Route path="/profile" element={<ProtectedRoute><DashboardLayout><ProfilePage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/my-lease" element={<ProtectedRoute><DashboardLayout><MyLeasePage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/pay-now" element={<ProtectedRoute><DashboardLayout><PayNowPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/action-center" element={<ProtectedRoute><DashboardLayout><ActionCenterPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/browse" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/properties/:id" element={<ProtectedRoute><DashboardLayout><PropertyDetailsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />

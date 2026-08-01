@@ -128,6 +128,15 @@ export const notificationService = {
   markRead: (id) => apiClient.put(`/notifications/${id}/read`),
   markAllRead: () => apiClient.put('/notifications/mark-all-read'),
   deleteNotification: (id) => apiClient.delete(`/notifications/${id}`),
+  
+  // --- Versioned V1 Enterprise Action Center endpoints ---
+  getV1Notifications: (params) => apiClient.get('/v1/notifications', { params }),
+  getCalendarAgenda: (params) => apiClient.get('/v1/notifications/calendar', { params }),
+  getEventStats: () => apiClient.get('/v1/notifications/stats'),
+  archiveNotification: (id) => apiClient.put(`/v1/notifications/${id}/archive`),
+  markV1Read: (id) => apiClient.put(`/v1/notifications/${id}/read`),
+  markAllV1Read: () => apiClient.put('/v1/notifications/read-all'),
+  deleteV1Notification: (id) => apiClient.delete(`/v1/notifications/${id}`),
 };
 
 export const analyticsService = {

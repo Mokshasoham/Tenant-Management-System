@@ -1,7 +1,66 @@
 import cron from 'node-cron';
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
-import Notification from '../models/Notification.js';
+import NotificationModel from '../models/Notification.js';
+import EventService from '../services/eventService.js';
+
+// Backward-compatible Event proxy
+const Notification = {
+    create: async (data) => {
+        try {
+            let category = 'system';
+            let event = 'cron_alert';
+            let priority = 'medium';
+            let severity = 'information';
+
+            const titleLower = (data.title || '').toLowerCase();
+
+            if (titleLower.includes('expired') || titleLower.includes('booking')) {
+                category = 'booking';
+                event = 'cancelled';
+                priority = 'high';
+                severity = 'warning';
+            } else if (titleLower.includes('overdue') || titleLower.includes('late fee') || titleLower.includes('penalty')) {
+                category = 'payments';
+                event = 'payment_overdue';
+                priority = 'critical';
+                severity = 'critical';
+            } else if (titleLower.includes('reminder') || titleLower.includes('rent') || titleLower.includes('due')) {
+                category = 'billing';
+                event = 'payment_due';
+                priority = 'high';
+                severity = 'warning';
+            }
+
+            return await EventService.publish({
+                recipient: data.recipient,
+                category,
+                event,
+                title: data.title,
+                description: data.message,
+                sourceModule: category,
+                entityType: data.relatedModel || 'System',
+                entityId: data.relatedId,
+                redirectUrl: data.link || '/dashboard',
+                action: 'view',
+                priority,
+                severity,
+                metadata: {
+                    relatedId: data.relatedId
+                }
+            });
+        } catch (err) {
+            logger.error('[Notification Wrapper] Failed: ' + err.message);
+            return await NotificationModel.create(data);
+        }
+    },
+    find: (...args) => NotificationModel.find(...args),
+    findOne: (...args) => NotificationModel.findOne(...args),
+    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
+    updateMany: (...args) => NotificationModel.updateMany(...args),
+    countDocuments: (...args) => NotificationModel.countDocuments(...args),
+    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
+};
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 import Lease from '../models/Lease.js';

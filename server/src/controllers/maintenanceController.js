@@ -1,5 +1,5 @@
 import Maintenance from '../models/Maintenance.js';
-import Notification from '../models/Notification.js';
+import EventService from '../services/eventService.js';
 import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
@@ -7,7 +7,30 @@ import logger from '../utils/logger.js';
 // Helper to create a notification
 async function notify(recipientId, type, title, message, relatedId, relatedModel) {
     try {
-        await Notification.create({ recipient: recipientId, type, title, message, relatedId, relatedModel });
+        let eventName = 'update';
+        if (type === 'maintenance_created') eventName = 'created';
+        else if (type === 'maintenance_resolved') eventName = 'resolved';
+
+        let severity = 'information';
+        if (type === 'maintenance_resolved') severity = 'success';
+
+        await EventService.publish({
+            recipient: recipientId,
+            category: 'maintenance',
+            event: eventName,
+            title,
+            description: message,
+            sourceModule: 'maintenance',
+            entityType: 'Maintenance',
+            entityId: relatedId,
+            redirectUrl: `/maintenance`,
+            action: 'view',
+            priority: 'medium',
+            severity,
+            metadata: {
+                maintenanceId: relatedId
+            }
+        });
     } catch (e) {
         logger.error('Failed to create notification:', e);
     }

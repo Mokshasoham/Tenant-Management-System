@@ -9,24 +9,6 @@ const notificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: [
-                'payment',
-                'payment_due',
-                'payment_received',
-                'payment_overdue',
-                'maintenance_created',
-                'maintenance_update',
-                'maintenance_resolved',
-                'lease_expiry',
-                'lease_created',
-                'message',
-                'system',
-                'tenant_created',
-                'property_created',
-                'booking',
-                'success',
-                'alert',
-            ],
             required: true,
         },
         link: {
@@ -47,11 +29,116 @@ const notificationSchema = new mongoose.Schema(
         },
         relatedModel: {
             type: String,
-            enum: ['Payment', 'Maintenance', 'Lease', 'Message', 'Property', 'Tenant'],
         },
         read: {
             type: Boolean,
             default: false,
+        },
+        // --- Extended Action Center Event Metadata ---
+        eventId: {
+            type: String,
+            trim: true,
+        },
+        schemaVersion: {
+            type: String,
+            default: '1.0.0',
+        },
+        sourceModule: {
+            type: String,
+            trim: true,
+        },
+        category: {
+            type: String,
+            enum: [
+                'booking',
+                'billing',
+                'payments',
+                'lease',
+                'renewal',
+                'move-out',
+                'inspection',
+                'maintenance',
+                'documents',
+                'messages',
+                'announcements',
+                'security',
+                'system'
+            ],
+            default: 'system',
+        },
+        event: {
+            type: String,
+            trim: true,
+        },
+        priority: {
+            type: String,
+            enum: ['critical', 'high', 'medium', 'low'],
+            default: 'medium',
+        },
+        severity: {
+            type: String,
+            enum: ['information', 'success', 'warning', 'critical'],
+            default: 'information',
+        },
+        entityType: {
+            type: String,
+            trim: true,
+        },
+        entityId: {
+            type: mongoose.Schema.Types.ObjectId,
+        },
+        redirectUrl: {
+            type: String,
+            trim: true,
+        },
+        action: {
+            type: String,
+            default: 'view',
+        },
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        readAt: {
+            type: Date,
+        },
+        isRead: {
+            type: Boolean,
+            default: false,
+        },
+        isArchived: {
+            type: Boolean,
+            default: false,
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
+        idempotencyKey: {
+            type: String,
+            sparse: true,
+        },
+        parentEventId: {
+            type: String,
+            trim: true,
+        },
+        previousEventId: {
+            type: String,
+            trim: true,
+        },
+        nextEventId: {
+            type: String,
+            trim: true,
+        },
+        expiresAt: {
+            type: Date,
+        },
+        completedAt: {
+            type: Date,
+        },
+        metadata: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {},
         },
     },
     {
@@ -59,7 +146,11 @@ const notificationSchema = new mongoose.Schema(
     }
 );
 
-notificationSchema.index({ recipient: 1, read: 1 });
-notificationSchema.index({ createdAt: -1 });
+// High-performance query indexes
+notificationSchema.index({ recipient: 1, isDeleted: 1, isArchived: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, category: 1 });
+notificationSchema.index({ title: 'text', message: 'text' });
+notificationSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
+notificationSchema.index({ eventId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Notification', notificationSchema);

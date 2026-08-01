@@ -6,7 +6,7 @@ import Tenant from '../models/Tenant.js';
 import Property from '../models/Property.js';
 import User from '../models/User.js';
 import Counter from '../models/Counter.js';
-import Notification from '../models/Notification.js';
+import EventService from '../services/eventService.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
@@ -188,12 +188,24 @@ export const createBill = asyncHandler(async (req, res) => {
   // Dispatches notification
   const tenantUser = await User.findOne({ email: lease.tenant.email });
   if (tenantUser) {
-    await Notification.create({
+    await EventService.publish({
       recipient: tenantUser._id,
+      category: 'billing',
+      event: 'generated',
       title: '📄 New Bill Generated',
-      message: `A new ${type} invoice for ₹${bill.amountDue} has been generated. Due date: ${new Date(dueDate).toLocaleDateString()}.`,
-      type: 'info',
-      link: '/bills'
+      description: `A new ${type} invoice for ₹${bill.amountDue} has been generated. Due date: ${new Date(dueDate).toLocaleDateString()}.`,
+      sourceModule: 'billing',
+      entityType: 'Bill',
+      entityId: bill._id,
+      redirectUrl: '/bills',
+      action: 'view',
+      priority: 'high',
+      severity: 'information',
+      createdBy: req.user.userId,
+      metadata: {
+        invoiceNumber: bill.billNumber,
+        amount: bill.amountDue
+      }
     });
   }
 

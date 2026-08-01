@@ -1,6 +1,68 @@
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
-import Notification from '../models/Notification.js';
+import NotificationModel from '../models/Notification.js';
+import EventService from '../services/eventService.js';
+
+// Backward-compatible Event proxy
+const Notification = {
+    create: async (data) => {
+        try {
+            let category = 'booking';
+            let event = 'update';
+            let priority = 'medium';
+            let severity = 'information';
+
+            const titleLower = (data.title || '').toLowerCase();
+            if (titleLower.includes('approved')) {
+                event = 'approved';
+                priority = 'high';
+                severity = 'success';
+            } else if (titleLower.includes('rejected')) {
+                event = 'rejected';
+                priority = 'high';
+                severity = 'warning';
+            } else if (titleLower.includes('cancelled')) {
+                event = 'cancelled';
+                priority = 'medium';
+                severity = 'warning';
+            } else if (titleLower.includes('submitted')) {
+                event = 'submitted';
+                priority = 'medium';
+            } else if (titleLower.includes('completed')) {
+                event = 'completed';
+                priority = 'high';
+                severity = 'success';
+            }
+
+            return await EventService.publish({
+                recipient: data.recipient,
+                category,
+                event,
+                title: data.title,
+                description: data.message,
+                sourceModule: 'booking',
+                entityType: data.relatedModel || 'Booking',
+                entityId: data.relatedId,
+                redirectUrl: data.link || '/bookings',
+                action: 'view',
+                priority,
+                severity,
+                metadata: {
+                    bookingId: data.relatedId
+                }
+            });
+        } catch (err) {
+            logger.error('[Notification Wrapper] Failed: ' + err.message);
+            return await NotificationModel.create(data);
+        }
+    },
+    find: (...args) => NotificationModel.find(...args),
+    findOne: (...args) => NotificationModel.findOne(...args),
+    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
+    updateMany: (...args) => NotificationModel.updateMany(...args),
+    countDocuments: (...args) => NotificationModel.countDocuments(...args),
+    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
+};
 import User from '../models/User.js';
 import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';

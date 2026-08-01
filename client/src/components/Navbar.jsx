@@ -6,6 +6,7 @@ import { notificationService, propertyService, paymentService, tenantService, ma
 import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useLanguage } from '../context/LanguageContext';
+import { useActionCenterNavigation } from '../hooks/useActionCenterNavigation';
 
 const ROLE_THEME = {
   admin: {
@@ -56,6 +57,7 @@ export default function Navbar({ toggleSidebar }) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { t } = useLanguage();
+  const { handleAction } = useActionCenterNavigation();
 
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -212,137 +214,19 @@ export default function Navbar({ toggleSidebar }) {
   };
 
   const handleNotifClick = async (n) => {
-    if (!n.read) {
+    if (!n.isRead && !n.read) {
       try {
         await notificationService.markRead(n._id);
         setUnreadCount(c => Math.max(0, c - 1));
-        setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true } : x));
+        setNotifications(prev => prev.map(x => x._id === n._id ? { ...x, read: true, isRead: true } : x));
       } catch (_) { }
     }
 
     // Close notifications panel
     setShowNotif(false);
 
-    // Resolve redirection
-    let redirectPath = '/dashboard';
-    let navigationState = {};
-    const lowerTitle = n.title?.toLowerCase() || '';
-    const lowerMsg = n.message?.toLowerCase() || '';
-    const isVisit = lowerTitle.includes('visit') || lowerMsg.includes('visit');
-
-    if (isVisit) {
-      if (role === 'manager' || role === 'admin') {
-        redirectPath = '/dashboard';
-      } else {
-        // Tenant role
-        let propertyId = n.relatedId;
-        try {
-          const myVisitsRes = await visitService.getMyVisits();
-          const matchedVisit = myVisitsRes.data?.find(v => v._id === n.relatedId || v.property?._id === n.relatedId);
-          if (matchedVisit) {
-            propertyId = matchedVisit.property?._id || matchedVisit.property;
-          }
-        } catch (err) {
-          console.error('Failed to resolve property visit link:', err);
-        }
-        // Validate property
-        let propertyExists = false;
-        if (propertyId) {
-          try {
-            await propertyService.getPropertyById(propertyId);
-            propertyExists = true;
-          } catch (err) {
-            propertyExists = false;
-          }
-        }
-        if (!propertyExists) {
-          alert('This record is no longer available');
-          return;
-        }
-        redirectPath = `/properties/${propertyId}`;
-        navigationState = { activeBookingTab: 'visit' };
-      }
-    } else if (n.type === 'message' || n.relatedModel === 'Message') {
-      redirectPath = '/messages';
-      if (n.relatedId) {
-        navigationState = { recipientId: n.relatedId };
-      }
-    } else if (n.type === 'booking') {
-      if (role === 'manager' || role === 'admin') {
-        redirectPath = '/dashboard';
-      } else {
-        if (n.relatedId) {
-          // Validate booking exists
-          let bookingExists = false;
-          try {
-            await bookingService.getBookingById(n.relatedId);
-            bookingExists = true;
-          } catch (err) {
-            bookingExists = false;
-          }
-          if (!bookingExists) {
-            alert('This record is no longer available');
-            return;
-          }
-          redirectPath = `/bookings/${n.relatedId}`;
-        } else {
-          redirectPath = '/browse';
-        }
-      }
-    } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease') {
-      if (role === 'manager' || role === 'admin') {
-        redirectPath = '/leases';
-      } else {
-        if (n.relatedId) {
-          let leaseExists = false;
-          try {
-            await leaseService.getLeaseById(n.relatedId);
-            leaseExists = true;
-          } catch (err) {
-            leaseExists = false;
-          }
-          if (!leaseExists) {
-            alert('This record is no longer available');
-            return;
-          }
-        }
-        redirectPath = '/my-lease';
-      }
-    } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment') {
-      if (role === 'manager' || role === 'admin') {
-        redirectPath = '/payments';
-      } else {
-        if (n.type.includes('due') || n.type.includes('overdue')) {
-          redirectPath = '/pay-now';
-          if (n.relatedId) {
-            navigationState = { paymentId: n.relatedId };
-          }
-        } else {
-          redirectPath = '/bills';
-        }
-      }
-    } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
-      redirectPath = '/maintenance';
-    } else if (n.type === 'property_created' || n.relatedModel === 'Property') {
-      if (n.relatedId) {
-        let propExists = false;
-        try {
-          await propertyService.getPropertyById(n.relatedId);
-          propExists = true;
-        } catch (err) {
-          propExists = false;
-        }
-        if (!propExists) {
-          alert('This record is no longer available');
-          return;
-        }
-        redirectPath = `/properties/${n.relatedId}`;
-      } else {
-        redirectPath = '/browse';
-      }
-    }
-
-    navigate(redirectPath, { state: navigationState });
+    // Call unified Action Center Router
+    handleAction(n);
   };
 
   const handleDeleteNotif = async (id) => {
@@ -507,6 +391,16 @@ export default function Navbar({ toggleSidebar }) {
                       </button>
                     </div>
                   ))}
+                </div>
+                
+                <div className="px-4 py-2.5 bg-muted/40 border-t border-border flex justify-center">
+                  <button 
+                    onClick={() => { setShowNotif(false); navigate('/action-center'); }}
+                    className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest py-1 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    Open Action Center
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </motion.div>
             )}

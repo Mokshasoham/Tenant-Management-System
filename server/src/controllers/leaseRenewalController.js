@@ -8,7 +8,71 @@ import Tenant from '../models/Tenant.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
 import Maintenance from '../models/Maintenance.js';
-import Notification from '../models/Notification.js';
+import NotificationModel from '../models/Notification.js';
+import EventService from '../services/eventService.js';
+
+// Backward-compatible Event proxy
+const Notification = {
+    create: async (data) => {
+        try {
+            let category = 'lease';
+            let event = 'update';
+            let priority = 'medium';
+            let severity = 'information';
+
+            const titleLower = (data.title || '').toLowerCase();
+
+            if (titleLower.includes('inspection')) {
+                category = 'inspection';
+                event = titleLower.includes('schedule') ? 'scheduled' : 'completed';
+                priority = event === 'scheduled' ? 'medium' : 'high';
+            } else if (titleLower.includes('renewal')) {
+                category = 'renewal';
+                event = titleLower.includes('request') ? 'requested' 
+                      : titleLower.includes('approve') ? 'approved' 
+                      : titleLower.includes('reject') ? 'rejected' 
+                      : 'activated';
+                priority = 'high';
+                severity = event === 'rejected' ? 'warning' : 'success';
+            } else if (titleLower.includes('move-out') || titleLower.includes('exit') || titleLower.includes('checkout')) {
+                category = 'move-out';
+                event = titleLower.includes('request') ? 'requested' : 'completed';
+            } else if (titleLower.includes('refund') || titleLower.includes('deposit') || titleLower.includes('settlement')) {
+                category = 'payments';
+                event = 'refund_processed';
+                severity = 'success';
+                priority = 'high';
+            }
+
+            return await EventService.publish({
+                recipient: data.recipient,
+                category,
+                event,
+                title: data.title,
+                description: data.message,
+                sourceModule: category,
+                entityType: data.relatedModel || 'Lease',
+                entityId: data.relatedId,
+                redirectUrl: data.link || '/lease',
+                action: 'view',
+                priority,
+                severity,
+                metadata: {
+                    relatedId: data.relatedId
+                }
+            });
+        } catch (err) {
+            logger.error('[Notification Wrapper] Failed: ' + err.message);
+            return await NotificationModel.create(data);
+        }
+    },
+    find: (...args) => NotificationModel.find(...args),
+    findOne: (...args) => NotificationModel.findOne(...args),
+    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
+    updateMany: (...args) => NotificationModel.updateMany(...args),
+    countDocuments: (...args) => NotificationModel.countDocuments(...args),
+    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
+};
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import PDFDocument from 'pdfkit';

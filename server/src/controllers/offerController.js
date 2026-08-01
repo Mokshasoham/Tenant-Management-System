@@ -1,6 +1,42 @@
 import Offer from '../models/Offer.js';
 import Property from '../models/Property.js';
-import Notification from '../models/Notification.js';
+import NotificationModel from '../models/Notification.js';
+import EventService from '../services/eventService.js';
+import logger from '../utils/logger.js';
+
+// Backward-compatible Event proxy
+const Notification = {
+    create: async (data) => {
+        try {
+            return await EventService.publish({
+                recipient: data.recipient,
+                category: 'booking',
+                event: 'offer_update',
+                title: data.title,
+                description: data.message,
+                sourceModule: 'booking',
+                entityType: data.relatedModel || 'Offer',
+                entityId: data.relatedId,
+                redirectUrl: data.link || '/dashboard',
+                action: 'view',
+                priority: 'medium',
+                severity: 'information',
+                metadata: {
+                    relatedId: data.relatedId
+                }
+            });
+        } catch (err) {
+            logger.error('[Notification Wrapper] Failed: ' + err.message);
+            return await NotificationModel.create(data);
+        }
+    },
+    find: (...args) => NotificationModel.find(...args),
+    findOne: (...args) => NotificationModel.findOne(...args),
+    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
+    updateMany: (...args) => NotificationModel.updateMany(...args),
+    countDocuments: (...args) => NotificationModel.countDocuments(...args),
+    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
+};
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 
 // POST /api/offers — tenant sends rent offer to manager

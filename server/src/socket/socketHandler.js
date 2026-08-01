@@ -5,6 +5,8 @@ import Notification from '../models/Notification.js';
 import logger from '../utils/logger.js';
 import jwt from 'jsonwebtoken';
 import config from '../config/config.js';
+import { setIoInstance } from './socketEmitter.js';
+import EventService from '../services/eventService.js';
 
 const socketHandler = (server) => {
     const io = new Server(server, {
@@ -14,6 +16,9 @@ const socketHandler = (server) => {
             credentials: true
         }
     });
+
+    // Register io instance for DI socketEmitter
+    setIoInstance(io);
 
     // Authenticate socket connections
     io.use((socket, next) => {
@@ -63,14 +68,22 @@ const socketHandler = (server) => {
                 io.to(receiverId).emit('newMessage', message);
 
                 // Create a notification for the receiver
-                await Notification.create({
+                await EventService.publish({
                     recipient: receiverId,
-                    type: 'message',
+                    category: 'messages',
+                    event: 'received',
                     title: 'New Message',
-                    message: `You received a new message: "${content.substring(0, 30)}..."`,
-                    link: '/messages',
-                    relatedId: message._id,
-                    relatedModel: 'Message'
+                    description: `You received a new message: "${content.substring(0, 30)}..."`,
+                    sourceModule: 'messages',
+                    entityType: 'Message',
+                    entityId: message._id,
+                    redirectUrl: '/messages',
+                    action: 'view',
+                    priority: 'medium',
+                    severity: 'information',
+                    metadata: {
+                        messageId: message._id
+                    }
                 });
 
                 // Emit notification event to receiver

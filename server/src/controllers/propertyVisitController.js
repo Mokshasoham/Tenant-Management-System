@@ -1,9 +1,44 @@
 import PropertyVisit from '../models/PropertyVisit.js';
 import Property from '../models/Property.js';
-import Notification from '../models/Notification.js';
+import NotificationModel from '../models/Notification.js';
+import EventService from '../services/eventService.js';
 import Review from '../models/Review.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+
+// Backward-compatible Event proxy
+const Notification = {
+    create: async (data) => {
+        try {
+            return await EventService.publish({
+                recipient: data.recipient,
+                category: 'booking',
+                event: 'visit_update',
+                title: data.title,
+                description: data.message,
+                sourceModule: 'booking',
+                entityType: data.relatedModel || 'PropertyVisit',
+                entityId: data.relatedId,
+                redirectUrl: data.link || '/dashboard',
+                action: 'view',
+                priority: 'medium',
+                severity: 'information',
+                metadata: {
+                    relatedId: data.relatedId
+                }
+            });
+        } catch (err) {
+            logger.error('[Notification Wrapper] Failed: ' + err.message);
+            return await NotificationModel.create(data);
+        }
+    },
+    find: (...args) => NotificationModel.find(...args),
+    findOne: (...args) => NotificationModel.findOne(...args),
+    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
+    updateMany: (...args) => NotificationModel.updateMany(...args),
+    countDocuments: (...args) => NotificationModel.countDocuments(...args),
+    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
+};
 
 // Tenant requests a property visit
 export const requestVisit = asyncHandler(async (req, res) => {

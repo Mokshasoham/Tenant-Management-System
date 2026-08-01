@@ -10,6 +10,7 @@ import {
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import { useLanguage } from '../../context/LanguageContext';
+import { useActionCenterNavigation } from '../../hooks/useActionCenterNavigation';
 
 const getStatusStyle = (status) => ({
     active: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -141,6 +142,7 @@ function PaymentCountdown({ dueDate, amount, isEstimate, propertyName }) {
 
 export default function TenantDashboard({ user, navigate }) {
     const { t } = useLanguage();
+    const { handleAction } = useActionCenterNavigation();
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
@@ -1077,24 +1079,33 @@ export default function TenantDashboard({ user, navigate }) {
                     className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-black text-foreground flex items-center gap-2">
-                            My Messages
+                            Action Center Log
                             {unread > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">{unread}</span>
                             )}
                         </p>
-                        <button
-                            onClick={() => setShowCalendar(!showCalendar)}
-                            className={cn(
-                                "p-1.5 rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-bold border",
-                                showCalendar 
-                                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" 
-                                    : "bg-muted/40 border-border text-muted-foreground/80 hover:text-foreground"
-                            )}
-                            title="Filter by Date"
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Calendar</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => navigate('/action-center')}
+                                className="p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 text-[10px] font-black cursor-pointer"
+                            >
+                                Manage Actions
+                                <ArrowRight className="w-3 h-3" />
+                            </button>
+                            <button
+                                onClick={() => setShowCalendar(!showCalendar)}
+                                className={cn(
+                                    "p-1.5 rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-bold border",
+                                    showCalendar 
+                                        ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" 
+                                        : "bg-muted/40 border-border text-muted-foreground/80 hover:text-foreground"
+                                )}
+                                title="Filter by Date"
+                            >
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>Calendar</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Inline Calendar Drawer */}
@@ -1239,128 +1250,16 @@ export default function TenantDashboard({ user, navigate }) {
                                         key={n._id} 
                                         id={`notif-card-${n._id}`}
                                         onClick={async () => {
-                                            // Dynamic Redirect
-                                            let redirectPath = n.link || '/dashboard';
-                                            let navigationState = {};
-                                            const lowerTitle = n.title?.toLowerCase() || '';
-                                            const lowerMsg = n.message?.toLowerCase() || '';
-                                            const isVisit = lowerTitle.includes('visit') || lowerMsg.includes('visit');
-
-                                            let resourceId = n.relatedId;
-                                            if (!resourceId && n.link) {
-                                                const match = n.link.match(/\/([a-fA-F0-9]{24})/);
-                                                if (match) {
-                                                    resourceId = match[1];
-                                                }
-                                            }
-
-                                            if (isVisit) {
-                                                let propertyId = resourceId;
-                                                try {
-                                                    const myVisitsRes = await visitService.getMyVisits();
-                                                    const matchedVisit = myVisitsRes.data?.find(v => v._id === resourceId || v.property?._id === resourceId);
-                                                    if (matchedVisit) {
-                                                        propertyId = matchedVisit.property?._id || matchedVisit.property;
-                                                    }
-                                                } catch (err) {
-                                                    console.error('Failed to resolve property visit link:', err);
-                                                }
-                                                // Validate that property exists
-                                                let propertyExists = false;
-                                                if (propertyId) {
-                                                    try {
-                                                        await propertyService.getPropertyById(propertyId);
-                                                        propertyExists = true;
-                                                    } catch (err) {
-                                                        propertyExists = false;
-                                                    }
-                                                }
-                                                if (!propertyExists) {
-                                                    alert('This record is no longer available');
-                                                    return;
-                                                }
-                                                redirectPath = `/properties/${propertyId}`;
-                                                navigationState = { activeBookingTab: 'visit' };
-                                            } else if (n.type === 'message' || n.relatedModel === 'Message') {
-                                                redirectPath = '/messages';
-                                                if (resourceId) {
-                                                    navigationState = { recipientId: resourceId };
-                                                }
-                                            } else if (n.type === 'booking' || redirectPath.startsWith('/bookings/') || lowerTitle.includes('booking') || lowerMsg.includes('booking')) {
-                                                if (resourceId) {
-                                                    // Validate that booking exists
-                                                    let bookingExists = false;
-                                                    try {
-                                                        await bookingService.getBookingById(resourceId);
-                                                        bookingExists = true;
-                                                    } catch (err) {
-                                                        bookingExists = false;
-                                                    }
-                                                    if (!bookingExists) {
-                                                        alert('This record is no longer available');
-                                                        return;
-                                                    }
-                                                    redirectPath = `/bookings/${resourceId}`;
-                                                } else {
-                                                    redirectPath = '/browse';
-                                                }
-                                            } else if (n.type?.startsWith('lease') || n.relatedModel === 'Lease' || redirectPath.startsWith('/my-lease')) {
-                                                if (resourceId) {
-                                                    let leaseExists = false;
-                                                    try {
-                                                        await leaseService.getLeaseById(resourceId);
-                                                        leaseExists = true;
-                                                    } catch (err) {
-                                                        leaseExists = false;
-                                                    }
-                                                    if (!leaseExists) {
-                                                        alert('This record is no longer available');
-                                                        return;
-                                                    }
-                                                }
-                                                redirectPath = '/my-lease';
-                                            } else if (n.type?.startsWith('payment') || n.relatedModel === 'Payment' || redirectPath.startsWith('/pay-now')) {
-                                                if (n.type?.includes('due') || n.type?.includes('overdue') || redirectPath.startsWith('/pay-now')) {
-                                                    redirectPath = '/pay-now';
-                                                    if (resourceId) {
-                                                        navigationState = { paymentId: resourceId };
-                                                    }
-                                                } else {
-                                                    redirectPath = '/bills';
-                                                }
-                                            } else if (n.type?.startsWith('maintenance') || n.relatedModel === 'Maintenance') {
-                                                redirectPath = '/maintenance';
-                                            } else if (n.type === 'property_created' || n.relatedModel === 'Property') {
-                                                if (resourceId) {
-                                                    let propExists = false;
-                                                    try {
-                                                        await propertyService.getPropertyById(resourceId);
-                                                        propExists = true;
-                                                    } catch (err) {
-                                                        propExists = false;
-                                                    }
-                                                    if (!propExists) {
-                                                        alert('This record is no longer available');
-                                                        return;
-                                                    }
-                                                    redirectPath = `/properties/${resourceId}`;
-                                                } else {
-                                                    redirectPath = '/browse';
-                                                }
-                                            }
-                                            
-                                            // Mark as read in background
-                                            if (!n.read) {
+                                            if (!n.isRead && !n.read) {
                                                 try {
                                                     await notificationService.markRead(n._id);
-                                                    setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, read: true } : item));
+                                                    setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, read: true, isRead: true } : item));
                                                     setUnread(c => Math.max(0, c - 1));
                                                 } catch (err) {
                                                     console.error('Failed to mark read', err);
                                                 }
                                             }
-
-                                            navigate(redirectPath, { state: navigationState });
+                                            handleAction(n);
                                         }}
                                         className={cn(
                                             'flex items-start justify-between gap-3 p-3 rounded-xl border border-border transition-all duration-200 cursor-pointer hover:bg-muted/45 relative group/item', 
