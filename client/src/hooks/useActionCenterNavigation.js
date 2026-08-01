@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { bookingService, propertyService, leaseService, visitService, notificationService } from '../services/api';
+import { bookingService, propertyService, leaseService, visitService, notificationService, messageService } from '../services/api';
 import useAuthStore from '../context/authStore';
 
 /**
@@ -142,10 +142,39 @@ export const useActionCenterNavigation = () => {
           redirectPath = role === 'tenant' ? '/my-lease' : '/leases';
         } else if (category === 'security' || category === 'profile') {
           redirectPath = category === 'security' ? '/settings' : '/profile';
-        } else if (category === 'message' || entityType === 'Message') {
+        } else if (category === 'message' || category === 'messages' || entityType === 'Message') {
           redirectPath = '/messages';
-          if (entityId) {
-            navigationState = { recipientId: entityId };
+          let resolvedSenderId = item.createdBy || item.metadata?.senderId || (item.createdBy && item.createdBy._id ? item.createdBy._id : item.createdBy);
+          
+          if (!resolvedSenderId && entityId) {
+            try {
+              const convRes = await messageService.getConversations();
+              const conversations = convRes.data?.data || convRes.data || [];
+              const matchedConv = conversations.find(c => 
+                c.lastMessage?._id === entityId || 
+                c.lastMessage?.sender?._id === entityId || 
+                c.lastMessage?.receiver?._id === entityId
+              );
+              if (matchedConv) {
+                resolvedSenderId = matchedConv.user?._id || matchedConv.user?.id;
+              } else if (conversations.length > 0) {
+                resolvedSenderId = conversations[0].user?._id || conversations[0].user?.id;
+              }
+            } catch (_) {}
+          }
+
+          if (!resolvedSenderId) {
+            try {
+              const usersRes = await messageService.getAvailableUsers();
+              const users = usersRes.data?.data || usersRes.data || [];
+              if (users.length > 0) {
+                resolvedSenderId = users[0]._id || users[0].id;
+              }
+            } catch (_) {}
+          }
+
+          if (resolvedSenderId) {
+            navigationState = { recipientId: resolvedSenderId };
           }
         }
       }

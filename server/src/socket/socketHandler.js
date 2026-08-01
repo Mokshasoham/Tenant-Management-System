@@ -77,12 +77,14 @@ const socketHandler = (server) => {
                     sourceModule: 'messages',
                     entityType: 'Message',
                     entityId: message._id,
+                    createdBy: userId,
                     redirectUrl: '/messages',
                     action: 'view',
                     priority: 'medium',
                     severity: 'information',
                     metadata: {
-                        messageId: message._id
+                        messageId: message._id,
+                        senderId: userId
                     }
                 });
 
