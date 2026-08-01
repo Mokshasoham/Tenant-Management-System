@@ -407,6 +407,8 @@ export default function PayNowPage() {
     const [searchParams] = useSearchParams();
     const user = useAuthStore(s => s.user);
 
+    const billIdParam = searchParams.get('billId');
+
     // From navigation state (Booking flow)
     const bookingData = location.state || {};
     const isBooking = bookingData.type === 'booking';
@@ -427,7 +429,6 @@ export default function PayNowPage() {
         (async () => {
             setLoadingLease(true);
             try {
-                const billIdParam = searchParams.get('billId');
                 if (billIdParam) {
                     const res = await billService.getBillById(billIdParam);
                     const bill = res.data?.data || res.data;
@@ -454,7 +455,7 @@ export default function PayNowPage() {
             } catch (_) { }
             setLoadingLease(false);
         })();
-    }, [location.state?.paymentId, searchParams]);
+    }, [location.state?.paymentId, searchParams, billIdParam]);
 
     const rentAmount = lease?.rentAmount || 0;
     const pendingAmount = pendingPayment
