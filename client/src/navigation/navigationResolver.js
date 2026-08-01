@@ -14,92 +14,140 @@ export const resolveNavigation = (item, userRole) => {
   }
 
   // 1. Extract modern metadata or fallback to legacy properties (runtime conversion)
-  const category = item.category || item.type;
-  const event = item.event;
-  const entityType = item.entityType || item.relatedModel;
-  const entityId = item.entityId || item.relatedId || item.relatedModelId;
+  const category = (item.category || item.type || '').toLowerCase();
+  const event = (item.event || '').toLowerCase();
+  const entityType = (item.entityType || item.relatedModel || '').toLowerCase();
+  let entityId = item.entityId || item.relatedId || item.relatedModelId;
   const redirectUrl = item.redirectUrl || item.link;
 
   const lowerTitle = (item.title || '').toLowerCase();
   const lowerMsg = (item.message || item.description || '').toLowerCase();
 
+  // Extract Mongo ObjectId from redirectUrl/link if entityId is missing
+  if (!entityId && redirectUrl) {
+    const idMatch = redirectUrl.match(/([a-fA-F0-9]{24})/);
+    if (idMatch) {
+      entityId = idMatch[1];
+    }
+  }
+
   // 2. Direct redirectUrl processing (if explicitly set)
   if (redirectUrl) {
-    if (redirectUrl.startsWith('/bills')) {
+    if (redirectUrl.startsWith('/bills') || redirectUrl.includes('bill')) {
       return ROUTES.bills(entityId);
     }
-    if (redirectUrl.startsWith('/maintenance')) {
+    if (redirectUrl.startsWith('/maintenance') || redirectUrl.includes('maintenance')) {
       return ROUTES.maintenance(entityId);
     }
-    if (redirectUrl.startsWith('/bookings') && entityId) {
+    if (redirectUrl.startsWith('/bookings') || redirectUrl.includes('booking')) {
       return ROUTES.booking(entityId);
     }
-    if (redirectUrl.startsWith('/my-lease') || redirectUrl.startsWith('/leases')) {
+    if (redirectUrl.startsWith('/my-lease') || redirectUrl.startsWith('/leases') || redirectUrl.includes('lease')) {
       return ROUTES.lease(userRole);
     }
-    if (redirectUrl.startsWith('/messages')) {
+    if (redirectUrl.startsWith('/messages') || redirectUrl.includes('message')) {
       const recipientId = item.createdBy || item.metadata?.senderId || (item.createdBy && item.createdBy._id ? item.createdBy._id : item.createdBy);
       return ROUTES.messages(recipientId || entityId);
+    }
+    if (redirectUrl.startsWith('/pay-now')) {
+      return ROUTES.payNow(entityId);
+    }
+    if (redirectUrl.startsWith('/inspection')) {
+      return ROUTES.inspection(entityId);
+    }
+    if (redirectUrl.startsWith('/deposit-settlement')) {
+      return ROUTES.depositSettlement(entityId);
+    }
+    if (redirectUrl.startsWith('/lease-renewal') || redirectUrl.startsWith('/lease-history')) {
+      return ROUTES.renewal(event);
+    }
+    if (redirectUrl.startsWith('/move-out')) {
+      return ROUTES.moveOut();
+    }
+    if (redirectUrl.startsWith('/settings')) {
+      return ROUTES.settings();
+    }
+    if (redirectUrl.startsWith('/profile')) {
+      return ROUTES.profile();
     }
     return { path: redirectUrl, state: { targetEntityId: entityId } };
   }
 
-  // 3. Matrix Resolution by Category / EntityType
-  if (category === 'booking' || entityType === 'Booking') {
+  // 3. Matrix Resolution by Category / EntityType / Type String Matching
+  const cat = category;
+  const eType = entityType;
+
+  // Booking (booking_created, booking_approved, booking_rejected, booking_cancelled, etc.)
+  if (cat.includes('booking') || eType.includes('booking')) {
     return ROUTES.booking(entityId);
   }
 
-  if (category === 'payments' || category === 'billing' || entityType === 'Payment' || entityType === 'Bill') {
-    if (event === 'failed' || lowerTitle.includes('failed') || lowerMsg.includes('failed')) {
+  // Payments / Bills (payment_due, payment_received, payment_failed, bill_generated, invoice_created, etc.)
+  if (cat.includes('payment') || cat.includes('bill') || cat.includes('invoice') || eType.includes('payment') || eType.includes('bill')) {
+    if (event === 'failed' || cat.includes('failed') || lowerTitle.includes('failed') || lowerMsg.includes('failed')) {
       return ROUTES.payNow(entityId);
     }
     return ROUTES.bills(entityId);
   }
 
-  if (category === 'lease' || entityType === 'Lease') {
+  // Lease / Agreement (lease_expiring, lease_active, lease_terminated, etc.)
+  if (cat.includes('lease') || eType.includes('lease')) {
+    if (cat.includes('renewal') || lowerTitle.includes('renewal')) {
+      return ROUTES.renewal(event);
+    }
     return ROUTES.lease(userRole);
   }
 
-  if (category === 'renewal' || category === 'lease_renewal') {
+  // Renewal
+  if (cat.includes('renewal')) {
     return ROUTES.renewal(event);
   }
 
-  if (category === 'move-out' || category === 'move_out') {
+  // Move out
+  if (cat.includes('move')) {
     return ROUTES.moveOut();
   }
 
-  if (category === 'inspection' || entityType === 'Inspection') {
+  // Inspection
+  if (cat.includes('inspection') || eType.includes('inspection')) {
     return ROUTES.inspection(entityId);
   }
 
-  if (category === 'deposit_settlement' || category === 'refund') {
+  // Deposit Settlement / Refund
+  if (cat.includes('deposit') || cat.includes('refund') || eType.includes('deposit')) {
     return ROUTES.depositSettlement(entityId);
   }
 
-  if (category === 'maintenance' || entityType === 'Maintenance') {
+  // Maintenance (maintenance_created, maintenance_update, maintenance_resolved)
+  if (cat.includes('maintenance') || eType.includes('maintenance')) {
     return ROUTES.maintenance(entityId);
   }
 
-  if (category === 'visit' || entityType === 'PropertyVisit' || lowerTitle.includes('visit') || lowerMsg.includes('visit')) {
+  // Site / Property Visit
+  if (cat.includes('visit') || eType.includes('visit') || lowerTitle.includes('visit') || lowerMsg.includes('visit')) {
     if (userRole === 'manager' || userRole === 'admin') {
       return ROUTES.dashboard();
     }
     return ROUTES.booking(entityId);
   }
 
-  if (category === 'documents' || category === 'document') {
+  // Documents
+  if (cat.includes('doc')) {
     return ROUTES.lease(userRole);
   }
 
-  if (category === 'security') {
+  // Security / Settings
+  if (cat.includes('security') || cat.includes('password') || cat.includes('setting')) {
     return ROUTES.settings();
   }
 
-  if (category === 'profile') {
+  // Profile
+  if (cat.includes('profile') || cat.includes('user')) {
     return ROUTES.profile();
   }
 
-  if (category === 'message' || category === 'messages' || entityType === 'Message') {
+  // Messages (message_received, chat_message, etc.)
+  if (cat.includes('message') || cat.includes('chat') || eType.includes('message')) {
     const recipientId = item.createdBy || item.metadata?.senderId || (item.createdBy && item.createdBy._id ? item.createdBy._id : item.createdBy);
     return ROUTES.messages(recipientId || entityId);
   }
