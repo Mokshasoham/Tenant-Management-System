@@ -190,6 +190,17 @@ export default function Navbar({ toggleSidebar }) {
     return () => { mounted = false; clearInterval(interval); };
   }, []);
 
+  // Sync background read state across other modules instantly
+  useEffect(() => {
+    const handleRead = (e) => {
+      const { id } = e.detail;
+      setNotifications(prev => prev.map(x => x._id === id ? { ...x, read: true, isRead: true } : x));
+      setUnreadCount(c => Math.max(0, c - 1));
+    };
+    window.addEventListener('notificationMarkedRead', handleRead);
+    return () => window.removeEventListener('notificationMarkedRead', handleRead);
+  }, []);
+
   // Fetch full list when dropdown opens
   useEffect(() => {
     if (!showNotif) return;

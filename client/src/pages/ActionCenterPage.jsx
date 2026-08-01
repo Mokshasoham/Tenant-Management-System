@@ -84,6 +84,17 @@ export default function ActionCenterPage() {
     fetchCalendarEvents();
   }, []);
 
+  // Synchronize background read states instantly
+  useEffect(() => {
+    const handleRead = (e) => {
+      const { id } = e.detail;
+      setActivities(prev => prev.map(a => a._id === id ? { ...a, isRead: true, read: true } : a));
+      setStats(prev => ({ ...prev, unreadCount: Math.max(0, prev.unreadCount - 1) }));
+    };
+    window.addEventListener('notificationMarkedRead', handleRead);
+    return () => window.removeEventListener('notificationMarkedRead', handleRead);
+  }, []);
+
   const fetchData = async () => {
     setLoading(true);
     try {

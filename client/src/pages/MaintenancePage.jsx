@@ -241,7 +241,7 @@ function BookingModal({ request, onClose, onSave }) {
     );
 }
 
-function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule, highlighted }) {
+function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule, highlighted, highlightedTicketId }) {
     const pc = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.medium;
     const [noteOpen, setNoteOpen] = useState(false);
     const [noteText, setNoteText] = useState('');
@@ -255,12 +255,16 @@ function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule
     const sc = SLOT_CONFIG[request.scheduledSlot];
 
     return (
-        <motion.div layout className={cn(
-            "rounded-xl border bg-card p-4 space-y-3 shadow-sm transition-all flex flex-col justify-between",
-            highlighted 
-                ? "border-amber-500 dark:border-amber-400 shadow-lg shadow-amber-500/25 ring-2 ring-amber-500/30 scale-[1.02]"
-                : "border-border hover:border-border/80"
-        )}>
+        <motion.div 
+            layout 
+            id={`maintenance-card-${request._id}`}
+            className={cn(
+                "rounded-xl border bg-card p-4 space-y-3 shadow-sm transition-all flex flex-col justify-between",
+                (highlighted || highlightedTicketId === request._id)
+                    ? "border-amber-500 dark:border-amber-400 shadow-lg shadow-amber-500/25 ring-2 ring-amber-500/30 scale-[1.02]"
+                    : "border-border hover:border-border/80"
+            )}
+        >
             <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -582,6 +586,33 @@ export default function MaintenancePage() {
     const [showSubmit, setShowSubmit] = useState(false);
     const [activeTab, setActiveTab] = useState('board'); // 'board' or 'calendar'
     const [bookingTarget, setBookingTarget] = useState(null);
+    const [highlightedTicketId, setHighlightedTicketId] = useState(null);
+
+    // Deep link parser to handle auto-scroll and glow highlights
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const targetId = location.state?.targetEntityId || params.get('maintenanceId') || searchId;
+
+        if (targetId && !loading && requests.length > 0) {
+            const matched = requests.find(r => r._id === targetId);
+            if (matched) {
+                setHighlightedTicketId(targetId);
+
+                setTimeout(() => {
+                    const el = document.getElementById(`maintenance-card-${targetId}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
+
+                const timer = setTimeout(() => {
+                    setHighlightedTicketId(null);
+                }, 3000);
+
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [location.state, location.search, searchId, requests, loading]);
 
     const fetchData = useCallback(async () => {
         try {
@@ -704,7 +735,8 @@ export default function MaintenancePage() {
                                                 <RequestCard key={r._id} request={r} isManager={isManager}
                                                     onStatusChange={handleStatusChange} onAddNote={handleAddNote}
                                                     onSchedule={() => setBookingTarget(r)}
-                                                    highlighted={r._id === searchId} />
+                                                    highlighted={r._id === searchId}
+                                                    highlightedTicketId={highlightedTicketId} />
                                             ))}
                                         </div>
                                     </div>

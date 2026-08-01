@@ -260,6 +260,17 @@ export default function TenantDashboard({ user, navigate }) {
         fetchAll();
     }, []);
 
+    // Synchronize background read states instantly
+    useEffect(() => {
+        const handleRead = (e) => {
+            const { id } = e.detail;
+            setNotifications(prev => prev.map(x => x._id === id ? { ...x, read: true, isRead: true } : x));
+            setUnread(c => Math.max(0, c - 1));
+        };
+        window.addEventListener('notificationMarkedRead', handleRead);
+        return () => window.removeEventListener('notificationMarkedRead', handleRead);
+    }, []);
+
     const pendingPayment = payments.find(p => ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status));
     const paidThisYear = payments.filter(p => p.status === 'paid').length;
     const totalSpend = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);

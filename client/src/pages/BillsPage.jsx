@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { openSecureFile } from '../utils/fileAccess';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const STATUS_CONFIG = {
   paid: { label: 'Settled', color: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10', icon: CheckCircle2 },
@@ -38,6 +38,7 @@ const BILL_TYPES = [
 
 export default function BillsPage() {
   const user = useAuthStore((state) => state.user);
+  const location = useLocation();
   const isManagerOrAdmin = ['manager', 'admin'].includes(user?.role);
 
   // States
@@ -55,6 +56,40 @@ export default function BillsPage() {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
+  const [highlightedBillId, setHighlightedBillId] = useState(null);
+
+  // Deep Link parser to handle auto-scroll, yellow glow, and auto-details drawer opening
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetId = location.state?.targetEntityId || params.get('billId') || params.get('paymentId');
+
+    if (targetId && !loading && (bills.length > 0 || legacyPayments.length > 0)) {
+      // Find the standard bill or legacy payment matching target ID
+      let found = bills.find(b => b._id === targetId);
+      if (!found) {
+        found = legacyPayments.find(p => p._id === targetId);
+      }
+
+      if (found) {
+        setHighlightedBillId(targetId);
+        setSelectedBill(found);
+        setShowDetailModal(true);
+
+        setTimeout(() => {
+          const cardEl = document.getElementById(`bill-card-${targetId}`);
+          if (cardEl) {
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+
+        const timer = setTimeout(() => {
+          setHighlightedBillId(null);
+        }, 3000);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.state, location.search, bills, legacyPayments, loading]);
 
   // Form States - Generate Bill
   const [genType, setGenType] = useState('rent');
@@ -606,10 +641,16 @@ export default function BillsPage() {
             return (
               <motion.div
                 key={item._id}
+                id={`bill-card-${item._id}`}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.03 }}
-                className="flex flex-col h-full bg-card border border-border/40 rounded-2xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative"
+                className={cn(
+                  "flex flex-col h-full bg-card border rounded-2xl p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative",
+                  highlightedBillId === item._id
+                    ? "border-amber-500 dark:border-amber-400 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/20 bg-amber-500/[0.02]"
+                    : "border-border/40"
+                )}
               >
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-4">
