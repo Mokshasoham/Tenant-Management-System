@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService } from '../../services/api';
+import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService, billService } from '../../services/api';
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
@@ -234,7 +234,7 @@ export default function TenantDashboard({ user, navigate }) {
             try {
                 const [leaseRes, payRes, maintRes, notifRes, unreadRes, bookingRes] = await Promise.allSettled([
                     leaseService.getMyLease(),
-                    paymentService.getMyPayments(),
+                    billService.getMyBills(),
                     maintenanceService.getAllRequests({ limit: 5 }),
                     notificationService.getMyNotifications({ limit: 100 }),
                     notificationService.getUnreadCount(),
@@ -258,7 +258,7 @@ export default function TenantDashboard({ user, navigate }) {
         fetchAll();
     }, []);
 
-    const pendingPayment = payments.find(p => p.status === 'pending' || p.status === 'overdue');
+    const pendingPayment = payments.find(p => ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status));
     const paidThisYear = payments.filter(p => p.status === 'paid').length;
     const totalSpend = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
     const onTimeRate = payments.length > 0 ? Math.round((payments.filter(p => p.status === 'paid').length / payments.length) * 100) : 100;
@@ -310,13 +310,13 @@ export default function TenantDashboard({ user, navigate }) {
         return activeLeases.map(activeLease => {
             const dbPending = payments.find(p => 
                 (p.lease?._id === activeLease._id || p.lease === activeLease._id) && 
-                (p.status === 'pending' || p.status === 'overdue')
+                (['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status))
             );
             if (dbPending) {
                 return {
                     id: dbPending._id,
                     dueDate: dbPending.dueDate,
-                    amount: dbPending.amount,
+                    amount: dbPending.amountDue !== undefined ? (dbPending.amountDue - dbPending.amountPaid) : dbPending.amount,
                     propertyName: activeLease.property?.name || 'TMS Rental',
                     isEstimate: false,
                     isOverdue: dbPending.status === 'overdue' || new Date(dbPending.dueDate) < new Date()
@@ -921,8 +921,8 @@ export default function TenantDashboard({ user, navigate }) {
 
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                         {/* Unpaid / Active Due Payments */}
-                        {payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).length > 0 ? (
-                            payments.filter(p => ['pending', 'overdue', 'partially_paid'].includes(p.status)).map((p) => {
+                        {payments.filter(p => ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status)).length > 0 ? (
+                            payments.filter(p => ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status)).map((p) => {
                                 const isOverdue = p.status === 'overdue';
                                 const isPartial = p.status === 'partially_paid';
                                 return (
@@ -953,14 +953,14 @@ export default function TenantDashboard({ user, navigate }) {
                                                     <span className="text-[8px] font-bold text-muted-foreground/60 uppercase">{p.type}</span>
                                                 </div>
                                                 <p className="text-xs font-black text-foreground mt-1">
-                                                    ₹{((p.amount || 0) - (p.amountPaid || 0)).toLocaleString('en-IN')} pending
+                                                    ₹{(p.amountDue !== undefined ? (p.amountDue - p.amountPaid) : p.amount).toLocaleString('en-IN')} pending
                                                 </p>
                                                 <p className="text-[9px] text-muted-foreground mt-0.5">
                                                     Due: {new Date(p.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                 </p>
                                             </div>
                                             <button
-                                                onClick={() => navigate('/pay-now', { state: { paymentId: p._id } })}
+                                                onClick={() => navigate(`/pay-now?billId=${p._id}`)}
                                                 className={cn(
                                                     "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all shadow-md active:scale-95 flex-shrink-0 self-center",
                                                     isOverdue

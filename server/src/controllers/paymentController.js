@@ -161,6 +161,15 @@ export const recordPayment = asyncHandler(async (req, res) => {
 
   await payment.save();
 
+  if (payment.bill) {
+    try {
+      const { syncPaymentToBill } = await import('../services/billSyncService.js');
+      await syncPaymentToBill(payment._id);
+    } catch (syncErr) {
+      logger.error(`Failed to sync payment ${payment._id} to bill: ${syncErr.message}`);
+    }
+  }
+
   if (['paid', 'partially_paid'].includes(payment.status)) {
     processPostPayment(payment).catch((error) => {
       logger.error(`Failed to process post-payment for ${payment._id}: ${error.message}`);
@@ -190,6 +199,15 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
 
   if (!payment) {
     throw new AppError('Payment not found', 404);
+  }
+
+  if (payment.bill) {
+    try {
+      const { syncPaymentToBill } = await import('../services/billSyncService.js');
+      await syncPaymentToBill(payment._id);
+    } catch (syncErr) {
+      logger.error(`Failed to sync payment status change for ${payment._id}: ${syncErr.message}`);
+    }
   }
 
   if (['paid', 'partially_paid'].includes(payment.status)) {

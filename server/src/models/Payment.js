@@ -72,9 +72,9 @@ const paymentSchema = new mongoose.Schema(
         amount: Number,
         date: Date,
         method: String,
-        reference: String,
       },
     ],
+    bill: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill' },
   },
   {
     timestamps: true,

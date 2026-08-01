@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { userService, tenantService, propertyService, leaseService, paymentService } from '../services/api';
+import { userService, tenantService, propertyService, leaseService, paymentService, billService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import AdminDashboard from './dashboards/AdminDashboard';
 import ManagerDashboard from './dashboards/ManagerDashboard';
@@ -33,14 +33,16 @@ export default function DashboardPage() {
         }
 
         if (['admin', 'manager'].includes(user?.role)) {
-          const [tenantStats, propertyStats, leaseStats, paymentStats] = await Promise.all([
+          const [tenantStats, propertyStats, leaseStats, paymentStats, billAnalyticsRes] = await Promise.all([
             tenantService.getTenantStats(),
             propertyService.getPropertyStats(),
             leaseService.getLeaseStats(),
             paymentService.getPaymentStats(),
+            billService.getBillAnalytics()
           ]);
 
           const propData = propertyStats.data?.data || propertyStats.data || {};
+          const billData = billAnalyticsRes.data?.data || billAnalyticsRes.data || {};
 
           data.totalTenants = tenantStats.data?.totalTenants || tenantStats.data?.data?.totalTenants || 0;
           data.totalProperties = propData.totalProperties || 0;
@@ -49,7 +51,8 @@ export default function DashboardPage() {
           data.maintenanceProperties = propData.maintenanceProperties || 0;
           data.totalLeases = leaseStats.data?.totalLeases || leaseStats.data?.data?.totalLeases || 0;
           data.totalPayments = paymentStats.data?.totalPayments || paymentStats.data?.data?.totalPayments || 0;
-          data.totalRevenue = paymentStats.data?.totalRevenue || paymentStats.data?.data?.totalCollected || 0;
+          data.totalRevenue = billData.totalCollected || 0;
+          data.pendingPayments = billData.outstandingAmount || 0;
         }
 
         setStats(data);

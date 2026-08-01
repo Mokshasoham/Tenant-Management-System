@@ -95,7 +95,11 @@ function ManagerStatCard({ card }) {
                 )}
             </div>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{card.title}</p>
-            <p className="text-3xl font-black text-foreground tabular-nums">{count}</p>
+            <p className="text-3xl font-black text-foreground tabular-nums">
+                {card.title.toLowerCase().includes('payment') || card.title.toLowerCase().includes('revenue') 
+                    ? `₹${count.toLocaleString('en-IN')}` 
+                    : count}
+            </p>
         </motion.div>
     );
 }

@@ -39,6 +39,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import payoutRoutes from './routes/payoutRoutes.js';
 import propertyVisitRoutes from './routes/propertyVisitRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
+import billRoutes from './routes/billRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
 
@@ -179,6 +180,7 @@ app.use('/api/properties', propertyRoutes);
 app.use('/api/leases', leaseRoutes);
 app.use('/api', leaseRenewalRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/bills', billRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/notifications', notificationRoutes);

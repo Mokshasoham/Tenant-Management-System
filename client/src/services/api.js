@@ -78,6 +78,18 @@ export const paymentService = {
   getPaymentStats: () => apiClient.get('/payments/stats'),
 };
 
+export const billService = {
+  getAllBills: (params) => apiClient.get('/bills', { params }),
+  getMyBills: () => apiClient.get('/bills/my-bills'),
+  getBillById: (id) => apiClient.get(`/bills/${id}`),
+  downloadBillInvoice: (id) => apiClient.get(`/bills/${id}/download`),
+  createBill: (data) => apiClient.post('/bills', data),
+  recordBillPayment: (id, data) => apiClient.post(`/bills/${id}/record-payment`, data),
+  voidBill: (id, data) => apiClient.post(`/bills/${id}/void`, data),
+  getBillAnalytics: () => apiClient.get('/bills/analytics/stats'),
+  exportBillsCSV: (params) => apiClient.get('/bills/export/csv', { params, responseType: 'blob' }),
+};
+
 export const messageService = {
   sendMessage: (data) => apiClient.post('/messages', data),
   getConversations: () => apiClient.get('/messages/conversations'),

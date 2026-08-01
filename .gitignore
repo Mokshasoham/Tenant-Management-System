@@ -11,3 +11,6 @@ build/
 **/.env
 **/dist
 **/build
+
+server/uploads/
+

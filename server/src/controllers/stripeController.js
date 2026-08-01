@@ -17,7 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key');
  * For Stripe Connect, we can route a percentage to the platform and the rest to the owner's stripeAccountId
  */
 export const createRentCheckoutSession = asyncHandler(async (req, res) => {
-  const { leaseId, amount, successUrl, cancelUrl } = req.body;
+  const { leaseId, amount, successUrl, cancelUrl, billId } = req.body;
 
   const lease = await Lease.findById(leaseId).populate('tenant').populate('property');
   if (!lease) throw new AppError('Lease not found', 404);
@@ -59,7 +59,8 @@ export const createRentCheckoutSession = asyncHandler(async (req, res) => {
         ownerId: owner._id.toString(),
         type: 'rent',
         commissionAmount: platformFeeAmount,
-        netAmount: netAmount
+        netAmount: netAmount,
+        billId: billId ? billId.toString() : ''
       },
       // STUB FOR STRIPE CONNECT:
       // payment_intent_data: {
@@ -100,6 +101,18 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Webhook Idempotency Check
+  try {
+    const WebhookEvent = (await import('../models/WebhookEvent.js')).default;
+    await WebhookEvent.create({ eventId: event.id, provider: 'stripe' });
+  } catch (dbErr) {
+    if (dbErr.code === 11000) {
+      logger.info(`[Stripe Webhook] Duplicate event detected: ${event.id}. Short-circuiting with 200.`);
+      return res.status(200).json({ success: true, message: 'Event already processed' });
+    }
+    throw dbErr;
+  }
+
   // Handle the event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
@@ -113,7 +126,7 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
       // or optionally update it here if metadata is critical.
     } else {
       // Extract metadata
-      const { leaseId, tenantId, propertyId, ownerId, type, commissionAmount, netAmount } = session.metadata || {};
+      const { leaseId, tenantId, propertyId, ownerId, type, commissionAmount, netAmount, billId } = session.metadata || {};
 
       // 1. Create the Payment Record
       const payment = await Payment.create({
@@ -131,10 +144,21 @@ export const handleStripeWebhook = asyncHandler(async (req, res) => {
         dueDate: new Date(),
         paymentMethod: 'card', // Stripe Connect
         stripePaymentIntentId: session.payment_intent,
+        bill: billId || undefined,
       });
 
       logger.info(`Stripe Webhook processed successfully for payment: ${payment?._id}`);
       
+      // Sync Payment back to Bill if linked
+      if (payment.bill) {
+        try {
+          const { syncPaymentToBill } = await import('../services/billSyncService.js');
+          await syncPaymentToBill(payment._id);
+        } catch (syncErr) {
+          logger.error(`Failed to sync Stripe payment ${payment._id} to bill: ${syncErr.message}`);
+        }
+      }
+
       // 2. Automate Post-Payment Documentation (Async)
       if (payment) {
         processPostPayment(payment).catch((error) => {

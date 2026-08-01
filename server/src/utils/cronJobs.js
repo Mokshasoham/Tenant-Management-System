@@ -64,101 +64,259 @@ export const startCronJobs = () => {
         }
     });
 
-    // Run every midnight to check for overdue rent and apply late fees
+    // Run every midnight to check for overdue bills and apply late fees
     cron.schedule('0 0 * * *', async () => {
         logger.info('[CRON] Initializing Daily Late Fee assessment sweep...');
         try {
-            const overdueRent = await Payment.find({
-                type: 'rent',
-                status: { $in: ['pending', 'partially_paid'] },
-                dueDate: { $lt: new Date() },
+            const Bill = (await import('../models/Bill.js')).default;
+            const now = new Date();
+            
+            // Find bills that are past due date + gracePeriodDays and don't have lateFeeApplied
+            const overdueBills = await Bill.find({
+                status: { $in: ['generated', 'sent', 'viewed', 'partially_paid', 'overdue'] },
+                dueDate: { $lt: now },
                 lateFeeApplied: false
             }).populate('property').populate('tenant');
 
-            for (const payment of overdueRent) {
-                if (!payment.tenant) continue;
-                logger.info(`[CRON] Generating Late Fee for Lease: ${payment.lease}`);
+            for (const bill of overdueBills) {
+                // Check if grace period is active
+                const graceLimit = new Date(bill.dueDate);
+                graceLimit.setDate(graceLimit.getDate() + (bill.gracePeriodDays || 0));
                 
-                const lateFeeAmount = Math.round(payment.amount * 0.05); // 5% late fee
+                if (graceLimit >= now) {
+                    logger.debug(`[CRON] Bill ${bill.billNumber} is past due but within grace period. Skipping.`);
+                    continue;
+                }
 
-                await Payment.create({
-                    type: 'late_fee',
-                    lease: payment.lease,
-                    tenant: payment.tenant._id,
-                    property: payment.property._id,
-                    amount: lateFeeAmount,
-                    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Due in 7 days
-                    status: 'pending',
-                    reference: `LATEFEE-${payment._id}`,
-                    notes: `Automatic 5% late fee applied for overdue rent on ${payment.property.name}`
+                logger.info(`[CRON] Applying Late Fee to Bill: ${bill.billNumber}`);
+
+                const lateFeeAmount = Math.round(bill.amountDue * 0.05); // 5% late fee
+
+                // Update bill breakdown
+                bill.breakdown.push({
+                    label: 'Late Fee (5%)',
+                    amount: lateFeeAmount
+                });
+                
+                bill.lateFeeApplied = true;
+                bill.status = 'overdue';
+                bill.timeline.push({
+                    status: 'overdue',
+                    note: `Overdue! Applied 5% late fee of ₹${lateFeeAmount}`
                 });
 
-                payment.lateFeeApplied = true;
-                payment.status = 'overdue';
-                await payment.save();
+                await bill.save();
 
-                // Find matching User by tenant email to retrieve user id for notifications & emails
-                const tenantUser = await User.findOne({ email: payment.tenant.email });
+                // Sync to shadow payment if linked
+                if (bill.payment) {
+                    const payment = await Payment.findById(bill.payment);
+                    if (payment) {
+                        payment.amount = bill.amountDue;
+                        payment.status = 'overdue';
+                        payment.lateFeeApplied = true;
+                        await payment.save();
+                    }
+                }
+
+                // Notify Tenant in-app
+                const tenantUser = await User.findOne({ email: bill.tenant.email });
                 if (tenantUser) {
-                    // Notify Tenant in-app
                     await Notification.create({
                         recipient: tenantUser._id,
                         title: '⚠️ Late Fee Applied',
-                        message: `A 5% late fee (₹${lateFeeAmount}) has been applied to your account for overdue rent on ${payment.property.name}.`,
+                        message: `A 5% late fee (₹${lateFeeAmount}) has been applied to your overdue ${bill.type} bill on ${bill.property.name}.`,
                         type: 'alert',
-                        link: '/payments'
+                        link: '/bills'
                     });
 
                     // Send email alert
-                    await sendLateFeeAppliedEmail(tenantUser, payment, payment.property, lateFeeAmount);
+                    try {
+                        await sendLateFeeAppliedEmail(tenantUser, bill.payment ? { _id: bill.payment } : bill, bill.property, lateFeeAmount);
+                    } catch (emailErr) {
+                        logger.error(`Failed to send late fee email to ${tenantUser.email}: ${emailErr.message}`);
+                    }
                 }
-            }
-            if (overdueRent.length > 0) {
-               logger.info(`[CRON] Successfully applied late fees to ${overdueRent.length} overdue accounts.`);
             }
         } catch (error) {
             logger.error(`[CRON ERROR] Late Fee daemon exception: ${error.message}`);
         }
     });
 
+    // Run every midnight to generate Rent Bills automatically
+    cron.schedule('0 0 * * *', async () => {
+        logger.info('[CRON] Initializing Daily Rent Bill Generation sweep...');
+        try {
+            const activeLeases = await Lease.find({ status: 'active' }).populate('tenant property');
+            const Bill = (await import('../models/Bill.js')).default;
+            const Counter = (await import('../models/Counter.js')).default;
+            const { generateInvoicePDF, buildInvoiceViewModel } = await import('../services/pdfService.js');
+
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            for (const lease of activeLeases) {
+                // Check if rent bill already exists for this lease in the current month
+                const existingBill = await Bill.findOne({
+                    lease: lease._id,
+                    type: 'rent',
+                    billingPeriodStart: { $gte: startOfMonth, $lte: endOfMonth }
+                });
+
+                if (!existingBill) {
+                    logger.info(`[CRON] Generating automatic Rent Bill for Lease: ${lease.leaseNumber}`);
+                    
+                    // Generate sequential bill number atomically
+                    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+                    const counter = await Counter.findOneAndUpdate(
+                        { _id: `BILL-RENT-${dateStr}` },
+                        { $inc: { seq: 1 } },
+                        { upsert: true, new: true }
+                    );
+                    const seqStr = String(counter.seq).padStart(4, '0');
+                    const billNumber = `BILL-RENT-${dateStr}-${seqStr}`;
+
+                    const dueDate = new Date(now.getFullYear(), now.getMonth(), 5); // default to 5th
+
+                    const bill = await Bill.create({
+                        billNumber,
+                        type: 'rent',
+                        lease: lease._id,
+                        tenant: lease.tenant._id,
+                        property: lease.property._id,
+                        status: 'generated',
+                        dueDate,
+                        billingPeriodStart: startOfMonth,
+                        billingPeriodEnd: endOfMonth,
+                        breakdown: [{ label: 'Monthly Rent', amount: lease.rentAmount }],
+                        timeline: [
+                            { status: 'draft', note: 'Rent bill drafted automatically.' },
+                            { status: 'generated', note: 'Rent bill generated automatically.' }
+                        ]
+                    });
+
+                    // Create shadow payment with bidirectional linking
+                    const payment = await Payment.create({
+                        type: 'rent',
+                        lease: lease._id,
+                        tenant: lease.tenant._id,
+                        property: lease.property._id,
+                        amount: lease.rentAmount,
+                        dueDate,
+                        status: 'pending',
+                        notes: `Automatic monthly rent invoice - Ref: ${billNumber}`,
+                        bill: bill._id
+                    });
+
+                    bill.payment = payment._id;
+                    await bill.save();
+
+                    // Generate Invoice PDF
+                    const viewModel = buildInvoiceViewModel(bill, payment);
+                    const pdfData = await generateInvoicePDF(viewModel, lease.tenant, lease.property, lease);
+
+                    bill.invoiceUrl = pdfData.Location;
+                    bill.fileId = pdfData.fileId;
+                    await bill.save();
+
+                    payment.invoiceUrl = pdfData.Location;
+                    payment.fileId = pdfData.fileId;
+                    await payment.save();
+
+                    // Notify tenant
+                    const tenantUser = await User.findOne({ email: lease.tenant.email });
+                    if (tenantUser) {
+                        await Notification.create({
+                            recipient: tenantUser._id,
+                            title: '📄 Rent Bill Generated',
+                            message: `Your rent invoice for ${startOfMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} has been generated. Due on ${dueDate.toLocaleDateString('en-IN')}.`,
+                            type: 'info',
+                            link: '/bills'
+                        });
+                        
+                        try {
+                            const { sendPaymentReceiptEmail } = await import('../services/emailService.js');
+                            await sendPaymentReceiptEmail(lease.tenant, payment, lease.property, pdfData);
+                        } catch (emailErr) {
+                            logger.error(`Failed to send rent bill email to ${tenantUser.email}: ${emailErr.message}`);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error(`[CRON ERROR] Rent Bill Generation sweep exception: ${error.message}`);
+        }
+    });
+
     // Run every midnight to check for upcoming rent due dates and send reminders
     cron.schedule('0 0 * * *', async () => {
-        logger.info('[CRON] Initializing Daily Rent Reminder check...');
+        logger.info('[CRON] Initializing Daily Payment Reminder sweep...');
         try {
-            const threeDaysFromNow = new Date();
-            threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-
-            // Find all pending rent payments that are due within 3 days or already overdue but not handled
-            const upcomingRent = await Payment.find({
-                type: 'rent',
-                status: 'pending',
-                dueDate: { $lte: threeDaysFromNow }
+            const Bill = (await import('../models/Bill.js')).default;
+            const now = new Date();
+            
+            const activeBills = await Bill.find({
+                status: { $in: ['generated', 'sent', 'viewed', 'partially_paid', 'overdue'] }
             }).populate('property').populate('tenant');
 
-            for (const payment of upcomingRent) {
-                if (!payment.tenant) continue;
-                const tenantUser = await User.findOne({ email: payment.tenant.email });
-                if (tenantUser) {
-                    logger.info(`[CRON] Sending rent reminder to tenant: ${tenantUser.email} for property: ${payment.property.name}`);
-                    
-                    // In-app Notification
+            for (const bill of activeBills) {
+                if (!bill.tenant) continue;
+                const tenantUser = await User.findOne({ email: bill.tenant.email });
+                if (!tenantUser) continue;
+
+                let reminderType = null;
+                const billDueDate = new Date(bill.dueDate);
+                
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const due = new Date(billDueDate.getFullYear(), billDueDate.getMonth(), billDueDate.getDate());
+                
+                const diffTime = due - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 3 && !bill.remindersSent.includes('T-3')) {
+                    reminderType = 'T-3';
+                } else if (diffDays === 0 && !bill.remindersSent.includes('T-0')) {
+                    reminderType = 'T-0';
+                } else if (bill.status === 'overdue' && !bill.remindersSent.includes('overdue')) {
+                    reminderType = 'overdue';
+                }
+
+                if (reminderType) {
+                    logger.info(`[CRON] Sending payment reminder (${reminderType}) to: ${tenantUser.email} for bill ${bill.billNumber}`);
+
+                    let title = '⏰ Payment Reminder';
+                    let message = `Reminder: Your ${bill.type} bill of ₹${bill.amountDue} is due on ${billDueDate.toLocaleDateString()}.`;
+
+                    if (reminderType === 'T-0') {
+                        title = '⚡ Bill Due Today';
+                        message = `Friendly reminder: Your ${bill.type} bill of ₹${bill.amountDue} is due today! Please pay to avoid late fees.`;
+                    } else if (reminderType === 'overdue') {
+                        title = '⚠️ Overdue Bill Notice';
+                        message = `Urgent: Your ${bill.type} bill of ₹${bill.amountDue} is overdue. Please settle it immediately.`;
+                    }
+
+                    // Create Notification
                     await Notification.create({
                         recipient: tenantUser._id,
-                        title: '⏰ Rent Due Soon',
-                        message: `Friendly reminder: Your rent payment of ₹${payment.amount.toLocaleString('en-IN')} for ${payment.property.name} is due on ${new Date(payment.dueDate).toLocaleDateString()}.`,
-                        type: 'info',
-                        link: '/payments'
+                        title,
+                        message,
+                        type: reminderType === 'overdue' ? 'alert' : 'info',
+                        link: '/bills'
                     });
 
                     // Email reminder
-                    await sendRentReminderEmail(tenantUser, payment, payment.property);
+                    try {
+                        await sendRentReminderEmail(tenantUser, bill.payment ? { amount: bill.amountDue, dueDate: bill.dueDate } : bill, bill.property);
+                    } catch (emailErr) {
+                        logger.error(`Failed to send reminder email to ${tenantUser.email}: ${emailErr.message}`);
+                    }
+
+                    bill.remindersSent.push(reminderType);
+                    await bill.save();
                 }
             }
-            if (upcomingRent.length > 0) {
-                logger.info(`[CRON] Successfully dispatched ${upcomingRent.length} rent reminders.`);
-            }
         } catch (error) {
-            logger.error(`[CRON ERROR] Rent Reminder sweep exception: ${error.message}`);
+            logger.error(`[CRON ERROR] Payment Reminder sweep exception: ${error.message}`);
         }
     });
 

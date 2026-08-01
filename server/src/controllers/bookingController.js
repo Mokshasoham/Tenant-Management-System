@@ -191,6 +191,29 @@ const verifyAndProcessPaymentInternal = async ({
 
             // Record Payment history entry so it appears on dashboards & receipts
             try {
+                const Bill = mongoose.model('Bill');
+                const billNumber = `BILL-DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                const bill = await Bill.create({
+                    billNumber,
+                    type: 'security_deposit',
+                    lease: lease?._id,
+                    tenant: tenant._id,
+                    property: booking.property._id,
+                    status: 'paid',
+                    dueDate: new Date(),
+                    billingPeriodStart: booking.startDate,
+                    billingPeriodEnd: booking.startDate,
+                    breakdown: [
+                        { label: 'Security Deposit & Initial Payment', amount: booking.totalAmount }
+                    ],
+                    amountDue: booking.totalAmount,
+                    amountPaid: booking.totalAmount,
+                    timeline: [
+                        { status: 'generated', note: 'Security deposit invoice generated automatically.' },
+                        { status: 'paid', note: 'Security deposit paid successfully via Razorpay.' }
+                    ]
+                });
+
                 const payment = await Payment.create({
                     tenant: tenant._id,
                     property: booking.property._id,
@@ -203,14 +226,18 @@ const verifyAndProcessPaymentInternal = async ({
                     reference: razorpayPaymentId,
                     razorpayPaymentId: razorpayPaymentId,
                     description: `Security deposit and initial payment for ${booking.property.name}`,
+                    bill: bill._id
                 });
+
+                bill.payment = payment._id;
+                await bill.save();
                 
                 // Run post-payment automation asynchronously in the background
                 processPostPayment(payment).catch(err => {
                     logger.error(`Post-payment processing failed: ${err.message}`);
                 });
             } catch (payErr) {
-                logger.error(`Failed to record Payment entry: ${payErr.message}`);
+                logger.error(`Failed to record Payment and Bill entry: ${payErr.message}`);
             }
 
             if (lease) {
@@ -786,6 +813,35 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
 
         if (!userId) throw new AppError('No users available to mock.', 400);
 
+        const { billId } = req.body;
+        if (billId) {
+            const Bill = (await import('../models/Bill.js')).default;
+            const bill = await Bill.findById(billId);
+            if (!bill) throw new AppError('Bill not found', 404);
+
+            const payment = await Payment.create({
+                type: bill.type === 'rent' ? 'rent' : bill.type === 'security_deposit' ? 'security_deposit' : 'rent',
+                lease: bill.lease,
+                tenant: bill.tenant,
+                property: bill.property,
+                amount: bill.amountDue,
+                amountPaid: Number(amount) || bill.amountDue,
+                paymentDate: new Date(),
+                status: 'paid',
+                paymentMethod: method || 'card',
+                reference: `MOCK-${Date.now()}`,
+                bill: bill._id
+            });
+
+            const { syncPaymentToBill } = await import('../services/billSyncService.js');
+            await syncPaymentToBill(payment._id);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Bill payment processed successfully.'
+            });
+        }
+
         const property = await Property.findById(propertyId);
         const user = await User.findById(userId);
         if (!property || !user) {
@@ -871,6 +927,31 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         const actualRent = lease.rentAmount || property.rentAmount || 1;
         const amountPaid = Number(amount) || booking.totalAmount;
 
+        const Bill = mongoose.model('Bill');
+        const billNumber = `BILL-RENT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const billStatus = amountPaid >= actualRent ? 'paid' : 'partially_paid';
+
+        const bill = await Bill.create({
+            billNumber,
+            type: 'rent',
+            lease: lease._id,
+            tenant: tenant._id,
+            property: propertyId,
+            status: billStatus,
+            dueDate: new Date(),
+            billingPeriodStart: booking.startDate,
+            billingPeriodEnd: new Date(new Date(booking.startDate).setMonth(new Date(booking.startDate).getMonth() + 1)),
+            breakdown: [
+                { label: 'Base Rent', amount: actualRent }
+            ],
+            amountDue: actualRent,
+            amountPaid: amountPaid,
+            timeline: [
+                { status: 'generated', note: 'Rent Invoice generated automatically.' },
+                { status: billStatus, note: `Paid ₹${amountPaid} via Mock ${safeMethod}.` }
+            ]
+        });
+
         const payment = await Payment.create({
             lease: lease._id,
             tenant: tenant._id,
@@ -882,11 +963,11 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             dueDate: new Date(),
             paymentMethod: safeMethod,
             reference: booking.paymentReference,
-            billingPeriod: {
-                start: booking.startDate,
-                end: new Date(new Date(booking.startDate).setMonth(new Date(booking.startDate).getMonth() + 1))
-            }
+            bill: bill._id
         });
+
+        bill.payment = payment._id;
+        await bill.save();
 
         // Trigger invoice generation (non-blocking background task)
         processPostPayment(payment).catch((error) => {

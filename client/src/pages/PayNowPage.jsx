@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { paymentService, leaseService, bookingService } from '../services/api';
+import { paymentService, leaseService, bookingService, billService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
@@ -52,7 +52,7 @@ function Input({ className, error, ...props }) {
 }
 
 // ─── Debit Card Form ────────────────────────────────────────────────────────
-function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
+function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId }) {
     const [cardNum, setCardNum] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
@@ -84,7 +84,8 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
                 amount: amount,
                 method: 'debit_card',
                 startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                billId: billId
             });
 
             // Delay purely for visual "Processing" effect
@@ -189,7 +190,7 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId }) {
 }
 
 // ─── UPI Form ───────────────────────────────────────────────────────────────
-function UpiForm({ amount, paymentId, onSuccess, propertyId }) {
+function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
     const [upiId, setUpiId] = useState('');
     const [verifying, setVerifying] = useState(false);
     const [verified, setVerified] = useState(false);
@@ -222,7 +223,8 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId }) {
                 amount: amount,
                 method: 'upi',
                 startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                billId: billId
             });
 
             // Mock Success Simulation
@@ -413,6 +415,7 @@ export default function PayNowPage() {
     const [success, setSuccess] = useState(false);
     const [lease, setLease] = useState(null);
     const [pendingPayment, setPendingPayment] = useState(null);
+    const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
 
     // Custom amount mode
@@ -424,24 +427,34 @@ export default function PayNowPage() {
         (async () => {
             setLoadingLease(true);
             try {
-                const [leaseRes, payRes] = await Promise.allSettled([
-                    leaseService.getMyLease(),
-                    paymentService.getMyPayments(),
-                ]);
-                const l = leaseRes.status === 'fulfilled' ? leaseRes.value?.data : null;
-                setLease(l);
-                if (payRes.status === 'fulfilled') {
-                    const allPayments = payRes.value?.data || [];
-                    const statePaymentId = location.state?.paymentId;
-                    const pending = statePaymentId
-                        ? allPayments.find(p => p._id === statePaymentId || p.id === statePaymentId)
-                        : allPayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
-                    setPendingPayment(pending || null);
+                const billIdParam = searchParams.get('billId');
+                if (billIdParam) {
+                    const res = await billService.getBillById(billIdParam);
+                    const bill = res.data?.data || res.data;
+                    setBillDetails(bill);
+                    
+                    const leaseRes = await leaseService.getMyLease();
+                    setLease(leaseRes.data?.data || leaseRes.data || null);
+                } else {
+                    const [leaseRes, payRes] = await Promise.allSettled([
+                        leaseService.getMyLease(),
+                        paymentService.getMyPayments(),
+                    ]);
+                    const l = leaseRes.status === 'fulfilled' ? (leaseRes.value?.data?.data || leaseRes.value?.data) : null;
+                    setLease(l);
+                    if (payRes.status === 'fulfilled') {
+                        const allPayments = payRes.value?.data || [];
+                        const statePaymentId = location.state?.paymentId;
+                        const pending = statePaymentId
+                            ? allPayments.find(p => p._id === statePaymentId || p.id === statePaymentId)
+                            : allPayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
+                        setPendingPayment(pending || null);
+                    }
                 }
             } catch (_) { }
             setLoadingLease(false);
         })();
-    }, [location.state?.paymentId]);
+    }, [location.state?.paymentId, searchParams]);
 
     const rentAmount = lease?.rentAmount || 0;
     const pendingAmount = pendingPayment
@@ -450,11 +463,16 @@ export default function PayNowPage() {
 
     const parsedCustom = parseInt(customAmount.replace(/[^\d]/g, '')) || 0;
 
-    // Fix: use booking amount if present
-    const baseAmount = bookingData.amount !== undefined ? bookingData.amount : pendingAmount;
+    // Resolve baseAmount
+    const baseAmount = bookingData.amount !== undefined 
+        ? bookingData.amount 
+        : billDetails 
+            ? (billDetails.amountDue - billDetails.amountPaid)
+            : pendingAmount;
+
     const payAmount = useCustom ? parsedCustom : baseAmount;
-    const paymentId = pendingPayment?._id || pendingPayment?.id;
-    const propertyId = bookingData.propertyId || lease?.property?._id; // Determine propertyId from bookingData or lease
+    const paymentId = billDetails ? (billDetails.payment?._id || billDetails.payment) : (pendingPayment?._id || pendingPayment?.id);
+    const propertyId = bookingData.propertyId || billDetails?.property?._id || lease?.property?._id;
 
     const validateCustom = () => {
         if (parsedCustom < 1) { setAmountError('Enter a valid amount'); return false; }
@@ -596,6 +614,7 @@ export default function PayNowPage() {
                                             paymentId={paymentId || 'manual'}
                                             onSuccess={handleSuccess}
                                             propertyId={propertyId}
+                                            billId={billIdParam}
                                         />
                                     </motion.div>
                                 ) : (
@@ -605,6 +624,7 @@ export default function PayNowPage() {
                                             paymentId={paymentId || 'manual'}
                                             onSuccess={handleSuccess}
                                             propertyId={propertyId}
+                                            billId={billIdParam}
                                         />
                                     </motion.div>
                                 )}
