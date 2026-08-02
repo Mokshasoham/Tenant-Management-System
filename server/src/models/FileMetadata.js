@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ALLOWED_FILE_CATEGORIES } from '../constants/fileCategories.js';
 
 const FileMetadataSchema = new mongoose.Schema(
   {
@@ -38,7 +39,7 @@ const FileMetadataSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['chat', 'kyc', 'properties', 'leases', 'invoices', 'reviews'],
+      enum: ALLOWED_FILE_CATEGORIES,
       required: true,
     },
     downloadCount: {

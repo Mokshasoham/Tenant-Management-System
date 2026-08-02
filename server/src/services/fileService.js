@@ -27,9 +27,11 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
   });
 }
 
+import FILE_CATEGORIES from '../constants/fileCategories.js';
+
 // CENTRALIZED ALLOWED TYPES
 const ALLOWED_MIME_TYPES = {
-  chat: [
+  [FILE_CATEGORIES.CHAT]: [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/mpeg', 'audio/mpeg', 'audio/wav', 'audio/mp3',
     'application/pdf', 'text/plain', 'application/zip', 'application/x-zip-compressed',
@@ -37,22 +39,22 @@ const ALLOWED_MIME_TYPES = {
     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   ],
-  kyc: ['image/jpeg', 'image/png', 'application/pdf'],
-  properties: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'],
-  leases: ['application/pdf'],
-  invoices: ['application/pdf'],
-  reviews: ['image/jpeg', 'image/png'],
-  avatars: ['image/jpeg', 'image/png', 'image/webp']
+  [FILE_CATEGORIES.KYC]: ['image/jpeg', 'image/png', 'application/pdf'],
+  [FILE_CATEGORIES.PROPERTIES]: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'],
+  [FILE_CATEGORIES.LEASES]: ['application/pdf'],
+  [FILE_CATEGORIES.INVOICES]: ['application/pdf'],
+  [FILE_CATEGORIES.REVIEWS]: ['image/jpeg', 'image/png'],
+  [FILE_CATEGORIES.AVATARS]: ['image/jpeg', 'image/png', 'image/webp']
 };
 
 const MAX_FILE_SIZE = {
-  chat: 10 * 1024 * 1024,      // 10MB
-  kyc: 5 * 1024 * 1024,        // 5MB
-  properties: 15 * 1024 * 1024,// 15MB
-  leases: 10 * 1024 * 1024,    // 10MB
-  invoices: 10 * 1024 * 1024,  // 10MB
-  reviews: 5 * 1024 * 1024,    // 5MB
-  avatars: 5 * 1024 * 1024     // 5MB
+  [FILE_CATEGORIES.CHAT]: 10 * 1024 * 1024,      // 10MB
+  [FILE_CATEGORIES.KYC]: 5 * 1024 * 1024,        // 5MB
+  [FILE_CATEGORIES.PROPERTIES]: 15 * 1024 * 1024,// 15MB
+  [FILE_CATEGORIES.LEASES]: 10 * 1024 * 1024,    // 10MB
+  [FILE_CATEGORIES.INVOICES]: 10 * 1024 * 1024,  // 10MB
+  [FILE_CATEGORIES.REVIEWS]: 5 * 1024 * 1024,    // 5MB
+  [FILE_CATEGORIES.AVATARS]: 5 * 1024 * 1024     // 5MB
 };
 
 /**

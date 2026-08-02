@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import ProfileAudit from '../models/ProfileAudit.js';
+import FILE_CATEGORIES from '../constants/fileCategories.js';
 import { uploadFileBuffer, deleteFileFromStorage } from '../services/fileService.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
@@ -251,7 +252,7 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
     buffer: req.file.buffer,
     filename: req.file.originalname || `avatar-${req.user.userId}.jpg`,
     mimeType: req.file.mimetype || 'image/jpeg',
-    category: 'avatars',
+    category: FILE_CATEGORIES.AVATARS,
     uploaderId: req.user.userId
   });
 
