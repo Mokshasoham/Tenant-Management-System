@@ -100,8 +100,15 @@ export const uploadFileBuffer = async (
   if (uploaderId) {
     const existingMetadata = await FileMetadata.findOne({ sha256, uploader: uploaderId, category });
     if (existingMetadata) {
-      logger.info(`[FileService Deduplication] Identical file found for uploader ${uploaderId} (SHA256: ${sha256}). Reusing existing file URL.`);
-      return existingMetadata;
+      const cleanName = existingMetadata.key ? existingMetadata.key.split('/').pop() : existingMetadata.filename;
+      const storageExists = await FileStorage.findOne({ filename: cleanName });
+      if (storageExists || (s3Client && process.env.AWS_S3_BUCKET_NAME)) {
+        logger.info(`[FileService Deduplication] Identical file found for uploader ${uploaderId} (SHA256: ${sha256}). Reusing existing file URL.`);
+        return existingMetadata;
+      } else {
+        logger.warn(`[FileService Deduplication] Found stale FileMetadata ${existingMetadata._id} without storage content. Removing stale metadata.`);
+        await FileMetadata.deleteOne({ _id: existingMetadata._id });
+      }
     }
   }
 
@@ -354,6 +361,13 @@ export const deleteFileFromStorage = async (key, filename) => {
     const targetFilename = typeof filename === 'string' ? filename : (typeof key === 'string' ? path.basename(key) : null);
     if (targetFilename) {
       await FileStorage.deleteOne({ filename: targetFilename });
+      await FileMetadata.deleteMany({
+        $or: [
+          { key },
+          { filename: targetFilename },
+          { url: `/api/files/access/${targetFilename}` }
+        ]
+      });
       const categoryDir = typeof key === 'string' && key.includes('/') ? key.split('/')[0] : 'avatars';
       const localDir = path.join(__dirname, '..', '..', 'uploads', categoryDir);
       const localPath = path.join(localDir, targetFilename);
