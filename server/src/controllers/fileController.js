@@ -183,6 +183,8 @@ export const downloadFile = asyncHandler(async (req, res) => {
     throw new AppError('File binary content not found in database', 404);
   }
 
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', fileRecord.mimeType);
   res.setHeader('Content-Disposition', `inline; filename="${fileRecord.filename}"`);
   res.send(dbFile.data);
@@ -226,6 +228,8 @@ export const resolveLegacyUploadAlias = asyncHandler(async (req, res, next) => {
 
     const dbFile = await FileStorage.findOne({ filename: fileRecord.key.split('/').pop() });
     if (dbFile) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Type', fileRecord.mimeType);
       res.setHeader('Content-Disposition', `inline; filename="${fileRecord.filename}"`);
       return res.send(dbFile.data);
