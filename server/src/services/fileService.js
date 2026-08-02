@@ -58,16 +58,36 @@ const MAX_FILE_SIZE = {
 /**
  * Validates and uploads a file buffer to centralized AWS S3 or Local DB Fallback.
  * Creates a FileMetadata entry in MongoDB.
+ * Supports both object payload { buffer, filename, ... } and positional parameters.
  */
-export const uploadFileBuffer = async (options = {}) => {
-  // Support both object payload { buffer, filename, ... } and positional fallback
-  const buffer = options?.buffer || options;
-  const filename = typeof options?.filename === 'string' ? options.filename : (typeof arguments[1] === 'string' ? arguments[1] : 'uploaded-file.bin');
-  const mimeType = typeof options?.mimeType === 'string' ? options.mimeType : (typeof arguments[2] === 'string' ? arguments[2] : 'application/octet-stream');
-  const category = typeof options?.category === 'string' ? options.category : (typeof arguments[3] === 'string' ? arguments[3] : 'chat');
-  const uploaderId = options?.uploaderId || arguments[4] || null;
-  const relatedEntityId = options?.relatedEntityId || arguments[5] || null;
-  const relatedModelName = options?.relatedModelName || arguments[6] || null;
+export const uploadFileBuffer = async (
+  optionsOrBuffer = {},
+  filenameParam = null,
+  mimeTypeParam = null,
+  categoryParam = null,
+  uploaderIdParam = null,
+  relatedEntityIdParam = null,
+  relatedModelNameParam = null
+) => {
+  let buffer, filename, mimeType, category, uploaderId, relatedEntityId, relatedModelName;
+
+  if (Buffer.isBuffer(optionsOrBuffer)) {
+    buffer = optionsOrBuffer;
+    filename = typeof filenameParam === 'string' ? filenameParam : 'uploaded-file.bin';
+    mimeType = typeof mimeTypeParam === 'string' ? mimeTypeParam : 'application/octet-stream';
+    category = typeof categoryParam === 'string' ? categoryParam : 'chat';
+    uploaderId = uploaderIdParam || null;
+    relatedEntityId = relatedEntityIdParam || null;
+    relatedModelName = relatedModelNameParam || null;
+  } else {
+    buffer = optionsOrBuffer?.buffer;
+    filename = typeof optionsOrBuffer?.filename === 'string' ? optionsOrBuffer.filename : 'uploaded-file.bin';
+    mimeType = typeof optionsOrBuffer?.mimeType === 'string' ? optionsOrBuffer.mimeType : 'application/octet-stream';
+    category = typeof optionsOrBuffer?.category === 'string' ? optionsOrBuffer.category : 'chat';
+    uploaderId = optionsOrBuffer?.uploaderId || null;
+    relatedEntityId = optionsOrBuffer?.relatedEntityId || null;
+    relatedModelName = optionsOrBuffer?.relatedModelName || null;
+  }
 
   if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new AppError('File content buffer is required', 400);
