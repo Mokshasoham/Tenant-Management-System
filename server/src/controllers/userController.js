@@ -10,6 +10,17 @@ const resolveUserUrls = (user, req) => {
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   const host = req.get('host');
   
+  if (userObj.avatar && typeof userObj.avatar === 'string') {
+    let fullAvatar = userObj.avatar;
+    if (!fullAvatar.startsWith('http')) {
+      fullAvatar = `${protocol}://${host}${fullAvatar.startsWith('/') ? '' : '/'}${fullAvatar}`;
+    }
+    const versionParam = userObj.avatarVersion || 1;
+    userObj.avatar = fullAvatar.includes('?')
+      ? `${fullAvatar}&v=${versionParam}`
+      : `${fullAvatar}?v=${versionParam}`;
+  }
+
   if (userObj.kycFileIds && userObj.kycFileIds.length > 0) {
     userObj.kycDocuments = userObj.kycFileIds.map(fileId => `${protocol}://${host}/api/files/download/${fileId}`);
   } else if (userObj.kycDocuments && userObj.kycDocuments.length > 0) {

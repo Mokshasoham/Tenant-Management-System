@@ -141,12 +141,14 @@ export const downloadFile = asyncHandler(async (req, res) => {
     } catch (_) {}
   }
 
-  if (!currentUser && !['properties', 'reviews'].includes(fileRecord.category)) {
+  const PUBLIC_CATEGORIES = ['properties', 'reviews', 'avatars'];
+
+  if (!currentUser && !PUBLIC_CATEGORIES.includes(fileRecord.category)) {
     throw new AppError('Unauthorized access: Authentication is required', 401);
   }
 
   // Permission Check
-  if (currentUser && !['properties', 'reviews'].includes(fileRecord.category)) {
+  if (currentUser && !PUBLIC_CATEGORIES.includes(fileRecord.category)) {
     const hasAccess = await verifyFileAccessPermission(currentUser, fileRecord);
     if (!hasAccess) {
       throw new AppError('Forbidden: Access denied to this file resource', 403);
@@ -200,8 +202,10 @@ export const resolveLegacyUploadAlias = asyncHandler(async (req, res, next) => {
     return next();
   }
 
+  const PUBLIC_CATEGORIES = ['properties', 'reviews', 'avatars'];
+
   // If it's a public asset, serve it directly
-  if (['properties', 'reviews'].includes(fileRecord.category)) {
+  if (PUBLIC_CATEGORIES.includes(fileRecord.category)) {
     // Audit access
     fileRecord.downloadCount += 1;
     fileRecord.lastAccessedAt = new Date();
