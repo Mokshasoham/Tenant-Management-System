@@ -37,7 +37,7 @@ export const AddressInformationCard = memo(({
           placeholder="456 Hometown Road"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <EditableField
             label="City"
             value={form.address?.city}

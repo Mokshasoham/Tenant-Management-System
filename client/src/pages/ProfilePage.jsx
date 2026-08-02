@@ -66,8 +66,8 @@ export default function ProfilePage() {
       {/* 2. Weighted Profile Completion Banner */}
       <ProfileCompletion completionInfo={completionInfo} />
 
-      {/* 3. Core Editable Information Cards (Responsive Layout) */}
-      <div id="personal-info-section" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 3. Core Editable Information Cards (Spacious Responsive Layout) */}
+      <div id="personal-info-section" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         <PersonalInformationCard
           form={form}
           errors={errors}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
           Loading Security Modules...
         </div>
       }>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           <ChangePasswordCard disabled={saveState === 'saving'} />
           <TwoFactorCard disabled={saveState === 'saving'} />
           <KYCCard disabled={saveState === 'saving'} />

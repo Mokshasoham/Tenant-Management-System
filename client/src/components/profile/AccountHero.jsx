@@ -26,43 +26,46 @@ export const AccountHero = memo(({
     : user?.kycStatus === 'pending' ? 'warning' : 'neutral';
 
   return (
-    <div className="p-6 md:p-8 rounded-3xl border border-border bg-card shadow-sm transition-all relative overflow-hidden">
-      {/* Background Subtle Gradient Glow */}
-      <div className={`absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br ${rc.from} ${rc.to} opacity-10 rounded-full blur-3xl pointer-events-none`} />
+    <div className="p-6 md:p-8 rounded-3xl border border-border bg-card/80 backdrop-blur-xl shadow-lg transition-all relative overflow-hidden">
+      {/* Background Ambient Glow */}
+      <div className={`absolute -top-24 -right-24 w-80 h-80 bg-gradient-to-br ${rc.from} ${rc.to} opacity-15 rounded-full blur-3xl pointer-events-none`} />
 
       <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
         
         {/* Left: Avatar & Personal Identity */}
-        <div className="flex items-center gap-5 w-full lg:w-auto">
-          {/* Avatar with Upload Trigger Overlay */}
+        <div className="flex items-center gap-6 w-full lg:w-auto">
+          {/* Avatar with Ring & Animated Online Status */}
           <div className="relative group flex-shrink-0">
             {user?.avatar ? (
               <img
                 src={user.avatar}
                 alt={fullName}
-                className="w-24 h-24 rounded-2xl object-cover border-2 border-border shadow-md"
+                className="w-28 h-28 rounded-full object-cover border-2 border-emerald-500/30 shadow-xl ring-4 ring-emerald-500/10 transition-transform group-hover:scale-105"
               />
             ) : (
-              <div className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${rc.from} ${rc.to} flex items-center justify-center text-3xl font-black text-white shadow-md`}>
-                {initials || <User className="w-10 h-10" />}
+              <div className={`w-28 h-28 rounded-full bg-gradient-to-br ${rc.from} ${rc.to} flex items-center justify-center text-3xl font-black text-white shadow-xl ring-4 ring-primary/10 transition-transform group-hover:scale-105`}>
+                {initials || <User className="w-12 h-12" />}
               </div>
             )}
             
+            {/* Animated Status Dot */}
+            <span className="w-4 h-4 bg-emerald-500 ring-4 ring-card rounded-full absolute bottom-1 right-1 animate-pulse" title="Account Active" />
+
             <button
               type="button"
               onClick={onOpenAvatarModal}
               title="Upload / Change Profile Photo"
-              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex flex-col items-center justify-center text-white text-xs font-bold gap-1 cursor-pointer"
+              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex flex-col items-center justify-center text-white text-xs font-bold gap-1 cursor-pointer backdrop-blur-xs"
             >
-              <Camera className="w-5 h-5" />
+              <Camera className="w-6 h-6" />
               <span>Change</span>
             </button>
           </div>
 
           {/* User Display Info */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-black text-foreground">{fullName}</h1>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">{fullName}</h1>
               <StatusBadge label={user?.role || 'tenant'} variant="info" icon={false} />
             </div>
 
@@ -77,19 +80,19 @@ export const AccountHero = memo(({
         </div>
 
         {/* Center: Computed Metadata Summary */}
-        <div className="flex items-center gap-6 py-3 px-5 rounded-2xl bg-muted/30 border border-border/60 w-full lg:w-auto justify-around">
+        <div className="flex items-center gap-6 py-3.5 px-6 rounded-2xl bg-muted/40 backdrop-blur-sm border border-border/80 w-full lg:w-auto justify-around shadow-inner">
           <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Member Since</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">Member Since</p>
             <p className="text-xs font-bold text-foreground mt-0.5">{memberSince}</p>
           </div>
-          <div className="h-8 w-px bg-border/60" />
+          <div className="h-8 w-px bg-border/80" />
           <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Tenant ID</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">Tenant ID</p>
             <p className="text-xs font-bold text-foreground font-mono mt-0.5">{user?._id?.slice(-8)?.toUpperCase() || '—'}</p>
           </div>
-          <div className="h-8 w-px bg-border/60" />
+          <div className="h-8 w-px bg-border/80" />
           <div className="text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Lease Status</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70">Lease Status</p>
             <p className="text-xs font-bold text-emerald-500 mt-0.5">Active</p>
           </div>
         </div>
@@ -97,7 +100,7 @@ export const AccountHero = memo(({
         {/* Right: Radial Completion Ring & Quick Actions */}
         <div className="flex items-center gap-5 w-full lg:w-auto justify-between lg:justify-end border-t lg:border-t-0 border-border/60 pt-4 lg:pt-0">
           {/* Radial Completion SVG Ring */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 bg-muted/20 px-3.5 py-2 rounded-2xl border border-border/40">
             <div className="relative w-14 h-14 flex items-center justify-center">
               <svg className="w-14 h-14 transform -rotate-90">
                 <circle
