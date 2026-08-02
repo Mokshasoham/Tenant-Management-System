@@ -96,6 +96,28 @@ const userSchema = new mongoose.Schema(
     }],
     passwordResetToken: String,
     passwordResetExpires: Date,
+    // Profile V2.0 Extended Fields (100% Backward Compatible)
+    preferredName: { type: String, default: '' },
+    gender: { type: String, default: '' },
+    dob: { type: String, default: '' },
+    occupation: { type: String, default: '' },
+    nationality: { type: String, default: '' },
+    secondaryEmail: { type: String, default: '' },
+    alternatePhone: { type: String, default: '' },
+    isPhoneVerified: { type: Boolean, default: false },
+    emergencyContact: {
+      name: { type: String, default: '' },
+      phone: { type: String, default: '' },
+      relationship: { type: String, default: '' }
+    },
+    address: {
+      currentAddress: { type: String, default: '' },
+      permanentAddress: { type: String, default: '' },
+      country: { type: String, default: '' },
+      state: { type: String, default: '' },
+      city: { type: String, default: '' },
+      postalCode: { type: String, default: '' }
+    }
   },
   {
     timestamps: true,

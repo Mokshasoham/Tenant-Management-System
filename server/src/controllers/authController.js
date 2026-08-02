@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import ProfileAudit from '../models/ProfileAudit.js';
+import { uploadFileBuffer, deleteFileFromStorage } from '../services/fileService.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
@@ -159,21 +161,70 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { firstName, lastName, phone, avatar } = req.body;
-
-  const user = await User.findByIdAndUpdate(
-    req.user.userId,
-    {
-      firstName,
-      lastName,
-      phone,
-      avatar,
-    },
-    { new: true, runValidators: true }
-  );
-
-  if (!user) {
+  const existingUser = await User.findById(req.user.userId);
+  if (!existingUser) {
     throw new AppError('User not found', 404);
+  }
+
+  const {
+    firstName,
+    lastName,
+    phone,
+    avatar,
+    preferredName,
+    gender,
+    dob,
+    occupation,
+    nationality,
+    secondaryEmail,
+    alternatePhone,
+    emergencyContact,
+    address,
+  } = req.body;
+
+  const updateData = {};
+  if (firstName !== undefined) updateData.firstName = firstName;
+  if (lastName !== undefined) updateData.lastName = lastName;
+  if (phone !== undefined) updateData.phone = phone;
+  if (avatar !== undefined) updateData.avatar = avatar;
+  if (preferredName !== undefined) updateData.preferredName = preferredName;
+  if (gender !== undefined) updateData.gender = gender;
+  if (dob !== undefined) updateData.dob = dob;
+  if (occupation !== undefined) updateData.occupation = occupation;
+  if (nationality !== undefined) updateData.nationality = nationality;
+  if (secondaryEmail !== undefined) updateData.secondaryEmail = secondaryEmail;
+  if (alternatePhone !== undefined) updateData.alternatePhone = alternatePhone;
+  if (emergencyContact !== undefined) updateData.emergencyContact = emergencyContact;
+  if (address !== undefined) updateData.address = address;
+
+  // Track changed fields for Audit Log
+  const changedFields = [];
+  Object.keys(updateData).forEach((key) => {
+    const oldVal = existingUser[key];
+    const newVal = updateData[key];
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      changedFields.push({ field: key, oldValue: oldVal, newValue: newVal });
+    }
+  });
+
+  const user = await User.findByIdAndUpdate(req.user.userId, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  // Record Audit Trail
+  if (changedFields.length > 0) {
+    try {
+      await ProfileAudit.create({
+        userId: req.user.userId,
+        updatedBy: req.user.userId,
+        changedFields,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || '',
+        userAgent: req.get('user-agent') || ''
+      });
+    } catch (auditErr) {
+      logger.warn(`Failed to record ProfileAudit: ${auditErr.message}`);
+    }
   }
 
   logger.info(`User profile updated: ${user.email}`);
@@ -181,6 +232,110 @@ export const updateProfile = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Profile updated successfully',
+    data: resolveUserUrls(user, req),
+  });
+});
+
+export const uploadAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('Please select an image file to upload', 400);
+  }
+
+  const existingUser = await User.findById(req.user.userId);
+  if (!existingUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Upload new avatar file
+  const uploadResult = await uploadFileBuffer(
+    req.file.buffer,
+    req.file.originalname,
+    req.file.mimetype,
+    'avatars',
+    req.user.userId
+  );
+
+  const previousAvatar = existingUser.avatar;
+
+  const user = await User.findByIdAndUpdate(
+    req.user.userId,
+    { avatar: uploadResult.url },
+    { new: true }
+  );
+
+  // Clean up previous storage file if it exists and is an API file download URL
+  if (previousAvatar && previousAvatar.includes('/api/files/download/')) {
+    const fileIdMatch = previousAvatar.match(/\/api\/files\/download\/([a-fA-F0-9]{24})/);
+    if (fileIdMatch) {
+      try {
+        await deleteFileFromStorage(fileIdMatch[1], req.user.userId);
+      } catch (delErr) {
+        logger.warn(`Failed to delete previous avatar storage file: ${delErr.message}`);
+      }
+    }
+  }
+
+  // Audit Log
+  try {
+    await ProfileAudit.create({
+      userId: req.user.userId,
+      updatedBy: req.user.userId,
+      changedFields: [{ field: 'avatar', oldValue: previousAvatar, newValue: uploadResult.url }],
+      ipAddress: req.ip || '',
+      userAgent: req.get('user-agent') || ''
+    });
+  } catch (auditErr) {
+    logger.warn(`Failed to record avatar upload audit: ${auditErr.message}`);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Avatar uploaded successfully',
+    data: resolveUserUrls(user, req),
+  });
+});
+
+export const deleteAvatar = asyncHandler(async (req, res) => {
+  const existingUser = await User.findById(req.user.userId);
+  if (!existingUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  const previousAvatar = existingUser.avatar;
+
+  if (previousAvatar && previousAvatar.includes('/api/files/download/')) {
+    const fileIdMatch = previousAvatar.match(/\/api\/files\/download\/([a-fA-F0-9]{24})/);
+    if (fileIdMatch) {
+      try {
+        await deleteFileFromStorage(fileIdMatch[1], req.user.userId);
+      } catch (delErr) {
+        logger.warn(`Failed to delete avatar storage file: ${delErr.message}`);
+      }
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user.userId,
+    { avatar: null },
+    { new: true }
+  );
+
+  // Audit Log
+  try {
+    await ProfileAudit.create({
+      userId: req.user.userId,
+      updatedBy: req.user.userId,
+      changedFields: [{ field: 'avatar', oldValue: previousAvatar, newValue: null }],
+      ipAddress: req.ip || '',
+      userAgent: req.get('user-agent') || ''
+    });
+  } catch (auditErr) {
+    logger.warn(`Failed to record avatar delete audit: ${auditErr.message}`);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Avatar removed successfully',
     data: resolveUserUrls(user, req),
   });
 });

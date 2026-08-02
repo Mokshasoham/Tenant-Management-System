@@ -1,6 +1,7 @@
 import express from 'express';
 import * as authController from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
+import { uploadAvatar } from '../middleware/uploadMiddleware.js';
 import { validationMiddleware, validateUserRegistration, validateUserLogin, validateForgotPassword, validateResetPassword } from '../middleware/validation.js';
 
 const router = express.Router();
@@ -16,6 +17,8 @@ router.get('/verify-email/:token', authController.verifyEmail);
 // Protected routes
 router.get('/profile', authenticate, authController.getCurrentUser);
 router.put('/profile', authenticate, authController.updateProfile);
+router.post('/avatar', authenticate, uploadAvatar.single('avatar'), authController.uploadAvatar);
+router.delete('/avatar', authenticate, authController.deleteAvatar);
 router.post('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authenticate, authController.logout);
 
