@@ -63,6 +63,6 @@ const FileMetadataSchema = new mongoose.Schema(
 FileMetadataSchema.index({ key: 1 });
 FileMetadataSchema.index({ uploader: 1 });
 FileMetadataSchema.index({ relatedEntity: 1, relatedModel: 1 });
-FileMetadataSchema.index({ sha256: 1, relatedEntity: 1 });
+FileMetadataSchema.index({ sha256: 1, uploader: 1, category: 1 });
 
 export default mongoose.model('FileMetadata', FileMetadataSchema);
