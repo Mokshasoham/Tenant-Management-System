@@ -247,13 +247,13 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
   }
 
   // Upload new avatar file
-  const uploadResult = await uploadFileBuffer(
-    req.file.buffer,
-    req.file.originalname,
-    req.file.mimetype,
-    'avatars',
-    req.user.userId
-  );
+  const uploadResult = await uploadFileBuffer({
+    buffer: req.file.buffer,
+    filename: req.file.originalname || `avatar-${req.user.userId}.jpg`,
+    mimeType: req.file.mimetype || 'image/jpeg',
+    category: 'avatars',
+    uploaderId: req.user.userId
+  });
 
   const previousAvatar = existingUser.avatar;
 
@@ -263,12 +263,17 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  // Clean up previous storage file if it exists and is an API file download URL
-  if (previousAvatar && previousAvatar.includes('/api/files/download/')) {
-    const fileIdMatch = previousAvatar.match(/\/api\/files\/download\/([a-fA-F0-9]{24})/);
-    if (fileIdMatch) {
+  // Clean up previous storage file if it exists
+  if (previousAvatar && typeof previousAvatar === 'string') {
+    let cleanName = null;
+    if (previousAvatar.includes('/api/files/access/')) {
+      cleanName = previousAvatar.split('/api/files/access/')[1];
+    } else if (previousAvatar.includes('/api/files/download/')) {
+      cleanName = previousAvatar.split('/api/files/download/')[1];
+    }
+    if (cleanName) {
       try {
-        await deleteFileFromStorage(fileIdMatch[1], req.user.userId);
+        await deleteFileFromStorage(`avatars/${cleanName}`, cleanName);
       } catch (delErr) {
         logger.warn(`Failed to delete previous avatar storage file: ${delErr.message}`);
       }
@@ -303,11 +308,16 @@ export const deleteAvatar = asyncHandler(async (req, res) => {
 
   const previousAvatar = existingUser.avatar;
 
-  if (previousAvatar && previousAvatar.includes('/api/files/download/')) {
-    const fileIdMatch = previousAvatar.match(/\/api\/files\/download\/([a-fA-F0-9]{24})/);
-    if (fileIdMatch) {
+  if (previousAvatar && typeof previousAvatar === 'string') {
+    let cleanName = null;
+    if (previousAvatar.includes('/api/files/access/')) {
+      cleanName = previousAvatar.split('/api/files/access/')[1];
+    } else if (previousAvatar.includes('/api/files/download/')) {
+      cleanName = previousAvatar.split('/api/files/download/')[1];
+    }
+    if (cleanName) {
       try {
-        await deleteFileFromStorage(fileIdMatch[1], req.user.userId);
+        await deleteFileFromStorage(`avatars/${cleanName}`, cleanName);
       } catch (delErr) {
         logger.warn(`Failed to delete avatar storage file: ${delErr.message}`);
       }

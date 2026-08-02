@@ -41,7 +41,8 @@ const ALLOWED_MIME_TYPES = {
   properties: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'],
   leases: ['application/pdf'],
   invoices: ['application/pdf'],
-  reviews: ['image/jpeg', 'image/png']
+  reviews: ['image/jpeg', 'image/png'],
+  avatars: ['image/jpeg', 'image/png', 'image/webp']
 };
 
 const MAX_FILE_SIZE = {
@@ -50,23 +51,25 @@ const MAX_FILE_SIZE = {
   properties: 15 * 1024 * 1024,// 15MB
   leases: 10 * 1024 * 1024,    // 10MB
   invoices: 10 * 1024 * 1024,  // 10MB
-  reviews: 5 * 1024 * 1024     // 5MB
+  reviews: 5 * 1024 * 1024,    // 5MB
+  avatars: 5 * 1024 * 1024     // 5MB
 };
 
 /**
  * Validates and uploads a file buffer to centralized AWS S3 or Local DB Fallback.
  * Creates a FileMetadata entry in MongoDB.
  */
-export const uploadFileBuffer = async ({
-  buffer,
-  filename,
-  mimeType,
-  category,
-  uploaderId = null,
-  relatedEntityId = null,
-  relatedModelName = null
-}) => {
-  if (!buffer || buffer.length === 0) {
+export const uploadFileBuffer = async (options = {}) => {
+  // Support both object payload { buffer, filename, ... } and positional fallback
+  const buffer = options?.buffer || options;
+  const filename = typeof options?.filename === 'string' ? options.filename : (typeof arguments[1] === 'string' ? arguments[1] : 'uploaded-file.bin');
+  const mimeType = typeof options?.mimeType === 'string' ? options.mimeType : (typeof arguments[2] === 'string' ? arguments[2] : 'application/octet-stream');
+  const category = typeof options?.category === 'string' ? options.category : (typeof arguments[3] === 'string' ? arguments[3] : 'chat');
+  const uploaderId = options?.uploaderId || arguments[4] || null;
+  const relatedEntityId = options?.relatedEntityId || arguments[5] || null;
+  const relatedModelName = options?.relatedModelName || arguments[6] || null;
+
+  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new AppError('File content buffer is required', 400);
   }
 
@@ -84,7 +87,8 @@ export const uploadFileBuffer = async ({
 
   // 2. Generate Unique S3 Key
   const uniqueId = crypto.randomUUID();
-  const ext = path.extname(filename) || '';
+  const safeFilename = typeof filename === 'string' ? filename : 'file.bin';
+  const ext = path.extname(safeFilename) || '';
   const cleanFilename = `${category}-${uniqueId}${ext}`;
   const key = `${category}/${cleanFilename}`;
 
@@ -296,7 +300,7 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
  * Deletes file from S3 bucket and local fallback storages.
  */
 export const deleteFileFromStorage = async (key, filename) => {
-  if (s3Client && process.env.AWS_S3_BUCKET_NAME) {
+  if (key && s3Client && process.env.AWS_S3_BUCKET_NAME) {
     logger.info(`[FileService] Deleting S3 key: ${key}`);
     try {
       const command = new DeleteObjectCommand({
@@ -310,11 +314,15 @@ export const deleteFileFromStorage = async (key, filename) => {
   }
 
   try {
-    await FileStorage.deleteOne({ filename });
-    const localDir = path.join(__dirname, '..', '..', 'uploads', key.split('/')[0]);
-    const localPath = path.join(localDir, filename);
-    if (fs.existsSync(localPath)) {
-      fs.unlinkSync(localPath);
+    const targetFilename = typeof filename === 'string' ? filename : (typeof key === 'string' ? path.basename(key) : null);
+    if (targetFilename) {
+      await FileStorage.deleteOne({ filename: targetFilename });
+      const categoryDir = typeof key === 'string' && key.includes('/') ? key.split('/')[0] : 'avatars';
+      const localDir = path.join(__dirname, '..', '..', 'uploads', categoryDir);
+      const localPath = path.join(localDir, targetFilename);
+      if (typeof localPath === 'string' && fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+      }
     }
   } catch (err) {
     logger.error(`[FileService Local Delete Error] Filename: ${filename}:`, err);
