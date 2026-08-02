@@ -95,7 +95,16 @@ export const uploadFileBuffer = async (
     throw new AppError('File content buffer is required', 400);
   }
 
-  // 1. Validation
+  // 1. Validation & Deduplication Check
+  const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+  if (uploaderId) {
+    const existingMetadata = await FileMetadata.findOne({ sha256, uploader: uploaderId, category });
+    if (existingMetadata) {
+      logger.info(`[FileService Deduplication] Identical file found for uploader ${uploaderId} (SHA256: ${sha256}). Reusing existing file URL.`);
+      return existingMetadata;
+    }
+  }
+
   const allowedTypes = ALLOWED_MIME_TYPES[category] || [];
   const maxSize = MAX_FILE_SIZE[category] || 10 * 1024 * 1024;
 
@@ -158,25 +167,31 @@ export const uploadFileBuffer = async (
     }
   }
 
-  // 5. Store Metadata record in MongoDB
-  const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
-  const fileRecord = await FileMetadata.create({
-    filename,
-    mimeType,
-    size: buffer.length,
-    url,
-    key,
-    uploader: uploaderId,
-    relatedEntity: relatedEntityId,
-    relatedModel: relatedModelName,
-    category,
-    sha256
-  });
+  // 5. Store Metadata record in MongoDB with immediate storage rollback on failure
+  try {
+    const fileRecord = await FileMetadata.create({
+      filename,
+      mimeType,
+      size: buffer.length,
+      url,
+      key,
+      sha256,
+      category,
+      uploader: uploaderId,
+      relatedEntity: relatedEntityId,
+      relatedModel: relatedModelName,
+    });
 
-  // Fix local fallback URL to use the MongoDB _id for metadata-driven access
-  if (!s3Client || !process.env.AWS_S3_BUCKET_NAME) {
-    fileRecord.url = `/api/files/download/${fileRecord._id}`;
-    await fileRecord.save();
+    if (!s3Client || !process.env.AWS_S3_BUCKET_NAME) {
+      fileRecord.url = `/api/files/download/${fileRecord._id}`;
+      await fileRecord.save();
+    }
+
+    return fileRecord;
+  } catch (dbErr) {
+    logger.error(`[FileService Rollback] FileMetadata creation failed for ${key}. Rolling back uploaded storage file: ${dbErr.message}`);
+    await deleteFileFromStorage(key, cleanFilename);
+    throw new AppError(`File metadata record creation failed: ${dbErr.message}`, 500);
   }
 
   logger.info(`[FileService Success] Centralized metadata created for key: ${key}, fileId: ${fileRecord._id}`);

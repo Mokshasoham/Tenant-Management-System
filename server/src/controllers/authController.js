@@ -257,15 +257,28 @@ export const uploadAvatar = asyncHandler(async (req, res) => {
   });
 
   const previousAvatar = existingUser.avatar;
+  let user;
 
-  const user = await User.findByIdAndUpdate(
-    req.user.userId,
-    { avatar: uploadResult.url },
-    { new: true }
-  );
+  try {
+    const currentVersion = (existingUser.avatarVersion || 0) + 1;
+    user = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        avatar: uploadResult.url,
+        avatarVersion: currentVersion,
+        avatarUpdatedAt: new Date()
+      },
+      { new: true }
+    );
+  } catch (updateErr) {
+    logger.error(`[Avatar Upload Error] Database update failed. Rolling back uploaded avatar ${uploadResult.key}:`, updateErr);
+    const cleanUploadName = uploadResult.key ? uploadResult.key.split('/').pop() : uploadResult.filename;
+    await deleteFileFromStorage(uploadResult.key, cleanUploadName);
+    throw new AppError('Failed to update profile avatar. Upload rolled back.', 500);
+  }
 
-  // Clean up previous storage file if it exists
-  if (previousAvatar && typeof previousAvatar === 'string') {
+  // Clean up previous storage file ONLY AFTER successful database update
+  if (previousAvatar && typeof previousAvatar === 'string' && previousAvatar !== uploadResult.url) {
     let cleanName = null;
     if (previousAvatar.includes('/api/files/access/')) {
       cleanName = previousAvatar.split('/api/files/access/')[1];

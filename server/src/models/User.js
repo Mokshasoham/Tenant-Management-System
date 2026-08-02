@@ -96,7 +96,9 @@ const userSchema = new mongoose.Schema(
     }],
     passwordResetToken: String,
     passwordResetExpires: Date,
-    // Profile V2.0 Extended Fields (100% Backward Compatible)
+    // Profile V2.0 Extended & Versioning Fields (100% Backward Compatible)
+    avatarVersion: { type: Number, default: 1 },
+    avatarUpdatedAt: { type: Date, default: null },
     preferredName: { type: String, default: '' },
     gender: { type: String, default: '' },
     dob: { type: String, default: '' },
@@ -129,26 +131,31 @@ userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
 /**
- * Post-delete hook: clean up KYC documents and avatar files when a user is hard-deleted.
+ * Post-delete hook: clean up KYC documents, avatar files, and audit records when a user is deleted.
  */
 userSchema.post('deleteOne', { document: true, query: false }, async function () {
   try {
     const FileMetadata = mongoose.model('FileMetadata');
+    const ProfileAudit = mongoose.model('ProfileAudit');
     const { deleteFileFromStorage } = await import('../services/fileService.js');
+    
     // Find all FileMetadata records uploaded by this user (KYC, avatars)
     const relatedFiles = await FileMetadata.find({
       $or: [
-        { uploader: this._id, category: 'kyc' },
+        { uploader: this._id },
         { relatedEntity: this._id, relatedModel: 'User' }
       ]
     });
     for (const meta of relatedFiles) {
-      const cleanFilename = meta.key.split('/').pop();
+      const cleanFilename = meta.key ? meta.key.split('/').pop() : meta.filename;
       await deleteFileFromStorage(meta.key, cleanFilename);
       await meta.deleteOne();
     }
+
+    // Clean up ProfileAudit logs for this user
+    await ProfileAudit.deleteMany({ userId: this._id });
   } catch (err) {
-    console.error('[User.post(deleteOne)] File cleanup error:', err);
+    console.error('[User.post(deleteOne)] File & Audit cleanup error:', err);
   }
 });
 
