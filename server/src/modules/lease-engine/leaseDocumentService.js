@@ -7,6 +7,7 @@ import FileMetadata from '../../models/FileMetadata.js';
 import { uploadFileBuffer } from '../../services/fileService.js';
 import { buildLeaseEngineInput } from './leaseDataMapper.js';
 import { generateLeaseAgreement, computeSha256 } from './core/index.js';
+import { renderOnePageLeaseBuffer } from '../../services/pdfService.js';
 import logger from '../../utils/logger.js';
 
 const TEMPLATE_VERSION = 'EnterpriseLease_v1.0';
@@ -66,11 +67,15 @@ export async function generateAndStoreLeasePDF({ leaseId, user, forceRegenerate 
     generatedBy: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'System (Auto)',
   });
 
-  // Execute PDF generation engine
-  logger.info(`[leaseDocumentService] Generating Enterprise PDF for lease ${lease.leaseNumber} (${versionString})...`);
-  const generatedDoc = await generateLeaseAgreement(rawInput);
-  const pdfBuffer = generatedDoc.buffer;
-  const sha256Hash = generatedDoc.hash || computeSha256(pdfBuffer);
+  // Execute clean 1-page PDF rendering
+  logger.info(`[leaseDocumentService] Generating official 1-page PDF for lease ${lease.leaseNumber} (${versionString})...`);
+  const pdfBuffer = await renderOnePageLeaseBuffer({ 
+    lease, 
+    tenant: tenantUser || lease.tenant, 
+    property: lease.property, 
+    signature: lease.signature 
+  });
+  const sha256Hash = computeSha256(pdfBuffer);
 
   const filename = `lease_${lease.leaseNumber}_${versionString}.pdf`;
 
