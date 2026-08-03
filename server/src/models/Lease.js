@@ -109,6 +109,20 @@ const leaseSchema = new mongoose.Schema(
     tenantSignatureIp: {
       type: String,
     },
+    documentGeneration: {
+      status: {
+        type: String,
+        enum: ['pending', 'generating', 'completed', 'failed'],
+        default: 'pending',
+      },
+      lastAttempt: Date,
+      completedAt: Date,
+      retryCount: {
+        type: Number,
+        default: 0,
+      },
+      lastError: String,
+    },
   },
   {
     timestamps: true,

@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
 
 const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -430,6 +431,14 @@ export const signLease = asyncHandler(async (req, res) => {
 
   await lease.save();
 
+  // If lease became active, dispatch LEASE_ACTIVATED lifecycle event (non-blocking for response)
+  if (lease.status === 'active') {
+    leaseLifecycleService.dispatch('LEASE_ACTIVATED', {
+      leaseId: lease._id,
+      user: req.user,
+    }).catch(err => logger.error(`[signLease] Lifecycle dispatch error: ${err.message}`));
+  }
+
   logger.info(`Lease ${lease.leaseNumber} digitally signed by ${signedBy}${isFuture ? ' (activation deferred to start date)' : ' (activated immediately)'}`);
 
   res.status(200).json({
@@ -438,6 +447,31 @@ export const signLease = asyncHandler(async (req, res) => {
       ? 'Lease signed successfully. It will activate automatically on your start date.'
       : 'Lease signed and activated successfully.',
     data: resolveLeaseUrls(lease, req),
+  });
+});
+
+export const generateLeasePDF = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { forceRegenerate = true } = req.body;
+
+  const lease = await Lease.findById(id);
+  if (!lease) throw new AppError('Lease not found', 404);
+
+  const pdfResult = await leaseLifecycleService.dispatch('LEASE_REGENERATION_REQUESTED', {
+    leaseId: lease._id,
+    user: req.user,
+    forceRegenerate,
+  });
+
+  const updatedLease = await Lease.findById(id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Lease PDF generated successfully',
+    data: {
+      pdf: pdfResult,
+      lease: resolveLeaseUrls(updatedLease, req),
+    },
   });
 });
 

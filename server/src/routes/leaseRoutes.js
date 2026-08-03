@@ -20,6 +20,7 @@ router.get('/:id', managerOrAdmin, leaseController.getLeaseById);
 router.put('/:id', managerOrAdmin, leaseController.updateLease);
 router.post('/:id/terminate', managerOrAdmin, leaseController.terminateLease);
 router.post('/:id/documents', managerOrAdmin, leaseController.uploadLeaseDocument);
+router.post('/:id/generate-pdf', leaseController.generateLeasePDF);
 
 export default router;
 

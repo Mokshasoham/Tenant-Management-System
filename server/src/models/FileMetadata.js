@@ -54,6 +54,19 @@ const FileMetadataSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    documentVersion: {
+      type: String,
+      default: 'v1.0',
+    },
+    templateVersion: {
+      type: String,
+      default: 'EnterpriseLease_v1.0',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'superseded', 'archived'],
+      default: 'active',
+    },
   },
   {
     timestamps: true,
