@@ -23,10 +23,6 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     if (lease.documents && Array.isArray(lease.documents) && lease.documents.length > 0) {
       lease.documents.forEach((doc, idx) => {
         const isLatest = idx === lease.documents.length - 1;
-        const resolvedUrl = doc.fileId
-          ? `/api/files/download/${doc.fileId}`
-          : (doc.url && !doc.url.includes('/uploads/') ? doc.url : '#');
-
         docs.push({
           id: doc.fileId || `doc-${idx}`,
           fileId: doc.fileId,
@@ -36,14 +32,10 @@ export const LeaseDocuments = React.memo(({ lease }) => {
           status: isLatest ? 'active' : 'superseded',
           uploadedAt: doc.uploadedAt || lease.createdAt || new Date(),
           size: doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : '35.6 KB',
-          url: resolvedUrl,
+          url: doc.fileId ? `/api/files/download/${doc.fileId}` : (doc.url || '#'),
         });
       });
     } else if (lease.pdfUrl || lease.fileId) {
-      const resolvedUrl = lease.fileId
-        ? `/api/files/download/${lease.fileId}`
-        : (lease.pdfUrl && !lease.pdfUrl.includes('/uploads/') ? lease.pdfUrl : '#');
-
       docs.push({
         id: lease.fileId || 'main-lease-pdf',
         fileId: lease.fileId,
@@ -53,7 +45,7 @@ export const LeaseDocuments = React.memo(({ lease }) => {
         status: 'active',
         uploadedAt: lease.createdAt || new Date(),
         size: '35.6 KB',
-        url: resolvedUrl,
+        url: lease.fileId ? `/api/files/download/${lease.fileId}` : (lease.pdfUrl || '#'),
       });
     }
 
@@ -75,95 +67,86 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
   const activeDoc = documentList.find(d => d.status === 'active') || documentList[0];
 
-  const resolveSignedDocumentUrl = async (doc, isDownload = false) => {
-    const rawUrl = typeof doc === 'string' ? doc : doc?.url;
-    let fileId = typeof doc === 'object' ? doc?.fileId : null;
-
-    if (!rawUrl || rawUrl === '#') return '#';
+  const fetchSignedUrl = async (fileId, isDownload = false) => {
+    if (!fileId || typeof fileId !== 'string' || !/^[a-f\d]{24}$/i.test(fileId)) {
+      alert('Legacy lease document detected. Please regenerate the lease agreement.');
+      return null;
+    }
 
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     const cleanApiBase = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
     const serverOrigin = import.meta.env.VITE_API_URL || cleanApiBase.replace(/\/api$/, '') || 'http://localhost:5000';
 
-    // Extract fileId from URL if directFileId is absent
-    if (!fileId) {
-      const fileIdMatch = rawUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
-      fileId = fileIdMatch ? fileIdMatch[1] : null;
-    }
+    try {
+      const res = await fetch(`${cleanApiBase}/files/signed-url/${fileId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    if (token) {
-      try {
-        const endpoint = fileId 
-          ? `${cleanApiBase}/files/signed-url/${fileId}`
-          : `${cleanApiBase}/files/signed-url/resolve?url=${encodeURIComponent(rawUrl)}`;
-
-        const res = await fetch(endpoint, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.url) {
-            let targetUrl = data.url.startsWith('http') ? data.url : `${serverOrigin.replace(/\/$/, '')}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
-            if (isDownload && !targetUrl.includes('download=')) {
-              targetUrl += targetUrl.includes('?') ? '&download=true' : '?download=true';
-            }
-            return targetUrl;
-          }
+      if (!res.ok) {
+        if (res.status === 403) {
+          alert('Access Denied: You do not have permission to access this document.');
+        } else if (res.status === 404) {
+          alert('Document file record not found. Please regenerate the lease agreement.');
+        } else {
+          alert('Failed to generate document access token.');
         }
-      } catch (err) {
-        console.warn('[LeaseDocuments] Signed URL resolution failed:', err);
+        return null;
       }
+
+      const data = await res.json();
+      if (data.success && data.url) {
+        let signedUrl = data.url.startsWith('http')
+          ? data.url
+          : `${serverOrigin.replace(/\/$/, '')}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
+
+        if (isDownload && !signedUrl.includes('download=')) {
+          signedUrl += signedUrl.includes('?') ? '&download=true' : '?download=true';
+        }
+        return signedUrl;
+      }
+    } catch (err) {
+      console.error('[LeaseDocuments] Failed to fetch signed URL:', err);
+      alert('Network error while requesting document access token.');
     }
 
-    // STRICT SANITIZATION FALLBACK: Never return /uploads/ URL under any circumstance!
-    let target = rawUrl;
-    if (fileId) {
-      target = `${serverOrigin.replace(/\/$/, '')}/api/files/download/${fileId}`;
-    } else if (target.includes('/uploads/')) {
-      console.warn('[LeaseDocuments] Sanitizing legacy upload URL to centralized download route:', target);
-      target = target.replace(/\/uploads\/[^/]+\//, '/api/files/download/');
-    } else if (!target.startsWith('http')) {
-      target = `${serverOrigin.replace(/\/$/, '')}${target.startsWith('/') ? '' : '/'}${target}`;
-    }
-
-    const separator = target.includes('?') ? '&' : '?';
-    const params = [];
-    if (token && !target.includes('token=')) params.push(`token=${encodeURIComponent(token)}`);
-    if (isDownload && !target.includes('download=')) params.push('download=true');
-    if (params.length > 0) target = `${target}${separator}${params.join('&')}`;
-
-    return target;
+    return null;
   };
 
   const handlePreview = async (docItem) => {
-    const rawUrl = typeof docItem === 'string' ? docItem : docItem?.url;
-    if (!rawUrl || rawUrl === '#') {
+    if (docItem?.isSystemPolicy || docItem?.url === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const targetUrl = await resolveSignedDocumentUrl(docItem, false);
-    console.log('[LeaseDocuments DEBUG] React props lease:', lease);
-    console.log('[LeaseDocuments DEBUG] Document object:', docItem);
-    console.log('[LeaseDocuments DEBUG] Exact URL passed to window.open():', targetUrl);
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+    const fileId = docItem?.fileId || docItem?.id;
+    const signedUrl = await fetchSignedUrl(fileId, false);
+    if (signedUrl) {
+      console.log('[LeaseDocuments DEBUG] React props lease:', lease);
+      console.log('[LeaseDocuments DEBUG] Document object:', docItem);
+      console.log('[LeaseDocuments DEBUG] Exact signed URL passed to window.open():', signedUrl);
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleDownload = async (docItem, name) => {
-    const rawUrl = typeof docItem === 'string' ? docItem : docItem?.url;
-    if (!rawUrl || rawUrl === '#') {
+    if (docItem?.isSystemPolicy || docItem?.url === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const docName = name || (typeof docItem === 'object' ? docItem?.name : 'Lease_Document.pdf');
-    const targetUrl = await resolveSignedDocumentUrl(docItem, true);
-    console.log('[LeaseDocuments DEBUG] Initiating download target URL:', targetUrl);
-    const a = document.createElement('a');
-    a.href = targetUrl;
-    a.download = docName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+
+    const fileId = docItem?.fileId || docItem?.id;
+    const docName = name || docItem?.name || 'Lease_Document.pdf';
+    const signedUrl = await fetchSignedUrl(fileId, true);
+    if (signedUrl) {
+      console.log('[LeaseDocuments DEBUG] Initiating download signed URL:', signedUrl);
+      const a = document.createElement('a');
+      a.href = signedUrl;
+      a.download = docName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   if (!lease) return null;

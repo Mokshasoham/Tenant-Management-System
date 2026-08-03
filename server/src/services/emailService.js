@@ -57,7 +57,7 @@ export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
  */
 export const sendPaymentReceiptEmail = async (user, payment, property, uploadResult) => {
   const subject = `Payment Confirmation - ${property.name}`;
-  const pdfUrl = uploadResult.Location;
+  const pdfUrl = uploadResult.fileId ? `/api/files/download/${uploadResult.fileId}` : uploadResult.Location;
   const filePath = uploadResult.filePath;
 
   const html = `

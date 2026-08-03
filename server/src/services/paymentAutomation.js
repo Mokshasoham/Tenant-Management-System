@@ -39,7 +39,8 @@ export const processPostPayment = async (paymentOrId) => {
         const uploadResult = await generateInvoicePDF(payment, tenant, property);
         
         // 2. Update Payment Record
-        payment.invoiceUrl = uploadResult.Location;
+        payment.fileId = uploadResult.fileId;
+        payment.invoiceUrl = `/api/files/download/${uploadResult.fileId}`;
         await payment.save();
 
         // 3. Send Email
@@ -47,7 +48,7 @@ export const processPostPayment = async (paymentOrId) => {
         await sendPaymentReceiptEmail(tenant, payment, property, uploadResult);
 
         logger.info(`Post-payment automation completed for payment: ${paymentId}`);
-        return { success: true, invoiceUrl: uploadResult.Location };
+        return { success: true, invoiceUrl: `/api/files/download/${uploadResult.fileId}`, fileId: uploadResult.fileId };
     } catch (error) {
         logger.error(`Post-payment automation failed for payment ${paymentId}: ${error.message}`);
         // We don't throw here to avoid crashing the caller (e.g. webhook response)
