@@ -3,16 +3,16 @@ import config from '../src/config/config.js';
 import Lease from '../src/models/Lease.js';
 import FileMetadata from '../src/models/FileMetadata.js';
 
-/**
- * Migration & Sanitization script to clean legacy lease upload URLs in MongoDB
- */
+import dotenv from 'dotenv';
+dotenv.config();
+
 async function fixLegacyLeaseUrls() {
   console.log('\n================================================================');
   console.log('=== STARTING LEGACY LEASE URL CLEANUP & INTEGRATION AUDIT ===');
   console.log('================================================================\n');
 
   try {
-    await mongoose.connect(config.MONGODB_URI || 'mongodb://localhost:27017/tenant_management');
+    await mongoose.connect(process.env.MONGODB_URI || config.MONGODB_URI || 'mongodb://localhost:27017/tenant-management-system');
     const leases = await Lease.find({});
     let updatedCount = 0;
 
@@ -38,6 +38,7 @@ async function fixLegacyLeaseUrls() {
 
       // Check documents array
       if (lease.documents && Array.isArray(lease.documents) && lease.documents.length > 0) {
+        const cleanDocs = [];
         for (const doc of lease.documents) {
           if (doc.legacyUrl) {
             doc.legacyUrl = undefined;
@@ -47,21 +48,29 @@ async function fixLegacyLeaseUrls() {
             if (doc.fileId) {
               doc.url = `/api/files/download/${doc.fileId}`;
               modified = true;
+              cleanDocs.push(doc);
               console.log(`  ✓ Upgraded lease ${lease.leaseNumber} document "${doc.name}" from legacy URL to /api/files/download/${doc.fileId}`);
             } else {
               const cleanFilename = doc.url.split('/').pop();
               const meta = await FileMetadata.findOne({
-                $or: [{ key: `leases/${cleanFilename}` }, { filename: cleanFilename }]
+                $or: [{ key: `leases/${cleanFilename}` }, { filename: cleanFilename }, { filename: { $regex: new RegExp(cleanFilename + '$') } }]
               });
               if (meta) {
                 doc.fileId = meta._id;
                 doc.url = `/api/files/download/${meta._id}`;
                 modified = true;
+                cleanDocs.push(doc);
                 console.log(`  ✓ Upgraded lease ${lease.leaseNumber} document "${doc.name}" to /api/files/download/${meta._id}`);
+              } else {
+                console.log(`  ✓ Removed unbacked legacy document "${doc.name}" (${doc.url}) from lease ${lease.leaseNumber}`);
+                modified = true;
               }
             }
+          } else {
+            cleanDocs.push(doc);
           }
         }
+        lease.documents = cleanDocs;
       }
 
       if (modified) {
