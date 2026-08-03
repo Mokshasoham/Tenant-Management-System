@@ -65,12 +65,44 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
   const activeDoc = documentList.find(d => d.status === 'active') || documentList[0];
 
+  const formatTargetUrl = (url, isDownload = false) => {
+    if (!url || url === '#') return '#';
+
+    const token = localStorage.getItem('token');
+    let target = url;
+
+    // Resolve base API URL if relative path
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const cleanBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+      target = `${cleanBase}${target.startsWith('/') ? '' : '/'}${target}`;
+    }
+
+    const separator = target.includes('?') ? '&' : '?';
+    const params = [];
+
+    if (token && !target.includes('token=')) {
+      params.push(`token=${encodeURIComponent(token)}`);
+    }
+
+    if (isDownload && !target.includes('download=')) {
+      params.push('download=true');
+    }
+
+    if (params.length > 0) {
+      target = `${target}${separator}${params.join('&')}`;
+    }
+
+    return target;
+  };
+
   const handlePreview = (url) => {
     if (!url || url === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const targetUrl = formatTargetUrl(url, false);
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownload = (url, name) => {
@@ -78,8 +110,9 @@ export const LeaseDocuments = React.memo(({ lease }) => {
       alert('This document is a system default guideline.');
       return;
     }
+    const targetUrl = formatTargetUrl(url, true);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = targetUrl;
     a.download = name || 'Lease_Document.pdf';
     document.body.appendChild(a);
     a.click();

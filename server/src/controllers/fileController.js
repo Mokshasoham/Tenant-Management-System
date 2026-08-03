@@ -185,8 +185,12 @@ export const downloadFile = asyncHandler(async (req, res) => {
 
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', fileRecord.mimeType);
-  res.setHeader('Content-Disposition', `inline; filename="${fileRecord.filename}"`);
+  res.setHeader('Content-Type', fileRecord.mimeType || 'application/pdf');
+
+  const isDownload = req.query.download === 'true' || req.query.disposition === 'attachment';
+  const disposition = isDownload ? 'attachment' : 'inline';
+  res.setHeader('Content-Disposition', `${disposition}; filename="${fileRecord.filename || 'document.pdf'}"`);
+
   res.send(dbFile.data);
 });
 

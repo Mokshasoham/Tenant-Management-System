@@ -12,14 +12,29 @@ import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleSer
 const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
   const leaseObj = lease.toObject ? lease.toObject() : lease;
+
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  const baseUrl = `${protocol}://${host}`;
+
+  if (leaseObj.fileId) {
+    leaseObj.pdfUrl = `${baseUrl}/api/files/download/${leaseObj.fileId}`;
+  }
+
   if (leaseObj.documents && leaseObj.documents.length > 0) {
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.get('host');
     leaseObj.documents = leaseObj.documents.map(doc => {
       if (doc.fileId) {
-        doc.url = `${protocol}://${host}/api/files/download/${doc.fileId}`;
-      } else if (doc.url && !doc.url.startsWith('http')) {
-        doc.url = `${protocol}://${host}/${doc.url.startsWith('/') ? '' : '/'}${doc.url}`;
+        doc.url = `${baseUrl}/api/files/download/${doc.fileId}`;
+      } else if (doc.url) {
+        if (doc.url.startsWith('http://') || doc.url.startsWith('https://')) {
+          // If legacy URL points to /uploads/, convert to relative /api/files/download path if possible
+          if (doc.url.includes('/uploads/')) {
+            const parts = doc.url.split('/uploads/');
+            doc.url = `${baseUrl}/uploads/${parts[1]}`;
+          }
+        } else {
+          doc.url = `${baseUrl}${doc.url.startsWith('/') ? '' : '/'}${doc.url}`;
+        }
       }
       return doc;
     });
