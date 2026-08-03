@@ -448,14 +448,14 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
       message,
     });
   } catch (err) {
-    // Log the error but DO NOT fail the request
-    logger.error(`Real email delivery failed (likely missing .env credentials): ${err.message}`);
+    logger.error(`Password reset email failed for ${user.email}:`, err);
+    throw new AppError('Failed to send password reset email. Please try again later.', 500);
   }
 
-  // Always return success so the user is not blocked
+  // Return success response only if email was sent successfully
   res.status(200).json({
     success: true,
-    message: 'Reset link generated! (Check server console for demo purposes)',
+    message: 'Reset link sent successfully to your email.',
   });
 });
 

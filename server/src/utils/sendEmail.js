@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 import config from '../config/config.js';
 import logger from './logger.js';
+import dns from 'dns/promises';
+import net from 'net';
 
 const sendEmail = async (options) => {
     // Check for credentials
@@ -10,13 +12,35 @@ const sendEmail = async (options) => {
         throw error;
     }
 
+    // Dynamically resolve SMTP host to IPv4 to bypass Render IPv6 connection issues
+    let resolvedHost = config.SMTP_HOST;
+    if (config.SMTP_HOST && !net.isIP(config.SMTP_HOST)) {
+        try {
+            const addresses = await dns.resolve4(config.SMTP_HOST);
+            if (addresses && addresses.length > 0) {
+                resolvedHost = addresses[Math.floor(Math.random() * addresses.length)];
+                logger.debug(`Resolved SMTP host ${config.SMTP_HOST} to IPv4: ${resolvedHost}`);
+            }
+        } catch (dnsErr) {
+            logger.warn(`Failed to resolve SMTP host ${config.SMTP_HOST} to IPv4 dynamically. Falling back to default host. Detail: ${dnsErr.message}`);
+        }
+    }
+
     // 1) Create a transporter
     const transporter = nodemailer.createTransport({
-        host: config.SMTP_HOST,
+        host: resolvedHost,
         port: config.SMTP_PORT,
+        secure: config.SMTP_PORT === 465, // true for 465, false for 587
         auth: {
             user: config.SMTP_USER,
             pass: config.SMTP_PASS,
+        },
+        connectionTimeout: 10000, // 10 seconds connection timeout
+        greetingTimeout: 10000,   // 10 seconds greeting timeout
+        socketTimeout: 10000,     // 10 seconds socket timeout
+        tls: {
+            servername: config.SMTP_HOST || 'smtp.gmail.com', // Explicit SNI servername for TLS validation
+            rejectUnauthorized: true // Secure TLS verification
         },
         debug: true,
         logger: true
