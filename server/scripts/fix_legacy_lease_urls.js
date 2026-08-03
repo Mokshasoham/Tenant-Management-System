@@ -39,6 +39,10 @@ async function fixLegacyLeaseUrls() {
       // Check documents array
       if (lease.documents && Array.isArray(lease.documents) && lease.documents.length > 0) {
         for (const doc of lease.documents) {
+          if (doc.legacyUrl) {
+            doc.legacyUrl = undefined;
+            modified = true;
+          }
           if (doc.url && doc.url.includes('/uploads/')) {
             if (doc.fileId) {
               doc.url = `/api/files/download/${doc.fileId}`;

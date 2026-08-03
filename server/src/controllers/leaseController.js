@@ -9,7 +9,7 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
 
-const resolveLeaseUrls = (lease, req) => {
+export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
   const leaseObj = lease.toObject ? lease.toObject() : lease;
 
@@ -23,16 +23,12 @@ const resolveLeaseUrls = (lease, req) => {
 
   if (leaseObj.documents && leaseObj.documents.length > 0) {
     leaseObj.documents = leaseObj.documents.map(doc => {
+      delete doc.legacyUrl;
+
       if (doc.fileId) {
         doc.url = `${baseUrl}/api/files/download/${doc.fileId}`;
       } else if (doc.url) {
-        if (doc.url.startsWith('http://') || doc.url.startsWith('https://')) {
-          // If legacy URL points to /uploads/, convert to relative /api/files/download path if possible
-          if (doc.url.includes('/uploads/')) {
-            const parts = doc.url.split('/uploads/');
-            doc.url = `${baseUrl}/uploads/${parts[1]}`;
-          }
-        } else {
+        if (!doc.url.startsWith('http://') && !doc.url.startsWith('https://')) {
           doc.url = `${baseUrl}${doc.url.startsWith('/') ? '' : '/'}${doc.url}`;
         }
       }
