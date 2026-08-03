@@ -296,14 +296,22 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
     const lease = await Lease.findById(relatedEntity);
     if (!lease) return false;
 
-    // Tenant Check (compares Tenant IDs)
-    if (tenantRecord && lease.tenant.toString() === tenantRecord._id.toString()) {
+    // Tenant Check (compares Tenant IDs or email)
+    const leaseTenantId = (lease.tenant?._id || lease.tenant)?.toString();
+    if (tenantRecord && leaseTenantId === tenantRecord._id.toString()) {
       return true;
     }
 
+    if (currentUserRecord && currentUserRecord.email) {
+      const tenantDoc = await Tenant.findById(lease.tenant);
+      if (tenantDoc && tenantDoc.email === currentUserRecord.email) {
+        return true;
+      }
+    }
+
     // Manager/Owner Check
-    if (currentUserRecord.role === 'manager') {
-      if (lease.createdBy.toString() === currentUserId.toString()) return true;
+    if (currentUserRecord && currentUserRecord.role === 'manager') {
+      if (lease.createdBy && lease.createdBy.toString() === currentUserId.toString()) return true;
 
       const Property = mongoose.model('Property');
       const property = await Property.findById(lease.property);

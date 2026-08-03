@@ -104,7 +104,6 @@ export const getSignedUrlForFile = asyncHandler(async (req, res) => {
  */
 export const downloadFile = asyncHandler(async (req, res) => {
   const { fileId } = req.params;
-  const { token } = req.query;
 
   if (!mongoose.Types.ObjectId.isValid(fileId)) {
     throw new AppError('Invalid file ID format', 400);
@@ -115,30 +114,27 @@ export const downloadFile = asyncHandler(async (req, res) => {
     throw new AppError('File not found', 404);
   }
 
-  // Authenticate user (either from standard route auth middleware, token in authorization header, or from temporary token)
+  // Authenticate user from standard req.user, Authorization header, or token query string
   let currentUser = req.user;
 
-  // Try extracting bearer token from Authorization header if not set
-  const authHeader = req.headers.authorization;
-  if (!currentUser && authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const tokenString = authHeader.split(' ')[1];
-      // Note: jwt is imported in this file
-      const decoded = jwt.verify(tokenString, process.env.JWT_SECRET || 'fallback-secret');
-      currentUser = decoded;
-    } catch (_) {}
-  }
+  const rawToken = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.split(' ')[1]
+    : (req.query.token || req.query.authorization);
 
-  if (!currentUser && token) {
-    const isValidToken = verifyLocalOneTimeToken(token, fileId);
-    if (!isValidToken) {
-      throw new AppError('Unauthorized: Expired or invalid file token', 401);
-    }
-    // Extract userId from token payload to perform resource checks if needed
+  if (!currentUser && rawToken) {
     try {
-      const decoded = jwt.decode(token);
-      currentUser = { userId: decoded.userId, role: decoded.role || 'user' }; // minimal mock user
-    } catch (_) {}
+      const decoded = verifyToken(rawToken);
+      currentUser = decoded;
+    } catch (_) {
+      // Fallback check if it's a signed one-time file token
+      const isValidOneTime = verifyLocalOneTimeToken(rawToken, fileId);
+      if (isValidOneTime) {
+        try {
+          const decodedPayload = jwt.decode(rawToken);
+          currentUser = { userId: decodedPayload?.userId, role: decodedPayload?.role || 'user' };
+        } catch (_) {}
+      }
+    }
   }
 
   const PUBLIC_CATEGORIES = ['properties', 'reviews', 'avatars'];
