@@ -65,52 +65,63 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
   const activeDoc = documentList.find(d => d.status === 'active') || documentList[0];
 
-  const formatTargetUrl = (url, isDownload = false) => {
+  const resolveSignedDocumentUrl = async (url, isDownload = false) => {
     if (!url || url === '#') return '#';
 
-    const token = localStorage.getItem('token');
-    let target = url;
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const cleanApiBase = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
+    const serverOrigin = import.meta.env.VITE_API_URL || cleanApiBase.replace(/\/api$/, '') || 'http://localhost:5000';
 
-    // Resolve base API URL if relative path
-    if (!target.startsWith('http://') && !target.startsWith('https://')) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-      const cleanBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-      target = `${cleanBase}${target.startsWith('/') ? '' : '/'}${target}`;
+    // Extract fileId from download URL
+    const fileIdMatch = url.match(/\/api\/files\/download\/([a-f\d]{24})/i);
+    const fileId = fileIdMatch ? fileIdMatch[1] : null;
+
+    if (fileId && token) {
+      try {
+        const res = await fetch(`${cleanApiBase}/files/signed-url/${fileId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.url) {
+            let targetUrl = data.url.startsWith('http') ? data.url : `${serverOrigin.replace(/\/$/, '')}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
+            if (isDownload && !targetUrl.includes('download=')) {
+              targetUrl += targetUrl.includes('?') ? '&download=true' : '?download=true';
+            }
+            return targetUrl;
+          }
+        }
+      } catch (err) {
+        console.warn('[LeaseDocuments] Signed URL request failed, falling back to direct URL:', err);
+      }
     }
 
+    // Fallback URL formatter
+    let target = url.startsWith('http') ? url : `${serverOrigin.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
     const separator = target.includes('?') ? '&' : '?';
     const params = [];
-
-    if (token && !target.includes('token=')) {
-      params.push(`token=${encodeURIComponent(token)}`);
-    }
-
-    if (isDownload && !target.includes('download=')) {
-      params.push('download=true');
-    }
-
-    if (params.length > 0) {
-      target = `${target}${separator}${params.join('&')}`;
-    }
-
+    if (token && !target.includes('token=')) params.push(`token=${encodeURIComponent(token)}`);
+    if (isDownload && !target.includes('download=')) params.push('download=true');
+    if (params.length > 0) target = `${target}${separator}${params.join('&')}`;
     return target;
   };
 
-  const handlePreview = (url) => {
+  const handlePreview = async (url) => {
     if (!url || url === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const targetUrl = formatTargetUrl(url, false);
+    const targetUrl = await resolveSignedDocumentUrl(url, false);
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleDownload = (url, name) => {
+  const handleDownload = async (url, name) => {
     if (!url || url === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const targetUrl = formatTargetUrl(url, true);
+    const targetUrl = await resolveSignedDocumentUrl(url, true);
     const a = document.createElement('a');
     a.href = targetUrl;
     a.download = name || 'Lease_Document.pdf';
