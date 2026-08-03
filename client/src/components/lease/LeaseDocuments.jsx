@@ -77,7 +77,7 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
   const resolveSignedDocumentUrl = async (doc, isDownload = false) => {
     const rawUrl = typeof doc === 'string' ? doc : doc?.url;
-    const directFileId = typeof doc === 'object' ? doc?.fileId : null;
+    let fileId = typeof doc === 'object' ? doc?.fileId : null;
 
     if (!rawUrl || rawUrl === '#') return '#';
 
@@ -86,16 +86,19 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     const cleanApiBase = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
     const serverOrigin = import.meta.env.VITE_API_URL || cleanApiBase.replace(/\/api$/, '') || 'http://localhost:5000';
 
-    // Extract fileId from URL or directFileId
-    let fileId = directFileId;
+    // Extract fileId from URL if directFileId is absent
     if (!fileId) {
       const fileIdMatch = rawUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
       fileId = fileIdMatch ? fileIdMatch[1] : null;
     }
 
-    if (fileId && token) {
+    if (token) {
       try {
-        const res = await fetch(`${cleanApiBase}/files/signed-url/${fileId}`, {
+        const endpoint = fileId 
+          ? `${cleanApiBase}/files/signed-url/${fileId}`
+          : `${cleanApiBase}/files/signed-url/resolve?url=${encodeURIComponent(rawUrl)}`;
+
+        const res = await fetch(endpoint, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -109,20 +112,27 @@ export const LeaseDocuments = React.memo(({ lease }) => {
           }
         }
       } catch (err) {
-        console.warn('[LeaseDocuments] Signed URL request failed, falling back to direct URL:', err);
+        console.warn('[LeaseDocuments] Signed URL resolution failed:', err);
       }
     }
 
-    // Fallback: Ensure no /uploads/ URL is returned
-    let target = (rawUrl.includes('/uploads/') && fileId)
-      ? `${serverOrigin.replace(/\/$/, '')}/api/files/download/${fileId}`
-      : (rawUrl.startsWith('http') ? rawUrl : `${serverOrigin.replace(/\/$/, '')}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`);
+    // STRICT SANITIZATION FALLBACK: Never return /uploads/ URL under any circumstance!
+    let target = rawUrl;
+    if (fileId) {
+      target = `${serverOrigin.replace(/\/$/, '')}/api/files/download/${fileId}`;
+    } else if (target.includes('/uploads/')) {
+      console.warn('[LeaseDocuments] Sanitizing legacy upload URL to centralized download route:', target);
+      target = target.replace(/\/uploads\/[^/]+\//, '/api/files/download/');
+    } else if (!target.startsWith('http')) {
+      target = `${serverOrigin.replace(/\/$/, '')}${target.startsWith('/') ? '' : '/'}${target}`;
+    }
 
     const separator = target.includes('?') ? '&' : '?';
     const params = [];
     if (token && !target.includes('token=')) params.push(`token=${encodeURIComponent(token)}`);
     if (isDownload && !target.includes('download=')) params.push('download=true');
     if (params.length > 0) target = `${target}${separator}${params.join('&')}`;
+
     return target;
   };
 
@@ -133,7 +143,9 @@ export const LeaseDocuments = React.memo(({ lease }) => {
       return;
     }
     const targetUrl = await resolveSignedDocumentUrl(docItem, false);
-    console.log('[LeaseDocuments Preview] Opening target URL:', targetUrl);
+    console.log('[LeaseDocuments DEBUG] React props lease:', lease);
+    console.log('[LeaseDocuments DEBUG] Document object:', docItem);
+    console.log('[LeaseDocuments DEBUG] Exact URL passed to window.open():', targetUrl);
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -145,7 +157,7 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     }
     const docName = name || (typeof docItem === 'object' ? docItem?.name : 'Lease_Document.pdf');
     const targetUrl = await resolveSignedDocumentUrl(docItem, true);
-    console.log('[LeaseDocuments Download] Initiating download URL:', targetUrl);
+    console.log('[LeaseDocuments DEBUG] Initiating download target URL:', targetUrl);
     const a = document.createElement('a');
     a.href = targetUrl;
     a.download = docName;
