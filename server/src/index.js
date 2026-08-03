@@ -43,6 +43,7 @@ import fileRoutes from './routes/fileRoutes.js';
 import billRoutes from './routes/billRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
+import { verifyEmailConfiguration } from './services/emailProvider.js';
 
 
 const app = express();
@@ -50,6 +51,8 @@ const app = express();
 // Connect to database
 try {
   await connectDB();
+  // Verify Email API configuration
+  verifyEmailConfiguration();
 } catch (err) {
   logger.error('Failed to start server:', err);
   process.exit(1);

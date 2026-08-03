@@ -1,93 +1,17 @@
-import nodemailer from 'nodemailer';
 import logger from '../utils/logger.js';
-import config from '../config/config.js';
-import dns from 'dns/promises';
-import net from 'net';
+import { sendEmailMessage } from './emailProvider.js';
 
 /**
  * The Email Service handles all outgoing communications,
  * such as receipts, late fee alerts, and payout notifications.
  */
 
-let cachedTransporter = null;
-
-const getTransporter = async () => {
-  if (cachedTransporter) return cachedTransporter;
-
-  const hasSmtpAuth = Boolean(config.SMTP_USER && config.SMTP_PASS);
-  let resolvedHost = config.SMTP_HOST || 'smtp.ethereal.email';
-
-  // Dynamically resolve SMTP host to IPv4 to bypass Render IPv6 connection issues
-  if (resolvedHost && !net.isIP(resolvedHost) && resolvedHost !== 'localhost') {
-    try {
-      const addresses = await dns.resolve4(resolvedHost);
-      if (addresses && addresses.length > 0) {
-        resolvedHost = addresses[Math.floor(Math.random() * addresses.length)];
-        logger.debug(`Resolved transactional SMTP host ${config.SMTP_HOST} to IPv4: ${resolvedHost}`);
-      }
-    } catch (dnsErr) {
-      logger.warn(`Failed to resolve transactional SMTP host ${resolvedHost} to IPv4 dynamically. Detail: ${dnsErr.message}`);
-    }
-  }
-
-  const transporterConfig = {
-    host: resolvedHost,
-    port: config.SMTP_PORT || 587,
-    secure: config.SMTP_PORT === 465,
-    connectionTimeout: 10000, // 10 seconds connection timeout
-    greetingTimeout: 10000,   // 10 seconds greeting timeout
-    socketTimeout: 10000,     // 10 seconds socket timeout
-    tls: {
-      servername: config.SMTP_HOST || 'smtp.gmail.com', // Explicit SNI servername for TLS validation
-      rejectUnauthorized: true // Secure TLS verification
-    }
-  };
-
-  if (hasSmtpAuth) {
-    transporterConfig.auth = {
-      user: config.SMTP_USER,
-      pass: config.SMTP_PASS,
-    };
-  } else {
-    logger.warn('SMTP credentials are not configured. Email delivery may fail.');
-  }
-
-  cachedTransporter = nodemailer.createTransport(transporterConfig);
-
-  // Verify SMTP connection once on creation
-  cachedTransporter.verify((err, success) => {
-    if (err) {
-      logger.error('Transactional SMTP verification failed:', err);
-    } else {
-      logger.info('Transactional SMTP server is ready.');
-    }
-  });
-
-  return cachedTransporter;
-};
-
 /**
  * Sends a transactional email with an optional attachment (e.g. PDF Invoice)
  */
 export const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
-    const activeTransporter = await getTransporter();
-    const mailOptions = {
-      from: `"TMS Payments" <${process.env.EMAIL_FROM || 'noreply@tms-platform.com'}>`,
-      to,
-      subject,
-      html,
-      attachments,
-    };
-
-    const info = await activeTransporter.sendMail(mailOptions);
-    logger.info(`Email sent successfully to ${to}: ${info.messageId}`);
-
-    if ((config.SMTP_HOST || '').includes('ethereal')) {
-      logger.info(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
-    }
-
-    return info;
+    return await sendEmailMessage({ to, subject, html, attachments });
   } catch (error) {
     logger.error(`Failed to send email to ${to}: ${error.message}`);
     return null;

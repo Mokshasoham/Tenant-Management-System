@@ -28,6 +28,11 @@ const config = {
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASS: process.env.SMTP_PASS,
   
+  // Resend API Configuration
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO || 'support@yourdomain.com',
+  
   // Logs
   LOG_LEVEL: process.env.LOG_LEVEL || 'debug',
   
