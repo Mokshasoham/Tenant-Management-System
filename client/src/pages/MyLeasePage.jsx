@@ -12,6 +12,12 @@ import {
     CheckSquare, XCircle, ExternalLink, Loader2
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import {
+    LeaseTimeline,
+    LeaseDocuments,
+    SecurityDepositCard,
+    LeaseRenewalCard,
+} from '../components/lease';
 
 const AMENITY_ICON = {
     wifi: Wifi, parking: Car, water: Droplets,
@@ -938,6 +944,12 @@ export default function MyLeasePage() {
                             </>
                         )}
                     </motion.div>
+
+                    {/* ── Enterprise V3.0.1 Feature Expansion Modules ── */}
+                    <LeaseTimeline lease={currentLease} />
+                    <LeaseDocuments lease={currentLease} />
+                    <SecurityDepositCard lease={currentLease} />
+                    <LeaseRenewalCard lease={currentLease} onRenew={() => navigate('/payments')} />
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
                     {currentLease.status === 'pending' && !currentLease.signature && (
