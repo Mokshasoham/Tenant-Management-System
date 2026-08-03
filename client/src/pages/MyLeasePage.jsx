@@ -949,7 +949,8 @@ export default function MyLeasePage() {
                     <LeaseTimeline lease={currentLease} />
                     <LeaseDocuments lease={currentLease} />
                     <SecurityDepositCard lease={currentLease} />
-                    <LeaseRenewalCard lease={currentLease} onRenew={() => navigate('/payments')} />
+                    {/* Lease Renewal Center Card */}
+                    <LeaseRenewalCard lease={currentLease} onRenew={() => navigate('/lease-renewal')} />
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
                     {currentLease.status === 'pending' && !currentLease.signature && (
