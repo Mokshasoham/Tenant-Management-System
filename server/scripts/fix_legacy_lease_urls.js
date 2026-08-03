@@ -30,22 +30,31 @@ async function fixLegacyLeaseUrls() {
           lease.fileId = meta._id;
           modified = true;
           console.log(`  ✓ Upgraded lease ${lease.leaseNumber} pdfUrl to /api/files/download/${meta._id}`);
+        } else if (lease.fileId) {
+          lease.pdfUrl = `/api/files/download/${lease.fileId}`;
+          modified = true;
         }
       }
 
       // Check documents array
       if (lease.documents && Array.isArray(lease.documents) && lease.documents.length > 0) {
         for (const doc of lease.documents) {
-          if (!doc.fileId && doc.url) {
-            const cleanFilename = doc.url.split('/').pop();
-            const meta = await FileMetadata.findOne({
-              $or: [{ key: `leases/${cleanFilename}` }, { filename: cleanFilename }]
-            });
-            if (meta) {
-              doc.fileId = meta._id;
-              doc.url = `/api/files/download/${meta._id}`;
+          if (doc.url && doc.url.includes('/uploads/')) {
+            if (doc.fileId) {
+              doc.url = `/api/files/download/${doc.fileId}`;
               modified = true;
-              console.log(`  ✓ Upgraded lease ${lease.leaseNumber} document "${doc.name}" to /api/files/download/${meta._id}`);
+              console.log(`  ✓ Upgraded lease ${lease.leaseNumber} document "${doc.name}" from legacy URL to /api/files/download/${doc.fileId}`);
+            } else {
+              const cleanFilename = doc.url.split('/').pop();
+              const meta = await FileMetadata.findOne({
+                $or: [{ key: `leases/${cleanFilename}` }, { filename: cleanFilename }]
+              });
+              if (meta) {
+                doc.fileId = meta._id;
+                doc.url = `/api/files/download/${meta._id}`;
+                modified = true;
+                console.log(`  ✓ Upgraded lease ${lease.leaseNumber} document "${doc.name}" to /api/files/download/${meta._id}`);
+              }
             }
           }
         }

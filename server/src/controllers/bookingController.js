@@ -310,7 +310,7 @@ const verifyAndProcessPaymentInternal = async ({
                         lease.documents.push({
                             fileId: uploadResult.fileId,
                             name: 'Signed Lease Agreement',
-                            url: uploadResult.Location,
+                            url: `/api/files/download/${uploadResult.fileId}`,
                             uploadedAt: new Date()
                         });
                         // Store signature details on the lease
@@ -1043,7 +1043,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             lease.documents.push({
                 fileId: docUrl.fileId,
                 name: 'Residential Lease Agreement (Simulated)',
-                url: docUrl.Location,
+                url: `/api/files/download/${docUrl.fileId}`,
                 uploadedAt: new Date()
             });
             await lease.save();
