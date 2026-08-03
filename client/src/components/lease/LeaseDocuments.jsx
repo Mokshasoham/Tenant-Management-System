@@ -23,27 +23,37 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     if (lease.documents && Array.isArray(lease.documents) && lease.documents.length > 0) {
       lease.documents.forEach((doc, idx) => {
         const isLatest = idx === lease.documents.length - 1;
+        const resolvedUrl = doc.fileId
+          ? `/api/files/download/${doc.fileId}`
+          : (doc.url && !doc.url.includes('/uploads/') ? doc.url : '#');
+
         docs.push({
           id: doc.fileId || `doc-${idx}`,
+          fileId: doc.fileId,
           name: doc.name || `Enterprise Lease Agreement (${lease.leaseNumber || 'v1.0'})`,
           type: 'Lease Agreement',
           version: `v${idx + 1}.0`,
           status: isLatest ? 'active' : 'superseded',
           uploadedAt: doc.uploadedAt || lease.createdAt || new Date(),
           size: doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : '35.6 KB',
-          url: doc.url || `/api/files/download/${doc.fileId}`,
+          url: resolvedUrl,
         });
       });
     } else if (lease.pdfUrl || lease.fileId) {
+      const resolvedUrl = lease.fileId
+        ? `/api/files/download/${lease.fileId}`
+        : (lease.pdfUrl && !lease.pdfUrl.includes('/uploads/') ? lease.pdfUrl : '#');
+
       docs.push({
         id: lease.fileId || 'main-lease-pdf',
+        fileId: lease.fileId,
         name: `Enterprise Lease Agreement (${lease.leaseNumber || 'Doc'})`,
         type: 'Lease Agreement',
         version: `v${lease.leaseVersion || 1}.0`,
         status: 'active',
         uploadedAt: lease.createdAt || new Date(),
         size: '35.6 KB',
-        url: lease.pdfUrl || `/api/files/download/${lease.fileId}`,
+        url: resolvedUrl,
       });
     }
 
@@ -65,17 +75,23 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
   const activeDoc = documentList.find(d => d.status === 'active') || documentList[0];
 
-  const resolveSignedDocumentUrl = async (url, isDownload = false) => {
-    if (!url || url === '#') return '#';
+  const resolveSignedDocumentUrl = async (doc, isDownload = false) => {
+    const rawUrl = typeof doc === 'string' ? doc : doc?.url;
+    const directFileId = typeof doc === 'object' ? doc?.fileId : null;
+
+    if (!rawUrl || rawUrl === '#') return '#';
 
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     const cleanApiBase = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
     const serverOrigin = import.meta.env.VITE_API_URL || cleanApiBase.replace(/\/api$/, '') || 'http://localhost:5000';
 
-    // Extract fileId from download URL
-    const fileIdMatch = url.match(/\/api\/files\/download\/([a-f\d]{24})/i);
-    const fileId = fileIdMatch ? fileIdMatch[1] : null;
+    // Extract fileId from URL or directFileId
+    let fileId = directFileId;
+    if (!fileId) {
+      const fileIdMatch = rawUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
+      fileId = fileIdMatch ? fileIdMatch[1] : null;
+    }
 
     if (fileId && token) {
       try {
@@ -97,8 +113,11 @@ export const LeaseDocuments = React.memo(({ lease }) => {
       }
     }
 
-    // Fallback URL formatter
-    let target = url.startsWith('http') ? url : `${serverOrigin.replace(/\/$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+    // Fallback: Ensure no /uploads/ URL is returned
+    let target = (rawUrl.includes('/uploads/') && fileId)
+      ? `${serverOrigin.replace(/\/$/, '')}/api/files/download/${fileId}`
+      : (rawUrl.startsWith('http') ? rawUrl : `${serverOrigin.replace(/\/$/, '')}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`);
+
     const separator = target.includes('?') ? '&' : '?';
     const params = [];
     if (token && !target.includes('token=')) params.push(`token=${encodeURIComponent(token)}`);
@@ -107,24 +126,29 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     return target;
   };
 
-  const handlePreview = async (url) => {
-    if (!url || url === '#') {
+  const handlePreview = async (docItem) => {
+    const rawUrl = typeof docItem === 'string' ? docItem : docItem?.url;
+    if (!rawUrl || rawUrl === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const targetUrl = await resolveSignedDocumentUrl(url, false);
+    const targetUrl = await resolveSignedDocumentUrl(docItem, false);
+    console.log('[LeaseDocuments Preview] Opening target URL:', targetUrl);
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleDownload = async (url, name) => {
-    if (!url || url === '#') {
+  const handleDownload = async (docItem, name) => {
+    const rawUrl = typeof docItem === 'string' ? docItem : docItem?.url;
+    if (!rawUrl || rawUrl === '#') {
       alert('This document is a system default guideline.');
       return;
     }
-    const targetUrl = await resolveSignedDocumentUrl(url, true);
+    const docName = name || (typeof docItem === 'object' ? docItem?.name : 'Lease_Document.pdf');
+    const targetUrl = await resolveSignedDocumentUrl(docItem, true);
+    console.log('[LeaseDocuments Download] Initiating download URL:', targetUrl);
     const a = document.createElement('a');
     a.href = targetUrl;
-    a.download = name || 'Lease_Document.pdf';
+    a.download = docName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -217,14 +241,14 @@ export const LeaseDocuments = React.memo(({ lease }) => {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handlePreview(doc.url)}
+                        onClick={() => handlePreview(doc)}
                         className="p-1.5 rounded-lg bg-muted hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-600 transition-colors flex items-center gap-1 font-bold text-[9px] uppercase tracking-wider"
                         title="Preview Document"
                       >
                         <ExternalLink className="w-3 h-3" /> Preview
                       </button>
                       <button
-                        onClick={() => handleDownload(doc.url, doc.name)}
+                        onClick={() => handleDownload(doc, doc.name)}
                         className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors flex items-center gap-1 font-bold text-[9px] uppercase tracking-wider"
                         title="Download Document"
                       >
@@ -272,7 +296,7 @@ export const LeaseDocuments = React.memo(({ lease }) => {
                       </p>
                     </div>
                     <button
-                      onClick={() => handlePreview(doc.url)}
+                      onClick={() => handlePreview(doc)}
                       className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-colors flex items-center gap-1"
                     >
                       <ExternalLink className="w-3 h-3" /> View
