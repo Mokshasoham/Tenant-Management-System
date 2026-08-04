@@ -3,6 +3,7 @@ import { authenticate, managerOrAdmin } from '../../middleware/auth.js';
 import * as controller from './controller.js';
 import * as validator from './validator.js';
 import * as campaignController from './campaignController.js';
+import * as policyController from './policyController.js';
 
 const router = express.Router();
 
@@ -29,5 +30,10 @@ router.get('/campaigns/index', authenticate, campaignController.getCampaigns);
 router.get('/campaigns/:id', authenticate, campaignController.getCampaignDetails);
 router.post('/campaigns', authenticate, validator.validateCreateCampaign, campaignController.createCampaign);
 router.post('/campaigns/:id/transition', authenticate, validator.validateTransitionCampaign, campaignController.transitionStatus);
+router.post('/campaigns/:id/evaluate', authenticate, policyController.evaluateCampaign);
+
+// Policy Endpoints
+router.post('/policies', authenticate, managerOrAdmin, policyController.savePolicy);
+router.get('/policies', authenticate, policyController.getPolicies);
 
 export default router;
