@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiInbox, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import NotificationItem from './NotificationItem';
 import NotificationListSkeleton from './skeletons/NotificationListSkeleton';
 
@@ -24,7 +24,7 @@ export function NotificationListSection({
         return (
             <div className="text-center py-16 px-4 bg-slate-900/40 rounded-2xl border border-slate-800/60">
                 <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-4">
-                    <FiInbox className="w-8 h-8" />
+                    <Inbox className="w-8 h-8" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-200">No notifications found</h3>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
@@ -67,7 +67,7 @@ export function NotificationListSection({
                             disabled={page <= 1}
                             className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            <FiChevronLeft className="w-4 h-4" />
+                            <ChevronLeft className="w-4 h-4" />
                         </button>
                         <span className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-xl font-medium text-slate-200">
                             Page {page} of {totalPages}
@@ -77,7 +77,7 @@ export function NotificationListSection({
                             disabled={page >= totalPages}
                             className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            <FiChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>

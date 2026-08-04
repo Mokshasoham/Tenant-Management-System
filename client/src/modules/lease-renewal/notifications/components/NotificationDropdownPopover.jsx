@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiExternalLink, FiBellOff, FiArrowRight } from 'react-icons/fi';
+import { CheckCircle2, ExternalLink, BellOff, ArrowRight } from 'lucide-react';
 import NotificationItem from './NotificationItem';
 import BellDropdownSkeleton from './skeletons/BellDropdownSkeleton';
 
@@ -38,7 +38,7 @@ export function NotificationDropdownPopover({
                         onClick={onMarkAllAsRead}
                         className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition-colors"
                     >
-                        <FiCheckCircle className="w-3.5 h-3.5" />
+                        <CheckCircle2 className="w-3.5 h-3.5" />
                         Mark all read
                     </button>
                 )}
@@ -50,7 +50,7 @@ export function NotificationDropdownPopover({
                     <BellDropdownSkeleton count={3} />
                 ) : notifications.length === 0 ? (
                     <div className="py-10 text-center px-4">
-                        <FiBellOff className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                        <BellOff className="w-8 h-8 text-slate-600 mx-auto mb-2" />
                         <p className="text-xs font-medium text-slate-300">No new notifications</p>
                         <p className="text-[11px] text-slate-500 mt-0.5">You're completely caught up!</p>
                     </div>
@@ -73,7 +73,7 @@ export function NotificationDropdownPopover({
                     className="w-full py-2 px-4 rounded-xl bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-white border border-indigo-500/30 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
                 >
                     <span>View All Activity & Notifications</span>
-                    <FiArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                 </button>
             </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiBell, FiMail, FiSmartphone, FiShield, FiSave, FiCheck } from 'react-icons/fi';
+import { Bell, Mail, Smartphone, Shield, Save, Check } from 'lucide-react';
 
 export function NotificationSettingsTab() {
     const [settings, setSettings] = useState({
@@ -26,7 +26,7 @@ export function NotificationSettingsTab() {
         <div className="space-y-6 bg-slate-900/60 p-6 rounded-2xl border border-slate-800/80 max-w-3xl">
             <div>
                 <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                    <FiBell className="text-indigo-400" />
+                    <Bell className="text-indigo-400" />
                     Notification Delivery Preferences
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
@@ -39,7 +39,7 @@ export function NotificationSettingsTab() {
                 
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
                     <div className="flex items-center space-x-3">
-                        <FiMail className="w-5 h-5 text-indigo-400 shrink-0" />
+                        <Mail className="w-5 h-5 text-indigo-400 shrink-0" />
                         <div>
                             <p className="text-sm font-medium text-slate-200">Lease Renewal & Campaign Bulletins</p>
                             <p className="text-xs text-slate-400">Receive instant email updates when lease renewal offers or escalations trigger.</p>
@@ -55,7 +55,7 @@ export function NotificationSettingsTab() {
 
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
                     <div className="flex items-center space-x-3">
-                        <FiMail className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <Mail className="w-5 h-5 text-emerald-400 shrink-0" />
                         <div>
                             <p className="text-sm font-medium text-slate-200">Billing & Payment Confirmations</p>
                             <p className="text-xs text-slate-400">Get notified when invoices are created, payments clear, or payouts complete.</p>
@@ -75,7 +75,7 @@ export function NotificationSettingsTab() {
                 
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
                     <div className="flex items-center space-x-3">
-                        <FiSmartphone className="w-5 h-5 text-rose-400 shrink-0" />
+                        <Smartphone className="w-5 h-5 text-rose-400 shrink-0" />
                         <div>
                             <p className="text-sm font-medium text-slate-200">Critical & SLA Urgent SMS Alerts</p>
                             <p className="text-xs text-slate-400">Dispatch SMS for critical security risks or expired SLA deadlines.</p>
@@ -98,12 +98,12 @@ export function NotificationSettingsTab() {
                 >
                     {isSaved ? (
                         <>
-                            <FiCheck className="mr-1.5 w-4 h-4 text-emerald-300" />
+                            <Check className="mr-1.5 w-4 h-4 text-emerald-300" />
                             Preferences Saved
                         </>
                     ) : (
                         <>
-                            <FiSave className="mr-1.5 w-4 h-4" />
+                            <Save className="mr-1.5 w-4 h-4" />
                             Save Preferences
                         </>
                     )}

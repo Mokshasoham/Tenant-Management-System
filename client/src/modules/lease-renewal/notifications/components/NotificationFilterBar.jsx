@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiSearch, FiFilter, FiCheckCircle, FiTrash2, FiX, FiRefreshCw } from 'react-icons/fi';
+import { Search, Filter, CheckCircle2, Trash2, X, RefreshCw } from 'lucide-react';
 import { CATEGORY_LABELS } from '../constants/notificationConstants';
 
 export function NotificationFilterBar({
@@ -28,7 +28,7 @@ export function NotificationFilterBar({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 {/* Search Bar */}
                 <div className="relative flex-1 max-w-md">
-                    <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <input
                         type="text"
                         value={search}
@@ -41,7 +41,7 @@ export function NotificationFilterBar({
                             onClick={() => onSearchChange('')}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                         >
-                            <FiX className="w-4 h-4" />
+                            <X className="w-4 h-4" />
                         </button>
                     )}
                 </div>
@@ -82,7 +82,7 @@ export function NotificationFilterBar({
                         title="Refresh list"
                         className="p-2 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-400 hover:text-indigo-400 hover:border-slate-700 transition-colors disabled:opacity-50"
                     >
-                        <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-400' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-400' : ''}`} />
                     </button>
                 </div>
             </div>
@@ -133,14 +133,14 @@ export function NotificationFilterBar({
                                 onClick={onBulkMarkRead}
                                 className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors font-medium"
                             >
-                                <FiCheckCircle className="mr-1.5 w-3.5 h-3.5" />
+                                <CheckCircle2 className="mr-1.5 w-3.5 h-3.5" />
                                 Mark Selected Read
                             </button>
                             <button
                                 onClick={onBulkDelete}
                                 className="inline-flex items-center px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors font-medium"
                             >
-                                <FiTrash2 className="mr-1.5 w-3.5 h-3.5" />
+                                <Trash2 className="mr-1.5 w-3.5 h-3.5" />
                                 Delete Selected
                             </button>
                             <button
@@ -155,7 +155,7 @@ export function NotificationFilterBar({
                             onClick={onClearRead}
                             className="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700/60 hover:bg-slate-700/80 hover:text-white transition-colors font-medium"
                         >
-                            <FiTrash2 className="mr-1.5 w-3.5 h-3.5 text-slate-400" />
+                            <Trash2 className="mr-1.5 w-3.5 h-3.5 text-slate-400" />
                             Clear All Read Notifications
                         </button>
                     )}

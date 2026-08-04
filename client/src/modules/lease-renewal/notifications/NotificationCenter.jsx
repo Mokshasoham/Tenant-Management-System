@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiBell, FiSettings, FiCheckCircle, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { Bell, Settings, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import useNotifications from './hooks/useNotifications';
 import NotificationFilterBar from './components/NotificationFilterBar';
 import NotificationListSection from './components/NotificationListSection';
@@ -51,7 +51,7 @@ export function NotificationCenter() {
                 <div>
                     <div className="flex items-center space-x-3 mb-1">
                         <div className="p-2.5 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
-                            <FiBell className="w-6 h-6" />
+                            <Bell className="w-6 h-6" />
                         </div>
                         <h1 className="text-2xl font-black tracking-tight text-white">Notification Center</h1>
                     </div>
@@ -66,7 +66,7 @@ export function NotificationCenter() {
                             onClick={markAllAsRead}
                             className="inline-flex items-center px-4 py-2 rounded-xl bg-indigo-600/80 text-white hover:bg-indigo-500 text-xs font-semibold shadow-lg shadow-indigo-950/50 transition-all"
                         >
-                            <FiCheckCircle className="mr-1.5 w-4 h-4" />
+                            <CheckCircle2 className="mr-1.5 w-4 h-4" />
                             Mark All Read ({unreadCount})
                         </button>
                     )}
@@ -83,7 +83,7 @@ export function NotificationCenter() {
                             : 'text-slate-400 border-transparent hover:text-slate-200'
                     }`}
                 >
-                    <FiBell className="w-4 h-4" />
+                    <Bell className="w-4 h-4" />
                     <span>All Activity</span>
                     {unreadCount > 0 && (
                         <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-indigo-600 text-white">
@@ -100,7 +100,7 @@ export function NotificationCenter() {
                             : 'text-slate-400 border-transparent hover:text-slate-200'
                     }`}
                 >
-                    <FiSettings className="w-4 h-4" />
+                    <Settings className="w-4 h-4" />
                     <span>Preferences & Delivery</span>
                 </button>
             </div>

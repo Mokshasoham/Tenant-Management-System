@@ -1,20 +1,20 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-    FiCheckCircle, 
-    FiTrash2, 
-    FiClock, 
-    FiAlertTriangle, 
-    FiFileText, 
-    FiDollarSign, 
-    FiShield, 
-    FiBell,
-    FiExternalLink,
-    FiRefreshCw,
-    FiMessageSquare,
-    FiTool,
-    FiCheck
-} from 'react-icons/fi';
+    CheckCircle2, 
+    Trash2, 
+    Clock, 
+    AlertTriangle, 
+    FileText, 
+    DollarSign, 
+    Shield, 
+    Bell,
+    ExternalLink,
+    RefreshCw,
+    MessageSquare,
+    Wrench,
+    Check
+} from 'lucide-react';
 import { CATEGORY_LABELS } from '../constants/notificationConstants';
 
 function formatRelativeTime(dateString) {
@@ -32,22 +32,22 @@ function formatRelativeTime(dateString) {
 
 function getCategoryIcon(category) {
     switch (category) {
-        case 'renewal': return <FiRefreshCw className="w-4 h-4 text-indigo-400" />;
-        case 'lease': return <FiFileText className="w-4 h-4 text-blue-400" />;
-        case 'booking': return <FiClock className="w-4 h-4 text-purple-400" />;
+        case 'renewal': return <RefreshCw className="w-4 h-4 text-indigo-400" />;
+        case 'lease': return <FileText className="w-4 h-4 text-blue-400" />;
+        case 'booking': return <Clock className="w-4 h-4 text-purple-400" />;
         case 'billing':
-        case 'payments': return <FiDollarSign className="w-4 h-4 text-emerald-400" />;
-        case 'maintenance': return <FiTool className="w-4 h-4 text-amber-400" />;
-        case 'messages': return <FiMessageSquare className="w-4 h-4 text-cyan-400" />;
-        case 'security': return <FiShield className="w-4 h-4 text-rose-400" />;
-        default: return <FiBell className="w-4 h-4 text-slate-400" />;
+        case 'payments': return <DollarSign className="w-4 h-4 text-emerald-400" />;
+        case 'maintenance': return <Wrench className="w-4 h-4 text-amber-400" />;
+        case 'messages': return <MessageSquare className="w-4 h-4 text-cyan-400" />;
+        case 'security': return <Shield className="w-4 h-4 text-rose-400" />;
+        default: return <Bell className="w-4 h-4 text-slate-400" />;
     }
 }
 
 function getPriorityBadge(priority) {
     switch (priority) {
         case 'critical':
-            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-sm shadow-rose-950/50"><FiAlertTriangle className="mr-1 w-3 h-3" /> Critical</span>;
+            return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-sm shadow-rose-950/50"><AlertTriangle className="mr-1 w-3 h-3" /> Critical</span>;
         case 'high':
             return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">High</span>;
         case 'medium':
@@ -148,7 +148,7 @@ export function NotificationItem({
                     {notification.actionUrl && (
                         <div className="inline-flex items-center text-xs font-medium text-indigo-400 group-hover:text-indigo-300 transition-colors">
                             <span>View details</span>
-                            <FiExternalLink className="ml-1 w-3 h-3" />
+                            <ExternalLink className="ml-1 w-3 h-3" />
                         </div>
                     )}
                 </div>
@@ -161,7 +161,7 @@ export function NotificationItem({
                             title="Mark as read"
                             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                         >
-                            <FiCheck className="w-4 h-4" />
+                            <Check className="w-4 h-4" />
                         </button>
                     )}
                     <button
@@ -169,7 +169,7 @@ export function NotificationItem({
                         title="Delete notification"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                     >
-                        <FiTrash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
             </div>

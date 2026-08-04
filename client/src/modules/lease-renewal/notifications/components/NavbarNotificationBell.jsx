@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiBell } from 'react-icons/fi';
+import { Bell } from 'lucide-react';
 import useNotifications from '../hooks/useNotifications';
 import NotificationDropdownPopover from './NotificationDropdownPopover';
 import UnreadBadgeSkeleton from './skeletons/UnreadBadgeSkeleton';
@@ -47,7 +47,7 @@ export function NavbarNotificationBell() {
                 aria-label="Notifications"
                 className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             >
-                <FiBell className="w-5 h-5" />
+                <Bell className="w-5 h-5" />
                 {loading && unreadCount === 0 ? (
                     <UnreadBadgeSkeleton />
                 ) : unreadCount > 0 ? (
