@@ -41,6 +41,7 @@ import DepositSettlementPage from './pages/DepositSettlementPage';
 import LeaseHistoryPage from './pages/LeaseHistoryPage';
 import RenewalHistoryPage from './pages/RenewalHistoryPage';
 import ManagerCampaignDashboardPage from './pages/ManagerCampaignDashboardPage';
+import NotificationCenterPage from './pages/NotificationCenterPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -138,6 +139,7 @@ function App() {
               <Route path="/deposit-settlement/:id" element={<ProtectedRoute><DashboardLayout><DepositSettlementPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/lease-history" element={<ProtectedRoute><DashboardLayout><LeaseHistoryPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/renewal-history" element={<ProtectedRoute><DashboardLayout><RenewalHistoryPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><DashboardLayout><NotificationCenterPage /></DashboardLayout></ProtectedRoute>} />
 
               {/* Manager + Admin */}
               <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
