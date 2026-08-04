@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed": "node scripts/seed.js",
+    "migrate:notifications": "node scripts/backfill_notifications.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "lint": "eslint src/",
     "format": "prettier --write src/"
