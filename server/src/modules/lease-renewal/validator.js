@@ -38,3 +38,21 @@ export const validateUpdateRenewal = [
     .trim(),
   validationMiddleware
 ];
+
+export const validateCreateCampaign = [
+  body('leaseId')
+    .isMongoId().withMessage('Invalid Lease ID format'),
+  body('source')
+    .optional()
+    .isIn(['manual', 'scheduler', 'api', 'migration', 'system']).withMessage('Invalid campaign source'),
+  validationMiddleware
+];
+
+export const validateTransitionCampaign = [
+  param('id')
+    .isMongoId().withMessage('Invalid campaign ID format'),
+  body('status')
+    .isIn(['draft', 'created', 'waiting_for_tenant', 'waiting_for_manager', 'negotiating', 'pending_signature', 'approved', 'completed', 'expired', 'cancelled', 'escalated']).withMessage('Invalid campaign status'),
+  validationMiddleware
+];
+

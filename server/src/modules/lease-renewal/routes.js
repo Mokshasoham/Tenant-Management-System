@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate, managerOrAdmin } from '../../middleware/auth.js';
 import * as controller from './controller.js';
 import * as validator from './validator.js';
+import * as campaignController from './campaignController.js';
 
 const router = express.Router();
 
@@ -22,5 +23,11 @@ router.get('/:id/messages', authenticate, controller.getMessages);
 router.post('/:id/approve', authenticate, controller.approveRenewal);
 router.post('/:id/reject', authenticate, controller.rejectRenewal);
 router.post('/:id/sign', authenticate, controller.signRenewal);
+
+// Campaign Foundation Endpoints
+router.get('/campaigns/index', authenticate, campaignController.getCampaigns);
+router.get('/campaigns/:id', authenticate, campaignController.getCampaignDetails);
+router.post('/campaigns', authenticate, validator.validateCreateCampaign, campaignController.createCampaign);
+router.post('/campaigns/:id/transition', authenticate, validator.validateTransitionCampaign, campaignController.transitionStatus);
 
 export default router;
