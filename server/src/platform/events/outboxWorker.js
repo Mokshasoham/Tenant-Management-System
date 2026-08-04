@@ -117,12 +117,24 @@ export class OutboxWorker {
     this.isRunning = false;
   }
 
-  start() {
+  async processBatch(limit = this.batchSize) {
+    return await processOutboxBatch(limit);
+  }
+
+  async start() {
     if (this.isRunning) return;
     this.isRunning = true;
+
+    // Process pending outbox events immediately upon startup
+    try {
+      await this.processBatch();
+    } catch (err) {
+      logger.error('[OutboxWorker] Initial outbox batch processing error:', err.message);
+    }
+
     this.timerHandle = setInterval(async () => {
       try {
-        await processOutboxBatch(this.batchSize);
+        await this.processBatch();
       } catch (err) {
         logger.error('[OutboxWorker] Unhandled error during outbox batch processing:', err.message);
       }

@@ -58,6 +58,7 @@ import schedulerRoutes from './routes/schedulerRoutes.js';
 import helmetConfig from './platform/security/helmetConfig.js';
 import { registerLeaseRenewalSchedulers } from './modules/lease-renewal/schedulers/index.js';
 import { subscribeNotificationListeners } from './modules/lease-renewal/notifications/notificationEventRegistry.js';
+import outboxWorker from './platform/events/outboxWorker.js';
 import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
 
 const app = express();
@@ -85,7 +86,8 @@ try {
   // 5. Register all schedulers & notification event listeners
   registerLeaseRenewalSchedulers();
   subscribeNotificationListeners();
-  logger.info('Schedulers and notification event listeners registered.');
+  outboxWorker.start();
+  logger.info('Schedulers, outbox worker, and notification event listeners registered.');
 
   // 6. Freeze Container (make read-only)
   Object.freeze(container);
@@ -350,9 +352,10 @@ const gracefulShutdown = async (signal) => {
       if (email && typeof email.shutdown === 'function') await email.shutdown();
     } catch {}
 
-    // 3a. Stop platform schedulers (before jobs — schedulers may dispatch jobs)
+    // 3a. Stop platform schedulers & outbox worker (before jobs — schedulers may dispatch jobs)
     try {
       await schedulerRegistry.stopAll();
+      outboxWorker.stop();
     } catch {}
 
     try {
