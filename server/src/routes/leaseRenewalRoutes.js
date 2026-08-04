@@ -1,7 +1,6 @@
 import express from 'express';
 import { authenticate, managerOrAdmin } from '../middleware/auth.js';
 import {
-  requestRenewal,
   sendRenewalOffer,
   respondToOffer,
   submitMoveOutNotice,
@@ -16,24 +15,27 @@ import {
   getInspectionById,
   getFeedbackByLeaseId,
   getDepositByLeaseId,
-  getRenewals,
-  getMyRenewals,
   getExitReportPDF,
   getRenewalReportPDF
 } from '../controllers/leaseRenewalController.js';
+import {
+  createRequest,
+  getHistory,
+  getManagerRequests
+} from '../modules/lease-renewal/controller.js';
 
 const router = express.Router();
 
 // Tenant Endpoints
-router.post('/renewals/request', authenticate, requestRenewal);
+router.post('/renewals/request', authenticate, createRequest);
 router.post('/renewals/:id/respond', authenticate, respondToOffer);
 router.post('/lease/moveout', authenticate, submitMoveOutNotice);
 router.post('/feedback/exit', authenticate, submitExitFeedback);
 
 // Manager Endpoints
-router.get('/renewals', authenticate, managerOrAdmin, getRenewals);
+router.get('/renewals', authenticate, managerOrAdmin, getManagerRequests);
 // Tenant-accessible: returns only their own renewals/offers
-router.get('/renewals/my', authenticate, getMyRenewals);
+router.get('/renewals/my', authenticate, getHistory);
 router.post('/renewals/offer', authenticate, managerOrAdmin, sendRenewalOffer);
 router.put('/renewals/:id/approve', authenticate, managerOrAdmin, approveRenewal);
 router.put('/renewals/:id/reject', authenticate, managerOrAdmin, rejectRenewal);

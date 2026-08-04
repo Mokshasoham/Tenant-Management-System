@@ -1,0 +1,195 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Tenant Management SaaS Platform API",
+    "version": "1.0.0",
+    "description": "Enterprise-grade multi-tenant RESTful APIs for property operations, lease agreements, and renewals."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/v1/lease-renewals": {
+      "post": {
+        "summary": "Request lease renewal",
+        "description": "Submits a new lease renewal request (Tenant initiated).",
+        "operationId": "createRenewalRequest",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["leaseId", "duration", "proposedRent", "requestedStartDate", "requestedEndDate"],
+                "properties": {
+                  "leaseId": { "type": "string", "example": "60c72b2f9b1d8b2a1c8d4e5f" },
+                  "duration": { "type": "string", "example": "12 months" },
+                  "proposedRent": { "type": "number", "example": 2500 },
+                  "requestedStartDate": { "type": "string", "format": "date", "example": "2026-09-01" },
+                  "requestedEndDate": { "type": "string", "format": "date", "example": "2027-08-31" },
+                  "message": { "type": "string", "example": "Would love to renew for another year." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Renewal registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Lease renewal request registered successfully" },
+                    "data": { "$ref": "#/components/schemas/LeaseRenewal" },
+                    "requestId": { "type": "string", "example": "req-1785565548" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid states or outstanding balances", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/v1/lease-renewals/my": {
+      "get": {
+        "summary": "Get tenant renewal history",
+        "operationId": "getTenantRenewals",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Tenant renewal history list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/LeaseRenewal" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lease-renewals/manager": {
+      "get": {
+        "summary": "Get manager pending requests",
+        "operationId": "getManagerRenewals",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Manager property renewal lists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/LeaseRenewal" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lease-renewals/{id}": {
+      "get": {
+        "summary": "Get renewal details",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/LeaseRenewal" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update renewal request",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "proposedRent": { "type": "number" },
+                  "duration": { "type": "string" },
+                  "version": { "type": "number", "description": "Version key for optimistic lock" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated renewal successfully" },
+          "409": { "description": "Concurrency modification collision" }
+        }
+      },
+      "delete": {
+        "summary": "Cancel renewal request",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Cancelled successfully" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LeaseRenewal": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "60c72b2f9b1d8b2a1c8d4e5f" },
+          "renewalNumber": { "type": "string", "example": "LRN-2026-000001" },
+          "lease": { "type": "string" },
+          "tenant": { "type": "string" },
+          "property": { "type": "string" },
+          "status": { "type": "string", "example": "requested" },
+          "proposedRent": { "type": "number" },
+          "duration": { "type": "string" },
+          "version": { "type": "number", "example": 1 }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "LEASE_OUTSTANDING_BALANCE" },
+              "message": { "type": "string", "example": "Lease renewal is blocked due to outstanding unpaid payments." },
+              "requestId": { "type": "string", "example": "req-1785565548" }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

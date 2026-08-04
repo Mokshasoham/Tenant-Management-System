@@ -1,3 +1,4 @@
+const bootStart = Date.now();
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -41,28 +42,55 @@ import payoutRoutes from './routes/payoutRoutes.js';
 import propertyVisitRoutes from './routes/propertyVisitRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import billRoutes from './routes/billRoutes.js';
+import leaseRenewalV1Routes from './modules/lease-renewal/routes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
 import { verifyEmailConfiguration } from './services/emailProvider.js';
 
+// Platform Hardening Imports
+import { validateEnv } from './platform/config/index.js';
+import container from './platform/container.js';
+import cacheProvider from './platform/cache/cacheProvider.js';
+import jobDispatcher from './platform/jobs/jobDispatcher.js';
+import storageProvider from './platform/storage/storageProvider.js';
+import healthRoutes from './routes/healthRoutes.js';
+import helmetConfig from './platform/security/helmetConfig.js';
 
 const app = express();
 
-// Connect to database
+// Server Startup Lifecycle Pipeline
 try {
+  // 1. Validate Environment
+  validateEnv();
+  logger.info('Environment validation passed.');
+
+  // 2. Register Providers
+  container.register('cache', cacheProvider);
+  container.register('jobs', jobDispatcher);
+  container.register('storage', storageProvider);
+
+  // 3. Initialize Providers
+  await cacheProvider.initialize();
+  await jobDispatcher.initialize();
+  await storageProvider.initialize();
+
+  // 4. Connect to database
   await connectDB();
+  logger.info('Database connected successfully.');
+
+  // 5. Freeze Container (make read-only)
+  Object.freeze(container);
+  logger.info('Platform dependency container frozen.');
+
   // Verify Email API configuration
   verifyEmailConfiguration();
 } catch (err) {
-  logger.error('Failed to start server:', err);
+  logger.error('CRITICAL BOOTSTRAP FAILURE: Server startup aborted.', err);
   process.exit(1);
 }
 
 // Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-  crossOriginEmbedderPolicy: false
-}));
+app.use(helmetConfig);
 app.use(compression());
 app.use(cors({
   origin: config.CORS_ORIGIN,
@@ -182,10 +210,12 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/', healthRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/leases', leaseRoutes);
 app.use('/api', leaseRenewalRoutes);
+app.use('/api/v1/lease-renewals', leaseRenewalV1Routes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/messages', messageRoutes);
@@ -218,21 +248,125 @@ const httpServer = createServer(app);
 // Initialize Socket.io
 socketHandler(httpServer);
 
-const PORT = config.PORT;
-httpServer.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT} in ${config.NODE_ENV} mode`);
+const PORT = config.PORT || 5000;
+
+// Track active connections for graceful socket closing
+const activeConnections = new Set();
+httpServer.on('connection', (conn) => {
+  activeConnections.add(conn);
+  conn.on('close', () => {
+    activeConnections.delete(conn);
+  });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  process.exit(0);
+httpServer.listen(PORT, async () => {
+  const startupTime = ((Date.now() - bootStart) / 1000).toFixed(2);
+
+  // Dynamic status check details
+  const dbStatus = mongoose.connection.readyState === 1 ? '✓ Connected' : '✗ Disconnected';
+  
+  let cacheStatus = '✓ Ready';
+  try { if (!container.resolveCache()) cacheStatus = '✗ Unavailable'; } catch { cacheStatus = '✗ Unavailable'; }
+
+  let storageStatus = '✓ Ready';
+  try { if (!container.resolveStorage()) storageStatus = '✗ Unavailable'; } catch { storageStatus = '✗ Unavailable'; }
+
+  let emailStatus = '✓ Ready';
+  try { if (!container.resolveEmail()) emailStatus = '✗ Unavailable'; } catch { emailStatus = '✗ Unavailable'; }
+
+  let jobsStatus = '✓ Ready';
+  try { if (!container.resolveJobs()) jobsStatus = '✗ Unavailable'; } catch { jobsStatus = '✗ Unavailable'; }
+
+  // Expose versions
+  const { PLATFORM_VERSION, APPLICATION_VERSION, NODE_VERSION, GIT_COMMIT } = await import('./platform/version.js');
+
+  console.log(`
+=========================================================
+  Tenant Management SaaS Platform
+
+  Application Version : ${APPLICATION_VERSION}
+  Platform Version    : ${PLATFORM_VERSION}
+  Environment         : ${config.APP_ENV || config.NODE_ENV}
+  Node                : ${NODE_VERSION}
+  Git Commit          : ${GIT_COMMIT}
+
+  MongoDB             ${dbStatus}
+  Cache               ${cacheStatus}
+  Storage             ${storageStatus}
+  Email               ${emailStatus}
+  Jobs                ${jobsStatus}
+  Events              ✓ Ready
+
+  API                 Listening on port :${PORT}
+  Startup Time        :${startupTime}s
+=========================================================
+  `);
 });
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  process.exit(0);
-});
+// Idempotent Graceful Shutdown Sequence
+let shuttingDown = false;
+
+const gracefulShutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  const shutdownTimeout = parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '10000', 10);
+
+  // Force exit timer
+  const forceExit = setTimeout(() => {
+    logger.fatal('Graceful shutdown timed out. Forcing process exit.');
+    process.exit(1);
+  }, shutdownTimeout);
+
+  // 1. Stop accepting new connections
+  httpServer.close(async () => {
+    logger.info('HTTP server closed. No longer accepting requests.');
+
+    // 2. Close active HTTP keep-alive connections
+    for (const conn of activeConnections) {
+      conn.destroy();
+    }
+    logger.info('Closed active HTTP keep-alive connections.');
+
+    // 3. Shutdown providers in sequence
+    try {
+      const email = container.resolveEmail();
+      if (email && typeof email.shutdown === 'function') await email.shutdown();
+    } catch {}
+
+    try {
+      const cache = container.resolveCache();
+      if (cache && typeof cache.shutdown === 'function') await cache.shutdown();
+    } catch {}
+
+    try {
+      const storage = container.resolveStorage();
+      if (storage && typeof storage.shutdown === 'function') await storage.shutdown();
+    } catch {}
+
+    try {
+      const jobs = container.resolveJobs();
+      if (jobs && typeof jobs.shutdown === 'function') await jobs.shutdown();
+    } catch {}
+
+    // 4. Disconnect from database
+    try {
+      await mongoose.disconnect();
+      logger.info('Database connection closed.');
+    } catch (err) {
+      logger.error('Error closing database connection:', err);
+    }
+
+    logger.info('Graceful shutdown completed successfully.');
+    clearTimeout(forceExit);
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Rejection:', err);

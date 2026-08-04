@@ -1,15 +1,6 @@
-import logger from '../utils/logger.js';
+import { requestContextMiddleware } from '../platform/security/requestContextMiddleware.js';
 
-export const requestLogger = (req, res, next) => {
-  const start = Date.now();
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    logger.info(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
-  });
-  
-  next();
-};
+export const requestLogger = requestContextMiddleware;
 
 export const securityHeaders = (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
