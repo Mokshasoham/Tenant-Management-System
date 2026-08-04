@@ -33,7 +33,10 @@ router.post('/campaigns/:id/transition', authenticate, validator.validateTransit
 router.post('/campaigns/:id/evaluate', authenticate, policyController.evaluateCampaign);
 
 // Policy Endpoints
+router.post('/policies/simulate', authenticate, policyController.simulatePolicy);
 router.post('/policies', authenticate, managerOrAdmin, policyController.savePolicy);
 router.get('/policies', authenticate, policyController.getPolicies);
+router.patch('/policies/:id', authenticate, managerOrAdmin, policyController.updatePolicy);
+router.delete('/policies/:id', authenticate, managerOrAdmin, policyController.deletePolicy);
 
 export default router;

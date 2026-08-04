@@ -172,3 +172,93 @@ export const evaluateCampaign = async (campaignId, proposal = {}, user = { userI
 
   return evaluation;
 };
+
+// ---------------------------------------------------------------------------
+// simulateCampaign — pure dry-run evaluation
+// ✅ Resolve policy   ✅ Execute rule engine   ✅ Execute risk engine
+// ✅ Return explainability
+// ❌ No EligibilityEvaluation.create   ❌ No audit   ❌ No events   ❌ No cache mutation
+// ---------------------------------------------------------------------------
+export const simulateCampaign = async (campaignId, proposal = {}) => {
+  const start = Date.now();
+  const campaign = await repository.findByIdWithRelations(campaignId);
+  if (!campaign) {
+    throw new Error('Campaign not found.');
+  }
+
+  const lease = campaign.lease;
+  const tenantDoc = await Tenant.findById(campaign.tenant);
+
+  // Resolve Policy (read-only — cache reads allowed, no writes)
+  const propertyType = campaign.property?.type || 'apartment';
+  const policy = await policyService.resolvePolicy({
+    propertyType,
+    propertyId: campaign.property?._id,
+    leaseId: lease?._id
+  });
+
+  // Calculate Risk Score (pure computation)
+  const occupancyDurationMonths = Math.round(
+    (new Date() - new Date(lease.startDate)) / (1000 * 60 * 60 * 24 * 30.4)
+  );
+  const riskResult = await calculateRiskScore({
+    tenantId: campaign.tenant?._id,
+    propertyId: campaign.property?._id,
+    occupancyDurationMonths
+  });
+
+  // Execute Rules in Parallel
+  const ruleContext = {
+    tenantId: campaign.tenant?._id,
+    tenantEmail: tenantDoc ? tenantDoc.email : '',
+    propertyId: campaign.property?._id,
+    currentRent: lease?.rentAmount,
+    proposedRent: proposal.proposedRent || lease?.rentAmount,
+    proposedDurationMonths: proposal.proposedDurationMonths || 12,
+    counterOfferCount: proposal.counterOfferCount ?? 0,
+    policy
+  };
+
+  const rules = ruleRegistry.getRules();
+  const ruleResults = await Promise.all(rules.map(rule => runRuleWithTimeout(rule, ruleContext)));
+
+  const blockers = ruleResults.filter(r => !r.passed && (r.severity === 'BLOCKER' || r.severity === 'HIGH'));
+  const eligible = blockers.length === 0;
+
+  const why = [];
+  const recommendations = [];
+  ruleResults.forEach(r => {
+    if (!r.passed) {
+      why.push(`[${r.severity}] ${r.name}: ${r.reason}`);
+      if (r.id === 'payment-rule')     recommendations.push('Tenant must settle outstanding bill balances.');
+      if (r.id === 'maintenance-rule') recommendations.push('Resolve pending repair work orders before lease extension.');
+      if (r.id === 'kyc-rule')         recommendations.push('Request updated identity or KYC documents from the tenant.');
+      if (r.id === 'policy-rule')      recommendations.push('Adjust rent increase percent or lease term duration to match policy limits.');
+    }
+  });
+  if (eligible) {
+    why.push('All critical policy rules and eligibility checks passed successfully.');
+    recommendations.push('Proceed with creating and signing the lease agreement.');
+  }
+
+  return {
+    simulated: true,
+    eligible,
+    riskScore: riskResult.score,
+    riskGrade: riskResult.grade,
+    riskBreakdown: riskResult.breakdown,
+    rules: ruleResults,
+    resolvedPolicy: {
+      minDurationMonths: policy.minDurationMonths,
+      maxDurationMonths: policy.maxDurationMonths,
+      maxRentIncreasePercent: policy.maxRentIncreasePercent,
+      minNoticeDays: policy.minNoticeDays,
+      maxCounterOffers: policy.maxCounterOffers,
+      autoApprovalEnabled: policy.autoApprovalEnabled,
+      policyId: policy.policyId
+    },
+    explainability: { why, recommendations },
+    executionTimeMs: Date.now() - start,
+    policyVersion: policy.version || 1
+  };
+};

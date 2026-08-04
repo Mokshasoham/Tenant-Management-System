@@ -128,7 +128,7 @@ export class PolicyRule extends BaseRule {
   }
 
   async execute(context) {
-    const { proposedRent, currentRent, proposedDurationMonths, policy } = context;
+    const { proposedRent, currentRent, proposedDurationMonths, policy, counterOfferCount } = context;
 
     if (!policy) {
       return {
@@ -143,22 +143,28 @@ export class PolicyRule extends BaseRule {
     let passed = true;
 
     // Check duration limits
-    if (policy.minDurationMonths && proposedDurationMonths < policy.minDurationMonths) {
+    if (policy.minDurationMonths != null && proposedDurationMonths < policy.minDurationMonths) {
       passed = false;
       why.push(`Proposed duration of ${proposedDurationMonths} months is shorter than the minimum allowed limit of ${policy.minDurationMonths} months.`);
     }
-    if (policy.maxDurationMonths && proposedDurationMonths > policy.maxDurationMonths) {
+    if (policy.maxDurationMonths != null && proposedDurationMonths > policy.maxDurationMonths) {
       passed = false;
       why.push(`Proposed duration of ${proposedDurationMonths} months exceeds the maximum allowed limit of ${policy.maxDurationMonths} months.`);
     }
 
     // Check rent increase limits
-    if (currentRent && proposedRent && policy.maxRentIncreasePercent) {
+    if (currentRent && proposedRent && policy.maxRentIncreasePercent != null) {
       const increasePercent = ((proposedRent - currentRent) / currentRent) * 100;
       if (increasePercent > policy.maxRentIncreasePercent) {
         passed = false;
         why.push(`Proposed rent increase of ${increasePercent.toFixed(1)}% exceeds the maximum policy threshold of ${policy.maxRentIncreasePercent}%.`);
       }
+    }
+
+    // Check counter offer limit
+    if (policy.maxCounterOffers != null && counterOfferCount != null && counterOfferCount >= policy.maxCounterOffers) {
+      passed = false;
+      why.push(`Counter offer limit of ${policy.maxCounterOffers} has been reached (current: ${counterOfferCount}).`);
     }
 
     return {
@@ -170,23 +176,131 @@ export class PolicyRule extends BaseRule {
   }
 }
 
+// ---------------------------------------------------------------------------
 // Rule Registry Manager
+// ---------------------------------------------------------------------------
+
+/**
+ * Each registry entry stores rich metadata alongside the rule instance:
+ * {
+ *   rule:          BaseRule instance,
+ *   enabled:       boolean,
+ *   registeredAt:  Date,
+ *   version:       string  (from rule.metadata.version)
+ * }
+ */
 class RuleRegistry {
   constructor() {
+    /** @type {Map<string, { rule: BaseRule, enabled: boolean, registeredAt: Date, version: string }>} */
     this.rules = new Map();
+
     // Auto-register default rules
-    this.register(new PaymentRule());
-    this.register(new MaintenanceRule());
-    this.register(new KYCRule());
-    this.register(new PolicyRule());
+    this._registerDefault(new PaymentRule());
+    this._registerDefault(new MaintenanceRule());
+    this._registerDefault(new KYCRule());
+    this._registerDefault(new PolicyRule());
   }
 
+  /** Internal helper — bypasses duplicate check for bootstrap defaults */
+  _registerDefault(rule) {
+    this.rules.set(rule.metadata.id, {
+      rule,
+      enabled: true,
+      registeredAt: new Date(),
+      version: rule.metadata.version || '1.0'
+    });
+  }
+
+  /**
+   * Register a new rule.
+   * @throws {Error} if a rule with the same id is already registered (use replace() to overwrite).
+   */
   register(rule) {
-    this.rules.set(rule.metadata.id, rule);
+    if (this.rules.has(rule.metadata.id)) {
+      throw new Error(`Rule already registered: ${rule.metadata.id}. Use replace() to intentionally overwrite.`);
+    }
+    this.rules.set(rule.metadata.id, {
+      rule,
+      enabled: true,
+      registeredAt: new Date(),
+      version: rule.metadata.version || '1.0'
+    });
   }
 
+  /**
+   * Replace an existing rule (or register if absent). Never throws on duplicate.
+   */
+  replace(rule) {
+    this.rules.set(rule.metadata.id, {
+      rule,
+      enabled: true,
+      registeredAt: new Date(),
+      version: rule.metadata.version || '1.0'
+    });
+  }
+
+  /**
+   * Remove a rule from the registry.
+   * @throws {Error} if the rule id is not registered.
+   */
+  remove(id) {
+    if (!this.rules.has(id)) {
+      throw new Error(`Rule not found: ${id}`);
+    }
+    this.rules.delete(id);
+  }
+
+  /**
+   * Disable a rule so it is excluded from execution.
+   * @throws {Error} if the rule id is not registered.
+   */
+  disable(id) {
+    if (!this.rules.has(id)) {
+      throw new Error(`Rule not found: ${id}`);
+    }
+    this.rules.get(id).enabled = false;
+  }
+
+  /**
+   * Re-enable a previously disabled rule.
+   * @throws {Error} if the rule id is not registered.
+   */
+  enable(id) {
+    if (!this.rules.has(id)) {
+      throw new Error(`Rule not found: ${id}`);
+    }
+    this.rules.get(id).enabled = true;
+  }
+
+  /**
+   * Check whether a rule id exists in the registry (regardless of enabled state).
+   */
+  isRegistered(id) {
+    return this.rules.has(id);
+  }
+
+  /**
+   * Returns only enabled rule instances, preserving insertion order.
+   */
   getRules() {
-    return Array.from(this.rules.values());
+    return Array.from(this.rules.values())
+      .filter(entry => entry.enabled)
+      .map(entry => entry.rule);
+  }
+
+  /**
+   * Returns all registry entries including disabled rules — useful for Admin UI / diagnostics.
+   */
+  getAll() {
+    return Array.from(this.rules.entries()).map(([id, entry]) => ({
+      id,
+      name: entry.rule.metadata.name,
+      category: entry.rule.metadata.category,
+      severity: entry.rule.metadata.severity,
+      enabled: entry.enabled,
+      registeredAt: entry.registeredAt,
+      version: entry.version
+    }));
   }
 }
 
