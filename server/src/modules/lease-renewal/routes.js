@@ -25,6 +25,14 @@ router.post('/:id/approve', authenticate, controller.approveRenewal);
 router.post('/:id/reject', authenticate, controller.rejectRenewal);
 router.post('/:id/sign', authenticate, controller.signRenewal);
 
+// Campaign Analytics Dashboard Endpoints
+router.get('/campaigns/dashboard', authenticate, managerOrAdmin, campaignController.getDashboard);
+router.get('/campaigns/dashboard/summary', authenticate, managerOrAdmin, campaignController.getDashboardSummary);
+router.get('/campaigns/dashboard/trends', authenticate, managerOrAdmin, campaignController.getDashboardTrends);
+router.get('/campaigns/dashboard/risk', authenticate, managerOrAdmin, campaignController.getDashboardRisk);
+router.get('/campaigns/dashboard/workload', authenticate, managerOrAdmin, campaignController.getDashboardWorkload);
+router.get('/campaigns/dashboard/recent-activity', authenticate, managerOrAdmin, campaignController.getRecentActivity);
+
 // Campaign Foundation Endpoints
 router.get('/campaigns/index', authenticate, campaignController.getCampaigns);
 router.get('/campaigns/:id', authenticate, campaignController.getCampaignDetails);

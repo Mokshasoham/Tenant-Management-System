@@ -40,6 +40,7 @@ import InspectionPage from './pages/InspectionPage';
 import DepositSettlementPage from './pages/DepositSettlementPage';
 import LeaseHistoryPage from './pages/LeaseHistoryPage';
 import RenewalHistoryPage from './pages/RenewalHistoryPage';
+import ManagerCampaignDashboardPage from './pages/ManagerCampaignDashboardPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -143,6 +144,8 @@ function App() {
               <Route path="/properties" element={<ManagerRoute><DashboardLayout><PropertiesPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/analytics" element={<ManagerRoute><DashboardLayout><AnalyticsPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/lease-renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
 
               {/* Admin only */}
               <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />

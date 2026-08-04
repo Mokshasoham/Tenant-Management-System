@@ -21,15 +21,15 @@ export const CampaignSource = {
 };
 
 export const ALLOWED_CAMPAIGN_TRANSITIONS = {
-  [RenewalCampaignStatus.DRAFT]: [RenewalCampaignStatus.CREATED, RenewalCampaignStatus.CANCELLED],
-  [RenewalCampaignStatus.CREATED]: [RenewalCampaignStatus.WAITING_FOR_TENANT, RenewalCampaignStatus.CANCELLED],
-  [RenewalCampaignStatus.WAITING_FOR_TENANT]: [RenewalCampaignStatus.NEGOTIATING, RenewalCampaignStatus.WAITING_FOR_MANAGER, RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED],
-  [RenewalCampaignStatus.WAITING_FOR_MANAGER]: [RenewalCampaignStatus.NEGOTIATING, RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED],
-  [RenewalCampaignStatus.NEGOTIATING]: [RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED],
-  [RenewalCampaignStatus.PENDING_SIGNATURE]: [RenewalCampaignStatus.APPROVED, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED],
+  [RenewalCampaignStatus.DRAFT]: [RenewalCampaignStatus.CREATED, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.EXPIRED, RenewalCampaignStatus.ESCALATED],
+  [RenewalCampaignStatus.CREATED]: [RenewalCampaignStatus.WAITING_FOR_TENANT, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.EXPIRED, RenewalCampaignStatus.ESCALATED],
+  [RenewalCampaignStatus.WAITING_FOR_TENANT]: [RenewalCampaignStatus.NEGOTIATING, RenewalCampaignStatus.WAITING_FOR_MANAGER, RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED, RenewalCampaignStatus.EXPIRED],
+  [RenewalCampaignStatus.WAITING_FOR_MANAGER]: [RenewalCampaignStatus.NEGOTIATING, RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED, RenewalCampaignStatus.EXPIRED],
+  [RenewalCampaignStatus.NEGOTIATING]: [RenewalCampaignStatus.PENDING_SIGNATURE, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED, RenewalCampaignStatus.EXPIRED],
+  [RenewalCampaignStatus.PENDING_SIGNATURE]: [RenewalCampaignStatus.APPROVED, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.ESCALATED, RenewalCampaignStatus.EXPIRED],
   [RenewalCampaignStatus.APPROVED]: [RenewalCampaignStatus.COMPLETED, RenewalCampaignStatus.CANCELLED],
   [RenewalCampaignStatus.COMPLETED]: [],
   [RenewalCampaignStatus.EXPIRED]: [],
   [RenewalCampaignStatus.CANCELLED]: [],
-  [RenewalCampaignStatus.ESCALATED]: [RenewalCampaignStatus.WAITING_FOR_MANAGER, RenewalCampaignStatus.CANCELLED]
+  [RenewalCampaignStatus.ESCALATED]: [RenewalCampaignStatus.WAITING_FOR_MANAGER, RenewalCampaignStatus.CANCELLED, RenewalCampaignStatus.EXPIRED]
 };

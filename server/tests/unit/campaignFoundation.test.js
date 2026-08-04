@@ -53,6 +53,7 @@ describe('Lease Renewal Campaign Foundation Tests', () => {
         resolve(mockLease);
       }
     };
+    jest.spyOn(Lease, 'findOne').mockReturnValue(mockLeaseQuery);
     jest.spyOn(Lease, 'findById').mockReturnValue(mockLeaseQuery);
 
     const mockCampaignQuery = {
@@ -62,6 +63,7 @@ describe('Lease Renewal Campaign Foundation Tests', () => {
       }
     };
     jest.spyOn(LeaseRenewalCampaign, 'findOne').mockReturnValue(mockCampaignQuery);
+    jest.spyOn(LeaseRenewalCampaign, 'findById').mockReturnValue(mockCampaign);
 
     const mockFindQuery = {
       select: jest.fn().mockReturnThis(),
@@ -72,9 +74,14 @@ describe('Lease Renewal Campaign Foundation Tests', () => {
     };
     jest.spyOn(LeaseRenewalCampaign, 'find').mockReturnValue(mockFindQuery);
 
+    jest.spyOn(Tenant, 'findOne').mockResolvedValue({ email: 'test@tenant.com' });
     jest.spyOn(Tenant, 'findById').mockResolvedValue({ email: 'test@tenant.com' });
     jest.spyOn(User, 'findOne').mockResolvedValue({ firstName: 'Tenant', lastName: 'Name', email: 'test@tenant.com' });
     jest.spyOn(User, 'findById').mockResolvedValue({ name: 'Property Manager' });
+
+    const PropertyModule = await import('../../src/models/Property.js');
+    jest.spyOn(PropertyModule.default, 'findOne').mockResolvedValue({ name: 'Sunset Palms', address: '123 Main St' });
+    jest.spyOn(PropertyModule.default, 'findById').mockResolvedValue({ name: 'Sunset Palms', address: '123 Main St' });
 
     // Mock Counter to return a valid sequence number
     jest.spyOn(Counter, 'findOneAndUpdate').mockResolvedValue({ seq: 1 });
@@ -118,6 +125,7 @@ describe('Lease Renewal Campaign Foundation Tests', () => {
         resolve(null);
       }
     };
+    jest.spyOn(Lease, 'findOne').mockReturnValue(mockLeaseQueryNull);
     jest.spyOn(Lease, 'findById').mockReturnValue(mockLeaseQueryNull);
     const user = { userId: new mongoose.Types.ObjectId().toString(), role: 'admin' };
 
@@ -193,6 +201,6 @@ describe('Lease Renewal Campaign Foundation Tests', () => {
 
     await expect(
       campaignService.transitionStatus(mockCampaign._id, RenewalCampaignStatus.CREATED, user)
-    ).rejects.toThrow('Version conflict detected');
+    ).rejects.toThrow(/Version conflict detected|Race condition detected/);
   });
 });

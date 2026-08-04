@@ -88,6 +88,14 @@ const notificationSchema = new mongoose.Schema(
         entityId: {
             type: mongoose.Schema.Types.ObjectId,
         },
+        source: {
+            type: String,
+            trim: true,
+        },
+        actionUrl: {
+            type: String,
+            trim: true,
+        },
         redirectUrl: {
             type: String,
             trim: true,

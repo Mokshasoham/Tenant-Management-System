@@ -54,7 +54,11 @@ import cacheProvider from './platform/cache/cacheProvider.js';
 import jobDispatcher from './platform/jobs/jobDispatcher.js';
 import storageProvider from './platform/storage/storageProvider.js';
 import healthRoutes from './routes/healthRoutes.js';
+import schedulerRoutes from './routes/schedulerRoutes.js';
 import helmetConfig from './platform/security/helmetConfig.js';
+import { registerLeaseRenewalSchedulers } from './modules/lease-renewal/schedulers/index.js';
+import { subscribeNotificationListeners } from './modules/lease-renewal/notifications/notificationEventRegistry.js';
+import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
 
 const app = express();
 
@@ -78,7 +82,12 @@ try {
   await connectDB();
   logger.info('Database connected successfully.');
 
-  // 5. Freeze Container (make read-only)
+  // 5. Register all schedulers & notification event listeners
+  registerLeaseRenewalSchedulers();
+  subscribeNotificationListeners();
+  logger.info('Schedulers and notification event listeners registered.');
+
+  // 6. Freeze Container (make read-only)
   Object.freeze(container);
   logger.info('Platform dependency container frozen.');
 
@@ -233,6 +242,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/payouts', payoutRoutes);
+app.use('/api/v1/schedulers', schedulerRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -242,6 +252,10 @@ app.use(errorHandler);
 
 // Start Cron Workers
 startCronJobs();
+
+// Start Platform Schedulers
+await schedulerRegistry.startAll();
+logger.info('Platform schedulers started.');
 
 const httpServer = createServer(app);
 
@@ -334,6 +348,11 @@ const gracefulShutdown = async (signal) => {
     try {
       const email = container.resolveEmail();
       if (email && typeof email.shutdown === 'function') await email.shutdown();
+    } catch {}
+
+    // 3a. Stop platform schedulers (before jobs — schedulers may dispatch jobs)
+    try {
+      await schedulerRegistry.stopAll();
     } catch {}
 
     try {

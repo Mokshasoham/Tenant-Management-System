@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import container from '../platform/container.js';
+import schedulerRegistry from '../platform/scheduler/SchedulerRegistry.js';
 import { PLATFORM_VERSION, APPLICATION_VERSION, NODE_VERSION, GIT_COMMIT, BUILD_TIME, ENVIRONMENT } from '../platform/version.js';
 
 const router = express.Router();
@@ -89,6 +90,7 @@ router.get('/health', async (req, res) => {
   let cacheHealth = { status: 'UP', latencyMs: 0, lastChecked: new Date().toISOString(), version: PLATFORM_VERSION, details: {} };
   let storageHealth = { status: 'UP', latencyMs: 0, lastChecked: new Date().toISOString(), version: PLATFORM_VERSION, details: {} };
   let jobsHealth = { status: 'UP', latencyMs: 0, lastChecked: new Date().toISOString(), version: PLATFORM_VERSION, details: {} };
+  let schedulersHealth = { status: 'UP', count: 0, schedulers: [] };
 
   try {
     const cache = container.resolveCache();
@@ -105,7 +107,11 @@ router.get('/health', async (req, res) => {
     if (jobs) jobsHealth = await jobs.health();
   } catch {}
 
-  const overallStatus = (dbHealth.status === 'UP' && cacheHealth.status === 'UP' && storageHealth.status === 'UP') ? 'UP' : 'DOWN';
+  try {
+    schedulersHealth = await schedulerRegistry.health();
+  } catch {}
+
+  const overallStatus = (dbHealth.status === 'UP' && cacheHealth.status === 'UP' && storageHealth.status === 'UP' && schedulersHealth.status === 'UP') ? 'UP' : 'DOWN';
 
   res.status(200).json({
     status: overallStatus,
@@ -120,7 +126,8 @@ router.get('/health', async (req, res) => {
       database: dbHealth,
       cache: cacheHealth,
       storage: storageHealth,
-      jobs: jobsHealth
+      jobs: jobsHealth,
+      schedulers: schedulersHealth
     }
   });
 });

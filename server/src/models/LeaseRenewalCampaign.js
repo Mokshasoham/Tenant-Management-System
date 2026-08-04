@@ -95,4 +95,10 @@ campaignSchema.index({ expiryDate: 1 });
 campaignSchema.index({ slaStatus: 1 });
 campaignSchema.index({ riskScore: 1 });
 
+// Analytics performance compound indexes
+campaignSchema.index({ organizationId: 1, status: 1 });
+campaignSchema.index({ status: 1, expiryDate: 1 });
+campaignSchema.index({ organizationId: 1, createdAt: -1 });
+campaignSchema.index({ organizationId: 1, riskScore: 1 });
+
 export default mongoose.model('LeaseRenewalCampaign', campaignSchema);

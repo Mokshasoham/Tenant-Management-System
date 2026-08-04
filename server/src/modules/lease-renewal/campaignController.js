@@ -72,3 +72,36 @@ export const transitionStatus = asyncHandler(async (req, res) => {
   );
   res.status(200).json({ success: true, data: result, requestId: auditContext.requestId });
 });
+
+// Analytics Dashboard Controllers
+import campaignAnalyticsService from './analytics/CampaignAnalyticsService.js';
+
+export const getDashboard = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getDashboard(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});
+
+export const getDashboardSummary = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getDashboardSummary(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});
+
+export const getDashboardRisk = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getDashboardRisk(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});
+
+export const getDashboardTrends = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getDashboardTrends(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});
+
+export const getDashboardWorkload = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getDashboardWorkload(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});
+
+export const getRecentActivity = asyncHandler(async (req, res) => {
+  const data = await campaignAnalyticsService.getRecentActivity(req.query, req.user);
+  res.status(200).json({ success: true, data });
+});

@@ -10,7 +10,18 @@ dotenv.config();
 export const validateEnv = () => {
   const critical = ['MONGODB_URI', 'JWT_SECRET'];
   const featureRequired = [];
-  const optional = ['SMTP_USER', 'SMTP_PASS', 'RESEND_API_KEY', 'LOG_LEVEL'];
+  const optional = [
+    'SMTP_USER', 'SMTP_PASS', 'RESEND_API_KEY', 'LOG_LEVEL',
+    // Scheduler cron expressions — optional; if absent, schedulers log "Using default cron expression..."
+    // and fall back to their hardcoded defaults. Never fails startup.
+    'SCHEDULER_CAMPAIGN_CREATION_CRON',
+    'SCHEDULER_EXPIRATION_CRON',
+    'SCHEDULER_ESCALATION_CRON',
+    'SCHEDULER_CAMPAIGN_CREATION_LOOKAHEAD_DAYS',
+    'SCHEDULER_SLA_WARNING_HOURS',
+    'SCHEDULER_SLA_ESCALATION_GRACE_HOURS',
+    'SCHEDULER_TIMEZONE'
+  ];
 
   // Critical checks
   const missingCritical = critical.filter(v => !process.env[v]);
