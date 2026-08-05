@@ -122,20 +122,26 @@ export function useNotifications(initialParams = {}) {
     };
 
     const bulkMarkAsRead = async (idsToRead = selectedIds) => {
-        if (!idsToRead || idsToRead.length === 0) return;
+        console.log('[useNotifications] bulkMarkAsRead called. IDs:', idsToRead);
+        if (!idsToRead || idsToRead.length === 0) {
+            console.warn('[useNotifications] bulkMarkAsRead: no IDs provided, aborting');
+            return;
+        }
 
         const targetSet = new Set(idsToRead);
         const countToReduce = notifications.filter(n => targetSet.has(n.id) && !n.isRead).length;
 
+        // Optimistic update
         setNotifications(prev => prev.map(item => targetSet.has(item.id) ? { ...item, isRead: true, readAt: new Date().toISOString() } : item));
         setUnreadCount(prev => Math.max(0, prev - countToReduce));
-        setSelectedIds(prev => prev.filter(id => !targetSet.has(id)));
+        setSelectedIds([]);
 
         try {
-            await notificationService.bulkMarkAsRead(idsToRead);
+            const result = await notificationService.bulkMarkAsRead(idsToRead);
+            console.log('[useNotifications] bulkMarkAsRead server result:', result);
             fetchUnreadCount();
         } catch (err) {
-            console.error('Failed to bulk mark read:', err);
+            console.error('[useNotifications] bulkMarkAsRead failed:', err);
             fetchNotifications(true);
             fetchUnreadCount();
         }
@@ -174,26 +180,34 @@ export function useNotifications(initialParams = {}) {
     };
 
     const bulkDelete = async (idsToDelete = selectedIds) => {
-        if (!idsToDelete || idsToDelete.length === 0) return;
+        console.log('[useNotifications] bulkDelete called. IDs:', idsToDelete);
+        if (!idsToDelete || idsToDelete.length === 0) {
+            console.warn('[useNotifications] bulkDelete: no IDs provided, aborting');
+            return;
+        }
 
         const targetSet = new Set(idsToDelete);
         const unreadDeletedCount = notifications.filter(n => targetSet.has(n.id) && !n.isRead).length;
 
+        // Optimistic update
         setNotifications(prev => prev.filter(item => !targetSet.has(item.id)));
         setUnreadCount(prev => Math.max(0, prev - unreadDeletedCount));
         setSelectedIds([]);
 
         try {
-            await notificationService.bulkDelete(idsToDelete);
+            const result = await notificationService.bulkDelete(idsToDelete);
+            console.log('[useNotifications] bulkDelete server result:', result);
             fetchUnreadCount();
         } catch (err) {
-            console.error('Failed to bulk delete notifications:', err);
+            console.error('[useNotifications] bulkDelete failed:', err);
             fetchNotifications(true);
             fetchUnreadCount();
         }
     };
 
     const clearAllRead = async () => {
+        console.log('[useNotifications] clearAllRead called');
+        // Optimistic: remove all read items from local state
         setNotifications(prev => prev.filter(item => !item.isRead));
         setSelectedIds(prev => prev.filter(id => {
             const notif = notifications.find(n => n.id === id);
@@ -201,10 +215,13 @@ export function useNotifications(initialParams = {}) {
         }));
 
         try {
-            await notificationService.clearAllRead();
+            const result = await notificationService.clearAllRead();
+            console.log('[useNotifications] clearAllRead server result:', result);
+            // Refetch to sync with server (may have cleared more than local view had)
+            fetchNotifications(true);
             fetchUnreadCount();
         } catch (err) {
-            console.error('Failed to clear read notifications:', err);
+            console.error('[useNotifications] clearAllRead failed:', err);
             fetchNotifications(true);
             fetchUnreadCount();
         }

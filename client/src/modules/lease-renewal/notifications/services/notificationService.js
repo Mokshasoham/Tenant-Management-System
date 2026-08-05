@@ -2,7 +2,11 @@ import apiClient from '../../../../services/apiClient';
 
 /**
  * notificationService.js
- * Centralized REST client for Notification API operations
+ * Centralized REST client for Notification API operations.
+ *
+ * NOTE: apiClient's response interceptor returns `response.data` directly,
+ * so every method here receives the already-unwrapped response body.
+ * Do NOT chain .data again on the result.
  */
 export const notificationService = {
     /**
@@ -10,6 +14,7 @@ export const notificationService = {
      */
     getNotifications: async (params = {}) => {
         const response = await apiClient.get('/v1/notifications', { params });
+        // response is already the body: { success, data, pagination, metrics }
         return response || { success: true, data: [], pagination: {} };
     },
 
@@ -18,6 +23,7 @@ export const notificationService = {
      */
     getUnreadCount: async (params = {}) => {
         const response = await apiClient.get('/v1/notifications/unread-count', { params });
+        // response = { success: true, data: { unreadCount: N } }
         return response?.data?.unreadCount ?? response?.unreadCount ?? 0;
     },
 
@@ -26,15 +32,20 @@ export const notificationService = {
      */
     markAsRead: async (id) => {
         const response = await apiClient.patch(`/v1/notifications/${id}/read`);
-        return response.data?.data || response.data;
+        // response = { success, message, data: notificationDTO }
+        return response?.data || response;
     },
 
     /**
      * Bulk mark selected notifications read
+     * POST body: { notificationIds: string[] }
      */
     bulkMarkAsRead: async (notificationIds) => {
+        console.log('[notificationService] bulkMarkAsRead called with IDs:', notificationIds);
         const response = await apiClient.patch('/v1/notifications/bulk-read', { notificationIds });
-        return response.data;
+        // response = { success, message, data: { modifiedCount } }
+        console.log('[notificationService] bulkMarkAsRead response:', response);
+        return response;
     },
 
     /**
@@ -42,7 +53,7 @@ export const notificationService = {
      */
     markAllAsRead: async () => {
         const response = await apiClient.patch('/v1/notifications/read-all');
-        return response.data;
+        return response;
     },
 
     /**
@@ -50,23 +61,29 @@ export const notificationService = {
      */
     deleteNotification: async (id) => {
         const response = await apiClient.delete(`/v1/notifications/${id}`);
-        return response.data;
+        return response;
     },
 
     /**
      * Bulk soft-delete selected notifications
+     * POST body: { notificationIds: string[] }
      */
     bulkDelete: async (notificationIds) => {
+        console.log('[notificationService] bulkDelete called with IDs:', notificationIds);
         const response = await apiClient.post('/v1/notifications/bulk-delete', { notificationIds });
-        return response.data;
+        // response = { success, message, data: { modifiedCount } }
+        console.log('[notificationService] bulkDelete response:', response);
+        return response;
     },
 
     /**
-     * Soft-delete all read notifications
+     * Soft-delete all read notifications for current user
      */
     clearAllRead: async () => {
+        console.log('[notificationService] clearAllRead called');
         const response = await apiClient.delete('/v1/notifications/clear-read');
-        return response.data;
+        console.log('[notificationService] clearAllRead response:', response);
+        return response;
     }
 };
 
