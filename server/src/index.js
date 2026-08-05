@@ -58,6 +58,8 @@ import schedulerRoutes from './routes/schedulerRoutes.js';
 import helmetConfig from './platform/security/helmetConfig.js';
 import { registerLeaseRenewalSchedulers } from './modules/lease-renewal/schedulers/index.js';
 import { subscribeNotificationListeners } from './modules/lease-renewal/notifications/notificationEventRegistry.js';
+import v1ReminderRoutes from './routes/v1ReminderRoutes.js';
+import reminderEventSubscriber from './modules/reminders/events/reminderEventSubscriber.js';
 import outboxWorker from './platform/events/outboxWorker.js';
 import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
 
@@ -86,6 +88,7 @@ try {
   // 5. Register all schedulers & notification event listeners
   registerLeaseRenewalSchedulers();
   subscribeNotificationListeners();
+  reminderEventSubscriber.subscribe();
   outboxWorker.start();
   logger.info('Schedulers, outbox worker, and notification event listeners registered.');
 
@@ -233,6 +236,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/v1/notifications', v1NotificationRoutes);
+app.use('/api/v1/reminders', v1ReminderRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
