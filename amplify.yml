@@ -15,3 +15,7 @@ frontend:
   cache:
     paths:
       - client/node_modules/**/*
+  customRules:
+    - source: '/<*>'
+      target: '/index.html'
+      status: '200'
