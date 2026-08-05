@@ -113,6 +113,7 @@ function App() {
 
               {/* All authenticated */}
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/dashboard/*" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/payments" element={<ProtectedRoute><DashboardLayout><PaymentsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/bills" element={<ProtectedRoute><DashboardLayout><BillsPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/bills/:id" element={<ProtectedRoute><DashboardLayout><BillsPage /></DashboardLayout></ProtectedRoute>} />
@@ -149,6 +150,9 @@ function App() {
 
               {/* Admin only */}
               <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
+
+              {/* Catch-all fallback */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </ChatProvider>
         </Router>
