@@ -142,13 +142,20 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
  */
 export const getUnreadCount = asyncHandler(async (req, res) => {
     const recipientId = new mongoose.Types.ObjectId(req.user.userId);
-    const unreadCount = await Notification.countDocuments({
+    const { category } = req.query;
+    const filter = {
         recipient: recipientId,
         isRead: false,
         read: false,
-        isDeleted: false,
-        isArchived: false
-    });
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true }
+    };
+
+    if (category && category !== 'all') {
+        filter.category = category;
+    }
+
+    const unreadCount = await Notification.countDocuments(filter);
 
     res.status(200).json({
         success: true,

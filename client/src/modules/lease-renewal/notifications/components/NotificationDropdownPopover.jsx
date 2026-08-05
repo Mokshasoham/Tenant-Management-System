@@ -25,7 +25,7 @@ export function NotificationDropdownPopover({
             {/* Popover Header */}
             <div className="p-3.5 flex items-center justify-between bg-slate-950/60">
                 <div className="flex items-center space-x-2">
-                    <span className="font-bold text-sm text-slate-100">Notifications</span>
+                    <span className="font-bold text-sm text-slate-100">Messages & Alerts</span>
                     {unreadCount > 0 && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-500 text-white shadow-sm shadow-indigo-950">
                             {unreadCount} new
@@ -51,8 +51,8 @@ export function NotificationDropdownPopover({
                 ) : notifications.length === 0 ? (
                     <div className="py-10 text-center px-4">
                         <BellOff className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                        <p className="text-xs font-medium text-slate-300">No new notifications</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">You're completely caught up!</p>
+                        <p className="text-xs font-medium text-slate-300">No new messages</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">You're completely caught up on direct messages!</p>
                     </div>
                 ) : (
                     notifications.slice(0, 5).map(item => (
@@ -69,10 +69,13 @@ export function NotificationDropdownPopover({
             {/* Popover Footer */}
             <div className="p-3 bg-slate-950/80 text-center">
                 <button
-                    onClick={handleViewAll}
+                    onClick={() => {
+                        if (onClose) onClose();
+                        navigate('/messages');
+                    }}
                     className="w-full py-2 px-4 rounded-xl bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 hover:text-white border border-indigo-500/30 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
                 >
-                    <span>View All Activity & Notifications</span>
+                    <span>Open Messages Inbox</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                 </button>
             </div>

@@ -15,7 +15,7 @@ export function NavbarNotificationBell() {
         markAsRead,
         markAllAsRead,
         deleteNotification
-    } = useNotifications({ limit: 5 });
+    } = useNotifications({ category: 'messages', limit: 10 });
 
     // Handle outside click to close dropdown
     useEffect(() => {

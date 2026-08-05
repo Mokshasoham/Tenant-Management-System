@@ -123,7 +123,8 @@ export default function ActionCenterPage() {
       }
 
       const res = await notificationService.getV1Notifications(params);
-      setActivities(res.data?.data || []);
+      const items = res.data?.data || res.data || [];
+      setActivities(Array.isArray(items) ? items : []);
     } catch (err) {
       console.error('Failed to load Action Center data:', err);
     } finally {
