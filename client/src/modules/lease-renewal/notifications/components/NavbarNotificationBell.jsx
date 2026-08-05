@@ -45,13 +45,13 @@ export function NavbarNotificationBell() {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="Notifications"
-                className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                className="relative p-2 rounded-xl text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             >
                 <Bell className="w-5 h-5" />
                 {loading && unreadCount === 0 ? (
                     <UnreadBadgeSkeleton />
                 ) : unreadCount > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-slate-950 shadow-md animate-pulse">
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-white dark:ring-slate-950 shadow-md animate-pulse">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 ) : null}
