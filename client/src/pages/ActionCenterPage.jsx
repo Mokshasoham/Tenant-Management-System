@@ -124,7 +124,9 @@ export default function ActionCenterPage() {
 
       const res = await notificationService.getV1Notifications(params);
       const items = res.data?.data || res.data || [];
-      setActivities(Array.isArray(items) ? items : []);
+      // Action Center Log contains business activity events (booking, lease, payments, maintenance, renewal, etc.)
+      const activityItems = Array.isArray(items) ? items.filter(item => item.category !== 'messages') : [];
+      setActivities(activityItems);
     } catch (err) {
       console.error('Failed to load Action Center data:', err);
     } finally {

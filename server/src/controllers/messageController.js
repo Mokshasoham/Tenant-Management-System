@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { uploadFileBuffer } from '../services/fileService.js';
+import NotificationService from '../services/NotificationService.js';
 
 const resolveMessageUrls = (message, req) => {
     if (!message) return message;
@@ -69,6 +70,29 @@ export const sendMessage = asyncHandler(async (req, res) => {
         content,
         property: propertyId,
     });
+
+    const sender = await User.findById(senderId).select('name firstName lastName email');
+    const senderName = sender ? (sender.name || `${sender.firstName || ''} ${sender.lastName || ''}`.trim() || sender.email) : 'A User';
+
+    // Notify receiver in Notification Bell dropdown
+    try {
+        await NotificationService.notify({
+            recipient: receiverId,
+            title: `New Message from ${senderName}`,
+            message: content ? (content.length > 120 ? `${content.substring(0, 120)}...` : content) : 'You received a new message.',
+            category: 'messages',
+            priority: 'medium',
+            severity: 'information',
+            actionUrl: '/messages',
+            sourceModule: 'messages',
+            source: 'USER_CHAT',
+            entityType: 'Message',
+            entityId: message._id,
+            metadata: { messageId: message._id, senderId }
+        });
+    } catch (notifErr) {
+        logger.warn(`Failed to create notification for message ${message._id}: ${notifErr.message}`);
+    }
 
     logger.info(`Message sent from ${senderId} to ${receiverId}`);
 
