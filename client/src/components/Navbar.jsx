@@ -5,9 +5,6 @@ import useAuthStore from '../context/authStore';
 import { notificationService, propertyService, paymentService, tenantService, maintenanceService, bookingService, visitService, leaseService } from '../services/api';
 import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { useLanguage } from '../context/LanguageContext';
-import { useActionCenterNavigation } from '../hooks/useActionCenterNavigation';
-
 import NavbarNotificationBell from '../modules/lease-renewal/notifications/components/NavbarNotificationBell';
 
 const ROLE_THEME = {
@@ -59,7 +56,6 @@ export default function Navbar({ toggleSidebar }) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { t } = useLanguage();
-  const { handleAction } = useActionCenterNavigation();
 
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -229,7 +225,8 @@ export default function Navbar({ toggleSidebar }) {
   const handleNotifClick = async (n) => {
     console.log('[Navbar] View Details / Notification clicked:', n);
     setShowNotif(false);
-    handleAction(n);
+    const target = n.actionUrl || n.redirectUrl || n.link || '/notifications';
+    navigate(target);
   };
 
   const handleDeleteNotif = async (id) => {

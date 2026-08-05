@@ -69,7 +69,7 @@ export class NotificationService {
       }
     }
 
-    const resolvedUrl = actionUrl || redirectUrl || link || '/action-center';
+    const resolvedUrl = actionUrl || redirectUrl || link || '/notifications';
     const resolvedModule = sourceModule || resolvedCategory || 'system';
 
     try {

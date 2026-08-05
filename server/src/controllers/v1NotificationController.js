@@ -27,78 +27,85 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
     const parsedLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
     
     // Base query restricted to logged-in recipient
-    const query = {
-        recipient: new mongoose.Types.ObjectId(req.user.userId),
-        isDeleted: { $ne: true }
-    };
+    const conditions = [
+        { recipient: new mongoose.Types.ObjectId(req.user.userId) },
+        { isDeleted: { $ne: true } }
+    ];
 
     // Unread & Read Filters
     if (unreadOnly === 'true' || unreadOnly === true) {
-        query.$or = [{ isRead: false }, { read: false }];
+        conditions.push({ $or: [{ isRead: false }, { read: false }] });
     } else if (isRead !== undefined) {
         const readBool = isRead === 'true' || isRead === true;
         if (readBool) {
-            query.$or = [{ isRead: true }, { read: true }];
+            conditions.push({ $or: [{ isRead: true }, { read: true }] });
         } else {
-            query.$or = [{ isRead: false }, { read: false }];
+            conditions.push({ $or: [{ isRead: false }, { read: false }] });
         }
     }
 
     // Category Filter
     if (category && category !== 'all') {
-        query.category = category;
+        conditions.push({ category });
     }
     // Priority Filter
     if (priority && priority !== 'all') {
-        query.priority = priority;
+        conditions.push({ priority });
     }
     // Severity Filter
     if (severity && severity !== 'all') {
-        query.severity = severity;
+        conditions.push({ severity });
     }
     // Archived Filter
     if (isArchived !== undefined) {
-        query.isArchived = isArchived === 'true';
+        conditions.push({ isArchived: isArchived === 'true' });
     } else {
-        query.isArchived = { $ne: true };
+        conditions.push({ isArchived: { $ne: true } });
     }
 
     // Property Filter
     if (propertyId) {
-        query.$or = [
-            { 'metadata.propertyId': propertyId },
-            { entityId: propertyId }
-        ];
+        conditions.push({
+            $or: [
+                { 'metadata.propertyId': propertyId },
+                { entityId: propertyId }
+            ]
+        });
     }
 
     // Date Range Filter
     if (startDate || endDate) {
-        query.createdAt = {};
-        if (startDate) query.createdAt.$gte = new Date(startDate);
-        if (endDate) query.createdAt.$lte = new Date(endDate);
+        const dateCond = {};
+        if (startDate) dateCond.$gte = new Date(startDate);
+        if (endDate) dateCond.$lte = new Date(endDate);
+        conditions.push({ createdAt: dateCond });
     }
 
     // Search Filter
     if (search) {
         const searchRegex = new RegExp(search, 'i');
-        query.$or = [
-            { title: searchRegex },
-            { message: searchRegex },
-            { eventId: searchRegex },
-            { sourceModule: searchRegex },
-            { 'metadata.bookingNumber': searchRegex },
-            { 'metadata.invoiceNumber': searchRegex },
-            { 'metadata.leaseNumber': searchRegex },
-            { 'metadata.reference': searchRegex },
-            { 'metadata.propertyName': searchRegex },
-            { 'metadata.tenantName': searchRegex }
-        ];
+        conditions.push({
+            $or: [
+                { title: searchRegex },
+                { message: searchRegex },
+                { eventId: searchRegex },
+                { sourceModule: searchRegex },
+                { 'metadata.bookingNumber': searchRegex },
+                { 'metadata.invoiceNumber': searchRegex },
+                { 'metadata.leaseNumber': searchRegex },
+                { 'metadata.reference': searchRegex },
+                { 'metadata.propertyName': searchRegex },
+                { 'metadata.tenantName': searchRegex }
+            ]
+        });
     }
 
     // Cursor Pagination (if provided)
     if (cursor) {
-        query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+        conditions.push({ _id: { $lt: new mongoose.Types.ObjectId(cursor) } });
     }
+
+    const query = { $and: conditions };
 
     const startTime = process.hrtime();
     const skip = cursor ? 0 : (parseInt(page) - 1) * parsedLimit;

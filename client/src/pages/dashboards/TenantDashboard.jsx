@@ -10,7 +10,6 @@ import {
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import { useLanguage } from '../../context/LanguageContext';
-import { useActionCenterNavigation } from '../../hooks/useActionCenterNavigation';
 
 const getStatusStyle = (status) => ({
     active: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -142,7 +141,7 @@ function PaymentCountdown({ dueDate, amount, isEstimate, propertyName }) {
 
 export default function TenantDashboard({ user, navigate }) {
     const { t } = useLanguage();
-    const { handleAction } = useActionCenterNavigation();
+    const [searchQuery, setSearchQuery] = useState('');
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
@@ -1090,17 +1089,17 @@ export default function TenantDashboard({ user, navigate }) {
                     className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-black text-foreground flex items-center gap-2">
-                            Action Center Log
+                            Recent Notifications
                             {unread > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">{unread}</span>
                             )}
                         </p>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => navigate('/action-center')}
+                                onClick={() => navigate('/notifications')}
                                 className="p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 text-[10px] font-black cursor-pointer"
                             >
-                                Manage Actions
+                                View All
                                 <ArrowRight className="w-3 h-3" />
                             </button>
                             <button
@@ -1262,7 +1261,8 @@ export default function TenantDashboard({ user, navigate }) {
                                         id={`notif-card-${n._id}`}
                                         onClick={() => {
                                             console.log('[TenantDashboard] Notification card clicked:', n);
-                                            handleAction(n);
+                                            const target = n.actionUrl || n.redirectUrl || n.link || '/notifications';
+                                            navigate(target);
                                         }}
                                         className={cn(
                                             'flex items-start justify-between gap-3 p-3 rounded-xl border border-border transition-all duration-200 cursor-pointer hover:bg-muted/45 relative group/item', 
@@ -1320,7 +1320,8 @@ export default function TenantDashboard({ user, navigate }) {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 console.log('[TenantDashboard] View Details clicked:', n);
-                                                                handleAction(n);
+                                                                const target = n.actionUrl || n.redirectUrl || n.link || '/notifications';
+                                                                navigate(target);
                                                             }}
                                                             className="text-[9px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors cursor-pointer"
                                                         >

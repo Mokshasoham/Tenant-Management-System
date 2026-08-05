@@ -129,7 +129,7 @@ export const notificationService = {
   markAllRead: () => apiClient.put('/notifications/mark-all-read'),
   deleteNotification: (id) => apiClient.delete(`/notifications/${id}`),
   
-  // --- Versioned V1 Enterprise Action Center endpoints ---
+  // --- Versioned V1 Notification endpoints ---
   getV1Notifications: (params) => apiClient.get('/v1/notifications', { params }),
   getCalendarAgenda: (params) => apiClient.get('/v1/notifications/calendar', { params }),
   getEventStats: () => apiClient.get('/v1/notifications/stats'),

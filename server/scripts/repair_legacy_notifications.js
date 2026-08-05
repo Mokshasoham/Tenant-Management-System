@@ -77,7 +77,7 @@ async function repairLegacyAndRemapRecipients() {
       }
 
       // 3. Repair actionUrl / redirectUrl
-      const targetUrl = doc.actionUrl || doc.redirectUrl || doc.link || '/action-center';
+      const targetUrl = doc.actionUrl || doc.redirectUrl || doc.link || '/notifications';
       if (doc.actionUrl !== targetUrl) {
         doc.actionUrl = targetUrl;
         doc.redirectUrl = targetUrl;
@@ -118,7 +118,7 @@ async function repairLegacyAndRemapRecipients() {
             category: 'system',
             priority: 'medium',
             severity: 'information',
-            actionUrl: '/action-center',
+            actionUrl: '/notifications',
             sourceModule: 'system',
             source: 'BACKFILL_MIGRATION',
             metadata: { backfilled: true }

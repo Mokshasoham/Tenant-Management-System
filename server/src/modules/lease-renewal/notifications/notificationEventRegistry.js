@@ -59,8 +59,8 @@ class NotificationEventRegistry {
           sourceModule: data.sourceModule || 'system',
           entityType: data.entityType || payload.aggregateType || 'DomainEntity',
           entityId: data.entityId || payload.campaignId || payload.leaseId || payload.paymentId || payload.bookingId,
-          actionUrl: data.actionUrl || (payload.campaignId ? `/lease-renewals/campaigns/${payload.campaignId}` : '/action-center'),
-          redirectUrl: data.actionUrl || (payload.campaignId ? `/lease-renewals/campaigns/${payload.campaignId}` : '/action-center'),
+          actionUrl: data.actionUrl || (payload.campaignId ? `/lease-renewals/campaigns/${payload.campaignId}` : '/notifications'),
+          redirectUrl: data.actionUrl || (payload.campaignId ? `/lease-renewals/campaigns/${payload.campaignId}` : '/notifications'),
           metadata: data.metadata || payload,
           idempotencyKey: data.idempotencyKey
         });

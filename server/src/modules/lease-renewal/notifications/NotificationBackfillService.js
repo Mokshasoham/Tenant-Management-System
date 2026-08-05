@@ -278,7 +278,7 @@ export class NotificationBackfillService {
           sourceModule: 'outbox',
           entityType: event.aggregateType || 'OutboxEvent',
           entityId: event.aggregateId,
-          actionUrl: `/action-center`,
+          actionUrl: `/notifications`,
           eventId: event.eventId || `EVT-BF-OUT-${event._id.toString().slice(-6).toUpperCase()}`,
           idempotencyKey,
           createdAt,
