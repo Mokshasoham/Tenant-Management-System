@@ -51,7 +51,7 @@ export function NavbarNotificationBell() {
                 {loading && unreadCount === 0 ? (
                     <UnreadBadgeSkeleton />
                 ) : unreadCount > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-extrabold text-white ring-2 ring-slate-950 shadow-md">
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-slate-950 shadow-md animate-pulse">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 ) : null}
