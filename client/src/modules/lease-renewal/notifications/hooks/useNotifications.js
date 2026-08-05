@@ -53,8 +53,11 @@ export function useNotifications(initialParams = {}) {
             };
 
             const res = await notificationService.getNotifications(params);
+            console.log('[useNotifications] API response:', res);
+            console.log('[useNotifications] response.data:', res?.data);
             if (res.success) {
                 setNotifications(res.data || []);
+                console.log('[useNotifications] Updated notifications state:', res.data || []);
                 if (res.pagination) {
                     setTotal(res.pagination.total || 0);
                     setHasMore(Boolean(res.pagination.hasMore));
