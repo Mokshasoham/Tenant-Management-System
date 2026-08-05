@@ -53,16 +53,12 @@ export function useNotifications(initialParams = {}) {
             };
 
             const res = await notificationService.getNotifications(params);
-            console.log('[useNotifications] API response:', res);
-            console.log('[useNotifications] response.data:', res?.data);
-            if (res.success) {
-                setNotifications(res.data || []);
-                console.log('[useNotifications] Updated notifications state:', res.data || []);
-                if (res.pagination) {
-                    setTotal(res.pagination.total || 0);
-                    setHasMore(Boolean(res.pagination.hasMore));
-                    setNextCursor(res.pagination.nextCursor || null);
-                }
+            const items = Array.isArray(res) ? res : (res?.data || []);
+            setNotifications(items);
+            if (res?.pagination) {
+                setTotal(res.pagination.total || items.length);
+                setHasMore(Boolean(res.pagination.hasMore));
+                setNextCursor(res.pagination.nextCursor || null);
             }
         } catch (err) {
             console.error('Failed to fetch notifications:', err);

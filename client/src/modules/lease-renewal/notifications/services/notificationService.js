@@ -10,15 +10,15 @@ export const notificationService = {
      */
     getNotifications: async (params = {}) => {
         const response = await apiClient.get('/v1/notifications', { params });
-        return response.data || { success: true, data: [], pagination: {} };
+        return response || { success: true, data: [], pagination: {} };
     },
 
     /**
      * Light endpoint to get current unread count
      */
-    getUnreadCount: async () => {
-        const response = await apiClient.get('/v1/notifications/unread-count');
-        return response.data?.data?.unreadCount ?? 0;
+    getUnreadCount: async (params = {}) => {
+        const response = await apiClient.get('/v1/notifications/unread-count', { params });
+        return response?.data?.unreadCount ?? response?.unreadCount ?? 0;
     },
 
     /**
