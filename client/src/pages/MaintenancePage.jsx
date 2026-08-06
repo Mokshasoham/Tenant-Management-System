@@ -15,9 +15,9 @@ import {
 import { cn } from '../utils/cn';
 
 const STATUS_COLS = [
-    { key: 'open', label: 'Open', color: 'rose', icon: AlertTriangle },
-    { key: 'in_progress', label: 'In Progress', color: 'amber', icon: Clock },
-    { key: 'resolved', label: 'Resolved', color: 'emerald', icon: CheckCircle2 },
+    { key: 'open', label: 'Open', color: 'rose', icon: AlertTriangle, statuses: ['open', 'submitted', 'manager_review'] },
+    { key: 'in_progress', label: 'In Progress', color: 'amber', icon: Clock, statuses: ['in_progress', 'technician_assigned', 'visit_scheduled', 'technician_en_route', 'work_started', 'waiting_parts'] },
+    { key: 'resolved', label: 'Resolved', color: 'emerald', icon: CheckCircle2, statuses: ['resolved', 'completed', 'closed'] },
 ];
 
 const STATUS_PROGRESS = {
@@ -303,11 +303,21 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
         }
     }, [liveTicket?._id]);
 
+    const extractTicketData = (res) => {
+        if (!res) return null;
+        if (res._id) return res;
+        if (res.data && res.data._id) return res.data;
+        if (res.data && res.data.data && res.data.data._id) return res.data.data;
+        return res.data || res;
+    };
+
     const handleUpdateStatus = async (newStatus, note = '') => {
         try {
             const res = await maintenanceService.updateStatus(liveTicket._id, newStatus, note);
-            const updated = res?.data || res;
-            setLiveTicket(updated);
+            const updated = extractTicketData(res);
+            if (updated && updated._id) {
+                setLiveTicket(updated);
+            }
             onRefresh();
         } catch (err) {
             console.error('Status update error:', err);
@@ -319,8 +329,8 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
         if (!commentText.trim()) return;
         try {
             const res = await maintenanceService.addComment(liveTicket._id, commentText);
-            const updated = res?.data || res;
-            setLiveTicket(updated);
+            const updated = extractTicketData(res);
+            if (updated && updated._id) setLiveTicket(updated);
             setCommentText('');
             onRefresh();
         } catch (err) {
@@ -333,8 +343,8 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
         if (!internalNoteText.trim()) return;
         try {
             const res = await maintenanceService.addInternalNote(liveTicket._id, internalNoteText);
-            const updated = res?.data || res;
-            setLiveTicket(updated);
+            const updated = extractTicketData(res);
+            if (updated && updated._id) setLiveTicket(updated);
             setInternalNoteText('');
             onRefresh();
         } catch (err) {
@@ -346,8 +356,8 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
         e.preventDefault();
         try {
             const res = await maintenanceService.updateCosts(liveTicket._id, costData);
-            const updated = res?.data || res;
-            setLiveTicket(updated);
+            const updated = extractTicketData(res);
+            if (updated && updated._id) setLiveTicket(updated);
             setEditingCosts(false);
             onRefresh();
         } catch (err) {
@@ -359,8 +369,8 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
         if (!escalateReason.trim()) return;
         try {
             const res = await maintenanceService.escalateTicket(liveTicket._id, escalateReason);
-            const updated = res?.data || res;
-            setLiveTicket(updated);
+            const updated = extractTicketData(res);
+            if (updated && updated._id) setLiveTicket(updated);
             setShowEscalateModal(false);
             onRefresh();
         } catch (err) {
@@ -1073,7 +1083,11 @@ export default function MaintenancePage() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const byStatus = (s) => requests.filter(r => r.status === s);
+    const byStatus = (colKey) => {
+        const col = STATUS_COLS.find(c => c.key === colKey);
+        if (!col) return [];
+        return requests.filter(r => col.statuses?.includes(r.status) || r.status === colKey);
+    };
 
     return (
         <div className="space-y-6 pb-8">
