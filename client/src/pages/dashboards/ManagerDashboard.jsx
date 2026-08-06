@@ -285,13 +285,22 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     OVERVIEW
                 </button>
                 <button
+                    onClick={() => setView('maintenance')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5",
+                        view === 'maintenance' ? "bg-white text-amber-600 shadow-sm dark:bg-card dark:text-amber-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    <Wrench className="w-3.5 h-3.5" /> MAINTENANCE QUEUE &amp; DASHBOARD
+                </button>
+                <button
                     onClick={() => setView('financials')}
                     className={cn(
                         "px-6 py-2 rounded-xl text-xs font-black transition-all",
                         view === 'financials' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    FINANCIALS & PAYOUTS
+                    FINANCIALS &amp; PAYOUTS
                 </button>
                 <button
                     onClick={() => setView('reporting')}
