@@ -12,20 +12,42 @@ import config from '../config/config.js';
 
 export class TechnicianService {
   async getAllTechnicians(query = {}) {
-    const { page = 1, limit = 50, status, search, skill } = query;
+    const { page = 1, limit = 50, status, search, skill, managerId } = query;
     const skip = (page - 1) * limit;
 
-    const filter = {};
-    if (status) filter['technicianProfile.employmentStatus'] = status;
-    if (skill) filter['technicianProfile.skills.name'] = new RegExp(skill, 'i');
-    if (search) {
-      filter.$or = [
-        { firstName: new RegExp(search, 'i') },
-        { lastName: new RegExp(search, 'i') },
-        { email: new RegExp(search, 'i') },
-        { 'technicianProfile.employeeId': new RegExp(search, 'i') }
-      ];
+    const andConditions = [];
+
+    if (status) {
+      andConditions.push({
+        $or: [
+          { 'technicianProfile.availabilityStatus': status },
+          { 'technicianProfile.employmentStatus': status },
+          { 'technicianProfile.verificationStatus': status }
+        ]
+      });
     }
+
+    if (search) {
+      andConditions.push({
+        $or: [
+          { firstName: new RegExp(search, 'i') },
+          { lastName: new RegExp(search, 'i') },
+          { email: new RegExp(search, 'i') },
+          { 'technicianProfile.employeeId': new RegExp(search, 'i') },
+          { 'technicianProfile.skills.name': new RegExp(search, 'i') }
+        ]
+      });
+    }
+
+    if (skill) {
+      andConditions.push({ 'technicianProfile.skills.name': new RegExp(skill, 'i') });
+    }
+
+    if (managerId) {
+      andConditions.push({ 'technicianProfile.managerId': managerId });
+    }
+
+    const filter = andConditions.length > 0 ? { $and: andConditions } : {};
 
     const [technicians, total] = await Promise.all([
       technicianRepository.findWithFilters(filter, skip, Number(limit)),

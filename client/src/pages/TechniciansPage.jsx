@@ -14,7 +14,9 @@ import { cn } from '../utils/cn';
 // 1. Status Engine Colors & Icons
 const STATUS_ENGINE = {
     available: { label: 'Available', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-400' },
+    free: { label: 'Available', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-400' },
     working: { label: 'Working', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', dot: 'bg-blue-400' },
+    busy: { label: 'Working', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', dot: 'bg-blue-400' },
     travelling: { label: 'Travelling', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', dot: 'bg-amber-400' },
     break: { label: 'Break', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20', dot: 'bg-sky-400' },
     meeting: { label: 'Meeting', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20', dot: 'bg-purple-400' },
@@ -22,6 +24,9 @@ const STATUS_ENGINE = {
     on_leave: { label: 'On Leave', color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', dot: 'bg-yellow-400' },
     training: { label: 'Training', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', dot: 'bg-cyan-400' },
     off_duty: { label: 'Off Duty', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20', dot: 'bg-slate-400' },
+    offline: { label: 'Offline', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20', dot: 'bg-slate-400' },
+    INVITED: { label: 'Invited (Pending)', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', dot: 'bg-indigo-400' },
+    ACTIVE: { label: 'Active', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-400' }
 };
 
 function renderStars(rating = 4) {
@@ -333,33 +338,50 @@ export default function TechniciansPage() {
                 </div>
             </motion.div>
 
-            {/* 10. Workforce Health Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Available</span>
-                    <p className="text-xl font-black text-emerald-400">18</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Busy</span>
-                    <p className="text-xl font-black text-amber-500">9</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">On Leave</span>
-                    <p className="text-xl font-black text-yellow-400">2</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Training</span>
-                    <p className="text-xl font-black text-cyan-400">1</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Utilization</span>
-                    <p className="text-xl font-black text-purple-400">76%</p>
-                </div>
-                <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Rating</span>
-                    <p className="text-xl font-black text-amber-400">★ 4.8</p>
-                </div>
-            </div>
+            {/* 10. Dynamic Workforce Health Banner */}
+            {(() => {
+                const kpis = {
+                    available: technicians.filter(t => ['available', 'free'].includes(t.technicianProfile?.availabilityStatus || 'available')).length,
+                    busy: technicians.filter(t => ['working', 'busy', 'emergency_call'].includes(t.technicianProfile?.availabilityStatus)).length,
+                    on_leave: technicians.filter(t => t.technicianProfile?.availabilityStatus === 'on_leave').length,
+                    training: technicians.filter(t => t.technicianProfile?.availabilityStatus === 'training').length,
+                    total: technicians.length,
+                    avgRating: technicians.length > 0 
+                        ? (technicians.reduce((acc, t) => acc + (t.technicianProfile?.rating || 4.8), 0) / technicians.length).toFixed(1) 
+                        : '4.8',
+                    avgUtilization: technicians.length > 0
+                        ? Math.round(technicians.reduce((acc, t) => acc + (t.workload?.utilizationPercent || 60), 0) / technicians.length)
+                        : 60
+                };
+                return (
+                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">Available</span>
+                            <p className="text-xl font-black text-emerald-400">{kpis.available}</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">Busy / Working</span>
+                            <p className="text-xl font-black text-amber-500">{kpis.busy}</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">On Leave</span>
+                            <p className="text-xl font-black text-yellow-400">{kpis.on_leave}</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">Total Technicians</span>
+                            <p className="text-xl font-black text-cyan-400">{kpis.total}</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Utilization</span>
+                            <p className="text-xl font-black text-purple-400">{kpis.avgUtilization}%</p>
+                        </div>
+                        <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Rating</span>
+                            <p className="text-xl font-black text-amber-400">★ {kpis.avgRating}</p>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* 7. Workforce Filters Bar */}
             <div className="p-4 rounded-3xl border border-border bg-card shadow-sm space-y-3">
@@ -407,7 +429,26 @@ export default function TechniciansPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {technicians.map((t) => {
+                            {loading && (
+                                <tr>
+                                    <td colSpan="7" className="p-8 text-center text-muted-foreground">
+                                        <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+                                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                                            Loading workforce data...
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                            {!loading && technicians.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" className="p-8 text-center text-muted-foreground space-y-2">
+                                        <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                                        <p className="font-bold text-xs">No technicians found</p>
+                                        <p className="text-[10px]">Click "+ Invite Technician" above to add technicians to your workforce.</p>
+                                    </td>
+                                </tr>
+                            )}
+                            {!loading && technicians.map((t) => {
                                 const st = STATUS_ENGINE[t.technicianProfile?.availabilityStatus || 'available'] || STATUS_ENGINE.available;
                                 const isComp = compareSelected.includes(t._id);
                                 return (
