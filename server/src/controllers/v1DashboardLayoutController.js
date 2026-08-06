@@ -1,7 +1,8 @@
 /**
  * server/src/controllers/v1DashboardLayoutController.js
  *
- * REST Controller for Dashboard Personalization, Profile Switching, and Import/Export Engine.
+ * REST Controller for Dashboard Personalization, Profile Switching, Import/Export Engine,
+ * Activity Logging, and AI Layout Recommendations.
  * Enforces authentication & role permissions.
  */
 
@@ -10,8 +11,48 @@ import dashboardExportService from '../services/DashboardExportService.js';
 
 export class V1DashboardLayoutController {
   /**
+   * GET /api/v1/dashboard-layouts/ai-suggestions
+   * Returns AI layout recommendations DTO.
+   */
+  async getAISuggestions(req, res, next) {
+    try {
+      const userId = req.user?._id || req.user?.id || req.user?.userId;
+      const role = req.query.role || req.user?.role || 'admin';
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'UNAUTHORIZED: User authentication required.' });
+      }
+
+      const result = await dashboardLayoutService.getAISuggestions(userId, role);
+      return res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * GET /api/v1/dashboard-layouts/activity-log
+   * Returns Studio Activity Log audit trail.
+   */
+  async getActivityLog(req, res, next) {
+    try {
+      const userId = req.user?._id || req.user?.id || req.user?.userId;
+      const role = req.query.role || req.user?.role || 'admin';
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'UNAUTHORIZED: User authentication required.' });
+      }
+
+      const result = await dashboardLayoutService.getActivityLog(userId, role);
+      return res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * GET /api/v1/dashboard-layouts/export
-   * Downloads user layout profile as portable JSON package.
+   * Downloads user layout profile as portable JSON package with SHA256 checksum.
    */
   async exportLayout(req, res, next) {
     try {
