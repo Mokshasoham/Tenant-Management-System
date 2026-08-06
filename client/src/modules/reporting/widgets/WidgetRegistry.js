@@ -1,12 +1,13 @@
 /**
  * client/src/modules/reporting/widgets/WidgetRegistry.js
  *
- * Pluggable Widget Registry supporting:
- * - permission filtering (e.g. 'admin', 'manager')
+ * Pluggable Plugin Widget Registry supporting:
+ * - permission filtering (e.g. 'admin', 'manager', 'tenant')
  * - refreshInterval (e.g. 30000, 60000ms)
- * - layout & priority settings
- * - dependencies
- * - dynamic component registration
+ * - semantic grid layout spans { w: 1..4, h: 1..2 }
+ * - widget locking (locked: true for core unremovable widgets)
+ * - AI capability discovery (supportsAI: true)
+ * - dynamic component registration & category queries
  */
 
 class WidgetRegistry {
@@ -16,9 +17,8 @@ class WidgetRegistry {
 
   /**
    * Register a new dashboard widget.
-   * @param {Object} config - { id, name, category, permission, refreshInterval, layout, priority, dependencies, component }
    */
-  register(config) {
+  registerWidget(config) {
     if (!config.id || !config.component) {
       throw new Error('Widget registration requires id and component');
     }
@@ -26,18 +26,30 @@ class WidgetRegistry {
     this.widgets.set(config.id, {
       permission: 'all',
       refreshInterval: 60000,
-      layout: { span: 1 },
+      layout: { w: 2, h: 1 },
       priority: 10,
+      locked: false,
+      supportsAI: true,
+      category: 'general',
       dependencies: [],
       ...config
     });
   }
 
+  // Alias for backward compatibility
+  register(config) {
+    this.registerWidget(config);
+  }
+
   /**
    * Get widget by ID
    */
-  get(id) {
+  getWidget(id) {
     return this.widgets.get(id);
+  }
+
+  get(id) {
+    return this.getWidget(id);
   }
 
   /**
@@ -54,10 +66,21 @@ class WidgetRegistry {
   }
 
   /**
-   * Unregister widget
+   * Query widgets by category
    */
-  unregister(id) {
+  getWidgetsByCategory(category) {
+    return Array.from(this.widgets.values()).filter((w) => w.category === category);
+  }
+
+  /**
+   * Unregister widget by ID
+   */
+  unregisterWidget(id) {
     return this.widgets.delete(id);
+  }
+
+  unregister(id) {
+    return this.unregisterWidget(id);
   }
 }
 
