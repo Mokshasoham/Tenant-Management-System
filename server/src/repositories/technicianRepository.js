@@ -3,6 +3,7 @@
  * Repository layer for Technician Management (Extending User model with role='technician').
  */
 
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 export class TechnicianRepository {

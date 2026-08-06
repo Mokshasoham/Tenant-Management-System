@@ -69,7 +69,7 @@ export class TechnicianService {
     if (data.email) {
       const existingUser = await technicianRepository.findByEmail(data.email);
       if (existingUser) {
-        throw new AppError(`A user with email "${data.email}" already exists. Please use a unique email address.`, 400);
+        throw new AppError(`A user with email "${data.email}" already exists. Please use a unique email address.`, 409);
       }
     }
 
@@ -78,7 +78,7 @@ export class TechnicianService {
     if (empId) {
       const existingEmp = await technicianRepository.findByEmployeeId(empId);
       if (existingEmp) {
-        throw new AppError(`Employee ID "${empId}" is already assigned to technician ${existingEmp.firstName} ${existingEmp.lastName}. Please use a unique Employee ID.`, 400);
+        throw new AppError(`Employee ID "${empId}" is already assigned to technician ${existingEmp.firstName} ${existingEmp.lastName}. Please use a unique Employee ID.`, 409);
       }
     }
 
@@ -88,6 +88,7 @@ export class TechnicianService {
     // Generate raw invitation token
     const invitationToken = crypto.randomBytes(32).toString('hex');
     const hashedInvitationToken = crypto.createHash('sha256').update(invitationToken).digest('hex');
+    const expiresDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days TTL
     
     // Temporary initial random password (will be reset during activation)
     const initialPassword = crypto.randomBytes(16).toString('hex');
@@ -101,7 +102,8 @@ export class TechnicianService {
         ...(data.technicianProfile || {}),
         employeeId: data.employeeId || data.technicianProfile?.employeeId,
         invitationToken: hashedInvitationToken,
-        invitationExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days TTL
+        invitationExpires: expiresDate,
+        invitationTokenExpires: expiresDate
       }
     };
 

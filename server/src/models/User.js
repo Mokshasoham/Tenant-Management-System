@@ -100,6 +100,7 @@ const userSchema = new mongoose.Schema(
       lastLoginAt: Date,
       invitationToken: String,
       invitationExpires: Date,
+      invitationTokenExpires: Date,
       deviceId: String,
       devicePlatform: { type: String, enum: ['ios', 'android', 'web', null], default: null },
       lastKnownLocation: String,
