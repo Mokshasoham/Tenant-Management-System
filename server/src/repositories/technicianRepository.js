@@ -10,6 +10,10 @@ export class TechnicianRepository {
     const defaultEmployeeId = `TECH-${Math.floor(100000 + Math.random() * 900000)}`;
     const inputProfile = data.technicianProfile || {};
     
+    const isValidObjectId = (id) => id && mongoose.Types.ObjectId.isValid(String(id));
+    const validCreatorId = isValidObjectId(creatorId) ? creatorId : (isValidObjectId(inputProfile.createdBy) ? inputProfile.createdBy : null);
+    const validManagerId = isValidObjectId(creatorId) ? creatorId : (isValidObjectId(inputProfile.managerId) ? inputProfile.managerId : null);
+
     const technicianData = {
       ...data,
       role: 'technician',
@@ -22,8 +26,8 @@ export class TechnicianRepository {
         availabilityStatus: inputProfile.availabilityStatus || 'free',
         liveStatus: inputProfile.liveStatus || 'offline',
         verificationStatus: 'INVITED',
-        createdBy: creatorId || inputProfile.createdBy || null,
-        managerId: creatorId || inputProfile.managerId || null,
+        createdBy: validCreatorId,
+        managerId: validManagerId,
         invitationSentAt: new Date()
       }
     };

@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema(
     technicianProfile: {
       employeeId: { type: String },
       employmentStatus: { type: String, enum: ['active', 'on_leave', 'suspended', 'inactive'], default: 'active' },
-      employmentType: { type: String, enum: ['full_time', 'part_time', 'contract', 'vendor'], default: 'full_time' },
+      employmentType: { type: String, enum: ['full_time', 'part_time', 'contract', 'contractor', 'vendor'], default: 'full_time' },
       joiningDate: { type: Date },
       yearsOfExperience: { type: Number, default: 0 },
       maxCapacity: { type: Number, default: 5 },
