@@ -60,6 +60,7 @@ import { registerLeaseRenewalSchedulers } from './modules/lease-renewal/schedule
 import { subscribeNotificationListeners } from './modules/lease-renewal/notifications/notificationEventRegistry.js';
 import v1ReminderRoutes from './routes/v1ReminderRoutes.js';
 import v1ReportingRoutes from './modules/reporting/routes/v1ReportingRoutes.js';
+import v1OperationsRoutes from './modules/operations/routes/v1OperationsRoutes.js';
 import reminderEventSubscriber from './modules/reminders/events/reminderEventSubscriber.js';
 import outboxWorker from './platform/events/outboxWorker.js';
 import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
@@ -239,6 +240,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/v1/notifications', v1NotificationRoutes);
 app.use('/api/v1/reminders', v1ReminderRoutes);
 app.use('/api/v1/reports', v1ReportingRoutes);
+app.use('/api/v1/operations', v1OperationsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
