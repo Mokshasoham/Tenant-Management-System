@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { maintenanceService } from '../services/api';
+import { maintenanceService, propertyService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     Plus, X, Wrench, AlertTriangle, Clock, CheckCircle2, XCircle,
     Filter, RefreshCw, MessageSquare, ArrowRight, ChevronDown,
-    Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check
+    Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check,
+    UploadCloud, FileText, Image as ImageIcon, Video, Mic, Trash2,
+    ShieldCheck, Phone, Mail, MessageSquareText, Radio, CheckCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -34,20 +36,71 @@ const SLOT_CONFIG = {
     evening: { label: 'Evening', icon: '🌙', time: '4 PM - 8 PM', class: 'bg-violet-500/10 text-violet-500 border-violet-500/20' },
 };
 
+const CONTACT_PREFERENCES = [
+    { id: 'email', label: 'Email', icon: Mail },
+    { id: 'phone', label: 'Phone', icon: Phone },
+    { id: 'sms', label: 'SMS', icon: MessageSquareText },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+];
+
 function SubmitModal({ onClose, onSave }) {
+    const navigate = useNavigate();
     const [form, setForm] = useState({ 
         title: '', 
         description: '', 
         category: 'other', 
         priority: 'medium', 
+        property: '',
         unit: '',
-        scheduledDate: '',
-        scheduledSlot: 'morning'
+        room: '',
+        locationDescription: '',
+        contactPreference: 'email',
+        allowPropertyAccess: false,
+        requestedVisitDate: '',
+        requestedTimeSlot: 'morning'
     });
     const [hasSchedule, setHasSchedule] = useState(false);
+    const [files, setFiles] = useState([]);
+    const [propertiesList, setPropertiesList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isDragging, setIsDragging] = useState(false);
+    const [successTicket, setSuccessTicket] = useState(null);
+    const fileInputRef = useRef(null);
+
     const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+    useEffect(() => {
+        propertyService.getAllProperties({ limit: 50 })
+            .then(res => {
+                const list = res?.data?.data || res?.data || res || [];
+                setPropertiesList(Array.isArray(list) ? list : []);
+            })
+            .catch(err => console.error('Failed to load properties list:', err));
+    }, []);
+
+    const handleFileSelect = (newFiles) => {
+        setError('');
+        const validFiles = Array.from(newFiles);
+        
+        if (files.length + validFiles.length > 10) {
+            setError('Maximum 10 files allowed.');
+            return;
+        }
+
+        for (const file of validFiles) {
+            if (file.size > 20 * 1024 * 1024) {
+                setError(`File '${file.name}' exceeds 20MB limit.`);
+                return;
+            }
+        }
+
+        setFiles(prev => [...prev, ...validFiles]);
+    };
+
+    const removeFile = (index) => {
+        setFiles(prev => prev.filter((_, i) => i !== index));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -55,15 +108,25 @@ function SubmitModal({ onClose, onSave }) {
         
         const payload = { ...form };
         if (!hasSchedule) {
-            delete payload.scheduledDate;
-            delete payload.scheduledSlot;
+            delete payload.requestedVisitDate;
+            delete payload.requestedTimeSlot;
         }
 
         try { 
-            await maintenanceService.createRequest(payload); 
+            const res = await maintenanceService.createRequest(payload);
+            const ticket = res?.data || res;
+            
+            // Upload attachments if any files selected
+            if (files.length > 0 && ticket?._id) {
+                const formData = new FormData();
+                files.forEach(f => formData.append('attachments', f));
+                await maintenanceService.uploadAttachments(ticket._id, formData);
+            }
+
+            setSuccessTicket(ticket);
             onSave(); 
         } catch (err) { 
-            setError(err.message || 'Failed to submit'); 
+            setError(err.message || err.error || 'Failed to submit request'); 
         } finally { 
             setLoading(false); 
         }
@@ -71,96 +134,336 @@ function SubmitModal({ onClose, onSave }) {
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
             onClick={e => e.target === e.currentTarget && onClose()}>
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
-                className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl transition-colors overflow-hidden max-h-[90vh] flex flex-col">
+                className="w-full max-w-2xl rounded-3xl border border-border bg-card shadow-2xl transition-colors overflow-hidden max-h-[92vh] flex flex-col">
+                
+                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-10">
-                    <h2 className="text-lg font-black text-foreground">Submit Maintenance Request</h2>
-                    <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+                            <Wrench className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-black text-foreground">Smart Maintenance Request</h2>
+                            <p className="text-xs text-muted-foreground">Submit maintenance ticket, upload media & schedule repair visit</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-                    {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Title *</label>
-                        <input required value={form.title} onChange={e => set('title', e.target.value)}
-                            placeholder="e.g. Leaking faucet in bathroom"
-                            className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Category</label>
-                            <select value={form.category} onChange={e => set('category', e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer">
-                                {Object.keys(CATEGORY_ICONS).map(c => (
-                                    <option key={c} value={c} className="bg-card">{CATEGORY_ICONS[c]} {c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Priority</label>
-                            <select value={form.priority} onChange={e => set('priority', e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer">
-                                {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
-                                    <option key={k} value={k} className="bg-card">{v.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Unit / Location</label>
-                        <input value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. Apt 4B, Kitchen"
-                            className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all" />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Description *</label>
-                        <textarea required value={form.description} onChange={e => set('description', e.target.value)} rows={3}
-                            placeholder="Describe the issue in detail..."
-                            className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all resize-none" />
-                    </div>
 
-                    {/* Schedule visit section */}
-                    <div className="pt-2 border-t border-border/60 space-y-3">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="checkbox" checked={hasSchedule} onChange={e => setHasSchedule(e.target.checked)}
-                                className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer" />
-                            <span className="text-xs font-bold text-foreground">Schedule a repair visit slot now</span>
-                        </label>
+                {/* Section 7: Success View */}
+                {successTicket ? (
+                    <div className="p-8 text-center space-y-6 flex-1 flex flex-col items-center justify-center">
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                            <CheckCircle2 className="w-10 h-10" />
+                        </motion.div>
 
-                        {hasSchedule && (
-                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl border border-border/80 bg-muted/20">
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Visit Date *</label>
-                                    <input required={hasSchedule} type="date" min={new Date().toISOString().split('T')[0]}
-                                        value={form.scheduledDate} onChange={e => set('scheduledDate', e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-muted border border-border text-foreground text-xs focus:outline-none focus:border-primary/50" />
+                        <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                Ticket Created Successfully
+                            </span>
+                            <h3 className="text-xl font-black text-foreground mt-2">Maintenance Request Submitted</h3>
+                            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                                Your ticket <span className="font-mono font-bold text-foreground">#{String(successTicket._id || '').substring(0, 8)}</span> has been logged and dispatched to property managers.
+                            </p>
+                        </div>
+
+                        {/* Ticket Stats Pill */}
+                        <div className="grid grid-cols-2 gap-3 w-full max-w-md p-4 rounded-2xl border border-border bg-muted/30 text-left">
+                            <div>
+                                <span className="text-[9px] font-black uppercase text-muted-foreground">Status & Priority</span>
+                                <div className="text-xs font-bold text-foreground capitalize mt-0.5 flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                                    {successTicket.priority} Priority ({successTicket.status})
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Time Slot *</label>
-                                    <select value={form.scheduledSlot} onChange={e => set('scheduledSlot', e.target.value)}
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-muted border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 appearance-none cursor-pointer">
-                                        {Object.entries(SLOT_CONFIG).map(([k, v]) => (
-                                            <option key={k} value={k} className="bg-card">{v.icon} {v.label} ({v.time})</option>
-                                        ))}
-                                    </select>
+                            </div>
+                            <div>
+                                <span className="text-[9px] font-black uppercase text-muted-foreground">Est. Response Time</span>
+                                <div className="text-xs font-bold text-emerald-400 mt-0.5">
+                                    {successTicket.priority === 'emergency' ? '< 30 Minutes' : '< 24 Hours'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 w-full max-w-md pt-2">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-border text-foreground font-bold text-xs hover:bg-muted transition-all">
+                                Back to Dashboard
+                            </button>
+                            <button onClick={() => { onClose(); navigate(`/maintenance`); }} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/20">
+                                Track Request <ArrowRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
+                        {error && <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            {error}
+                        </div>}
+
+                        {/* Section 6: Emergency Warning Banner */}
+                        {form.priority === 'emergency' && (
+                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                                className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 animate-bounce text-rose-400" />
+                                <div className="text-xs space-y-1">
+                                    <p className="font-black text-rose-300 uppercase tracking-wider">🚨 EMERGENCY MAINTENANCE PROTOCOL</p>
+                                    <p className="text-rose-200/80 leading-relaxed">
+                                        Property Manager and On-Call Technician will be notified immediately. Response SLA timer set to **30 minutes**.
+                                    </p>
                                 </div>
                             </motion.div>
                         )}
-                    </div>
 
-                    <div className="flex gap-3 pt-3 border-t border-border/60">
-                        <button type="button" onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold text-sm">Cancel</button>
-                        <button type="submit" disabled={loading}
-                            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50 shadow-lg active:scale-95 transition-transform text-sm">
-                            {loading ? 'Submitting...' : 'Submit Request'}
-                        </button>
-                    </div>
-                </form>
+                        {/* SECTION 1: Issue Details */}
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                <FileText className="w-4 h-4" /> Section 1: Issue Details
+                            </h3>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Title *</label>
+                                <input required value={form.title} onChange={e => set('title', e.target.value)}
+                                    placeholder="e.g. Water leak under kitchen sink"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all font-semibold" />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Category *</label>
+                                    <select value={form.category} onChange={e => set('category', e.target.value)}
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer font-semibold">
+                                        {Object.keys(CATEGORY_ICONS).map(c => (
+                                            <option key={c} value={c} className="bg-card">{CATEGORY_ICONS[c]} {c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Priority *</label>
+                                    <select value={form.priority} onChange={e => set('priority', e.target.value)}
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer font-semibold">
+                                        {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                                            <option key={k} value={k} className="bg-card">{v.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="space-y-1.5 sm:col-span-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Property</label>
+                                    <select value={form.property} onChange={e => set('property', e.target.value)}
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 transition-all appearance-none cursor-pointer font-semibold">
+                                        <option value="">Select Property...</option>
+                                        {propertiesList.map(p => (
+                                            <option key={p._id} value={p._id} className="bg-card">{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Unit / Apartment</label>
+                                    <input value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. Apt 4B"
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all font-semibold" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Room / Area</label>
+                                    <input value={form.room} onChange={e => set('room', e.target.value)} placeholder="e.g. Kitchen, Master Bath"
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all font-semibold" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Location Description</label>
+                                <input value={form.locationDescription} onChange={e => set('locationDescription', e.target.value)} placeholder="e.g. Under main sink behind water heater valve"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all font-semibold" />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Description *</label>
+                                <textarea required value={form.description} onChange={e => set('description', e.target.value)} rows={3}
+                                    placeholder="Describe the issue, symptoms, and any actions already taken..."
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-all resize-none font-medium" />
+                            </div>
+                        </div>
+
+                        {/* SECTION 2: Attachments (Drag & Drop, Preview, Replace, Remove) */}
+                        <div className="space-y-3 pt-3 border-t border-border/60">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                    <UploadCloud className="w-4 h-4" /> Section 2: Attachments (Images, Videos, Docs, Voice)
+                                </h3>
+                                <span className="text-[10px] font-bold text-muted-foreground">{files.length} / 10 files selected</span>
+                            </div>
+
+                            {/* Drag and drop dropzone */}
+                            <div
+                                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                                onDragLeave={() => setIsDragging(false)}
+                                onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileSelect(e.dataTransfer.files); }}
+                                onClick={() => fileInputRef.current?.click()}
+                                className={cn(
+                                    "p-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer text-center flex flex-col items-center justify-center gap-2",
+                                    isDragging
+                                        ? "border-blue-500 bg-blue-500/10 scale-[1.01]"
+                                        : "border-border hover:border-blue-500/40 bg-muted/20 hover:bg-muted/30"
+                                )}
+                            >
+                                <input ref={fileInputRef} type="file" multiple onChange={e => handleFileSelect(e.target.files)} className="hidden" />
+                                <UploadCloud className="w-8 h-8 text-blue-400 opacity-80" />
+                                <div>
+                                    <p className="text-xs font-bold text-foreground">Click or Drag & Drop media files here</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">Images, Videos, PDFs, Word docs, Voice notes (Max 20MB per file)</p>
+                                </div>
+                            </div>
+
+                            {/* File List Previews */}
+                            {files.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                    {files.map((file, idx) => {
+                                        const isImg = file.type.startsWith('image/');
+                                        const isVid = file.type.startsWith('video/');
+                                        const isAudio = file.type.startsWith('audio/');
+                                        return (
+                                            <div key={idx} className="p-2.5 rounded-xl border border-border bg-card/60 flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="p-2 rounded-lg bg-muted shrink-0">
+                                                        {isImg && <ImageIcon className="w-4 h-4 text-emerald-400" />}
+                                                        {isVid && <Video className="w-4 h-4 text-blue-400" />}
+                                                        {isAudio && <Mic className="w-4 h-4 text-purple-400" />}
+                                                        {!isImg && !isVid && !isAudio && <FileText className="w-4 h-4 text-amber-400" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-foreground truncate">{file.name}</p>
+                                                        <p className="text-[9px] text-muted-foreground font-mono">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" onClick={() => removeFile(idx)} className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-all">
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* SECTION 3: Contact Preference */}
+                        <div className="space-y-3 pt-3 border-t border-border/60">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                <Phone className="w-4 h-4" /> Section 3: Contact Preference
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {CONTACT_PREFERENCES.map(pref => {
+                                    const Icon = pref.icon;
+                                    const isSel = form.contactPreference === pref.id;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={pref.id}
+                                            onClick={() => set('contactPreference', pref.id)}
+                                            className={cn(
+                                                "p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all",
+                                                isSel
+                                                    ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20"
+                                                    : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <Icon className="w-4 h-4" />
+                                            {pref.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* SECTION 4: Property Access Permission */}
+                        <div className="space-y-3 pt-3 border-t border-border/60">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                <ShieldCheck className="w-4 h-4" /> Section 4: Property Access Permission
+                            </h3>
+                            <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-3">
+                                <p className="text-xs font-semibold text-foreground">Can technician enter property if tenant is unavailable?</p>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
+                                        <input
+                                            type="radio"
+                                            name="allowPropertyAccess"
+                                            checked={form.allowPropertyAccess === true}
+                                            onChange={() => set('allowPropertyAccess', true)}
+                                            className="w-4 h-4 text-blue-600 border-border bg-card"
+                                        />
+                                        Yes, permission granted
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
+                                        <input
+                                            type="radio"
+                                            name="allowPropertyAccess"
+                                            checked={form.allowPropertyAccess === false}
+                                            onChange={() => set('allowPropertyAccess', false)}
+                                            className="w-4 h-4 text-blue-600 border-border bg-card"
+                                        />
+                                        No, tenant must be present
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SECTION 5: Visit Scheduling */}
+                        <div className="space-y-3 pt-3 border-t border-border/60">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" checked={hasSchedule} onChange={e => setHasSchedule(e.target.checked)}
+                                    className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-0 cursor-pointer" />
+                                <span className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
+                                    <CalendarIcon className="w-4 h-4" /> Section 5: Schedule Repair Visit Slot
+                                </span>
+                            </label>
+
+                            {hasSchedule && (
+                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl border border-border bg-muted/20">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Requested Visit Date *</label>
+                                        <input required={hasSchedule} type="date" min={new Date().toISOString().split('T')[0]}
+                                            value={form.requestedVisitDate} onChange={e => set('requestedVisitDate', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 font-bold" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Time Slot *</label>
+                                        <select value={form.requestedTimeSlot} onChange={e => set('requestedTimeSlot', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:border-primary/50 appearance-none cursor-pointer font-bold">
+                                            {Object.entries(SLOT_CONFIG).map(([k, v]) => (
+                                                <option key={k} value={k} className="bg-card">{v.icon} {v.label} ({v.time})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+
+                        {/* Submit Action Toolbar */}
+                        <div className="flex gap-3 pt-4 border-t border-border">
+                            <button type="button" onClick={onClose}
+                                className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold text-xs">Cancel</button>
+                            <button type="submit" disabled={loading}
+                                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50 shadow-lg active:scale-95 text-xs flex items-center justify-center gap-2">
+                                {loading ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" /> Submitting & Uploading...
+                                    </>
+                                ) : (
+                                    'Submit Maintenance Request'
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                )}
             </motion.div>
         </motion.div>
     );
 }
+
 
 function BookingModal({ request, onClose, onSave }) {
     const [date, setDate] = useState(request.scheduledDate ? new Date(request.scheduledDate).toISOString().split('T')[0] : '');

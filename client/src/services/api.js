@@ -116,6 +116,10 @@ export const maintenanceService = {
   getAllRequests: (params) => apiClient.get('/maintenance', { params }),
   getRequestById: (id) => apiClient.get(`/maintenance/${id}`),
   createRequest: (data) => apiClient.post('/maintenance', data),
+  uploadAttachments: (id, formData) => apiClient.post(`/maintenance/${id}/attachments`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteAttachment: (id, attachmentUrl) => apiClient.delete(`/maintenance/${id}/attachments`, { data: { attachmentUrl } }),
   updateRequest: (id, data) => apiClient.put(`/maintenance/${id}`, data),
   addNote: (id, text) => apiClient.post(`/maintenance/${id}/notes`, { text }),
   deleteRequest: (id) => apiClient.delete(`/maintenance/${id}`),

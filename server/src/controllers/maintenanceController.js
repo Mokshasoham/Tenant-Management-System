@@ -1,39 +1,14 @@
-import Maintenance from '../models/Maintenance.js';
-import EventService from '../services/eventService.js';
+import maintenanceService from '../services/maintenanceService.js';
+import maintenanceRepository from '../repositories/maintenanceRepository.js';
 import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 
-// Helper to create a notification
-async function notify(recipientId, type, title, message, relatedId, relatedModel) {
-    try {
-        let eventName = 'update';
-        if (type === 'maintenance_created') eventName = 'created';
-        else if (type === 'maintenance_resolved') eventName = 'resolved';
-
-        let severity = 'information';
-        if (type === 'maintenance_resolved') severity = 'success';
-
-        await EventService.publish({
-            recipient: recipientId,
-            category: 'maintenance',
-            event: eventName,
-            title,
-            description: message,
-            sourceModule: 'maintenance',
-            entityType: 'Maintenance',
-            entityId: relatedId,
-            redirectUrl: `/maintenance`,
-            action: 'view',
-            priority: 'medium',
-            severity,
-            metadata: {
-                maintenanceId: relatedId
-            }
-        });
-    } catch (e) {
-        logger.error('Failed to create notification:', e);
-    }
+function getRequestMeta(req) {
+  return {
+    ip: req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1',
+    userAgent: req.headers['user-agent'] || 'Unknown'
+  };
 }
 
 export const getAllRequests = asyncHandler(async (req, res) => {
@@ -41,11 +16,11 @@ export const getAllRequests = asyncHandler(async (req, res) => {
     const user = req.user;
     const filter = {};
 
-    // Role-based visibility
+    const userId = user.userId || user._id || user.id;
+
     if (user.role === 'tenant') {
-        filter.requestedBy = user.userId;
+        filter.requestedBy = userId;
     }
-    // manager and admin see everything (manager could be filtered by property in future)
 
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
@@ -53,14 +28,8 @@ export const getAllRequests = asyncHandler(async (req, res) => {
 
     const skip = (page - 1) * limit;
     const [requests, total] = await Promise.all([
-        Maintenance.find(filter)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .populate('requestedBy', 'firstName lastName email role')
-            .populate('assignedTo', 'firstName lastName')
-            .populate('property', 'name address'),
-        Maintenance.countDocuments(filter),
+        maintenanceRepository.findWithFilters(filter, skip, parseInt(limit)),
+        maintenanceRepository.countWithFilters(filter),
     ]);
 
     res.status(200).json({
@@ -71,103 +40,58 @@ export const getAllRequests = asyncHandler(async (req, res) => {
 });
 
 export const getRequestById = asyncHandler(async (req, res) => {
-    const request = await Maintenance.findById(req.params.id)
-        .populate('requestedBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName')
-        .populate('property', 'name address')
-        .populate('notes.addedBy', 'firstName lastName role');
-
+    const request = await maintenanceRepository.findById(req.params.id);
     if (!request) throw new AppError('Maintenance request not found', 404);
-
     res.status(200).json({ success: true, data: request });
 });
 
 export const createRequest = asyncHandler(async (req, res) => {
-    const { title, description, category, priority, unit, scheduledDate, scheduledSlot } = req.body;
-
-    const request = await Maintenance.create({
-        title,
-        description,
-        category,
-        priority,
-        unit,
-        requestedBy: req.user.userId,
-        status: 'open',
-        scheduledDate,
-        scheduledSlot,
-    });
-
-    logger.info(`Maintenance request created: ${request._id} by ${req.user.userId}`);
-
-    // Notify all managers/admins
-    const managers = await User.find({ role: { $in: ['manager', 'admin'] }, isActive: true }, '_id');
-    for (const m of managers) {
-        if (m._id.toString() !== req.user.userId) {
-            await notify(
-                m._id,
-                'maintenance_created',
-                'New Maintenance Request',
-                `"${title}" — ${priority} priority, category: ${category}`,
-                request._id,
-                'Maintenance'
-            );
-        }
-    }
-
+    const reqMeta = getRequestMeta(req);
+    const request = await maintenanceService.createRequest(req.body, req.user, reqMeta);
     res.status(201).json({ success: true, message: 'Maintenance request submitted', data: request });
+});
+
+export const uploadAttachments = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const files = req.files || (req.file ? [req.file] : []);
+    const updated = await maintenanceService.uploadAttachments(id, files);
+    res.status(200).json({ success: true, message: 'Attachments uploaded successfully', data: updated });
+});
+
+export const deleteAttachment = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { attachmentUrl } = req.body;
+    if (!attachmentUrl) throw new AppError('attachmentUrl is required', 400);
+
+    const updated = await maintenanceService.deleteAttachment(id, attachmentUrl);
+    res.status(200).json({ success: true, message: 'Attachment deleted', data: updated });
 });
 
 export const updateRequest = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { status, priority, assignedTo, estimatedCost, actualCost, scheduledDate, scheduledSlot } = req.body;
+    const updateData = { ...req.body };
 
-    const request = await Maintenance.findById(id);
-    if (!request) throw new AppError('Request not found', 404);
-
-    const prev = request.status;
-
-    if (status) request.status = status;
-    if (priority) request.priority = priority;
-    if (assignedTo) request.assignedTo = assignedTo;
-    if (estimatedCost !== undefined) request.estimatedCost = estimatedCost;
-    if (actualCost !== undefined) request.actualCost = actualCost;
-    if (scheduledDate !== undefined) request.scheduledDate = scheduledDate;
-    if (scheduledSlot !== undefined) request.scheduledSlot = scheduledSlot;
-    if (status === 'resolved') request.resolvedAt = new Date();
-
-    await request.save();
-
-    // Notify tenant when status changes
-    if (status && status !== prev && request.requestedBy) {
-        const typeMap = {
-            in_progress: 'maintenance_update',
-            resolved: 'maintenance_resolved',
-        };
-        await notify(
-            request.requestedBy,
-            typeMap[status] || 'maintenance_update',
-            `Maintenance ${status === 'resolved' ? 'Resolved' : 'Updated'}`,
-            `Your request "${request.title}" is now ${status.replace('_', ' ')}.`,
-            request._id,
-            'Maintenance'
-        );
+    if (updateData.status === 'resolved') {
+        updateData.resolvedAt = new Date();
     }
 
-    logger.info(`Maintenance ${id} updated to ${status}`);
+    const request = await maintenanceRepository.update(id, updateData);
+    if (!request) throw new AppError('Request not found', 404);
+
     res.status(200).json({ success: true, message: 'Request updated', data: request });
 });
 
 export const addNote = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { text } = req.body;
+    const userId = req.user.userId || req.user._id || req.user.id;
 
     if (!text?.trim()) throw new AppError('Note text is required', 400);
 
-    const request = await Maintenance.findByIdAndUpdate(
+    const request = await maintenanceRepository.update(
         id,
-        { $push: { notes: { text, addedBy: req.user.userId } } },
-        { new: true }
-    ).populate('notes.addedBy', 'firstName lastName role');
+        { $push: { notes: { text, addedBy: userId } } }
+    );
 
     if (!request) throw new AppError('Request not found', 404);
 
@@ -175,25 +99,23 @@ export const addNote = asyncHandler(async (req, res) => {
 });
 
 export const deleteRequest = asyncHandler(async (req, res) => {
-    const request = await Maintenance.findByIdAndDelete(req.params.id);
+    const request = await maintenanceRepository.delete(req.params.id);
     if (!request) throw new AppError('Request not found', 404);
     res.status(200).json({ success: true, message: 'Request deleted' });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-    const filter = req.user.role === 'tenant' ? { requestedBy: req.user.userId } : {};
+    const userId = req.user.userId || req.user._id || req.user.id;
+    const filter = req.user.role === 'tenant' ? { requestedBy: userId } : {};
 
     const [open, in_progress, resolved, total] = await Promise.all([
-        Maintenance.countDocuments({ ...filter, status: 'open' }),
-        Maintenance.countDocuments({ ...filter, status: 'in_progress' }),
-        Maintenance.countDocuments({ ...filter, status: 'resolved' }),
-        Maintenance.countDocuments(filter),
+        maintenanceRepository.countWithFilters({ ...filter, status: 'open' }),
+        maintenanceRepository.countWithFilters({ ...filter, status: 'in_progress' }),
+        maintenanceRepository.countWithFilters({ ...filter, status: 'resolved' }),
+        maintenanceRepository.countWithFilters(filter),
     ]);
 
-    const byPriority = await Maintenance.aggregate([
-        { $match: { ...filter, status: { $in: ['open', 'in_progress'] } } },
-        { $group: { _id: '$priority', count: { $sum: 1 } } },
-    ]);
+    const byPriority = await maintenanceRepository.aggregateByPriority(filter);
 
     res.status(200).json({
         success: true,

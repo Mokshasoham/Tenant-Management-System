@@ -6,6 +6,14 @@ const noteSchema = new mongoose.Schema({
     addedAt: { type: Date, default: Date.now },
 });
 
+const attachmentSchema = new mongoose.Schema({
+    url: { type: String, required: true },
+    filename: { type: String, required: true },
+    mimeType: { type: String },
+    fileSizeBytes: { type: Number },
+    uploadedAt: { type: Date, default: Date.now },
+});
+
 const maintenanceSchema = new mongoose.Schema(
     {
         title: {
@@ -40,6 +48,14 @@ const maintenanceSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        room: {
+            type: String,
+            trim: true,
+        },
+        locationDescription: {
+            type: String,
+            trim: true,
+        },
         tenant: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Tenant',
@@ -53,7 +69,27 @@ const maintenanceSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
         },
+        contactPreference: {
+            type: String,
+            enum: ['phone', 'email', 'sms', 'whatsapp'],
+            default: 'email',
+        },
+        allowPropertyAccess: {
+            type: Boolean,
+            default: false,
+        },
+        requestedVisitDate: Date,
+        requestedTimeSlot: {
+            type: String,
+            enum: ['morning', 'afternoon', 'evening'],
+        },
+        scheduledDate: Date,
+        scheduledSlot: {
+            type: String,
+            enum: ['morning', 'afternoon', 'evening'],
+        },
         images: [String],
+        attachments: [attachmentSchema],
         notes: [noteSchema],
         estimatedCost: {
             type: Number,
@@ -63,11 +99,12 @@ const maintenanceSchema = new mongoose.Schema(
             type: Number,
             min: 0,
         },
-        scheduledDate: Date,
-        scheduledSlot: {
+        submissionSource: {
             type: String,
-            enum: ['morning', 'afternoon', 'evening'],
+            default: 'web',
         },
+        deviceInfo: String,
+        createdFromIP: String,
         resolvedAt: Date,
     },
     {
