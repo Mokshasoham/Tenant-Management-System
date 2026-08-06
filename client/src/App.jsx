@@ -41,6 +41,7 @@ import LeaseHistoryPage from './pages/LeaseHistoryPage';
 import RenewalHistoryPage from './pages/RenewalHistoryPage';
 import ManagerCampaignDashboardPage from './pages/ManagerCampaignDashboardPage';
 import NotificationCenterPage from './pages/NotificationCenterPage';
+import TechniciansPage from './pages/TechniciansPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -144,6 +145,7 @@ function App() {
               <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/properties" element={<ManagerRoute><DashboardLayout><PropertiesPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/technicians" element={<ManagerRoute><DashboardLayout><TechniciansPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/analytics" element={<ManagerRoute><DashboardLayout><AnalyticsPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/lease-renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />

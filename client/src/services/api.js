@@ -139,6 +139,18 @@ export const maintenanceService = {
   getRelatedTickets: (id) => apiClient.get(`/maintenance/${id}/related`),
 };
 
+export const technicianService = {
+  getAllTechnicians: (params) => apiClient.get('/technicians', { params }),
+  getTechnicianById: (id) => apiClient.get(`/technicians/${id}`),
+  createTechnician: (data) => apiClient.post('/technicians', data),
+  updateTechnician: (id, data) => apiClient.put(`/technicians/${id}`, data),
+  deleteTechnician: (id) => apiClient.delete(`/technicians/${id}`),
+  getWorkload: (id) => apiClient.get(`/technicians/${id}/workload`),
+  getPerformance: (id) => apiClient.get(`/technicians/${id}/performance`),
+  getAvailableTechnicians: (params) => apiClient.get('/technicians/available', { params }),
+  searchTechnicians: (params) => apiClient.get('/technicians/search', { params }),
+};
+
 export const notificationService = {
   getMyNotifications: (params) => apiClient.get('/notifications', { params }),
   getUnreadCount: () => apiClient.get('/notifications/unread-count'),
