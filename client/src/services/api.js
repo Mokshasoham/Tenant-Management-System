@@ -129,6 +129,7 @@ export const maintenanceService = {
   submitRating: (id, score, feedback) => apiClient.post(`/maintenance/${id}/rating`, { score, feedback }),
   deleteRequest: (id) => apiClient.delete(`/maintenance/${id}`),
   getStats: () => apiClient.get('/maintenance/stats'),
+  getManagerDashboard: (params) => apiClient.get('/maintenance/manager-dashboard', { params }),
 };
 
 export const notificationService = {

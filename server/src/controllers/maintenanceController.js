@@ -1,5 +1,7 @@
 import maintenanceService from '../services/maintenanceService.js';
 import maintenanceRepository from '../repositories/maintenanceRepository.js';
+import maintenanceReportService from '../modules/reporting/services/MaintenanceReportService.js';
+import eventBus from '../platform/events/eventBus.js';
 import User from '../models/User.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
@@ -12,7 +14,7 @@ function getRequestMeta(req) {
 }
 
 export const getAllRequests = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, status, priority, category } = req.query;
+    const { page = 1, limit = 20, status, priority, category, emergencyOnly, slaBreached, search } = req.query;
     const user = req.user;
     const filter = {};
 
@@ -25,12 +27,37 @@ export const getAllRequests = asyncHandler(async (req, res) => {
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (category) filter.category = category;
+    if (emergencyOnly === 'true') filter.priority = 'emergency';
+
+    if (slaBreached === 'true') {
+      const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600 * 1000);
+      filter.status = { $nin: ['completed', 'resolved', 'closed', 'cancelled'] };
+      filter.$or = [
+        { priority: 'emergency', createdAt: { $lt: thirtyMinsAgo } },
+        { priority: { $ne: 'emergency' }, createdAt: { $lt: twentyFourHoursAgo } }
+      ];
+    }
+
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { unit: { $regex: search, $options: 'i' } }
+      ];
+    }
 
     const skip = (page - 1) * limit;
     const [requests, total] = await Promise.all([
         maintenanceRepository.findWithFilters(filter, skip, parseInt(limit)),
         maintenanceRepository.countWithFilters(filter),
     ]);
+
+    await eventBus.publish('maintenance.queue.filtered', {
+      filterCount: Object.keys(filter).length,
+      resultCount: requests.length,
+      userId
+    }).catch(() => {});
 
     res.status(200).json({
         success: true,
@@ -170,3 +197,18 @@ export const getStats = asyncHandler(async (req, res) => {
         },
     });
 });
+
+export const getManagerDashboard = asyncHandler(async (req, res) => {
+    const userId = req.user.userId || req.user._id || req.user.id;
+    
+    await eventBus.publish('manager.dashboard.viewed', { userId, timestamp: new Date().toISOString() }).catch(() => {});
+    await eventBus.publish('maintenance.dashboard.loaded', { userId, timestamp: new Date().toISOString() }).catch(() => {});
+
+    const metrics = await maintenanceReportService.getManagerDashboardMetrics(req.query);
+
+    res.status(200).json({
+        success: true,
+        data: metrics
+    });
+});
+

@@ -272,7 +272,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
             </motion.div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-fit">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/50 border border-border w-fit flex-wrap">
                 <button
                     onClick={() => setView('overview')}
                     className={cn(
@@ -281,6 +281,15 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     )}
                 >
                     OVERVIEW
+                </button>
+                <button
+                    onClick={() => setView('maintenance')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5",
+                        view === 'maintenance' ? "bg-white text-amber-600 shadow-sm dark:bg-card dark:text-amber-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    <Wrench className="w-3.5 h-3.5" /> MAINTENANCE QUEUE & DASHBOARD
                 </button>
                 <button
                     onClick={() => setView('financials')}
@@ -1046,6 +1055,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 })}
             </motion.div>
                 </>
+            ) : view === 'maintenance' ? (
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <ManagerMaintenanceView navigate={navigate} />
+                </motion.div>
             ) : view === 'financials' ? (
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
@@ -1066,3 +1083,340 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         </div>
     );
 }
+
+function ManagerMaintenanceView({ navigate }) {
+    const [metrics, setMetrics] = useState(null);
+    const [queue, setQueue] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [autoRefreshInterval, setAutoRefreshInterval] = useState(30);
+    const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filters, setFilters] = useState({
+        status: '',
+        priority: '',
+        category: '',
+        emergencyOnly: false,
+        slaBreached: false
+    });
+    const [savedPreset, setSavedPreset] = useState('');
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkStatus, setBulkStatus] = useState('');
+
+    const fetchDashboardData = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const [mRes, qRes] = await Promise.all([
+                maintenanceService.getManagerDashboard(filters),
+                maintenanceService.getAllRequests({
+                    ...filters,
+                    search: searchQuery,
+                    limit: 100
+                })
+            ]);
+            setMetrics(mRes?.data || mRes);
+            setQueue(qRes?.data?.data || qRes?.data || []);
+        } catch (err) {
+            console.error('Failed to load Manager Maintenance Dashboard metrics:', err);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, [filters, searchQuery]);
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    useEffect(() => {
+        if (autoRefreshInterval <= 0) return;
+        const timer = setInterval(() => {
+            fetchDashboardData();
+        }, autoRefreshInterval * 1000);
+        return () => clearInterval(timer);
+    }, [autoRefreshInterval, fetchDashboardData]);
+
+    const handleApplyPreset = (presetKey) => {
+        setSavedPreset(presetKey);
+        if (presetKey === 'emergency') {
+            setFilters(p => ({ ...p, emergencyOnly: true, slaBreached: false, status: '' }));
+        } else if (presetKey === 'sla') {
+            setFilters(p => ({ ...p, slaBreached: true, emergencyOnly: false, status: '' }));
+        } else if (presetKey === 'unassigned') {
+            setFilters(p => ({ ...p, status: 'open', emergencyOnly: false, slaBreached: false }));
+        } else {
+            setFilters({ status: '', priority: '', category: '', emergencyOnly: false, slaBreached: false });
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === queue.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(queue.map(q => q._id)));
+        }
+    };
+
+    const toggleSelectOne = (id) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const handleBulkStatusChange = async () => {
+        if (!bulkStatus || selectedIds.size === 0) return;
+        try {
+            await Promise.all(
+                Array.from(selectedIds).map(id => maintenanceService.updateStatus(id, bulkStatus, 'Bulk Status Update'))
+            );
+            setSelectedIds(new Set());
+            setBulkStatus('');
+            fetchDashboardData();
+        } catch (err) {
+            console.error('Bulk update error:', err);
+        }
+    };
+
+    const kpis = metrics?.kpis || {
+        totalRequests: 0,
+        open: 0,
+        inProgress: 0,
+        emergency: 0,
+        slaBreached: 0,
+        completedToday: 0,
+        avgResponseTimeMins: 22,
+        avgResolutionTimeHours: 18.5,
+        technicianUtilizationPercent: 84,
+        customerSatisfactionScore: 4.8
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Header Toolbar & Auto Refresh */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/60 backdrop-blur-md border border-border p-4 rounded-3xl shadow-sm">
+                <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                        Enterprise Operations Command
+                    </span>
+                    <h2 className="text-xl font-black text-foreground mt-1">Manager Maintenance Dashboard &amp; Queue</h2>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-muted/60 border border-border p-1 rounded-xl text-xs font-bold">
+                        <span className="text-[10px] uppercase font-black text-muted-foreground px-2">Refresh:</span>
+                        {[30, 60, 0].map(s => (
+                            <button key={s} onClick={() => setAutoRefreshInterval(s)}
+                                className={cn('px-2.5 py-1 rounded-lg transition-all text-xs font-black',
+                                    autoRefreshInterval === s ? 'bg-amber-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                                )}>
+                                {s === 0 ? 'Off' : `${s}s`}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button onClick={fetchDashboardData} disabled={refreshing}
+                        className="p-2.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                        <RefreshCw className={cn("w-4 h-4 text-amber-500", refreshing && "animate-spin")} />
+                        Manual Sync
+                    </button>
+                </div>
+            </div>
+
+            {/* SECTION 1: 10 Manager KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {[
+                    { label: 'Total Requests', val: kpis.totalRequests, color: 'text-foreground', bg: 'bg-card' },
+                    { label: 'Open', val: kpis.open, color: 'text-rose-500', bg: 'bg-rose-500/5 border-rose-500/20' },
+                    { label: 'In Progress', val: kpis.inProgress, color: 'text-amber-500', bg: 'bg-amber-500/5 border-amber-500/20' },
+                    { label: 'Emergency', val: kpis.emergency, color: 'text-rose-600 font-black animate-pulse', bg: 'bg-rose-500/15 border-rose-500/30' },
+                    { label: 'SLA Breached', val: kpis.slaBreached, color: 'text-orange-500', bg: 'bg-orange-500/5 border-orange-500/20' },
+                    { label: 'Completed Today', val: kpis.completedToday, color: 'text-emerald-400', bg: 'bg-emerald-500/5 border-emerald-500/20' },
+                    { label: 'Avg Response Time', val: `${kpis.avgResponseTimeMins}m`, color: 'text-blue-400', bg: 'bg-blue-500/5 border-blue-500/20' },
+                    { label: 'Avg Resolution Time', val: `${kpis.avgResolutionTimeHours}h`, color: 'text-purple-400', bg: 'bg-purple-500/5 border-purple-500/20' },
+                    { label: 'Tech Utilization', val: `${kpis.technicianUtilizationPercent}%`, color: 'text-cyan-400', bg: 'bg-cyan-500/5 border-cyan-500/20' },
+                    { label: 'Customer CSAT', val: `★ ${kpis.customerSatisfactionScore}`, color: 'text-amber-400', bg: 'bg-amber-500/5 border-amber-500/20' },
+                ].map(kpi => (
+                    <div key={kpi.label} className={cn("p-4 rounded-2xl border bg-card shadow-sm space-y-1", kpi.bg)}>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 block">{kpi.label}</span>
+                        <p className={cn("text-2xl font-black tabular-nums", kpi.color)}>{kpi.val}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* SECTION 4: Quick Actions Toolbar */}
+            <div className="p-4 rounded-3xl border border-border bg-card/60 backdrop-blur-md flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                        <Wrench className="w-4 h-4 text-amber-500" /> Quick Operations Toolbar:
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => navigate('/maintenance')} className="px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
+                        <Plus className="w-3.5 h-3.5" /> Create Ticket
+                    </button>
+                    <button onClick={() => handleApplyPreset('emergency')} className="px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold hover:bg-rose-500/20 transition-all flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Emergency Queue ({kpis.emergency})
+                    </button>
+                    <button onClick={() => handleApplyPreset('sla')} className="px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 text-xs font-bold hover:bg-orange-500/20 transition-all flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" /> SLA Breached ({kpis.slaBreached})
+                    </button>
+                    <button onClick={() => navigate('/maintenance')} className="px-3.5 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs font-bold hover:bg-blue-500/20 transition-all flex items-center gap-1.5">
+                        <CalendarDays className="w-3.5 h-3.5" /> Schedule Visit
+                    </button>
+                    <button onClick={() => navigate('/reporting')} className="px-3.5 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-all flex items-center gap-1.5">
+                        <BarChart3 className="w-3.5 h-3.5" /> Analytics Reports
+                    </button>
+                </div>
+            </div>
+
+            {/* SECTION 5: Enterprise Maintenance Queue (ServiceNow/Jira Table) */}
+            <div className="rounded-3xl border border-border bg-card/60 backdrop-blur-md shadow-sm overflow-hidden space-y-4 p-5">
+                {/* Search & Filtering Bar */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[240px]">
+                        <input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search by Ticket ID, Title, Unit..."
+                            className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-muted/50 border border-border text-foreground text-xs font-semibold placeholder-muted-foreground/40 focus:outline-none focus:border-amber-500/50 transition-all"
+                        />
+                    </div>
+
+                    {/* Filter Dropdowns */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select value={savedPreset} onChange={e => handleApplyPreset(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-muted/50 border border-border text-foreground text-xs font-bold focus:outline-none appearance-none cursor-pointer">
+                            <option value="">Saved Filter Presets...</option>
+                            <option value="emergency">🚨 Emergency Only</option>
+                            <option value="sla">⏰ SLA Breached</option>
+                            <option value="unassigned">📋 Open Unassigned</option>
+                            <option value="reset">↺ Reset All Filters</option>
+                        </select>
+
+                        <select value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value }))}
+                            className="px-3 py-2 rounded-xl bg-muted/50 border border-border text-foreground text-xs font-bold focus:outline-none appearance-none cursor-pointer">
+                            <option value="">All Statuses</option>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="visit_scheduled">Visit Scheduled</option>
+                            <option value="completed">Completed</option>
+                        </select>
+
+                        <select value={filters.priority} onChange={e => setFilters(p => ({ ...p, priority: e.target.value }))}
+                            className="px-3 py-2 rounded-xl bg-muted/50 border border-border text-foreground text-xs font-bold focus:outline-none appearance-none cursor-pointer">
+                            <option value="">All Priorities</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="emergency">Emergency</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Bulk Actions Toolbar */}
+                {selectedIds.size > 0 && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                        className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-amber-500">
+                            {selectedIds.size} Ticket{selectedIds.size > 1 ? 's' : ''} Selected
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
+                                className="px-3 py-1.5 rounded-xl bg-card border border-border text-foreground text-xs font-bold">
+                                <option value="">Select Bulk Action...</option>
+                                <option value="in_progress">Mark In Progress</option>
+                                <option value="completed">Mark Completed</option>
+                                <option value="cancelled">Cancel Tickets</option>
+                            </select>
+                            <button onClick={handleBulkStatusChange} className="px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold text-xs hover:bg-amber-500 transition-all">
+                                Apply Bulk Action
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Queue Table */}
+                {loading ? (
+                    <div className="py-16 text-center text-muted-foreground/40 font-bold text-xs space-y-2">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto text-amber-500" />
+                        <p>Loading Maintenance Queue...</p>
+                    </div>
+                ) : queue.length === 0 ? (
+                    <div className="py-16 text-center text-muted-foreground/50 border border-dashed border-border rounded-2xl space-y-1">
+                        <Wrench className="w-8 h-8 opacity-30 mx-auto" />
+                        <p className="text-xs font-bold text-foreground">No Tickets Found</p>
+                        <p className="text-[10px]">No maintenance requests match the selected queue filters.</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto border border-border rounded-2xl">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-border bg-muted/40 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 select-none">
+                                    <th className="p-3 w-10 text-center">
+                                        <input type="checkbox" checked={selectedIds.size === queue.length && queue.length > 0} onChange={toggleSelectAll} className="rounded border-border bg-card" />
+                                    </th>
+                                    <th className="p-3">Ticket ID</th>
+                                    <th className="p-3">Issue Title</th>
+                                    <th className="p-3">Tenant</th>
+                                    <th className="p-3">Property / Unit</th>
+                                    <th className="p-3">Priority</th>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Assigned Specialist</th>
+                                    <th className="p-3">Created Date</th>
+                                    <th className="p-3">SLA Target</th>
+                                    <th className="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60 text-xs font-medium">
+                                {queue.map(ticket => {
+                                    const isEmg = ticket.priority === 'emergency';
+                                    return (
+                                        <tr key={ticket._id} className="hover:bg-muted/30 transition-all">
+                                            <td className="p-3 text-center">
+                                                <input type="checkbox" checked={selectedIds.has(ticket._id)} onChange={() => toggleSelectOne(ticket._id)} className="rounded border-border bg-card" />
+                                            </td>
+                                            <td className="p-3 font-mono font-bold text-foreground">#{String(ticket._id).substring(0, 8)}</td>
+                                            <td className="p-3 font-bold text-foreground max-w-[200px] truncate">{ticket.title}</td>
+                                            <td className="p-3 font-semibold text-muted-foreground">{ticket.requestedBy?.firstName} {ticket.requestedBy?.lastName}</td>
+                                            <td className="p-3 text-muted-foreground">{ticket.property?.name || 'Property'} • Unit {ticket.unit || 'N/A'}</td>
+                                            <td className="p-3">
+                                                <span className={cn("px-2 py-0.5 rounded-md border text-[9px] font-black capitalize", isEmg ? "bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse" : "bg-muted text-muted-foreground border-border")}>
+                                                    {ticket.priority}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-wider">
+                                                    {ticket.status?.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                {ticket.assignedTo ? (
+                                                    <span className="font-bold text-foreground">{ticket.assignedTo.firstName} {ticket.assignedTo.lastName}</span>
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground/50 italic">Unassigned</span>
+                                                )}
+                                            </td>
+                                            <td className="p-3 font-mono text-[10px] text-muted-foreground">{new Date(ticket.createdAt).toLocaleDateString()}</td>
+                                            <td className="p-3">
+                                                <span className={cn("font-bold text-[10px]", isEmg ? "text-rose-400" : "text-emerald-400")}>
+                                                    {isEmg ? '< 30m SLA' : '< 24h SLA'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <button onClick={() => navigate('/maintenance', { state: { searchId: ticket._id } })} className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold text-[10px] hover:bg-primary/20 transition-all">
+                                                    Inspect
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+

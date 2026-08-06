@@ -14,6 +14,7 @@ router.use(authenticate);
 
 router.get('/', maintenanceController.getAllRequests);
 router.get('/stats', maintenanceController.getStats);
+router.get('/manager-dashboard', maintenanceController.getManagerDashboard);
 router.get('/:id', maintenanceController.getRequestById);
 router.get('/:id/timeline', maintenanceController.getTimeline);
 router.get('/:id/comments', maintenanceController.getComments);
