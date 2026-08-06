@@ -19,6 +19,9 @@ export const translations = {
             payNow: 'Pay Rent Now',
             analytics: 'Analytics & Reports',
             users: 'User Management',
+            technicians: 'Workforce',
+            workforceScheduling: 'Dispatch Board',
+            notifications: 'Notifications',
         },
         common: {
             search: 'Search',

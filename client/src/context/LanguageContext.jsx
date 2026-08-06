@@ -24,7 +24,7 @@ export function LanguageProvider({ children }) {
         document.documentElement.setAttribute('lang', language);
     }, [language]);
 
-    const t = (key) => {
+    const t = (key, fallbackDefault = null) => {
         const keys = key.split('.');
         let val = translations[language] || translations['en'];
         for (const k of keys) {
@@ -35,7 +35,8 @@ export function LanguageProvider({ children }) {
         if (val === undefined) {
             let fallback = translations['en'];
             for (const k of keys) fallback = fallback?.[k];
-            return fallback || key;
+            if (fallback !== undefined) return fallback;
+            return fallbackDefault || key;
         }
         return val;
     };

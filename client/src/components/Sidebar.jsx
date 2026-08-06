@@ -242,7 +242,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                       )}
                     />
                     <span className={cn("font-semibold text-sm tracking-tight flex-1 whitespace-nowrap transition-opacity duration-200", !isOpen && "w-0 opacity-0 hidden")}>
-                      {t(`nav.${item.key}`) || item.label}
+                      {t(`nav.${item.key}`, item.label)}
                     </span>
                     {item.badge && !isActive && isOpen && (
                       <span className={cn('w-2 h-2 rounded-full flex-shrink-0', theme.badgeBg)} />
