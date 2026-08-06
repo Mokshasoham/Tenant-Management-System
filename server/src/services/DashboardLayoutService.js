@@ -3,7 +3,7 @@
  *
  * Business logic layer for Dashboard Personalization & Layout Profiles.
  * Performs grid boundary and collision validation, OCC version checks,
- * single-widget resets, and emits domain events on EventBus.
+ * profile switching, preset cloning (Copy-on-Edit), and emits domain events on EventBus.
  */
 
 import dashboardLayoutRepository from '../repositories/dashboardLayoutRepository.js';
@@ -16,6 +16,10 @@ export class DashboardLayoutService {
    */
   validateGridCoordinates(widgets = []) {
     const activeWidgets = widgets.filter((w) => w.enabled !== false);
+
+    if (activeWidgets.length === 0) {
+      throw new Error('PROFILE_VALIDATION_ERROR: Cannot save an empty dashboard layout (0 widgets).');
+    }
 
     for (const w of activeWidgets) {
       if (w.x < 0 || w.y < 0) {
@@ -43,6 +47,73 @@ export class DashboardLayoutService {
         }
       }
     }
+  }
+
+  /**
+   * Lists all saved profiles for a user & role.
+   */
+  async listUserProfiles(userId, dashboardRole) {
+    const userProfiles = await dashboardLayoutRepository.listUserProfiles(userId, dashboardRole);
+    return {
+      success: true,
+      dashboardRole,
+      profiles: userProfiles
+    };
+  }
+
+  /**
+   * Switches active profile for a user and role.
+   */
+  async switchActiveProfile(userId, dashboardRole, profileName) {
+    const updated = await dashboardLayoutRepository.setActiveProfile(userId, dashboardRole, profileName);
+    logger.info(`[DashboardLayoutService] User ${userId} switched active profile to '${profileName}'`);
+
+    eventBus.publish('dashboard.profile.changed', {
+      userId,
+      dashboardRole,
+      profileName,
+      updatedAt: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      profileName,
+      activeProfile: updated
+    };
+  }
+
+  /**
+   * Clones a platform preset into a user custom layout profile (Copy-on-Edit).
+   */
+  async clonePresetToUserProfile(userId, dashboardRole, presetId, customName, widgets) {
+    const profileName = customName || `${presetId} (Custom)`;
+    this.validateGridCoordinates(widgets);
+
+    const saved = await dashboardLayoutRepository.upsertLayout(
+      userId,
+      dashboardRole,
+      profileName,
+      widgets,
+      null
+    );
+
+    logger.info(`[DashboardLayoutService] Cloned preset '${presetId}' into custom profile '${profileName}' for user ${userId}`);
+
+    eventBus.publish('dashboard.profile.cloned', {
+      userId,
+      dashboardRole,
+      presetId,
+      profileName,
+      updatedAt: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      message: `Created custom profile '${profileName}' from preset '${presetId}'.`,
+      profileName,
+      widgets: saved.widgets,
+      version: saved.__v
+    };
   }
 
   /**
@@ -90,7 +161,6 @@ export class DashboardLayoutService {
 
     logger.info(`[DashboardLayoutService] Saved layout profile '${profileName}' for user ${userId}`);
 
-    // Publish domain event to EventBus
     eventBus.publish('dashboard.layout.updated', {
       userId,
       dashboardRole,

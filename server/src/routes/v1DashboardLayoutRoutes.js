@@ -1,7 +1,7 @@
 /**
  * server/src/routes/v1DashboardLayoutRoutes.js
  *
- * REST Routes for Dashboard Personalization APIs.
+ * REST Routes for Dashboard Personalization & Profile Switching APIs.
  * Mount path: /api/v1/dashboard-layouts
  */
 
@@ -14,6 +14,12 @@ const router = express.Router();
 // All layout endpoints require authentication
 router.use(authenticate);
 
+// Profile Management Routes
+router.get('/profiles', (req, res, next) => v1DashboardLayoutController.listProfiles(req, res, next));
+router.post('/profiles/switch', (req, res, next) => v1DashboardLayoutController.switchProfile(req, res, next));
+router.post('/profiles/clone', (req, res, next) => v1DashboardLayoutController.cloneProfile(req, res, next));
+
+// Direct Layout Preferences & Widget Reset Routes
 router.get('/', (req, res, next) => v1DashboardLayoutController.getMyLayout(req, res, next));
 router.put('/', (req, res, next) => v1DashboardLayoutController.saveMyLayout(req, res, next));
 router.delete('/', (req, res, next) => v1DashboardLayoutController.resetMyLayout(req, res, next));
