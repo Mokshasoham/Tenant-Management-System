@@ -441,7 +441,8 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   // 5) Send it via email (Non-blocking simulation)
-  const resetURL = `${req.get('origin')}/reset-password/${resetToken}`;
+  const clientOrigin = (req.get('origin') || config.FRONTEND_BASE_URL || config.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const resetURL = `${clientOrigin}/reset-password/${resetToken}`;
   const message = `Forgot your password? Click the link below to reset it:\n\n${resetURL}\n\nIf you didn't forget your password, please ignore this email!`;
 
   // Always log to console for development/demo (The "Yesterday" behavior)

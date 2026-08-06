@@ -8,6 +8,7 @@ import Maintenance from '../models/Maintenance.js';
 import eventBus from '../platform/events/eventBus.js';
 import NotificationService from './NotificationService.js';
 import { AppError } from '../utils/errorHandling.js';
+import config from '../config/config.js';
 
 export class TechnicianService {
   async getAllTechnicians(query = {}) {
@@ -141,8 +142,9 @@ export class TechnicianService {
 
     const tech = await technicianRepository.create(techPayload, creatorId);
 
-    // Build activation URL
-    const appOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+    // Build activation URL reading from canonical FRONTEND_BASE_URL
+    const baseUrl = config.FRONTEND_BASE_URL || config.CLIENT_URL || process.env.FRONTEND_BASE_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    const appOrigin = baseUrl.replace(/\/$/, '');
     const activationUrl = `${appOrigin}/activate-account/${invitationToken}`;
     const emailMessage = `Hello ${tech.firstName},\n\nYou have been invited to join the Tenant Management System as a Field Technician.\nEmployee ID: ${tech.technicianProfile.employeeId}\n\nPlease click the link below to set your password and activate your account:\n\n${activationUrl}\n\nThis link will expire in 7 days.\n\nThank you!`;
 
