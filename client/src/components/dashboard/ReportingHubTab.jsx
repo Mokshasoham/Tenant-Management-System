@@ -9,16 +9,31 @@ import {
 import { cn } from '../../utils/cn';
 
 const REPORT_DOMAINS = [
-  { id: 'revenue', label: 'Revenue Report', icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  { id: 'occupancy', label: 'Occupancy Report', icon: BarChart3, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-  { id: 'lease', label: 'Lease Expiration Report', icon: FileText, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-  { id: 'payment', label: 'Payment Audit Report', icon: FileSpreadsheet, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  { id: 'maintenance', label: 'Maintenance Performance', icon: RefreshCw, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  { id: 'notification', label: 'Notification Report', icon: Calendar, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-  { id: 'reminder', label: 'Reminder Dispatch Report', icon: Clock, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-  { id: 'manager_performance', label: 'Manager Performance', icon: Sparkles, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-  { id: 'audit', label: 'Audit Trail Report', icon: Database, color: 'text-teal-400', bg: 'bg-teal-500/10' }
+  { id: 'revenue',             label: 'Revenue Report',           icon: TrendingUp,     color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+  { id: 'occupancy',           label: 'Occupancy Report',         icon: BarChart3,       color: 'text-blue-400',    bg: 'bg-blue-500/10'    },
+  { id: 'lease',               label: 'Lease Expiration Report',  icon: FileText,        color: 'text-violet-400',  bg: 'bg-violet-500/10'  },
+  { id: 'payment',             label: 'Payment Audit Report',     icon: FileSpreadsheet, color: 'text-amber-400',   bg: 'bg-amber-500/10'   },
+  { id: 'maintenance',         label: 'Maintenance Performance',  icon: RefreshCw,       color: 'text-purple-400',  bg: 'bg-purple-500/10'  },
+  { id: 'notification',        label: 'Notification Report',      icon: Calendar,        color: 'text-cyan-400',    bg: 'bg-cyan-500/10'    },
+  { id: 'reminder',            label: 'Reminder Dispatch Report', icon: Clock,           color: 'text-indigo-400',  bg: 'bg-indigo-500/10'  },
+  { id: 'manager_performance', label: 'Manager Performance',      icon: Sparkles,        color: 'text-rose-400',    bg: 'bg-rose-500/10'    },
+  { id: 'audit_log',           label: 'Audit Trail Report',       icon: Database,        color: 'text-teal-400',    bg: 'bg-teal-500/10'    }
 ];
+
+/**
+ * Normalizes frontend filter shape (dateRange: '30d') to the shape each
+ * domain service expects (months, daysWindow). Keeps unknown keys as-is.
+ */
+function normalizeFilters(dateRange, statusFilter) {
+  const dateRangeToMonths = { '7d': 1, '30d': 1, '90d': 3, '1y': 12 };
+  const dateRangeToDays   = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+  return {
+    months:      dateRangeToMonths[dateRange] ?? 1,
+    daysWindow:  dateRangeToDays[dateRange]   ?? 30,
+    dateRange,
+    statusFilter
+  };
+}
 
 export default function ReportingHubTab() {
   const [selectedType, setSelectedType] = useState('revenue');
@@ -45,9 +60,9 @@ export default function ReportingHubTab() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('/api/v1/reporting/generate', {
+      const res = await axios.post('/api/v1/reports/generate', {
         reportType: selectedType,
-        filters: { dateRange, statusFilter }
+        filters: normalizeFilters(dateRange, statusFilter)
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       setReportData(res.data.data || res.data);
@@ -62,7 +77,7 @@ export default function ReportingHubTab() {
   const fetchSavedPresets = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/reporting/saved', {
+      const res = await axios.get('/api/v1/reports/saved', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSavedPresets(res.data.data || []);
@@ -82,7 +97,7 @@ export default function ReportingHubTab() {
     const interval = setInterval(async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/reporting/export/jobs/${activeJob._id || activeJob.id}`, {
+        const res = await axios.get(`/api/v1/reports/export/jobs/${activeJob._id || activeJob.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const jobState = res.data.data || res.data;
@@ -105,9 +120,9 @@ export default function ReportingHubTab() {
 
       if (backgroundJob) {
         // Enqueue background export job
-        const res = await axios.post('/api/v1/reporting/export/jobs', {
+        const res = await axios.post('/api/v1/reports/export/jobs', {
           reportType: selectedType,
-          filters: { dateRange, statusFilter },
+          filters: normalizeFilters(dateRange, statusFilter),
           format
         }, authHeader);
         
@@ -115,9 +130,9 @@ export default function ReportingHubTab() {
         showToastMsg(`Background ${format.toUpperCase()} export job queued!`);
       } else {
         // Direct synchronous export
-        const res = await axios.post('/api/v1/reporting/export', {
+        const res = await axios.post('/api/v1/reports/export', {
           reportType: selectedType,
-          filters: { dateRange, statusFilter },
+          filters: normalizeFilters(dateRange, statusFilter),
           format
         }, authHeader);
 
@@ -139,10 +154,10 @@ export default function ReportingHubTab() {
     if (!presetName) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post('/api/v1/reporting/saved', {
+      await axios.post('/api/v1/reports/saved', {
         name: presetName,
         reportType: selectedType,
-        filters: { dateRange, statusFilter }
+        filters: normalizeFilters(dateRange, statusFilter)
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       showToastMsg(`Preset '${presetName}' saved!`);
