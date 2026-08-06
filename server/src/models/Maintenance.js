@@ -119,6 +119,16 @@ const maintenanceSchema = new mongoose.Schema(
         },
         images: [String],
         attachments: [attachmentSchema],
+        beforePhotos: [attachmentSchema],
+        afterPhotos: [attachmentSchema],
+        completionChecklist: {
+            workCompleted: { type: Boolean, default: false },
+            photosUploaded: { type: Boolean, default: false },
+            materialsRecorded: { type: Boolean, default: false },
+            costEntered: { type: Boolean, default: false },
+            tenantNotified: { type: Boolean, default: false },
+            ratingRequested: { type: Boolean, default: false }
+        },
         notes: [noteSchema],
         internalNotes: [noteSchema],
         statusHistory: [statusHistorySchema],

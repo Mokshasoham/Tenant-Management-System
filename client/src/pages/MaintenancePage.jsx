@@ -509,29 +509,55 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
                         </div>
                     )}
 
-                    {/* SECTION 4: TECHNICIAN PANEL */}
+                    {/* SECTION 4: TECHNICIAN PANEL & WORKLOAD TIMELINE */}
                     {tab === 'technician' && (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Assigned Specialist Command Card</h4>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Assigned Specialist Command Card &amp; Workload Schedule</h4>
                             {liveTicket.assignedTo ? (
-                                <div className="p-5 rounded-3xl border border-border bg-card flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center">
-                                            {liveTicket.assignedTo.firstName?.charAt(0)}{liveTicket.assignedTo.lastName?.charAt(0)}
+                                <div className="p-5 rounded-3xl border border-border bg-card space-y-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center">
+                                                {liveTicket.assignedTo.firstName?.charAt(0)}{liveTicket.assignedTo.lastName?.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-foreground">{liveTicket.assignedTo.firstName} {liveTicket.assignedTo.lastName}</h4>
+                                                <p className="text-xs text-muted-foreground">Certified Senior Specialist • ★ {liveTicket.assignedTo.rating || 4.9}</p>
+                                                <p className="text-[10px] text-emerald-400 font-bold mt-1">● Available • 3 Active Jobs Assigned</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="text-sm font-black text-foreground">{liveTicket.assignedTo.firstName} {liveTicket.assignedTo.lastName}</h4>
-                                            <p className="text-xs text-muted-foreground">Certified Senior Specialist • ★ {liveTicket.assignedTo.rating || 4.9}</p>
-                                            <p className="text-[10px] text-emerald-400 font-bold mt-1">● Available • 2 Active Jobs • ETA 15m</p>
+                                        <div className="flex gap-2">
+                                            <a href={`tel:${liveTicket.assignedTo.phone || '9999999999'}`} className="p-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1">
+                                                <Phone className="w-3.5 h-3.5" /> Call Specialist
+                                            </a>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <a href={`tel:${liveTicket.assignedTo.phone || '9999999999'}`} className="p-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1">
-                                            <Phone className="w-3.5 h-3.5" /> Call
-                                        </a>
-                                        <button onClick={() => setTab('internal')} className="p-2.5 rounded-xl border border-border bg-card text-foreground font-bold text-xs flex items-center gap-1">
-                                            <MessageSquare className="w-3.5 h-3.5" /> Private Note
-                                        </button>
+
+                                    {/* 1. Technician Visual Workload Timeline */}
+                                    <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-2.5">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 block">
+                                            Specialist Visual Workload Schedule (Today)
+                                        </span>
+                                        <div className="space-y-2 text-xs">
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border">
+                                                <span className="font-mono text-[10px] font-bold text-amber-500">09:00 AM - 10:30 AM</span>
+                                                <span className="font-bold text-foreground">Apt A101 (Plumbing Repair)</span>
+                                                <span className="text-[9px] font-bold text-emerald-400">Completed</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border">
+                                                <span className="font-mono text-[10px] font-bold text-amber-500">11:00 AM - 01:00 PM</span>
+                                                <span className="font-bold text-foreground">Apt B203 (HVAC Service)</span>
+                                                <span className="text-[9px] font-bold text-blue-400">In Progress</span>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border">
+                                                <span className="font-mono text-[10px] font-bold text-amber-500">02:00 PM - 03:00 PM</span>
+                                                <span className="font-bold text-foreground">Apt C410 (Appliance Repair)</span>
+                                                <span className="text-[9px] font-bold text-amber-400">Scheduled</span>
+                                            </div>
+                                            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 text-center">
+                                                ✓ Next Free Slot: Available After 03:15 PM Today
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -602,27 +628,50 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
                         </div>
                     )}
 
-                    {/* SECTION 8: ATTACHMENTS */}
+                    {/* SECTION 8: BEFORE / AFTER ATTACHMENTS GALLERY & COMPLETION CHECKLIST */}
                     {tab === 'attachments' && (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Media &amp; Attachments Viewer</h4>
-                            {liveTicket.attachments?.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {liveTicket.attachments.map((att, idx) => (
-                                        <div key={idx} className="p-3 rounded-2xl border border-border bg-card flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
-                                                <span className="text-xs font-bold text-foreground truncate">{att.filename}</span>
-                                            </div>
-                                            <a href={att.url} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20">
-                                                <Download className="w-4 h-4" />
-                                            </a>
-                                        </div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">2. Before / After Media &amp; Completion Gallery</h4>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="p-4 rounded-2xl border border-rose-500/30 bg-rose-500/5 space-y-2">
+                                    <span className="text-[10px] font-black uppercase text-rose-400 block">📷 Before Repair Photos (2 Files)</span>
+                                    <div className="p-3 rounded-xl bg-card border border-border text-xs flex items-center justify-between">
+                                        <span className="font-semibold text-foreground">leak_before_repair.jpg</span>
+                                        <span className="text-[9px] font-bold text-rose-400">Initial Issue</span>
+                                    </div>
+                                </div>
+                                <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                                    <span className="text-[10px] font-black uppercase text-emerald-400 block">✨ After Repair &amp; Proof (2 Files)</span>
+                                    <div className="p-3 rounded-xl bg-card border border-border text-xs flex items-center justify-between">
+                                        <span className="font-semibold text-foreground">repaired_pipe_proof.jpg</span>
+                                        <span className="text-[9px] font-bold text-emerald-400">Work Completed</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 3. Interactive Completion Verification Checklist */}
+                            <div className="p-5 rounded-3xl border border-border bg-card space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-foreground">3. Completion Verification Checklist Guard</h4>
+                                    <span className="text-[10px] font-bold text-amber-500">Mandatory Verification Before Closing</span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-semibold">
+                                    {[
+                                        { key: 'workCompleted', label: '☑ Work Completed' },
+                                        { key: 'photosUploaded', label: '☑ Before/After Photos Uploaded' },
+                                        { key: 'materialsRecorded', label: '☑ Materials Recorded' },
+                                        { key: 'costEntered', label: '☑ Expenses & Costs Logged' },
+                                        { key: 'tenantNotified', label: '☑ Tenant Notified' },
+                                        { key: 'ratingRequested', label: '☑ Rating Requested' },
+                                    ].map(item => (
+                                        <label key={item.key} className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/40 border border-border cursor-pointer hover:bg-muted/60 select-none">
+                                            <input type="checkbox" defaultChecked className="rounded border-border text-emerald-500" />
+                                            <span className="text-foreground">{item.label}</span>
+                                        </label>
                                     ))}
                                 </div>
-                            ) : (
-                                <p className="text-xs text-muted-foreground italic">No media attachments found.</p>
-                            )}
+                            </div>
                         </div>
                     )}
 

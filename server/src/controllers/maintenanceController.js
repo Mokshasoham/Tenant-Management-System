@@ -265,6 +265,14 @@ export const getRelatedTickets = asyncHandler(async (req, res) => {
     });
 });
 
+export const updateChecklist = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const checklistData = req.body;
+
+    const request = await maintenanceService.updateChecklist(id, checklistData, req.user);
+    res.status(200).json({ success: true, message: 'Completion checklist updated', data: request });
+});
+
 export const getManagerDashboard = asyncHandler(async (req, res) => {
     const userId = req.user.userId || req.user._id || req.user.id;
     

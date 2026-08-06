@@ -134,6 +134,7 @@ export const maintenanceService = {
   escalateTicket: (id, reason) => apiClient.post(`/maintenance/${id}/escalate`, { reason }),
   mergeTicket: (id, targetId) => apiClient.post(`/maintenance/${id}/merge`, { targetId }),
   updateCosts: (id, costData) => apiClient.put(`/maintenance/${id}/costs`, costData),
+  updateChecklist: (id, checklistData) => apiClient.put(`/maintenance/${id}/checklist`, checklistData),
   getAuditTrail: (id) => apiClient.get(`/maintenance/${id}/audit-trail`),
   getRelatedTickets: (id) => apiClient.get(`/maintenance/${id}/related`),
 };

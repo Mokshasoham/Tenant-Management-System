@@ -274,6 +274,21 @@ export class MaintenanceService {
   }
 
   /**
+   * Updates completion checklist before closing ticket.
+   */
+  async updateChecklist(ticketId, checklistData, userContext) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const request = await maintenanceRepository.findById(ticketId);
+    if (!request) throw new AppError('Ticket not found', 404);
+
+    request.completionChecklist = { ...request.completionChecklist, ...checklistData };
+    await request.save();
+
+    await maintenanceRepository.addAuditLog(ticketId, 'completionChecklist', 'Pending', JSON.stringify(checklistData), userId);
+    return request;
+  }
+
+  /**
    * Submits tenant rating & feedback for a completed maintenance ticket.
    */
   async addRating(ticketId, score, feedback, userContext) {
