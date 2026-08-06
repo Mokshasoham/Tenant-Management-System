@@ -11,6 +11,8 @@ import savedReportRepository from '../repositories/savedReportRepository.js';
 import exportManager from '../exporters/ExportManager.js';
 import exportQueue from '../queue/exportQueue.js';
 
+const getUserId = (req) => req.user?.userId || req.user?._id || req.user?.id || null;
+
 /**
  * POST /api/v1/reports/generate
  * Generates an AI-Ready DTO report for specified type and filters.
@@ -25,7 +27,7 @@ export const generateReport = asyncHandler(async (req, res) => {
     });
   }
 
-  const userId = req.user?._id || req.user?.id || null;
+  const userId = getUserId(req);
   const report = await reportService.generateReport(reportType, filters, userId, format);
 
   res.status(200).json(report);
@@ -45,7 +47,7 @@ export const exportReportSync = asyncHandler(async (req, res) => {
     });
   }
 
-  const userId = req.user?._id || req.user?.id || null;
+  const userId = getUserId(req);
   const ipAddress = req.ip || req.socket.remoteAddress;
 
   // 1. Generate Report DTO
@@ -68,7 +70,7 @@ export const exportReportSync = asyncHandler(async (req, res) => {
  */
 export const createExportJob = asyncHandler(async (req, res) => {
   const { reportType, filters = {}, format = 'pdf' } = req.body;
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
 
   if (!reportType) {
     return res.status(400).json({
@@ -91,7 +93,7 @@ export const createExportJob = asyncHandler(async (req, res) => {
  * Polls progress and status of a background export job.
  */
 export const getExportJobStatus = asyncHandler(async (req, res) => {
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
   const { id } = req.params;
 
   const job = await exportQueue.getJob(id, userId);
@@ -113,7 +115,7 @@ export const getExportJobStatus = asyncHandler(async (req, res) => {
  * Retrieves saved report presets and favorites for current user.
  */
 export const getSavedReports = asyncHandler(async (req, res) => {
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
   const saved = await savedReportRepository.findByUser(userId);
 
   res.status(200).json({
@@ -128,7 +130,7 @@ export const getSavedReports = asyncHandler(async (req, res) => {
  * Saves a new report preset.
  */
 export const createSavedReport = asyncHandler(async (req, res) => {
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
   const { name, description, reportType, filters, isFavorite } = req.body;
 
   if (!name || !reportType) {
@@ -159,7 +161,7 @@ export const createSavedReport = asyncHandler(async (req, res) => {
  * Toggles user favorite state for a saved report preset.
  */
 export const toggleFavoriteReport = asyncHandler(async (req, res) => {
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
   const { id } = req.params;
 
   const updated = await savedReportRepository.toggleFavorite(id, userId);
@@ -182,7 +184,7 @@ export const toggleFavoriteReport = asyncHandler(async (req, res) => {
  * Deletes a saved report preset.
  */
 export const deleteSavedReport = asyncHandler(async (req, res) => {
-  const userId = req.user._id || req.user.id;
+  const userId = getUserId(req);
   const { id } = req.params;
 
   await savedReportRepository.delete(id, userId);

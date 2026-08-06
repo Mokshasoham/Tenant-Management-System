@@ -7,6 +7,8 @@
 import asyncHandler from 'express-async-handler';
 import operationsService from '../services/OperationsService.js';
 
+const getUserId = (req) => req.user?.userId || req.user?._id || req.user?.id || null;
+
 /**
  * Helper extracting IP and user agent metadata from request.
  */
@@ -65,7 +67,7 @@ export const getDeadLetterQueue = asyncHandler(async (req, res) => {
  */
 export const bulkRetryDeadLetter = asyncHandler(async (req, res) => {
   const { ids = [] } = req.body;
-  const userId = req.user?._id || req.user?.id;
+  const userId = getUserId(req);
   const reqMeta = getRequestMeta(req);
 
   const result = await operationsService.bulkRetryDeadLetter(ids, userId, reqMeta);
@@ -78,7 +80,7 @@ export const bulkRetryDeadLetter = asyncHandler(async (req, res) => {
  */
 export const bulkPurgeDeadLetter = asyncHandler(async (req, res) => {
   const { ids = [] } = req.body;
-  const userId = req.user?._id || req.user?.id;
+  const userId = getUserId(req);
   const reqMeta = getRequestMeta(req);
 
   const result = await operationsService.bulkPurgeDeadLetter(ids, userId, reqMeta);
@@ -92,7 +94,7 @@ export const bulkPurgeDeadLetter = asyncHandler(async (req, res) => {
 export const cancelJob = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
-  const userId = req.user?._id || req.user?.id;
+  const userId = getUserId(req);
   const reqMeta = getRequestMeta(req);
 
   const result = await operationsService.cancelQueuedJob(id, reason, userId, reqMeta);
@@ -105,7 +107,7 @@ export const cancelJob = asyncHandler(async (req, res) => {
  */
 export const triggerScheduler = asyncHandler(async (req, res) => {
   const { name } = req.params;
-  const userId = req.user?._id || req.user?.id;
+  const userId = getUserId(req);
   const reqMeta = getRequestMeta(req);
 
   const result = await operationsService.triggerSchedulerScan(name, userId, reqMeta);
@@ -119,7 +121,7 @@ export const triggerScheduler = asyncHandler(async (req, res) => {
 export const tuneWorker = asyncHandler(async (req, res) => {
   const { name } = req.params;
   const config = req.body;
-  const userId = req.user?._id || req.user?.id;
+  const userId = getUserId(req);
   const reqMeta = getRequestMeta(req);
 
   const result = operationsService.tuneWorkerConfig(name, config, userId, reqMeta);
