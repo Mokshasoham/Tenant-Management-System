@@ -17,7 +17,7 @@ export class ScheduledReportScheduler extends Scheduler {
   constructor() {
     super({
       name: 'ScheduledReportScheduler',
-      intervalMs: 3600000 // 1 hour scan
+      tickMs: 3600000 // 1 hour scan
     });
   }
 

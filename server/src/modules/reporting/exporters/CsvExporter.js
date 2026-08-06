@@ -30,7 +30,10 @@ export class CsvExporter extends BaseExporter {
     // Title & Summary Metadata
     const title = options.title || reportDTO.meta?.title || 'Report Export';
     lines.push(`"# Title: ${title}"`);
-    if (reportDTO.summary) lines.push(`"# Summary: ${reportDTO.summary.replace(/\n/g, ' ')}"`);
+    if (reportDTO.summary) {
+      const summaryText = typeof reportDTO.summary === 'string' ? reportDTO.summary : JSON.stringify(reportDTO.summary);
+      lines.push(`"# Summary: ${summaryText.replace(/\n/g, ' ')}"`);
+    }
     lines.push(`"# GeneratedAt: ${new Date().toISOString()}"`);
     lines.push('');
 
