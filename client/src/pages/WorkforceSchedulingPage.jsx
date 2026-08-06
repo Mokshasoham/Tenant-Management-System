@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { workforceSchedulingService, technicianService, maintenanceService } from '../services/api';
+import { workforceSchedulingService, technicianService, maintenanceService, assignmentEngineService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     Calendar, Clock, Users, UserCheck, ShieldAlert, Sparkles, Filter,
@@ -28,6 +28,34 @@ export default function WorkforceSchedulingPage() {
         startDate: new Date().toISOString().slice(0, 10),
         endDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10)
     });
+
+    // Route Optimization state
+    const [optimizingRoute, setOptimizingRoute] = useState(false);
+    const [routeResult, setRouteResult] = useState(null);
+
+    const handleOptimizeSelectedRoute = async () => {
+        if (technicians.length === 0) return;
+        const targetTech = technicians[0];
+        const activeTicketIds = unassignedTickets.slice(0, 4).map(t => t._id);
+        if (activeTicketIds.length === 0) {
+            alert('No unassigned tickets available to optimize dispatch sequence.');
+            return;
+        }
+
+        setOptimizingRoute(true);
+        try {
+            const res = await assignmentEngineService.optimizeRoute({
+                technicianId: targetTech._id,
+                ticketIds: activeTicketIds
+            });
+            setRouteResult(res?.data || res);
+        } catch (err) {
+            console.error('Route optimization error:', err);
+            alert(err.response?.data?.message || 'Failed to optimize dispatch route.');
+        } finally {
+            setOptimizingRoute(false);
+        }
+    };
 
     const fetchData = useCallback(async () => {
         try {
@@ -132,6 +160,10 @@ export default function WorkforceSchedulingPage() {
                     <button onClick={() => setShowShiftModal(true)}
                         className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-xs hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-lg">
                         <Plus className="w-4 h-4" /> 2. Add Shift
+                    </button>
+                    <button onClick={handleOptimizeSelectedRoute} disabled={optimizingRoute}
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs hover:opacity-90 transition-all flex items-center gap-1.5 shadow-lg">
+                        {optimizingRoute ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Route Optimizer
                     </button>
                 </div>
             </motion.div>
@@ -407,6 +439,60 @@ export default function WorkforceSchedulingPage() {
                                     Save Shift Schedule
                                 </button>
                             </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+
+                {/* 11. Route Optimization Result Modal */}
+                {routeResult && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+                        onClick={e => e.target === e.currentTarget && setRouteResult(null)}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-lg rounded-3xl border border-amber-500/30 bg-card p-6 space-y-4 shadow-2xl">
+                            <div className="flex items-center justify-between border-b border-border pb-3">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-5 h-5 text-amber-500" />
+                                    <h3 className="text-base font-black text-foreground">Auto-Dispatched Daily Route Optimization</h3>
+                                </div>
+                                <button onClick={() => setRouteResult(null)} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                                    <span className="text-[9px] font-black uppercase text-amber-400 block">Est Travel Time</span>
+                                    <span className="font-mono font-black text-foreground">{routeResult.estimatedTravelMinutes} mins</span>
+                                </div>
+                                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                                    <span className="text-[9px] font-black uppercase text-emerald-400 block">Total Route Distance</span>
+                                    <span className="font-mono font-black text-foreground">{routeResult.routeDistanceKm} km</span>
+                                </div>
+                                <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                                    <span className="text-[9px] font-black uppercase text-blue-400 block">Algorithm Version</span>
+                                    <span className="font-mono font-bold text-foreground text-[10px]">{routeResult.optimizedRouteVersion}</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Optimized Job Sequence (Job A → Job B → Job C):</span>
+                                {routeResult.sequence?.map((step) => (
+                                    <div key={step.step} className="p-3 rounded-2xl border border-border bg-muted/20 flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-6 h-6 rounded-full bg-amber-500 text-white font-black text-[11px] flex items-center justify-center">
+                                                {step.step}
+                                            </span>
+                                            <div>
+                                                <p className="font-bold text-foreground">{step.title} ({step.buildingName})</p>
+                                                <p className="text-[10px] text-muted-foreground">Est. Duration: {step.estimatedMinutes}m • Priority: {step.priority}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-emerald-400">Step {step.step} Ready</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button onClick={() => setRouteResult(null)} className="w-full py-3 rounded-xl bg-amber-500 text-white text-xs font-black hover:bg-amber-400 transition-all">
+                                Accept &amp; Dispatch Sequence
+                            </button>
                         </motion.div>
                     </motion.div>
                 )}

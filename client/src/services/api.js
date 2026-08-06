@@ -242,5 +242,18 @@ export const visitService = {
   setNotInterested: (id) => apiClient.post(`/visits/${id}/not-interested`),
 };
 
+export const assignmentEngineService = {
+  getRecommendations: (ticketId, params = {}) => apiClient.get(`/v1/assignments/recommendations/${ticketId}`, { params }),
+  getRecommendationHistory: (ticketId) => apiClient.get(`/v1/assignments/recommendations/${ticketId}/history`),
+  saveDecision: (data, idempotencyKey) => apiClient.post('/v1/assignments/decision', data, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}
+  }),
+  simulate: (data) => apiClient.post('/v1/assignments/simulate', data),
+  optimizeRoute: (data) => apiClient.post('/v1/assignments/route-optimize', data),
+  getAnalytics: (params = {}) => apiClient.get('/v1/assignments/analytics', { params }),
+  getConfig: () => apiClient.get('/v1/assignments/config'),
+  updateConfig: (weights) => apiClient.put('/v1/assignments/config', { weights })
+};
+
 export default apiClient;
 
