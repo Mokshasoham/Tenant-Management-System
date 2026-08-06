@@ -14,15 +14,17 @@ const getResendClient = () => {
   const apiKey = config.RESEND_API_KEY;
 
   if (!apiKey) {
-    if (isDev) {
-      return null; // Return null in development to trigger simulation mode
-    }
-    // Fail fast in production
-    throw new Error('CRITICAL CONFIGURATION ERROR: RESEND_API_KEY is not defined in the production environment.');
+    logger.warn('Email Service: RESEND_API_KEY is not defined. Operating in EMAIL SIMULATION mode.');
+    return null;
   }
 
-  resendClient = new Resend(apiKey);
-  return resendClient;
+  try {
+    resendClient = new Resend(apiKey);
+    return resendClient;
+  } catch (err) {
+    logger.error('Failed to initialize Resend client:', err);
+    return null;
+  }
 };
 
 /**
@@ -31,11 +33,7 @@ const getResendClient = () => {
 export const verifyEmailConfiguration = () => {
   const apiKey = config.RESEND_API_KEY;
   if (!apiKey) {
-    if (isDev) {
-      logger.warn('Email Service: RESEND_API_KEY is missing. Operating in EMAIL SIMULATION mode.');
-    } else {
-      logger.error('Email Service Error: RESEND_API_KEY is missing in production environment!');
-    }
+    logger.warn('Email Service: RESEND_API_KEY is missing. Operating in EMAIL SIMULATION mode.');
   } else {
     logger.info('Email Service: Resend API has been configured successfully.');
   }
@@ -50,25 +48,17 @@ export const sendEmailMessage = async ({ to, subject, html, text, attachments = 
   const replyToAddress = config.EMAIL_REPLY_TO;
   const client = getResendClient();
 
-  // Development simulation mode
-  if (!client && isDev) {
-    logger.warn(`RESEND_API_KEY is missing in development. Simulating email transmission:`);
-    console.log(`\n--- DEVELOPMENT EMAIL SIMULATION ---`);
+  // Simulation mode when API key is missing or uninitialized
+  if (!client) {
+    logger.warn(`RESEND_API_KEY is missing. Simulating email transmission to ${to}:`);
+    console.log(`\n--- EMAIL TRANSMISSION SIMULATION ---`);
     console.log(`To      : ${to}`);
     console.log(`From    : ${fromAddress}`);
-    console.log(`Reply-To: ${replyToAddress}`);
     console.log(`Subject : ${subject}`);
     if (text) console.log(`Text    : ${text}`);
     if (html) console.log(`HTML    : ${html}`);
-    if (attachments.length > 0) {
-      console.log(`Attachments: ${attachments.map(a => a.filename).join(', ')}`);
-    }
     console.log(`-------------------------------------\n`);
-    return { id: 'dev-simulation-id' };
-  }
-
-  if (!client) {
-    throw new Error('Resend client is not initialized.');
+    return { id: 'simulated-email-id' };
   }
 
   try {

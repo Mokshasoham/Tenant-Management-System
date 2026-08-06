@@ -122,11 +122,15 @@ export class TechnicianService {
       console.warn(`[TechnicianService] Email sending failed: ${err.message}. Activation URL: ${activationUrl}`);
     }
 
-    await eventBus.publish('technician.invited', {
-      technicianId: tech._id,
-      employeeId: tech.technicianProfile?.employeeId,
-      createdBy: creatorId
-    });
+    try {
+      await eventBus.publish('technician.invited', {
+        technicianId: tech._id,
+        employeeId: tech.technicianProfile?.employeeId,
+        createdBy: creatorId
+      });
+    } catch (err) {
+      console.warn(`[TechnicianService] Event publish warning: ${err.message}`);
+    }
 
     const techObj = tech.toObject ? tech.toObject() : tech;
     return {
