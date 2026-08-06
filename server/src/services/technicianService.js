@@ -108,10 +108,15 @@ export class TechnicianService {
     await eventBus.publish('technician.invited', {
       technicianId: tech._id,
       employeeId: tech.technicianProfile?.employeeId,
-      email: tech.email
+      createdBy: creatorId
     });
 
-    return tech;
+    const techObj = tech.toObject ? tech.toObject() : tech;
+    return {
+      ...techObj,
+      activationUrl,
+      invitationToken
+    };
   }
 
   async updateTechnician(id, data) {

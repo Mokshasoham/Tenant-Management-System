@@ -275,6 +275,7 @@ export default function TechniciansPage() {
     const [selectedTech, setSelectedTech] = useState(null);
     const [compareSelected, setCompareSelected] = useState([]);
     const [showCompareModal, setShowCompareModal] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
 
     const fetchTechnicians = useCallback(async () => {
         try {
@@ -318,12 +319,18 @@ export default function TechniciansPage() {
                     <h1 className="text-3xl font-black text-foreground">Technician &amp; Workforce Portal</h1>
                 </div>
 
-                {compareSelected.length === 2 && (
-                    <button onClick={() => setShowCompareModal(true)}
-                        className="px-4 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg">
-                        <Scale className="w-4 h-4" /> Compare 2 Technicians
+                <div className="flex items-center gap-2">
+                    {compareSelected.length === 2 && (
+                        <button onClick={() => setShowCompareModal(true)}
+                            className="px-4 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer">
+                            <Scale className="w-4 h-4" /> Compare 2 Technicians
+                        </button>
+                    )}
+                    <button onClick={() => setShowAddModal(true)}
+                        className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer transition-all">
+                        <Plus className="w-4 h-4" /> Invite Technician
                     </button>
-                )}
+                </div>
             </motion.div>
 
             {/* 10. Workforce Health Banner */}
@@ -372,6 +379,14 @@ export default function TechniciansPage() {
                                 <option key={k} value={k}>{v.label}</option>
                             ))}
                         </select>
+
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer whitespace-nowrap"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Invite Technician
+                        </button>
                     </div>
                 </div>
             </div>
@@ -453,7 +468,171 @@ export default function TechniciansPage() {
             <AnimatePresence>
                 {selectedTech && <TechnicianWorkspaceModal technician={selectedTech} onClose={() => setSelectedTech(null)} onRefresh={fetchTechnicians} />}
                 {showCompareModal && <ComparisonModal techA={techA} techB={techB} onClose={() => setShowCompareModal(false)} />}
+                {showAddModal && <AddTechnicianModal onClose={() => setShowAddModal(false)} onCreated={fetchTechnicians} />}
             </AnimatePresence>
         </div>
     );
 }
+
+function AddTechnicianModal({ onClose, onCreated }) {
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        employeeId: `TECH-${Math.floor(1000 + Math.random() * 9000)}`,
+        employmentType: 'full_time',
+        shift: 'morning',
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [createdResult, setCreatedResult] = useState(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            const payload = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+                role: 'technician',
+                technicianProfile: {
+                    employeeId: formData.employeeId,
+                    employmentType: formData.employmentType,
+                    shift: formData.shift,
+                }
+            };
+            const res = await technicianService.createTechnician(payload);
+            const data = res?.data || res;
+            setCreatedResult(data);
+            if (onCreated) onCreated();
+        } catch (err) {
+            console.error('Failed to create technician', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to create technician');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCopyActivationUrl = () => {
+        if (createdResult?.activationUrl) {
+            navigator.clipboard.writeText(createdResult.activationUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 3000);
+        }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+            onClick={e => e.target === e.currentTarget && onClose()}>
+            <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+                className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 space-y-6 shadow-2xl">
+                
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                    <div>
+                        <h3 className="text-base font-black text-foreground">Invite New Technician</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Creates employee record &amp; sends account activation email</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"><X className="w-5 h-5" /></button>
+                </div>
+
+                {error && (
+                    <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 font-semibold flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                {createdResult ? (
+                    <div className="space-y-4 py-2">
+                        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                            <h4 className="font-black text-sm text-foreground">Technician Invitation Sent!</h4>
+                            <p className="text-xs text-muted-foreground">
+                                Employee <span className="font-mono text-emerald-400 font-bold">{createdResult.technicianProfile?.employeeId || formData.employeeId}</span> has been invited.
+                            </p>
+                        </div>
+
+                        {createdResult.activationUrl && (
+                            <div className="p-4 rounded-2xl bg-muted/60 border border-border space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Account Activation Link (Dev Testing)</label>
+                                <div className="flex items-center gap-2">
+                                    <input type="text" readOnly value={createdResult.activationUrl} className="flex-1 px-3 py-2 rounded-xl bg-card border border-border text-xs font-mono text-foreground focus:outline-none" />
+                                    <button onClick={handleCopyActivationUrl} className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap hover:opacity-90">
+                                        {copied ? '✓ Copied!' : 'Copy Link'}
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">Open this link in an Incognito window to set password and log in as the technician.</p>
+                            </div>
+                        )}
+
+                        <button onClick={onClose} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs">
+                            Done
+                        </button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">First Name *</label>
+                                <input required type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} placeholder="John" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Last Name *</label>
+                                <input required type="text" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} placeholder="Doe" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Email Address *</label>
+                            <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@company.com" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Phone Number</label>
+                                <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+1 555-0199" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Employee ID *</label>
+                                <input required type="text" value={formData.employeeId} onChange={e => setFormData({ ...formData, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-mono font-bold focus:outline-none focus:border-primary" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Employment Type</label>
+                                <select value={formData.employmentType} onChange={e => setFormData({ ...formData, employmentType: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold">
+                                    <option value="full_time">Full Time</option>
+                                    <option value="part_time">Part Time</option>
+                                    <option value="contractor">Contractor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Shift</label>
+                                <select value={formData.shift} onChange={e => setFormData({ ...formData, shift: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold">
+                                    <option value="morning">Morning (8 AM - 4 PM)</option>
+                                    <option value="afternoon">Afternoon (4 PM - 12 AM)</option>
+                                    <option value="night">Night (12 AM - 8 AM)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="pt-2 flex items-center justify-end gap-2 border-t border-border">
+                            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-foreground">Cancel</button>
+                            <button type="submit" disabled={loading} className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50">
+                                {loading ? 'Inviting...' : 'Send Invitation'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </motion.div>
+        </motion.div>
+    );
+}
+
