@@ -92,6 +92,10 @@ export class ReminderQueue {
     return result;
   }
 
+  async cancelByEntity(entityType, entityId, reason = 'Entity workflow completed') {
+    return await this.cancelRemindersForEntity(entityType, entityId, reason);
+  }
+
   /**
    * Fetches pending reminders ready for background worker execution.
    *

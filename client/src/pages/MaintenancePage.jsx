@@ -8,7 +8,8 @@ import {
     Filter, RefreshCw, MessageSquare, ArrowRight, ChevronDown,
     Calendar as CalendarIcon, ChevronLeft, ChevronRight, Check,
     UploadCloud, FileText, Image as ImageIcon, Video, Mic, Trash2,
-    ShieldCheck, Phone, Mail, MessageSquareText, Radio, CheckCircle
+    ShieldCheck, Phone, Mail, MessageSquareText, Radio, CheckCircle,
+    UserCheck, Send, Star, Download, ExternalLink, Activity, Info
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -17,6 +18,38 @@ const STATUS_COLS = [
     { key: 'in_progress', label: 'In Progress', color: 'amber', icon: Clock },
     { key: 'resolved', label: 'Resolved', color: 'emerald', icon: CheckCircle2 },
 ];
+
+const STATUS_PROGRESS = {
+    open: 10,
+    submitted: 15,
+    manager_review: 25,
+    technician_assigned: 40,
+    visit_scheduled: 50,
+    technician_en_route: 65,
+    work_started: 75,
+    waiting_parts: 80,
+    in_progress: 85,
+    completed: 100,
+    resolved: 100,
+    closed: 100,
+    cancelled: 0
+};
+
+const STATUS_COLORS = {
+    open: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+    submitted: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    manager_review: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+    technician_assigned: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+    visit_scheduled: 'bg-sky-500/10 text-sky-500 border-sky-500/20',
+    technician_en_route: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    work_started: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+    waiting_parts: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+    in_progress: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    completed: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    resolved: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    closed: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+    cancelled: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+};
 
 const PRIORITY_CONFIG = {
     low: { label: 'Low', class: 'text-muted-foreground/60 bg-muted border-border' },
@@ -116,7 +149,6 @@ function SubmitModal({ onClose, onSave }) {
             const res = await maintenanceService.createRequest(payload);
             const ticket = res?.data || res;
             
-            // Upload attachments if any files selected
             if (files.length > 0 && ticket?._id) {
                 const formData = new FormData();
                 files.forEach(f => formData.append('attachments', f));
@@ -139,7 +171,6 @@ function SubmitModal({ onClose, onSave }) {
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
                 className="w-full max-w-2xl rounded-3xl border border-border bg-card shadow-2xl transition-colors overflow-hidden max-h-[92vh] flex flex-col">
                 
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-10">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
@@ -153,7 +184,6 @@ function SubmitModal({ onClose, onSave }) {
                     <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
                 </div>
 
-                {/* Section 7: Success View */}
                 {successTicket ? (
                     <div className="p-8 text-center space-y-6 flex-1 flex flex-col items-center justify-center">
                         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
@@ -170,7 +200,6 @@ function SubmitModal({ onClose, onSave }) {
                             </p>
                         </div>
 
-                        {/* Ticket Stats Pill */}
                         <div className="grid grid-cols-2 gap-3 w-full max-w-md p-4 rounded-2xl border border-border bg-muted/30 text-left">
                             <div>
                                 <span className="text-[9px] font-black uppercase text-muted-foreground">Status & Priority</span>
@@ -187,7 +216,6 @@ function SubmitModal({ onClose, onSave }) {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex gap-3 w-full max-w-md pt-2">
                             <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-border text-foreground font-bold text-xs hover:bg-muted transition-all">
                                 Back to Dashboard
@@ -204,7 +232,6 @@ function SubmitModal({ onClose, onSave }) {
                             {error}
                         </div>}
 
-                        {/* Section 6: Emergency Warning Banner */}
                         {form.priority === 'emergency' && (
                             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                                 className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-start gap-3">
@@ -218,7 +245,6 @@ function SubmitModal({ onClose, onSave }) {
                             </motion.div>
                         )}
 
-                        {/* SECTION 1: Issue Details */}
                         <div className="space-y-4">
                             <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
                                 <FileText className="w-4 h-4" /> Section 1: Issue Details
@@ -289,7 +315,6 @@ function SubmitModal({ onClose, onSave }) {
                             </div>
                         </div>
 
-                        {/* SECTION 2: Attachments (Drag & Drop, Preview, Replace, Remove) */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
@@ -298,7 +323,6 @@ function SubmitModal({ onClose, onSave }) {
                                 <span className="text-[10px] font-bold text-muted-foreground">{files.length} / 10 files selected</span>
                             </div>
 
-                            {/* Drag and drop dropzone */}
                             <div
                                 onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                                 onDragLeave={() => setIsDragging(false)}
@@ -319,7 +343,6 @@ function SubmitModal({ onClose, onSave }) {
                                 </div>
                             </div>
 
-                            {/* File List Previews */}
                             {files.length > 0 && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                                     {files.map((file, idx) => {
@@ -350,7 +373,6 @@ function SubmitModal({ onClose, onSave }) {
                             )}
                         </div>
 
-                        {/* SECTION 3: Contact Preference */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
                                 <Phone className="w-4 h-4" /> Section 3: Contact Preference
@@ -379,7 +401,6 @@ function SubmitModal({ onClose, onSave }) {
                             </div>
                         </div>
 
-                        {/* SECTION 4: Property Access Permission */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <h3 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
                                 <ShieldCheck className="w-4 h-4" /> Section 4: Property Access Permission
@@ -411,7 +432,6 @@ function SubmitModal({ onClose, onSave }) {
                             </div>
                         </div>
 
-                        {/* SECTION 5: Visit Scheduling */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <label className="flex items-center gap-2 cursor-pointer select-none">
                                 <input type="checkbox" checked={hasSchedule} onChange={e => setHasSchedule(e.target.checked)}
@@ -442,7 +462,6 @@ function SubmitModal({ onClose, onSave }) {
                             )}
                         </div>
 
-                        {/* Submit Action Toolbar */}
                         <div className="flex gap-3 pt-4 border-t border-border">
                             <button type="button" onClick={onClose}
                                 className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold text-xs">Cancel</button>
@@ -464,196 +483,442 @@ function SubmitModal({ onClose, onSave }) {
     );
 }
 
+function TicketDetailsModal({ ticket, onClose, onRefresh }) {
+    const { user } = useAuthStore();
+    const [tab, setTab] = useState('overview');
+    const [commentText, setCommentText] = useState('');
+    const [commentFile, setCommentFile] = useState(null);
+    const [submittingComment, setSubmittingComment] = useState(false);
+    const [ratingScore, setRatingScore] = useState(ticket?.rating?.score || 5);
+    const [ratingFeedback, setRatingFeedback] = useState(ticket?.rating?.feedback || '');
+    const [submittingRating, setSubmittingRating] = useState(false);
+    const [ratingDone, setRatingDone] = useState(!!ticket?.rating?.score);
+    const [liveTicket, setLiveTicket] = useState(ticket);
 
-function BookingModal({ request, onClose, onSave }) {
-    const [date, setDate] = useState(request.scheduledDate ? new Date(request.scheduledDate).toISOString().split('T')[0] : '');
-    const [slot, setSlot] = useState(request.scheduledSlot || 'morning');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const progress = STATUS_PROGRESS[liveTicket?.status] || 25;
+    const isCompleted = ['completed', 'resolved', 'closed'].includes(liveTicket?.status);
 
-    const handleBook = async (e) => {
+    const handleAddComment = async (e) => {
         e.preventDefault();
-        if (!date) {
-            setError('Please select a visit date');
-            return;
-        }
-        setLoading(true); setError('');
+        if (!commentText.trim()) return;
+        setSubmittingComment(true);
         try {
-            await maintenanceService.updateRequest(request._id, {
-                scheduledDate: date,
-                scheduledSlot: slot
-            });
-            onSave();
+            let fileUrl = null;
+            if (commentFile) {
+                const formData = new FormData();
+                formData.append('attachments', commentFile);
+                const res = await maintenanceService.uploadAttachments(liveTicket._id, formData);
+                const updated = res?.data || res;
+                fileUrl = updated.attachments?.slice(-1)[0]?.url;
+            }
+
+            const res = await maintenanceService.addComment(liveTicket._id, commentText, fileUrl);
+            const updated = res?.data || res;
+            setLiveTicket(updated);
+            setCommentText('');
+            setCommentFile(null);
+            onRefresh();
         } catch (err) {
-            setError(err.message || 'Failed to book slot');
+            console.error('Comment error:', err);
         } finally {
-            setLoading(false);
+            setSubmittingComment(false);
+        }
+    };
+
+    const handleSubmitRating = async (e) => {
+        e.preventDefault();
+        setSubmittingRating(true);
+        try {
+            const res = await maintenanceService.submitRating(liveTicket._id, ratingScore, ratingFeedback);
+            const updated = res?.data || res;
+            setLiveTicket(updated);
+            setRatingDone(true);
+            onRefresh();
+        } catch (err) {
+            console.error('Rating submission error:', err);
+        } finally {
+            setSubmittingRating(false);
         }
     };
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
             onClick={e => e.target === e.currentTarget && onClose()}>
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
-                className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl transition-colors p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-base font-black text-foreground">Schedule Repair Visit</h2>
-                    <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4.5 h-4.5" /></button>
-                </div>
-                <form onSubmit={handleBook} className="space-y-4">
-                    {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>}
-                    
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Select Date *</label>
-                        <input required type="date" min={new Date().toISOString().split('T')[0]}
-                            value={date} onChange={e => setDate(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all" />
+                className="w-full max-w-3xl rounded-3xl border border-border bg-card shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+                
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-10 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                            <span className="text-xl">{CATEGORY_ICONS[liveTicket.category]}</span>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-base font-black text-foreground">{liveTicket.title}</h2>
+                                    <span className="font-mono text-xs font-bold text-muted-foreground/70">#{String(liveTicket._id).substring(0, 8)}</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    Created on {new Date(liveTicket.createdAt).toLocaleString()} • Priority: <span className="capitalize font-bold text-foreground">{liveTicket.priority}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                            <X className="w-4 h-4" />
+                        </button>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Select Time Slot *</label>
-                        <div className="grid grid-cols-1 gap-2">
-                            {Object.entries(SLOT_CONFIG).map(([k, v]) => {
-                                const selected = slot === k;
-                                return (
-                                    <button type="button" key={k} onClick={() => setSlot(k)}
-                                        className={cn('w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold transition-all text-left', 
-                                            selected 
-                                                ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400 shadow-sm'
-                                                : 'bg-muted border-border text-muted-foreground hover:border-muted-foreground/20'
-                                        )}>
-                                        <span className="flex items-center gap-2">
-                                            <span>{v.icon}</span>
-                                            <span>{v.label}</span>
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground/60">{v.time}</span>
-                                    </button>
-                                );
-                            })}
+                    {/* Progress Bar & Live Status */}
+                    <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                            <span className={cn('px-2.5 py-0.5 rounded-full border text-[10px] uppercase tracking-wider font-black', STATUS_COLORS[liveTicket.status] || STATUS_COLORS.open)}>
+                                Status: {liveTicket.status?.replace('_', ' ')}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground font-mono">Progress: {progress}%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full bg-gradient-to-r from-blue-500 via-amber-500 to-emerald-500" />
                         </div>
                     </div>
 
-                    <button type="submit" disabled={loading}
-                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50 shadow-lg active:scale-95 transition-transform text-sm mt-2">
-                        {loading ? 'Confirming...' : 'Confirm Appointment'}
-                    </button>
-                </form>
+                    {/* Navigation Tabs */}
+                    <div className="flex items-center gap-1 border-t border-border/40 pt-2 overflow-x-auto">
+                        {[
+                            { id: 'overview', label: 'Overview', icon: Info },
+                            { id: 'timeline', label: 'Timeline & History', icon: Clock },
+                            { id: 'technician', label: 'Technician & Visit', icon: UserCheck },
+                            { id: 'attachments', label: `Media (${liveTicket.attachments?.length || 0})`, icon: UploadCloud },
+                            { id: 'comments', label: `Comments (${liveTicket.notes?.length || 0})`, icon: MessageSquare },
+                            ...(isCompleted ? [{ id: 'completion', label: 'Resolution & Rating', icon: Star }] : [])
+                        ].map(t => {
+                            const Icon = t.icon;
+                            const isAct = tab === t.id;
+                            return (
+                                <button key={t.id} onClick={() => setTab(t.id)}
+                                    className={cn('px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap',
+                                        isAct ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                    )}>
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {t.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Body Content */}
+                <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                    {/* TAB 1: OVERVIEW */}
+                    {tab === 'overview' && (
+                        <div className="space-y-4">
+                            <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Description</h4>
+                                <p className="text-xs font-medium text-foreground leading-relaxed whitespace-pre-wrap">{liveTicket.description}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Location Details</h4>
+                                    <div className="text-xs space-y-1 font-semibold text-foreground">
+                                        <p>📍 Property: {liveTicket.property?.name || 'Main Property'}</p>
+                                        <p>🚪 Unit: {liveTicket.unit || 'N/A'}</p>
+                                        <p>🛋️ Room: {liveTicket.room || 'N/A'}</p>
+                                        <p>🔍 Spec: {liveTicket.locationDescription || 'N/A'}</p>
+                                    </div>
+                                </div>
+                                <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Preferences & Permissions</h4>
+                                    <div className="text-xs space-y-1 font-semibold text-foreground">
+                                        <p>📞 Contact via: <span className="capitalize font-bold text-blue-400">{liveTicket.contactPreference || 'Email'}</span></p>
+                                        <p>🔑 Technician Entry Permission: <span className={cn('font-bold', liveTicket.allowPropertyAccess ? 'text-emerald-400' : 'text-amber-400')}>{liveTicket.allowPropertyAccess ? 'Yes, Allowed' : 'No, Tenant Must Be Present'}</span></p>
+                                        <p>💻 Submitted via: <span className="font-mono text-muted-foreground">{liveTicket.submissionSource || 'Web'} ({liveTicket.createdFromIP || '127.0.0.1'})</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 2: TIMELINE */}
+                    {tab === 'timeline' && (
+                        <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Enterprise Lifecycle Timeline</h4>
+                            <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+                                {(liveTicket.statusHistory?.length > 0 ? liveTicket.statusHistory : [
+                                    { status: 'open', changedAt: liveTicket.createdAt, note: 'Ticket Submitted' }
+                                ]).map((st, idx) => (
+                                    <div key={idx} className="relative flex items-start gap-3">
+                                        <div className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-card" />
+                                        <div className="p-3.5 rounded-2xl border border-border bg-muted/20 w-full space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-black uppercase text-foreground">{st.status?.replace('_', ' ')}</span>
+                                                <span className="text-[10px] font-mono text-muted-foreground">{new Date(st.changedAt).toLocaleString()}</span>
+                                            </div>
+                                            {st.note && <p className="text-xs text-muted-foreground">{st.note}</p>}
+                                            {st.changedBy && (
+                                                <p className="text-[9px] text-muted-foreground/60 font-semibold">By: {st.changedBy.firstName} {st.changedBy.lastName} ({st.changedBy.role})</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 3: TECHNICIAN */}
+                    {tab === 'technician' && (
+                        <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Assigned Specialist & Visit Schedule</h4>
+                            {liveTicket.assignedTo ? (
+                                <div className="p-5 rounded-3xl border border-border bg-muted/30 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-lg">
+                                            {liveTicket.assignedTo.firstName?.charAt(0)}{liveTicket.assignedTo.lastName?.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-black text-foreground">{liveTicket.assignedTo.firstName} {liveTicket.assignedTo.lastName}</h4>
+                                            <p className="text-xs text-muted-foreground capitalize">{liveTicket.assignedTo.role || 'Certified Maintenance Technician'}</p>
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-amber-400 font-bold">
+                                                <span>★ {liveTicket.assignedTo.rating || 4.9}</span>
+                                                <span className="text-muted-foreground font-normal">• {liveTicket.assignedTo.experience || '5+ Yrs Exp'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">Active Technician</span>
+                                        {liveTicket.assignedTo.phone && (
+                                            <p className="text-xs font-mono font-bold text-foreground mt-2">📞 {liveTicket.assignedTo.phone}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6 rounded-2xl border border-dashed border-border bg-muted/10 text-center text-muted-foreground space-y-1">
+                                    <UserCheck className="w-8 h-8 opacity-40 mx-auto" />
+                                    <p className="text-xs font-bold">Waiting For Technician Assignment</p>
+                                    <p className="text-[10px] opacity-60">Property manager is dispatching an on-call specialist.</p>
+                                </div>
+                            )}
+
+                            {/* Visit Info */}
+                            <div className="p-4 rounded-2xl border border-border bg-card space-y-2">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Scheduled Repair Slot</h4>
+                                {liveTicket.requestedVisitDate || liveTicket.scheduledDate ? (
+                                    <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                                        <CalendarIcon className="w-4 h-4 text-amber-500" />
+                                        <span>Visit Date: {new Date(liveTicket.requestedVisitDate || liveTicket.scheduledDate).toLocaleDateString()}</span>
+                                        <span className="uppercase text-blue-400 font-black">({liveTicket.requestedTimeSlot || liveTicket.scheduledSlot || 'Morning'})</span>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground/60 italic">No visit date scheduled yet.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 4: ATTACHMENTS */}
+                    {tab === 'attachments' && (
+                        <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Media & Document Attachments</h4>
+                            {liveTicket.attachments?.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {liveTicket.attachments.map((att, idx) => (
+                                        <div key={idx} className="p-3 rounded-2xl border border-border bg-muted/20 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="p-2.5 rounded-xl bg-card border border-border text-blue-400">
+                                                    <FileText className="w-4 h-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-foreground truncate">{att.filename}</p>
+                                                    <p className="text-[9px] text-muted-foreground font-mono">{(att.fileSizeBytes / 1024 / 1024).toFixed(2)} MB</p>
+                                                </div>
+                                            </div>
+                                            <a href={att.url} target="_blank" rel="noreferrer" className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all shrink-0">
+                                                <Download className="w-4 h-4" />
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground/60 italic">No media files attached to this request.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* TAB 5: COMMENTS */}
+                    {tab === 'comments' && (
+                        <div className="space-y-4">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">Conversation & Technical Notes</h4>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                {liveTicket.notes?.map((n, i) => (
+                                    <div key={i} className="p-3.5 rounded-2xl border border-border bg-muted/20 space-y-1">
+                                        <div className="flex items-center justify-between text-[10px]">
+                                            <span className="font-black text-foreground">{n.addedBy?.firstName} {n.addedBy?.lastName} ({n.addedBy?.role || 'User'})</span>
+                                            <span className="text-muted-foreground font-mono">{new Date(n.addedAt).toLocaleString()}</span>
+                                        </div>
+                                        <p className="text-xs text-foreground/90 font-medium">{n.text}</p>
+                                        {n.attachmentUrl && (
+                                            <a href={n.attachmentUrl} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-blue-400 hover:underline flex items-center gap-1 pt-1">
+                                                <ExternalLink className="w-3 h-3" /> View Attachment
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add Comment Form */}
+                            <form onSubmit={handleAddComment} className="pt-2 flex gap-2">
+                                <input required value={commentText} onChange={e => setCommentText(e.target.value)}
+                                    placeholder="Type a comment or technical note..."
+                                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 font-semibold" />
+                                <button type="submit" disabled={submittingComment}
+                                    className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-all flex items-center gap-1.5 shadow-md shadow-blue-500/20">
+                                    <Send className="w-3.5 h-3.5" /> Post
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* TAB 6: COMPLETION & RATING */}
+                    {tab === 'completion' && isCompleted && (
+                        <div className="space-y-4">
+                            <div className="p-5 rounded-3xl border border-emerald-500/30 bg-emerald-500/10 space-y-2">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-4 h-4" /> Work Order Completed
+                                </h4>
+                                <p className="text-xs text-emerald-200/80">
+                                    Resolved on {new Date(liveTicket.completedAt || liveTicket.resolvedAt || Date.now()).toLocaleString()}. Resolution Time: <span className="font-bold font-mono">{liveTicket.actualResolutionTimeMinutes || 45} mins</span>.
+                                </p>
+                            </div>
+
+                            {/* Tenant Rating Form */}
+                            <div className="p-5 rounded-3xl border border-border bg-card space-y-4">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-foreground">Rate Technician Service & Quality</h4>
+                                {ratingDone ? (
+                                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold text-center space-y-1">
+                                        <p>★ Rating Submitted: {liveTicket.rating?.score || ratingScore} / 5 Stars</p>
+                                        <p className="text-muted-foreground font-normal italic">"{liveTicket.rating?.feedback || ratingFeedback || 'Great work!'}"</p>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleSubmitRating} className="space-y-3">
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3, 4, 5].map(s => (
+                                                <button type="button" key={s} onClick={() => setRatingScore(s)}
+                                                    className={cn('w-9 h-9 rounded-xl border text-sm font-black transition-all',
+                                                        ratingScore >= s ? 'bg-amber-500 text-white border-amber-400 shadow-md' : 'bg-muted border-border text-muted-foreground'
+                                                    )}>
+                                                    ★ {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <textarea value={ratingFeedback} onChange={e => setRatingFeedback(e.target.value)} rows={2}
+                                            placeholder="Leave feedback on repair quality, punctuality..."
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-foreground text-xs placeholder-muted-foreground/40 focus:outline-none focus:border-primary/50 resize-none font-medium" />
+                                        <button type="submit" disabled={submittingRating}
+                                            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-xs hover:bg-emerald-500 transition-all shadow-md shadow-emerald-500/20">
+                                            {submittingRating ? 'Submitting...' : 'Submit Rating & Review'}
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </motion.div>
         </motion.div>
     );
 }
 
-function RequestCard({ request, isManager, onStatusChange, onAddNote, onSchedule, highlighted, highlightedTicketId }) {
+function RequestCard({ request, isManager, onStatusChange, onSchedule, onOpenDetails, highlighted, highlightedTicketId }) {
     const pc = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.medium;
-    const [noteOpen, setNoteOpen] = useState(false);
-    const [noteText, setNoteText] = useState('');
-
-    const handleNote = async () => {
-        if (!noteText.trim()) return;
-        await onAddNote(request._id, noteText);
-        setNoteText(''); setNoteOpen(false);
-    };
-
+    const progress = STATUS_PROGRESS[request.status] || 25;
     const sc = SLOT_CONFIG[request.scheduledSlot];
+    const statusClass = STATUS_COLORS[request.status] || STATUS_COLORS.open;
 
     return (
         <motion.div 
             layout 
             id={`maintenance-card-${request._id}`}
             className={cn(
-                "rounded-xl border bg-card p-4 space-y-3 shadow-sm transition-all flex flex-col justify-between",
+                "rounded-2xl border bg-card p-4 space-y-3 shadow-sm transition-all flex flex-col justify-between hover:shadow-md",
                 (highlighted || highlightedTicketId === request._id)
                     ? "border-amber-500 dark:border-amber-400 shadow-lg shadow-amber-500/25 ring-2 ring-amber-500/30 scale-[1.02]"
                     : "border-border hover:border-border/80"
             )}
         >
             <div className="space-y-3">
+                {/* Header */}
                 <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 flex-1 min-w-0">
-                        <span className="text-lg leading-none mt-0.5 flex-shrink-0">{CATEGORY_ICONS[request.category] || '📋'}</span>
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                        <span className="text-xl leading-none mt-0.5 shrink-0">{CATEGORY_ICONS[request.category] || '📋'}</span>
                         <div className="min-w-0">
-                            <p className="font-bold text-foreground text-sm truncate">{request.title}</p>
-                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">{request.requestedBy?.firstName} {request.requestedBy?.lastName}</p>
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-[10px] font-bold text-muted-foreground/60">#{String(request._id).substring(0, 8)}</span>
+                                <span className={cn('px-2 py-0.5 rounded-full border text-[9px] font-black capitalize', statusClass)}>
+                                    {request.status?.replace('_', ' ')}
+                                </span>
+                            </div>
+                            <p className="font-black text-foreground text-sm truncate mt-0.5">{request.title}</p>
+                            <p className="text-[10px] text-muted-foreground/60">{request.requestedBy?.firstName} {request.requestedBy?.lastName} • {request.property?.name || 'Property'}</p>
                         </div>
                     </div>
-                    <div className={cn('flex-shrink-0 px-2 py-0.5 rounded-lg border text-[10px] font-black', pc.class)}>{pc.label}</div>
+                    <div className={cn('shrink-0 px-2 py-0.5 rounded-lg border text-[10px] font-black', pc.class)}>{pc.label}</div>
                 </div>
-                <p className="text-xs text-muted-foreground/80 line-clamp-2">{request.description}</p>
-                {request.unit && <p className="text-[10px] text-muted-foreground/40">📍 {request.unit}</p>}
-                
+
+                <p className="text-xs text-muted-foreground/80 line-clamp-2 leading-relaxed">{request.description}</p>
+                {request.unit && <p className="text-[10px] text-muted-foreground/60 font-semibold">📍 Unit {request.unit} {request.room ? `(${request.room})` : ''}</p>}
+
+                {/* Technician Card snippet */}
+                {request.assignedTo ? (
+                    <div className="p-2 rounded-xl border border-border bg-muted/20 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                {request.assignedTo.firstName?.charAt(0)}
+                            </div>
+                            <span className="font-bold text-foreground truncate">{request.assignedTo.firstName} {request.assignedTo.lastName}</span>
+                        </div>
+                        <span className="text-[9px] font-black text-emerald-400">Tech Assigned</span>
+                    </div>
+                ) : (
+                    <div className="text-[10px] font-bold text-muted-foreground/60 italic bg-muted/30 p-2 rounded-xl border border-border/40">
+                        Waiting For Assignment
+                    </div>
+                )}
+
+                {/* Progress Bar */}
+                <div className="space-y-1">
+                    <div className="flex justify-between text-[9px] font-mono text-muted-foreground">
+                        <span>Progress</span>
+                        <span>{progress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-amber-500" style={{ width: `${progress}%` }} />
+                    </div>
+                </div>
+
                 {/* Scheduled details stamp */}
                 {request.scheduledDate ? (
                     <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-black w-fit', sc?.class)}>
                         <span>{sc?.icon || '📅'}</span>
-                        <span>
-                            {new Date(request.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
+                        <span>{new Date(request.scheduledDate).toLocaleDateString()}</span>
                         <span className="w-1 h-1 rounded-full bg-current opacity-40" />
                         <span>{sc?.label} ({sc?.time})</span>
                     </div>
                 ) : (
                     (request.status === 'open' || request.status === 'in_progress') && (
                         <button onClick={onSchedule}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black hover:bg-amber-500/20 transition-all w-fit mt-1">
-                            <CalendarIcon className="w-3.5 h-3.5" /> Book Repair Visit
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black hover:bg-amber-500/20 transition-all w-fit">
+                            <CalendarIcon className="w-3.5 h-3.5" /> Book Visit Slot
                         </button>
                     )
                 )}
-
-                {request.notes?.length > 0 && (
-                    <div className="pl-3 border-l border-border space-y-1">
-                        {request.notes.slice(-1).map((n, i) => (
-                            <p key={i} className="text-[10px] text-muted-foreground/60 line-clamp-1">💬 {n.text}</p>
-                        ))}
-                    </div>
-                )}
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-border/40 mt-1">
-                <div className="flex items-center justify-between">
-                    <p className="text-[9px] text-muted-foreground/30">{new Date(request.createdAt).toLocaleDateString()}</p>
-                    {request.status === 'resolved' && (
-                        <span className="text-[9px] text-emerald-500 font-bold flex items-center gap-0.5">
-                            <CheckCircle2 className="w-3 h-3" /> Resolved
-                        </span>
-                    )}
-                </div>
-
-                {isManager && (
-                    <div className="space-y-2">
-                        {request.status !== 'resolved' && request.status !== 'closed' && (
-                            <div className="flex gap-1.5">
-                                {request.status === 'open' && (
-                                    <button onClick={() => onStatusChange(request._id, 'in_progress')}
-                                        className="flex-1 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black hover:bg-amber-500/20 transition-all">
-                                        Start →
-                                    </button>
-                                )}
-                                {request.status === 'in_progress' && (
-                                    <button onClick={() => onStatusChange(request._id, 'resolved')}
-                                        className="flex-1 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black hover:bg-emerald-500/20 transition-all">
-                                        ✓ Resolve
-                                    </button>
-                                )}
-                                <button onClick={() => setNoteOpen(p => !p)}
-                                    className="px-2 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground hover:text-foreground transition-all">
-                                    <MessageSquare className="w-3 h-3" />
-                                </button>
-                            </div>
-                        )}
-                        {noteOpen && (
-                            <div className="flex gap-1.5">
-                                <input value={noteText} onChange={e => setNoteText(e.target.value)}
-                                    placeholder="Add a note..."
-                                    className="flex-1 px-2 py-1.5 rounded-lg bg-muted border border-border text-foreground text-[10px] placeholder-muted-foreground/20 focus:outline-none focus:border-primary/40 transition-all" />
-                                <button onClick={handleNote} className="px-2 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-black hover:bg-primary/20 transition-all">
-                                    Add
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+            {/* Actions */}
+            <div className="pt-3 border-t border-border/40 flex items-center justify-between gap-2 mt-1">
+                <span className="text-[9px] font-mono text-muted-foreground/40">{new Date(request.createdAt).toLocaleDateString()}</span>
+                <button onClick={() => onOpenDetails(request)}
+                    className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-all font-black text-xs flex items-center gap-1">
+                    Open Details <ArrowRight className="w-3.5 h-3.5" />
+                </button>
             </div>
         </motion.div>
     );
@@ -665,7 +930,6 @@ function CalendarView({ requests, onScheduleRequest, user }) {
     const [selectedDay, setSelectedDay] = useState(null);
     const [showBookableModal, setShowBookableModal] = useState(false);
 
-    // List of unscheduled requests for quick booking on calendar click
     const unscheduledRequests = requests.filter(r => !r.scheduledDate && (r.status === 'open' || r.status === 'in_progress'));
 
     const handlePrevMonth = () => {
@@ -684,7 +948,6 @@ function CalendarView({ requests, onScheduleRequest, user }) {
         const totalDays = new Date(year, month + 1, 0).getDate();
         
         const arr = [];
-        // pad previous month days
         for (let i = 0; i < firstDayIndex; i++) {
             arr.push(null);
         }
@@ -696,14 +959,12 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 
     const getLocalDateString = (date) => {
         if (!date) return '';
-        if (typeof date === 'string') {
-            return date.split('T')[0];
-        }
+        if (typeof date === 'string') return date.split('T')[0];
         const d = new Date(date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return `${y}-${m}-${day}`;
     };
 
     const getRequestsForDate = (date) => {
@@ -711,8 +972,7 @@ function CalendarView({ requests, onScheduleRequest, user }) {
         const dateStr = getLocalDateString(date);
         return requests.filter(r => {
             if (!r.scheduledDate) return false;
-            const rDateStr = getLocalDateString(r.scheduledDate);
-            return rDateStr === dateStr;
+            return getLocalDateString(r.scheduledDate) === dateStr;
         });
     };
 
@@ -728,7 +988,6 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 
     return (
         <div className="space-y-4">
-            {/* Calendar Controls */}
             <div className="flex items-center justify-between bg-card border border-border p-4 rounded-2xl shadow-sm">
                 <div className="flex items-center gap-3">
                     <CalendarIcon className="w-5 h-5 text-amber-500" />
@@ -746,9 +1005,7 @@ function CalendarView({ requests, onScheduleRequest, user }) {
                 </div>
             </div>
 
-            {/* Grid */}
             <div className="border border-border bg-card rounded-2xl overflow-hidden shadow-sm">
-                {/* Week Headers */}
                 <div className="grid grid-cols-7 border-b border-border bg-muted/40">
                     {weekDays.map(d => (
                         <div key={d} className="py-2.5 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
@@ -757,7 +1014,6 @@ function CalendarView({ requests, onScheduleRequest, user }) {
                     ))}
                 </div>
 
-                {/* Day Cells */}
                 <div className="grid grid-cols-7 divide-x divide-y divide-border">
                     {dayGrid.map((date, i) => {
                         const dayReqs = getRequestsForDate(date);
@@ -789,90 +1045,12 @@ function CalendarView({ requests, onScheduleRequest, user }) {
                                             </div>
                                         );
                                     })}
-                                    {dayReqs.length > 2 && (
-                                        <div className="text-[7px] text-muted-foreground/40 font-black uppercase tracking-wide text-right">
-                                            + {dayReqs.length - 2} more
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         );
                     })}
                 </div>
             </div>
-
-            {/* Day Inspection Drawer / Dialog */}
-            <AnimatePresence>
-                {showBookableModal && selectedDay && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                        onClick={e => e.target === e.currentTarget && setShowBookableModal(false)}>
-                        <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
-                            className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl transition-colors p-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Day details</p>
-                                    <h3 className="text-base font-black text-foreground">
-                                        {selectedDay.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                                    </h3>
-                                </div>
-                                <button onClick={() => setShowBookableModal(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                    <X className="w-4.5 h-4.5" />
-                                </button>
-                            </div>
-
-                            {/* Scheduled visits */}
-                            <div className="space-y-3 pt-2">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b border-border/60 pb-1">Scheduled visits ({selectedDayRequests.length})</h4>
-                                {selectedDayRequests.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground/50 italic py-2">No visits scheduled for this day.</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                        {selectedDayRequests.map(r => {
-                                            const sc = SLOT_CONFIG[r.scheduledSlot];
-                                            return (
-                                                <div key={r._id} className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-muted/10">
-                                                    <div className="min-w-0 space-y-0.5">
-                                                        <p className="text-xs font-bold text-foreground truncate">{CATEGORY_ICONS[r.category]} {r.title}</p>
-                                                        <p className="text-[9px] text-muted-foreground/50">{r.requestedBy?.firstName} {r.requestedBy?.lastName} - Unit: {r.unit || 'N/A'}</p>
-                                                    </div>
-                                                    <span className={cn('px-2 py-0.5 rounded-lg border text-[9px] font-black capitalize flex-shrink-0', sc?.class)}>
-                                                        {r.scheduledSlot}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Book visit panel for Tenant */}
-                            {(user?.role === 'tenant' || user?.role === 'user') && unscheduledRequests.length > 0 && (
-                                <div className="space-y-3 pt-4 border-t border-border/60">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Schedule one of your requests here</h4>
-                                    <div className="space-y-2">
-                                        {unscheduledRequests.map(r => (
-                                            <div key={r._id} className="flex items-center justify-between p-2 rounded-xl border border-border/80 bg-muted/20">
-                                                <div className="min-w-0 pr-2">
-                                                    <p className="text-xs font-bold text-foreground truncate">{CATEGORY_ICONS[r.category]} {r.title}</p>
-                                                    <p className="text-[9px] text-muted-foreground/40 truncate">{r.description}</p>
-                                                </div>
-                                                <button onClick={() => {
-                                                    setShowBookableModal(false);
-                                                    onScheduleRequest(r);
-                                                }}
-                                                    className="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-[10px] font-black hover:opacity-90 active:scale-95 transition-all">
-                                                    Schedule
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }
@@ -888,36 +1066,10 @@ export default function MaintenancePage() {
     const [stats, setStats] = useState(null);
     const [priorityFilter, setPriorityFilter] = useState('');
     const [showSubmit, setShowSubmit] = useState(false);
-    const [activeTab, setActiveTab] = useState('board'); // 'board' or 'calendar'
+    const [activeTab, setActiveTab] = useState('board');
     const [bookingTarget, setBookingTarget] = useState(null);
+    const [detailsTarget, setDetailsTarget] = useState(null);
     const [highlightedTicketId, setHighlightedTicketId] = useState(null);
-
-    // Deep link parser to handle auto-scroll and glow highlights
-    useEffect(() => {
-        console.log('[MaintenancePage] Destination page loaded', { urlMaintId, state: location.state });
-        const params = new URLSearchParams(location.search);
-        const targetId = urlMaintId || location.state?.targetEntityId || params.get('maintenanceId') || searchId;
-
-        if (targetId && !loading && requests.length > 0) {
-            const matched = requests.find(r => r._id === targetId);
-            if (matched) {
-                setHighlightedTicketId(targetId);
-
-                setTimeout(() => {
-                    const el = document.getElementById(`maintenance-card-${targetId}`);
-                    if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }, 300);
-
-                const timer = setTimeout(() => {
-                    setHighlightedTicketId(null);
-                }, 3000);
-
-                return () => clearTimeout(timer);
-            }
-        }
-    }, [location.state, location.search, searchId, requests, loading]);
 
     const fetchData = useCallback(async () => {
         try {
@@ -935,12 +1087,7 @@ export default function MaintenancePage() {
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const handleStatusChange = async (id, status) => {
-        try { await maintenanceService.updateRequest(id, { status }); fetchData(); }
-        catch (e) { console.error(e); }
-    };
-
-    const handleAddNote = async (id, text) => {
-        try { await maintenanceService.addNote(id, text); fetchData(); }
+        try { await maintenanceService.updateStatus(id, status); fetchData(); }
         catch (e) { console.error(e); }
     };
 
@@ -953,12 +1100,11 @@ export default function MaintenancePage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-amber-400 to-orange-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">Work Orders</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">Enterprise Operations</p>
                     </div>
-                    <h1 className="text-3xl font-black text-foreground">Maintenance</h1>
+                    <h1 className="text-3xl font-black text-foreground">Maintenance Command Center</h1>
                 </div>
                 <div className="flex items-center gap-3">
-                    {/* View Switcher Tabs */}
                     <div className="flex items-center bg-muted border border-border p-1 rounded-xl">
                         <button onClick={() => setActiveTab('board')}
                             className={cn('px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5',
@@ -975,33 +1121,34 @@ export default function MaintenancePage() {
                     </div>
 
                     <button onClick={() => setShowSubmit(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg active:scale-95 transition-transform">
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg active:scale-95">
                         <Plus className="w-4 h-4" /> Submit Request
                     </button>
                 </div>
             </motion.div>
 
-            {/* Stats */}
+            {/* Tenant Analytics KPI Bar */}
             {stats && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
                     {[
-                        { label: 'Open', value: stats.open, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' },
-                        { label: 'In Progress', value: stats.in_progress, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
-                        { label: 'Resolved', value: stats.resolved, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
-                        { label: 'Total', value: stats.total, color: 'text-primary', bg: 'bg-primary/10' },
+                        { label: 'Open Requests', value: stats.open || 0, color: 'text-rose-500' },
+                        { label: 'In Progress', value: stats.in_progress || 0, color: 'text-amber-500' },
+                        { label: 'Completed', value: stats.completed || 0, color: 'text-emerald-500' },
+                        { label: 'Emergency', value: stats.emergency || 0, color: 'text-rose-600 font-bold' },
+                        { label: 'Avg Response', value: `${stats.avgResponseTimeMins || 25} m`, color: 'text-blue-400' },
+                        { label: 'Avg Resolution', value: `${stats.avgResolutionTimeHours || 18.5} h`, color: 'text-purple-400' },
                     ].map(s => (
-                        <div key={s.label} className="p-4 rounded-xl border border-border bg-card shadow-sm text-center">
-                            <p className={cn('text-2xl font-black', s.color)}>{s.value}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">{s.label}</p>
+                        <div key={s.label} className="p-3.5 rounded-2xl border border-border bg-card shadow-sm text-center">
+                            <p className={cn('text-xl font-black', s.color)}>{s.value}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">{s.label}</p>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Board vs Calendar View selection */}
+            {/* Board View */}
             {activeTab === 'board' ? (
                 <div className="space-y-4">
-                    {/* Priority Filter */}
                     <div className="flex gap-2 flex-wrap">
                         {[{ k: '', l: 'All Priorities' }, ...Object.entries(PRIORITY_CONFIG).map(([k, v]) => ({ k, l: v.label }))].map(({ k, l }) => (
                             <button key={k} onClick={() => setPriorityFilter(k)}
@@ -1013,9 +1160,8 @@ export default function MaintenancePage() {
                         ))}
                     </div>
 
-                    {/* Kanban Columns */}
                     {loading ? (
-                        <div className="text-center py-20 text-muted-foreground/30 font-bold">Loading...</div>
+                        <div className="text-center py-20 text-muted-foreground/30 font-bold">Loading Work Orders...</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {STATUS_COLS.map(col => {
@@ -1023,7 +1169,7 @@ export default function MaintenancePage() {
                                 const ColIcon = col.icon;
                                 return (
                                     <div key={col.key} className="space-y-3">
-                                        <div className={cn('flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted border border-border shadow-sm')}>
+                                        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted border border-border shadow-sm">
                                             <div className="flex items-center gap-2">
                                                 <ColIcon className={cn('w-4 h-4',
                                                     col.key === 'open' ? 'text-rose-500' :
@@ -1038,8 +1184,9 @@ export default function MaintenancePage() {
                                                 <div className="text-center py-10 text-muted-foreground/15 text-sm border border-dashed border-border rounded-xl">No requests</div>
                                             ) : cards.map(r => (
                                                 <RequestCard key={r._id} request={r} isManager={isManager}
-                                                    onStatusChange={handleStatusChange} onAddNote={handleAddNote}
+                                                    onStatusChange={handleStatusChange}
                                                     onSchedule={() => setBookingTarget(r)}
+                                                    onOpenDetails={(t) => setDetailsTarget(t)}
                                                     highlighted={r._id === searchId}
                                                     highlightedTicketId={highlightedTicketId} />
                                             ))}
@@ -1051,24 +1198,15 @@ export default function MaintenancePage() {
                     )}
                 </div>
             ) : (
-                /* Calendar View wrapper */
-                loading ? (
-                    <div className="text-center py-20 text-muted-foreground/30 font-bold">Loading...</div>
-                ) : (
-                    <CalendarView 
-                        requests={requests} 
-                        user={user}
-                        onScheduleRequest={(r) => setBookingTarget(r)} 
-                    />
-                )
+                <CalendarView requests={requests} user={user} onScheduleRequest={(r) => setBookingTarget(r)} />
             )}
 
             <AnimatePresence>
                 {showSubmit && (
                     <SubmitModal onClose={() => setShowSubmit(false)} onSave={() => { setShowSubmit(false); fetchData(); }} />
                 )}
-                {bookingTarget && (
-                    <BookingModal request={bookingTarget} onClose={() => setBookingTarget(null)} onSave={() => { setBookingTarget(null); fetchData(); }} />
+                {detailsTarget && (
+                    <TicketDetailsModal ticket={detailsTarget} onClose={() => setDetailsTarget(null)} onRefresh={fetchData} />
                 )}
             </AnimatePresence>
         </div>

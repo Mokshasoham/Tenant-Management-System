@@ -2,29 +2,95 @@
  * server/src/repositories/maintenanceRepository.js
  *
  * Repository Layer for Maintenance Model.
- * Provides abstracted data access methods for Maintenance requests and attachments.
+ * Provides abstracted data access methods for Maintenance requests, status transitions, comments, and ratings.
  */
 
 import Maintenance from '../models/Maintenance.js';
 
 export class MaintenanceRepository {
   async create(data) {
-    return await Maintenance.create(data);
+    const doc = await Maintenance.create(data);
+    // Push initial status history entry
+    doc.statusHistory.push({
+      status: doc.status || 'open',
+      changedBy: doc.requestedBy,
+      changedAt: doc.createdAt || new Date(),
+      note: 'Ticket Submitted'
+    });
+    await doc.save();
+    return doc;
   }
 
   async findById(id) {
     return await Maintenance.findById(id)
-      .populate('requestedBy', 'firstName lastName email role')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('requestedBy', 'firstName lastName email role phone')
+      .populate('assignedTo', 'firstName lastName email role phone rating experience')
       .populate('property', 'name address')
-      .populate('notes.addedBy', 'firstName lastName role');
+      .populate('notes.addedBy', 'firstName lastName role')
+      .populate('statusHistory.changedBy', 'firstName lastName role');
   }
 
   async update(id, data) {
     return await Maintenance.findByIdAndUpdate(id, data, { new: true })
+      .populate('requestedBy', 'firstName lastName email role phone')
+      .populate('assignedTo', 'firstName lastName email role phone rating experience')
+      .populate('property', 'name address')
+      .populate('notes.addedBy', 'firstName lastName role')
+      .populate('statusHistory.changedBy', 'firstName lastName role');
+  }
+
+  async addStatusHistory(id, status, changedBy, note = '') {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $set: { status },
+        $push: {
+          statusHistory: {
+            status,
+            changedBy,
+            changedAt: new Date(),
+            note
+          }
+        }
+      },
+      { new: true }
+    )
       .populate('requestedBy', 'firstName lastName email role')
-      .populate('assignedTo', 'firstName lastName email')
-      .populate('property', 'name address');
+      .populate('assignedTo', 'firstName lastName email role')
+      .populate('statusHistory.changedBy', 'firstName lastName role');
+  }
+
+  async addComment(id, text, addedBy, attachmentUrl = null) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $push: {
+          notes: {
+            text,
+            addedBy,
+            addedAt: new Date(),
+            attachmentUrl
+          }
+        }
+      },
+      { new: true }
+    ).populate('notes.addedBy', 'firstName lastName role');
+  }
+
+  async addRating(id, score, feedback) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          rating: {
+            score,
+            feedback,
+            ratedAt: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
   }
 
   async appendAttachment(id, attachmentData) {
@@ -59,7 +125,7 @@ export class MaintenanceRepository {
       .skip(skip)
       .limit(limit)
       .populate('requestedBy', 'firstName lastName email role')
-      .populate('assignedTo', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName role rating experience phone')
       .populate('property', 'name address');
   }
 
@@ -69,7 +135,7 @@ export class MaintenanceRepository {
 
   async aggregateByPriority(filter = {}) {
     return await Maintenance.aggregate([
-      { $match: { ...filter, status: { $in: ['open', 'in_progress'] } } },
+      { $match: { ...filter, status: { $in: ['open', 'submitted', 'in_progress', 'visit_scheduled', 'technician_assigned'] } } },
       { $group: { _id: '$priority', count: { $sum: 1 } } }
     ]);
   }

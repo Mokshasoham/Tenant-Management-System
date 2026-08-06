@@ -4,6 +4,7 @@ const noteSchema = new mongoose.Schema({
     text: { type: String, required: true },
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     addedAt: { type: Date, default: Date.now },
+    attachmentUrl: { type: String },
 });
 
 const attachmentSchema = new mongoose.Schema({
@@ -12,6 +13,19 @@ const attachmentSchema = new mongoose.Schema({
     mimeType: { type: String },
     fileSizeBytes: { type: Number },
     uploadedAt: { type: Date, default: Date.now },
+});
+
+const statusHistorySchema = new mongoose.Schema({
+    status: { type: String, required: true },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    changedAt: { type: Date, default: Date.now },
+    note: { type: String },
+});
+
+const ratingSchema = new mongoose.Schema({
+    score: { type: Number, required: true, min: 1, max: 5 },
+    feedback: { type: String },
+    ratedAt: { type: Date, default: Date.now },
 });
 
 const maintenanceSchema = new mongoose.Schema(
@@ -37,7 +51,7 @@ const maintenanceSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['open', 'in_progress', 'resolved', 'closed', 'cancelled'],
+            enum: ['open', 'submitted', 'manager_review', 'technician_assigned', 'visit_scheduled', 'technician_en_route', 'work_started', 'waiting_parts', 'in_progress', 'completed', 'resolved', 'closed', 'cancelled'],
             default: 'open',
         },
         property: {
@@ -91,6 +105,11 @@ const maintenanceSchema = new mongoose.Schema(
         images: [String],
         attachments: [attachmentSchema],
         notes: [noteSchema],
+        statusHistory: [statusHistorySchema],
+        rating: ratingSchema,
+        completionNotes: String,
+        actualResolutionTimeMinutes: Number,
+        estimatedResolutionTime: String,
         estimatedCost: {
             type: Number,
             min: 0,
@@ -106,6 +125,7 @@ const maintenanceSchema = new mongoose.Schema(
         deviceInfo: String,
         createdFromIP: String,
         resolvedAt: Date,
+        completedAt: Date,
     },
     {
         timestamps: true,

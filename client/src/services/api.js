@@ -115,13 +115,18 @@ export const messageService = {
 export const maintenanceService = {
   getAllRequests: (params) => apiClient.get('/maintenance', { params }),
   getRequestById: (id) => apiClient.get(`/maintenance/${id}`),
+  getTimeline: (id) => apiClient.get(`/maintenance/${id}/timeline`),
+  getComments: (id) => apiClient.get(`/maintenance/${id}/comments`),
   createRequest: (data) => apiClient.post('/maintenance', data),
   uploadAttachments: (id, formData) => apiClient.post(`/maintenance/${id}/attachments`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   deleteAttachment: (id, attachmentUrl) => apiClient.delete(`/maintenance/${id}/attachments`, { data: { attachmentUrl } }),
+  updateStatus: (id, status, note) => apiClient.put(`/maintenance/${id}/status`, { status, note }),
   updateRequest: (id, data) => apiClient.put(`/maintenance/${id}`, data),
-  addNote: (id, text) => apiClient.post(`/maintenance/${id}/notes`, { text }),
+  addNote: (id, text, attachmentUrl) => apiClient.post(`/maintenance/${id}/notes`, { text, attachmentUrl }),
+  addComment: (id, text, attachmentUrl) => apiClient.post(`/maintenance/${id}/comments`, { text, attachmentUrl }),
+  submitRating: (id, score, feedback) => apiClient.post(`/maintenance/${id}/rating`, { score, feedback }),
   deleteRequest: (id) => apiClient.delete(`/maintenance/${id}`),
   getStats: () => apiClient.get('/maintenance/stats'),
 };

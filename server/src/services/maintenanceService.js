@@ -131,6 +131,110 @@ export class MaintenanceService {
   }
 
   /**
+   * Updates Maintenance Ticket status and handles lifecycle side effects.
+   */
+  async updateStatus(ticketId, newStatus, userContext, note = '') {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const request = await maintenanceRepository.findById(ticketId);
+    if (!request) throw new AppError('Maintenance request not found', 404);
+
+    const oldStatus = request.status;
+
+    // Update status and push statusHistory entry
+    const updated = await maintenanceRepository.addStatusHistory(ticketId, newStatus, userId, note);
+
+    if (['completed', 'resolved'].includes(newStatus)) {
+      updated.completedAt = new Date();
+      updated.resolvedAt = new Date();
+      if (request.createdAt) {
+        updated.actualResolutionTimeMinutes = Math.round((Date.now() - new Date(request.createdAt).getTime()) / (1000 * 60));
+      }
+      await updated.save();
+
+      // Publish completion event
+      await this.publishEvents('maintenance.completed', {
+        ticketId,
+        completedAt: updated.completedAt,
+        resolutionMinutes: updated.actualResolutionTimeMinutes
+      });
+
+      // Request tenant feedback
+      await this.publishEvents('maintenance.feedback.requested', {
+        ticketId,
+        tenantId: request.requestedBy
+      });
+    } else if (newStatus === 'cancelled') {
+      await this.publishEvents('maintenance.cancelled', { ticketId, cancelledBy: userId });
+    }
+
+    // Cancel old pending SLA reminders for this ticket upon status transition
+    await reminderQueue.cancelByEntity('Maintenance', ticketId.toString(), `Status updated from ${oldStatus} to ${newStatus}`).catch(() => {});
+
+    // Publish lifecycle events
+    await this.publishEvents('maintenance.status.changed', {
+      ticketId,
+      oldStatus,
+      newStatus,
+      changedBy: userId
+    });
+
+    await this.publishEvents('maintenance.timeline.updated', {
+      ticketId,
+      status: newStatus,
+      timestamp: new Date().toISOString()
+    });
+
+    // Send notifications to Tenant
+    if (request.requestedBy) {
+      const recipientId = request.requestedBy._id || request.requestedBy;
+      await NotificationService.notify({
+        recipient: recipientId,
+        category: 'maintenance',
+        event: 'status_updated',
+        title: `Maintenance Request ${newStatus.replace('_', ' ').toUpperCase()}`,
+        description: `Your ticket "${request.title}" status changed to ${newStatus.replace('_', ' ')}.`,
+        sourceModule: 'maintenance',
+        entityType: 'Maintenance',
+        entityId: ticketId,
+        priority: 'medium'
+      }).catch(err => logger.warn('[MaintenanceService] Status notification error:', err.message));
+    }
+
+    return updated;
+  }
+
+  /**
+   * Adds a comment/note to a maintenance ticket.
+   */
+  async addComment(ticketId, text, userContext, attachmentUrl = null) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const updated = await maintenanceRepository.addComment(ticketId, text, userId, attachmentUrl);
+
+    await this.publishEvents('maintenance.comment.created', {
+      ticketId,
+      commentBy: userId,
+      hasAttachment: !!attachmentUrl
+    });
+
+    return updated;
+  }
+
+  /**
+   * Submits tenant rating & feedback for a completed maintenance ticket.
+   */
+  async addRating(ticketId, score, feedback, userContext) {
+    const updated = await maintenanceRepository.addRating(ticketId, score, feedback);
+
+    await this.publishEvents('maintenance.feedback.submitted', {
+      ticketId,
+      score,
+      feedback
+    });
+
+    return updated;
+  }
+
+  /**
    * Uploads and attaches files to a maintenance request.
    */
   async uploadAttachments(ticketId, files = []) {
@@ -148,7 +252,6 @@ export class MaintenanceService {
     const uploadedRecords = [];
 
     for (const file of files) {
-      // Validate File Size (max 20 MB)
       if (file.size > 20 * 1024 * 1024) {
         throw new AppError(`File '${file.originalname}' exceeds 20MB limit`, 400);
       }
@@ -191,7 +294,7 @@ export class MaintenanceService {
 
     const attachment = request.attachments?.find(a => a.url === attachmentUrl);
     if (attachment) {
-      await storageProvider.delete(attachment.filename || path.basename(attachmentUrl), 'maintenance').catch(() => {});
+      await storageProvider.delete(attachment.filename || attachmentUrl.split('/').pop(), 'maintenance').catch(() => {});
     }
 
     return await maintenanceRepository.deleteAttachment(ticketId, attachmentUrl);
@@ -205,7 +308,8 @@ export class MaintenanceService {
       requestedVisitDate: visitDate,
       requestedTimeSlot: timeSlot,
       scheduledDate: visitDate,
-      scheduledSlot: timeSlot
+      scheduledSlot: timeSlot,
+      status: 'visit_scheduled'
     });
 
     await this.publishEvents('maintenance.visit.requested', {
