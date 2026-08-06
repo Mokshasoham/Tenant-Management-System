@@ -9,7 +9,9 @@ import express from 'express';
 import { protect } from '../../../middleware/authMiddleware.js';
 import { authorizeReminderRole } from '../../../middleware/reminderAuthorization.js';
 import {
+  getVersionInfo,
   getSystemOperationsStatus,
+  getOperationHistory,
   getDeadLetterQueue,
   bulkRetryDeadLetter,
   bulkPurgeDeadLetter,
@@ -24,8 +26,12 @@ const router = express.Router();
 router.use(protect);
 router.use(authorizeReminderRole(['admin']));
 
-// System Operations Telemetry
+// System Version & Environment Info
+router.get('/version', getVersionInfo);
+
+// System Operations Telemetry & Permanent Audit History
 router.get('/status', getSystemOperationsStatus);
+router.get('/history', getOperationHistory);
 
 // Dead-Letter Queue Operations
 router.get('/dead-letter', getDeadLetterQueue);

@@ -11,14 +11,23 @@ import reminderMetricsService from '../../../src/modules/reminders/services/Remi
 import reminderWorker from '../../../src/modules/reminders/workers/ReminderWorker.js';
 import schedulerRegistry from '../../../src/platform/scheduler/SchedulerRegistry.js';
 import Reminder from '../../../src/modules/reminders/models/Reminder.js';
+import OperationHistory from '../../../src/modules/operations/models/OperationHistory.js';
 import reminderDiagnosticsService from '../../../src/modules/reminders/services/ReminderDiagnosticsService.js';
 
 describe('Phase 2.3.4.2 — Operations Command Center Unit Tests', () => {
 
   // ─────────────────────────────────────────────────────────────
-  // 1. SYSTEM OPERATIONS TELEMETRY
+  // 1. SYSTEM OPERATIONS TELEMETRY & VERSION
   // ─────────────────────────────────────────────────────────────
-  describe('System Operations Status', () => {
+  describe('System Operations Status & Version', () => {
+    test('getVersionInfo returns system build metadata', async () => {
+      const version = await operationsService.getVersionInfo();
+      expect(version.success).toBe(true);
+      expect(version.backendVersion).toBe('1.0.0');
+      expect(version.nodeVersion).toBeDefined();
+      expect(version.mongoVersion).toBeDefined();
+    });
+
     test('getSystemOperationsStatus aggregates workers, schedulers, queues, and providers', async () => {
       jest.spyOn(reminderMetricsService, 'getMetrics').mockResolvedValue({
         queued: 5,
@@ -43,6 +52,24 @@ describe('Phase 2.3.4.2 — Operations Command Center Unit Tests', () => {
       reminderMetricsService.getMetrics.mockRestore();
       reminderDiagnosticsService.getDiagnostics.mockRestore();
       schedulerRegistry.health.mockRestore();
+    });
+
+    test('getOperationHistory returns paginated operational audit records', async () => {
+      jest.spyOn(OperationHistory, 'find').mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([{ action: 'bulk_retry_dead_letter', target: 'DeadLetterQueue' }])
+      });
+      jest.spyOn(OperationHistory, 'countDocuments').mockResolvedValue(1);
+
+      const res = await operationsService.getOperationHistory(1, 20);
+      expect(res.success).toBe(true);
+      expect(res.items).toHaveLength(1);
+
+      OperationHistory.find.mockRestore();
+      OperationHistory.countDocuments.mockRestore();
     });
   });
 
