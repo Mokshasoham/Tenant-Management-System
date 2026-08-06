@@ -9,7 +9,7 @@
 import { Scheduler } from '../../../platform/scheduler/Scheduler.js';
 import reportService from './ReportService.js';
 import exportManager from '../exporters/ExportManager.js';
-import reminderEmailService from '../../reminders/services/ReminderEmailService.js';
+import reminderEmailService from '../../reminders/services/reminderEmailService.js';
 import SavedReport from '../models/SavedReport.js';
 import logger from '../../../platform/logging/logger.js';
 
