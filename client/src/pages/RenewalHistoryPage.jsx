@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { History, FileText, Download } from 'lucide-react';
 
 export default function RenewalHistoryPage() {
@@ -10,11 +10,8 @@ export default function RenewalHistoryPage() {
   useEffect(() => {
     const fetchRenewals = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/renewals/my', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setRenewals(res.data.data || res.data || []);
+        const res = await apiClient.get('/renewals/my');
+        setRenewals(res?.data || res || []);
       } catch (err) {
         console.error('Error fetching renewals:', err);
         setError('Failed to fetch lease renewals list.');
@@ -26,7 +23,7 @@ export default function RenewalHistoryPage() {
   }, []);
 
   const handleDownloadRenewalReport = (renewalId) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     window.open(`/api/renewals/${renewalId}/renewal-report?token=${token}`, '_blank');
   };
 

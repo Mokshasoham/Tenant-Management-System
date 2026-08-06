@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { History, FileText, Download } from 'lucide-react';
 
 export default function LeaseHistoryPage() {
@@ -10,11 +10,8 @@ export default function LeaseHistoryPage() {
   useEffect(() => {
     const fetchLeases = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/leases', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setLeases(res.data.data || res.data || []);
+        const res = await apiClient.get('/leases');
+        setLeases(res?.data || res || []);
       } catch (err) {
         console.error('Error fetching leases:', err);
         setError('Failed to fetch lease history.');
@@ -26,7 +23,7 @@ export default function LeaseHistoryPage() {
   }, []);
 
   const handleDownloadExitReport = (leaseId) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
     window.open(`/api/lease/${leaseId}/exit-report?token=${token}`, '_blank');
   };
 

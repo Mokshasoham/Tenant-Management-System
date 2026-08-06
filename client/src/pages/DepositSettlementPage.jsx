@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { DollarSign, Trash2, Plus, CheckCircle2 } from 'lucide-react';
 
 export default function DepositSettlementPage() {
@@ -20,11 +20,8 @@ export default function DepositSettlementPage() {
     console.log('[DepositSettlementPage] Destination page loaded', { settlementId: id });
     const fetchLease = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/leases/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setLease(res.data.data || res.data);
+        const res = await apiClient.get(`/leases/${id}`);
+        setLease(res?.data || res);
       } catch (err) {
         console.error('Error fetching lease details:', err);
         setError('Failed to fetch lease details.');
@@ -54,19 +51,16 @@ export default function DepositSettlementPage() {
     setSubmitting(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('/api/deposit/refund', {
+      await apiClient.post('/deposit/refund', {
         leaseId: id,
         deductions,
         reason: reasonText
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       setSuccess(true);
       setTimeout(() => navigate('/leases'), 2500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit refund settlement.');
+      setError(err.message || err.response?.data?.message || (typeof err === 'string' ? err : 'Failed to submit refund settlement.'));
     } finally {
       setSubmitting(false);
     }

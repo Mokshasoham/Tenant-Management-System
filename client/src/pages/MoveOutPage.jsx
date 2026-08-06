@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { LogOut, CheckCircle2 } from 'lucide-react';
 
 export default function MoveOutPage() {
@@ -18,11 +18,8 @@ export default function MoveOutPage() {
     console.log('[MoveOutPage] Destination page loaded');
     const fetchLease = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/leases/my-lease', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const currentLease = res.data.data || res.data;
+        const res = await apiClient.get('/leases/my-lease');
+        const currentLease = res?.data || res;
         setLease(currentLease);
         if (currentLease?.endDate) {
           setExpectedMoveOutDate(new Date(currentLease.endDate).toISOString().split('T')[0]);
@@ -44,20 +41,17 @@ export default function MoveOutPage() {
     setSubmitting(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('/api/lease/moveout', {
+      await apiClient.post('/lease/moveout', {
         leaseId: lease._id,
         expectedMoveOutDate,
         reason,
         comments
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       setSuccess(true);
       setTimeout(() => navigate('/exit-feedback'), 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit move-out notice.');
+      setError(err.message || err.response?.data?.message || (typeof err === 'string' ? err : 'Failed to submit move-out notice.'));
     } finally {
       setSubmitting(false);
     }

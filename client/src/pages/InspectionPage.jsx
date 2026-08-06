@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { Eye, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export default function InspectionPage() {
@@ -37,11 +37,8 @@ export default function InspectionPage() {
     console.log('[InspectionPage] Destination page loaded', { inspectionId: id });
     const fetchInspection = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/inspection/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const insp = res.data.data || res.data;
+        const res = await apiClient.get(`/inspection/${id}`);
+        const insp = res?.data || res;
         setInspection(insp);
         if (insp.checklist) {
           setChecklist(prev => ({ ...prev, ...insp.checklist }));
@@ -71,22 +68,19 @@ export default function InspectionPage() {
     setSubmitting(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/inspection/${id}`, {
+      await apiClient.put(`/inspection/${id}`, {
         checklist,
         inspectionResult,
         notes,
         estimatedRepairCost,
         actualRepairCost,
         refundAmount: Math.max(0, (inspection?.lease?.depositAmount || 0) - actualRepairCost)
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       setSuccess(true);
       setTimeout(() => navigate('/leases'), 2500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to complete inspection report.');
+      setError(err.message || err.response?.data?.message || (typeof err === 'string' ? err : 'Failed to complete inspection report.'));
     } finally {
       setSubmitting(false);
     }
