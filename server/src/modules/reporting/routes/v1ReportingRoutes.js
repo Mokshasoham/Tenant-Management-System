@@ -1,7 +1,7 @@
 /**
  * server/src/modules/reporting/routes/v1ReportingRoutes.js
  *
- * Express V1 Router for Reporting Management APIs.
+ * Express V1 Router for Reporting Bounded Context.
  * Mounted at /api/v1/reports.
  */
 
@@ -10,6 +10,9 @@ import { protect } from '../../../middleware/authMiddleware.js';
 import { authorizeReminderRole } from '../../../middleware/reminderAuthorization.js';
 import {
   generateReport,
+  exportReportSync,
+  createExportJob,
+  getExportJobStatus,
   getSavedReports,
   createSavedReport,
   toggleFavoriteReport,
@@ -18,16 +21,22 @@ import {
 
 const router = express.Router();
 
-// Apply authentication middleware to all reporting routes
+// Apply JWT Authentication Guard
 router.use(protect);
+router.use(authorizeReminderRole(['admin', 'manager', 'tenant']));
 
-// 1. Report Generation (Admin & Manager)
-router.post('/generate', authorizeReminderRole(['admin', 'manager']), generateReport);
+// Report Generation & Direct Sync Export
+router.post('/generate', generateReport);
+router.post('/export', exportReportSync);
 
-// 2. Saved Reports & Presets (Admin & Manager)
-router.get('/saved', authorizeReminderRole(['admin', 'manager']), getSavedReports);
-router.post('/saved', authorizeReminderRole(['admin', 'manager']), createSavedReport);
-router.post('/saved/:id/favorite', authorizeReminderRole(['admin', 'manager']), toggleFavoriteReport);
-router.delete('/saved/:id', authorizeReminderRole(['admin', 'manager']), deleteSavedReport);
+// Background Export Jobs
+router.post('/export/jobs', createExportJob);
+router.get('/export/jobs/:id', getExportJobStatus);
+
+// Saved Report Presets & Favorites
+router.get('/saved', getSavedReports);
+router.post('/saved', createSavedReport);
+router.post('/saved/:id/favorite', toggleFavoriteReport);
+router.delete('/saved/:id', deleteSavedReport);
 
 export default router;

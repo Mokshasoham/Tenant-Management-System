@@ -81,6 +81,11 @@ class LocalStorageProvider extends StorageProvider {
     logger.warn(`Attempted to delete file, but it was not found: ${filePath}`);
     return false;
   }
+
+  async getSignedUrl(filename, ttlSeconds = 86400) {
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    return `/uploads/reports/${filename}?expires=${encodeURIComponent(expiresAt)}`;
+  }
 }
 
 const storageProvider = new LocalStorageProvider();

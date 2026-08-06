@@ -2,12 +2,14 @@
  * server/src/modules/reporting/controllers/reportingController.js
  *
  * REST Controller for Reporting Bounded Context.
- * Handles generation requests, preset management, and user favorite toggles.
+ * Handles generation requests, preset management, export operations, and background jobs.
  */
 
 import asyncHandler from 'express-async-handler';
 import reportService from '../services/ReportService.js';
 import savedReportRepository from '../repositories/savedReportRepository.js';
+import exportManager from '../exporters/ExportManager.js';
+import exportQueue from '../queue/exportQueue.js';
 
 /**
  * POST /api/v1/reports/generate
@@ -27,6 +29,83 @@ export const generateReport = asyncHandler(async (req, res) => {
   const report = await reportService.generateReport(reportType, filters, userId, format);
 
   res.status(200).json(report);
+});
+
+/**
+ * POST /api/v1/reports/export
+ * Synchronously generates and exports a report in specified format (pdf, csv, excel).
+ */
+export const exportReportSync = asyncHandler(async (req, res) => {
+  const { reportType, filters = {}, format = 'pdf' } = req.body;
+
+  if (!reportType) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: 'reportType is required for export.' }
+    });
+  }
+
+  const userId = req.user?._id || req.user?.id || null;
+  const ipAddress = req.ip || req.socket.remoteAddress;
+
+  // 1. Generate Report DTO
+  const reportDTO = await reportService.generateReport(reportType, filters, userId, 'json');
+
+  // 2. Export via ExportManager facade
+  const result = await exportManager.export(format, reportDTO, {
+    userId,
+    reportType,
+    filters,
+    ipAddress
+  });
+
+  res.status(200).json(result);
+});
+
+/**
+ * POST /api/v1/reports/export/jobs
+ * Enqueues an asynchronous background export job.
+ */
+export const createExportJob = asyncHandler(async (req, res) => {
+  const { reportType, filters = {}, format = 'pdf' } = req.body;
+  const userId = req.user._id || req.user.id;
+
+  if (!reportType) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: 'reportType is required.' }
+    });
+  }
+
+  const job = await exportQueue.createJob(userId, reportType, format, filters);
+
+  res.status(202).json({
+    success: true,
+    message: 'Export job queued successfully.',
+    data: job
+  });
+});
+
+/**
+ * GET /api/v1/reports/export/jobs/:id
+ * Polls progress and status of a background export job.
+ */
+export const getExportJobStatus = asyncHandler(async (req, res) => {
+  const userId = req.user._id || req.user.id;
+  const { id } = req.params;
+
+  const job = await exportQueue.getJob(id, userId);
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Export job not found.' }
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: job
+  });
 });
 
 /**
@@ -116,6 +195,9 @@ export const deleteSavedReport = asyncHandler(async (req, res) => {
 
 export default {
   generateReport,
+  exportReportSync,
+  createExportJob,
+  getExportJobStatus,
   getSavedReports,
   createSavedReport,
   toggleFavoriteReport,

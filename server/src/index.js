@@ -63,6 +63,8 @@ import v1ReportingRoutes from './modules/reporting/routes/v1ReportingRoutes.js';
 import v1OperationsRoutes from './modules/operations/routes/v1OperationsRoutes.js';
 import v1TelemetryRoutes from './routes/v1TelemetryRoutes.js';
 import telemetryMiddleware from './platform/telemetry/telemetryMiddleware.js';
+import exportWorker from './modules/reporting/workers/ExportWorker.js';
+import scheduledReportScheduler from './modules/reporting/services/ScheduledReportScheduler.js';
 import reminderEventSubscriber from './modules/reminders/events/reminderEventSubscriber.js';
 import outboxWorker from './platform/events/outboxWorker.js';
 import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
@@ -267,9 +269,11 @@ app.use(errorHandler);
 // Start Cron Workers
 startCronJobs();
 
-// Start Platform Schedulers
+// Start Platform Schedulers & Workers
+schedulerRegistry.register(scheduledReportScheduler);
 await schedulerRegistry.startAll();
-logger.info('Platform schedulers started.');
+exportWorker.start();
+logger.info('Platform schedulers and background workers started.');
 
 const httpServer = createServer(app);
 
