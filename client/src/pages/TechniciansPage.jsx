@@ -512,7 +512,8 @@ function AddTechnicianModal({ onClose, onCreated }) {
             if (onCreated) onCreated();
         } catch (err) {
             console.error('Failed to create technician', err);
-            setError(err?.response?.data?.message || err?.message || 'Failed to create technician');
+            const serverMsg = err?.response?.data?.error?.message || err?.response?.data?.message || err?.message;
+            setError(serverMsg || 'Failed to create technician');
         } finally {
             setLoading(false);
         }

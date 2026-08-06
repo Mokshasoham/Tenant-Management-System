@@ -44,6 +44,8 @@ describe('Phase 3.3.1 — Technician & Workforce Management Unit Tests', () => {
       const inputData = { firstName: 'Sam', lastName: 'Smith', email: 'sam@tms.com' };
       const createdTech = { _id: 'tech102', ...inputData, technicianProfile: { employeeId: 'TECH-8899' } };
 
+      jest.spyOn(technicianRepository, 'findByEmail').mockResolvedValue(null);
+      jest.spyOn(technicianRepository, 'findByEmployeeId').mockResolvedValue(null);
       jest.spyOn(technicianRepository, 'create').mockResolvedValue(createdTech);
       jest.spyOn(eventBus, 'publish').mockResolvedValue(true);
 

@@ -65,6 +65,23 @@ export class TechnicianService {
   }
 
   async createTechnician(data, creatorId = null) {
+    // Check for duplicate email
+    if (data.email) {
+      const existingUser = await technicianRepository.findByEmail(data.email);
+      if (existingUser) {
+        throw new AppError(`A user with email "${data.email}" already exists. Please use a unique email address.`, 400);
+      }
+    }
+
+    // Check for duplicate employee ID
+    const empId = data.employeeId || data.technicianProfile?.employeeId;
+    if (empId) {
+      const existingEmp = await technicianRepository.findByEmployeeId(empId);
+      if (existingEmp) {
+        throw new AppError(`Employee ID "${empId}" is already assigned to technician ${existingEmp.firstName} ${existingEmp.lastName}. Please use a unique Employee ID.`, 400);
+      }
+    }
+
     const crypto = await import('crypto');
     const sendEmail = (await import('../utils/sendEmail.js')).default;
     

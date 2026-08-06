@@ -30,6 +30,16 @@ export class TechnicianRepository {
     return await User.create(technicianData);
   }
 
+  async findByEmail(email) {
+    if (!email) return null;
+    return await User.findOne({ email: email.toLowerCase().trim() });
+  }
+
+  async findByEmployeeId(employeeId) {
+    if (!employeeId) return null;
+    return await User.findOne({ 'technicianProfile.employeeId': employeeId });
+  }
+
   async findById(id) {
     return await User.findOne({ _id: id, role: 'technician' })
       .select('-password')
