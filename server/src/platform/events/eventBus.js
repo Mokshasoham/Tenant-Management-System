@@ -29,12 +29,15 @@ class EventBus {
    */
   async publish(eventType, payload) {
     logger.info(`Publishing Domain Event: ${eventType}`, payload);
-    const handlers = this.listeners.get(eventType) || [];
+    const handlers = [
+      ...(this.listeners.get(eventType) || []),
+      ...(this.listeners.get('*') || [])
+    ];
     
     // Execute handlers asynchronously (simulate background dispatching)
     handlers.forEach(handler => {
       Promise.resolve()
-        .then(() => handler(payload))
+        .then(() => handler(payload, eventType))
         .catch(err => {
           logger.error(`Handler execution error for event ${eventType}:`, err);
         });

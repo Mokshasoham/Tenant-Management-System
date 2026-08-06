@@ -61,6 +61,8 @@ import { subscribeNotificationListeners } from './modules/lease-renewal/notifica
 import v1ReminderRoutes from './routes/v1ReminderRoutes.js';
 import v1ReportingRoutes from './modules/reporting/routes/v1ReportingRoutes.js';
 import v1OperationsRoutes from './modules/operations/routes/v1OperationsRoutes.js';
+import v1TelemetryRoutes from './routes/v1TelemetryRoutes.js';
+import telemetryMiddleware from './platform/telemetry/telemetryMiddleware.js';
 import reminderEventSubscriber from './modules/reminders/events/reminderEventSubscriber.js';
 import outboxWorker from './platform/events/outboxWorker.js';
 import schedulerRegistry from './platform/scheduler/SchedulerRegistry.js';
@@ -121,6 +123,7 @@ app.use(express.urlencoded({ limit: '16mb', extended: true }));
 
 // Custom middleware
 app.use(requestLogger);
+app.use(telemetryMiddleware);
 app.use(securityHeaders);
 
 // DEPRECATED: /uploads alias — routes through centralized File Service for backward compatibility
@@ -241,6 +244,7 @@ app.use('/api/v1/notifications', v1NotificationRoutes);
 app.use('/api/v1/reminders', v1ReminderRoutes);
 app.use('/api/v1/reports', v1ReportingRoutes);
 app.use('/api/v1/operations', v1OperationsRoutes);
+app.use('/api/v1/telemetry', v1TelemetryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
