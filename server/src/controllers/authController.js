@@ -124,6 +124,13 @@ export const login = asyncHandler(async (req, res) => {
     throw new AppError('Invalid email or password', 401);
   }
 
+  if (user.role === 'technician') {
+    const status = user.technicianProfile?.verificationStatus;
+    if (status !== 'ACTIVE') {
+      throw new AppError('Your technician account is not active. Please contact your manager.', 403);
+    }
+  }
+
   if (!user.isActive) {
     throw new AppError('Your account has been disabled', 403);
   }
@@ -669,5 +676,49 @@ export const verifyAndEnable2FA = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: '2FA successfully enabled',
+  });
+});
+
+export const activateTechnicianAccount = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  if (!password || password.length < 8) {
+    throw new AppError('Password must be at least 8 characters long', 400);
+  }
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    role: 'technician',
+    'technicianProfile.invitationToken': hashedToken,
+    'technicianProfile.invitationExpires': { $gt: Date.now() }
+  });
+
+  if (!user) {
+    throw new AppError('Invitation token is invalid or has expired', 400);
+  }
+
+  user.password = await hashPassword(password);
+  user.isActive = true;
+  user.isEmailVerified = true;
+  user.technicianProfile.verificationStatus = 'ACTIVE';
+  user.technicianProfile.activatedAt = new Date();
+  user.technicianProfile.invitationToken = undefined;
+  user.technicianProfile.invitationExpires = undefined;
+
+  await user.save();
+
+  logger.info(`Technician account activated: ${user.email} (${user.technicianProfile.employeeId})`);
+
+  const authToken = generateToken(user._id, user.role);
+
+  res.status(200).json({
+    success: true,
+    message: 'Account successfully activated',
+    data: {
+      user: resolveUserUrls(user, req),
+      token: authToken
+    }
   });
 });

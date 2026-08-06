@@ -137,6 +137,13 @@ export const maintenanceService = {
   updateChecklist: (id, checklistData) => apiClient.put(`/maintenance/${id}/checklist`, checklistData),
   getAuditTrail: (id) => apiClient.get(`/maintenance/${id}/audit-trail`),
   getRelatedTickets: (id) => apiClient.get(`/maintenance/${id}/related`),
+  uploadPhasePhotos: (id, phase, formData) => apiClient.post(`/maintenance/${id}/photos/${phase}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  saveSignature: (id, data) => apiClient.post(`/maintenance/${id}/signature`, data),
+  uploadVoiceNote: (id, formData) => apiClient.post(`/maintenance/${id}/voice-notes`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const technicianService = {
@@ -253,6 +260,20 @@ export const assignmentEngineService = {
   getAnalytics: (params = {}) => apiClient.get('/v1/assignments/analytics', { params }),
   getConfig: () => apiClient.get('/v1/assignments/config'),
   updateConfig: (weights) => apiClient.put('/v1/assignments/config', { weights })
+};
+
+export const technicianPortalService = {
+  getMyProfile: () => apiClient.get('/technicians/me'),
+  updateMyProfile: (data) => apiClient.patch('/technicians/me', data),
+  getMyJobs: (params) => apiClient.get('/technicians/me/jobs', { params }),
+  getMySchedule: (params) => apiClient.get('/technicians/me/schedule', { params }),
+  updateMyAvailability: (availabilityStatus, liveStatus) => apiClient.patch('/technicians/me/availability', { availabilityStatus, liveStatus }),
+  getMyKPIs: () => apiClient.get('/technicians/me/kpis'),
+  activateAccount: (token, password) => apiClient.post(`/auth/activate-technician/${token}`, { password }),
+  checkInJob: (id, coords) => apiClient.post(`/technicians/me/jobs/${id}/check-in`, coords),
+  checkOutJob: (id, data) => apiClient.post(`/technicians/me/jobs/${id}/check-out`, data),
+  updateLocationTelemetry: (coords) => apiClient.post('/technicians/me/location', coords),
+  lookupPropertyByQR: (qrCode) => apiClient.get('/technicians/me/property-lookup', { params: { qrCode } }),
 };
 
 export default apiClient;

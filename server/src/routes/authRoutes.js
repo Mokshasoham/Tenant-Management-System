@@ -12,6 +12,7 @@ router.post('/google', authController.googleAuth);
 router.post('/forgot-password', validateForgotPassword, validationMiddleware, authController.forgotPassword);
 router.post('/reset-password/:token', validateResetPassword, validationMiddleware, authController.resetPassword);
 router.get('/verify-email/:token', authController.verifyEmail);
+router.post('/activate-technician/:token', authController.activateTechnicianAccount);
 
 
 // Protected routes

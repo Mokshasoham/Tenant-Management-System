@@ -47,7 +47,12 @@ export default function LoginPage() {
         setTempUserId(res.userId);
         setIsLoading(false);
       } else {
-        navigate('/dashboard');
+        const loggedUser = res?.data?.user || JSON.parse(localStorage.getItem('user') || '{}');
+        if (loggedUser?.role === 'technician') {
+          navigate('/technician/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       setError(err?.message || 'Login failed. Please try again.');

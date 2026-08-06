@@ -64,9 +64,53 @@ export class TechnicianService {
     };
   }
 
-  async createTechnician(data) {
-    const tech = await technicianRepository.create(data);
-    await eventBus.publish('technician.created', { technicianId: tech._id, employeeId: tech.technicianProfile?.employeeId });
+  async createTechnician(data, creatorId = null) {
+    const crypto = await import('crypto');
+    const sendEmail = (await import('../utils/sendEmail.js')).default;
+    
+    // Generate raw invitation token
+    const invitationToken = crypto.randomBytes(32).toString('hex');
+    const hashedInvitationToken = crypto.createHash('sha256').update(invitationToken).digest('hex');
+    
+    // Temporary initial random password (will be reset during activation)
+    const initialPassword = crypto.randomBytes(16).toString('hex');
+    const { hashPassword } = await import('../utils/password.js');
+    const hashedPassword = await hashPassword(initialPassword);
+
+    const techPayload = {
+      ...data,
+      password: hashedPassword,
+      technicianProfile: {
+        ...(data.technicianProfile || {}),
+        employeeId: data.employeeId || data.technicianProfile?.employeeId,
+        invitationToken: hashedInvitationToken,
+        invitationExpires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days TTL
+      }
+    };
+
+    const tech = await technicianRepository.create(techPayload, creatorId);
+
+    // Build activation URL
+    const appOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+    const activationUrl = `${appOrigin}/activate-account/${invitationToken}`;
+    const emailMessage = `Hello ${tech.firstName},\n\nYou have been invited to join the Tenant Management System as a Field Technician.\nEmployee ID: ${tech.technicianProfile.employeeId}\n\nPlease click the link below to set your password and activate your account:\n\n${activationUrl}\n\nThis link will expire in 7 days.\n\nThank you!`;
+
+    try {
+      await sendEmail({
+        email: tech.email,
+        subject: 'Technician Account Invitation - Action Required',
+        message: emailMessage
+      });
+    } catch (err) {
+      console.warn(`[TechnicianService] Email sending failed: ${err.message}. Activation URL: ${activationUrl}`);
+    }
+
+    await eventBus.publish('technician.invited', {
+      technicianId: tech._id,
+      employeeId: tech.technicianProfile?.employeeId,
+      email: tech.email
+    });
+
     return tech;
   }
 

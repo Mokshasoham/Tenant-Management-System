@@ -87,7 +87,28 @@ const userSchema = new mongoose.Schema(
       }],
       rating: { type: Number, default: 5.0 },
       firstTimeFixRate: { type: Number, default: 95 },
-      reopenedTickets: { type: Number, default: 0 }
+      reopenedTickets: { type: Number, default: 0 },
+      verificationStatus: {
+        type: String,
+        enum: ['PENDING_INVITATION', 'INVITED', 'ACTIVE', 'SUSPENDED', 'DISABLED'],
+        default: 'PENDING_INVITATION'
+      },
+      managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      invitationSentAt: Date,
+      activatedAt: Date,
+      lastLoginAt: Date,
+      invitationToken: String,
+      invitationExpires: Date,
+      deviceId: String,
+      devicePlatform: { type: String, enum: ['ios', 'android', 'web', null], default: null },
+      lastKnownLocation: String,
+      fcmToken: String,
+      pushNotificationEnabled: { type: Boolean, default: false },
+      onlineStatus: { type: String, enum: ['online', 'offline', 'unknown'], default: 'unknown' },
+      currentLatitude: Number,
+      currentLongitude: Number,
+      batteryLevel: Number
     },
     avatar: {
       type: String,

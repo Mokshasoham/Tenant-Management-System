@@ -40,7 +40,7 @@ describe('Phase 3.3.1 — Technician & Workforce Management Unit Tests', () => {
       expect(res.pagination.total).toBe(1);
     });
 
-    it('should create technician profile and publish technician.created event', async () => {
+    it('should create technician profile and publish technician.invited event', async () => {
       const inputData = { firstName: 'Sam', lastName: 'Smith', email: 'sam@tms.com' };
       const createdTech = { _id: 'tech102', ...inputData, technicianProfile: { employeeId: 'TECH-8899' } };
 
@@ -49,8 +49,16 @@ describe('Phase 3.3.1 — Technician & Workforce Management Unit Tests', () => {
 
       const res = await technicianService.createTechnician(inputData);
 
-      expect(technicianRepository.create).toHaveBeenCalledWith(inputData);
-      expect(eventBus.publish).toHaveBeenCalledWith('technician.created', expect.objectContaining({ technicianId: 'tech102' }));
+      expect(technicianRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        firstName: 'Sam',
+        lastName: 'Smith',
+        email: 'sam@tms.com',
+        technicianProfile: expect.objectContaining({
+          invitationToken: expect.any(String),
+          invitationExpires: expect.any(Date)
+        })
+      }), null);
+      expect(eventBus.publish).toHaveBeenCalledWith('technician.invited', expect.objectContaining({ technicianId: 'tech102', employeeId: 'TECH-8899' }));
       expect(res._id).toBe('tech102');
     });
   });

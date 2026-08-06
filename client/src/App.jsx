@@ -43,6 +43,16 @@ import ManagerCampaignDashboardPage from './pages/ManagerCampaignDashboardPage';
 import NotificationCenterPage from './pages/NotificationCenterPage';
 import TechniciansPage from './pages/TechniciansPage';
 import WorkforceSchedulingPage from './pages/WorkforceSchedulingPage';
+import ActivateAccountPage from './pages/ActivateAccountPage';
+
+// Technician Portal Pages & Layout
+import TechnicianLayout from './layouts/TechnicianLayout';
+import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
+import TechnicianJobsPage from './pages/TechnicianJobsPage';
+import TechnicianJobDetailPage from './pages/TechnicianJobDetailPage';
+import TechnicianSchedulePage from './pages/TechnicianSchedulePage';
+import TechnicianProfilePage from './pages/TechnicianProfilePage';
+import QRScannerPage from './pages/QRScannerPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -50,6 +60,14 @@ import DashboardLayout from './layouts/DashboardLayout';
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+const TechnicianRoute = ({ children }) => {
+  const isTechnician = useAuthStore((state) => state.isTechnician());
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (!isTechnician) return <Navigate to="/dashboard" />;
+  return children;
 };
 
 const ManagerRoute = ({ children }) => {
@@ -112,6 +130,17 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+              <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
+
+              {/* Technician Portal Isolated Workspace */}
+              <Route path="/technician/dashboard" element={<TechnicianRoute><TechnicianLayout><TechnicianDashboard /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/jobs" element={<TechnicianRoute><TechnicianLayout><TechnicianJobsPage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/jobs/:id" element={<TechnicianRoute><TechnicianLayout><TechnicianJobDetailPage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/schedule" element={<TechnicianRoute><TechnicianLayout><TechnicianSchedulePage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/qr-scanner" element={<TechnicianRoute><TechnicianLayout><QRScannerPage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/messages" element={<TechnicianRoute><TechnicianLayout><MessagesPage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/notifications" element={<TechnicianRoute><TechnicianLayout><NotificationCenterPage /></TechnicianLayout></TechnicianRoute>} />
+              <Route path="/technician/profile" element={<TechnicianRoute><TechnicianLayout><TechnicianProfilePage /></TechnicianLayout></TechnicianRoute>} />
 
               {/* All authenticated */}
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />

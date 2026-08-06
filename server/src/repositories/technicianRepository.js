@@ -6,16 +6,25 @@
 import User from '../models/User.js';
 
 export class TechnicianRepository {
-  async create(data) {
+  async create(data, creatorId = null) {
+    const defaultEmployeeId = `TECH-${Math.floor(100000 + Math.random() * 900000)}`;
+    const inputProfile = data.technicianProfile || {};
+    
     const technicianData = {
       ...data,
       role: 'technician',
-      technicianProfile: data.technicianProfile || {
-        employeeId: `TECH-${Math.floor(1000 + Math.random() * 9000)}`,
-        employmentStatus: 'active',
-        employmentType: 'full_time',
-        availabilityStatus: 'free',
-        liveStatus: 'online'
+      isActive: false, // Inactive until invitation activation
+      technicianProfile: {
+        ...inputProfile,
+        employeeId: data.employeeId || inputProfile.employeeId || defaultEmployeeId,
+        employmentStatus: inputProfile.employmentStatus || 'active',
+        employmentType: inputProfile.employmentType || 'full_time',
+        availabilityStatus: inputProfile.availabilityStatus || 'free',
+        liveStatus: inputProfile.liveStatus || 'offline',
+        verificationStatus: 'INVITED',
+        createdBy: creatorId || inputProfile.createdBy || null,
+        managerId: creatorId || inputProfile.managerId || null,
+        invitationSentAt: new Date()
       }
     };
     return await User.create(technicianData);

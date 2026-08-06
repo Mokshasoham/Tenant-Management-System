@@ -122,6 +122,11 @@ const useAuthStore = create((set) => ({
     return ['tenant', 'user'].includes(user?.role);
   },
 
+  isTechnician: () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user?.role === 'technician';
+  },
+
   forgotPassword: async (email) => {
     set({ isLoading: true, error: null });
     try {

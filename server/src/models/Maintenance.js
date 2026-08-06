@@ -120,6 +120,7 @@ const maintenanceSchema = new mongoose.Schema(
         images: [String],
         attachments: [attachmentSchema],
         beforePhotos: [attachmentSchema],
+        duringPhotos: [attachmentSchema],
         afterPhotos: [attachmentSchema],
         completionChecklist: {
             workCompleted: { type: Boolean, default: false },
@@ -129,6 +130,89 @@ const maintenanceSchema = new mongoose.Schema(
             tenantNotified: { type: Boolean, default: false },
             ratingRequested: { type: Boolean, default: false }
         },
+
+        // --- Phase 3.3.4.2: Field Operations ---
+        checkIn: {
+            time: { type: Date },
+            latitude: { type: Number },
+            longitude: { type: Number },
+            accuracy: { type: Number },                 // GPS accuracy in meters
+            propertyLatitude: { type: Number },         // property's known GPS lat
+            propertyLongitude: { type: Number },        // property's known GPS lng
+            distanceFromProperty: { type: Number },     // calculated distance in meters
+            allowedRadiusMeters: { type: Number, default: 100 },
+            isGpsVerified: { type: Boolean, default: false },
+            gpsVerificationStatus: {
+                type: String,
+                enum: ['VERIFIED', 'OUTSIDE_RADIUS', 'GPS_UNAVAILABLE', 'MANUAL_OVERRIDE'],
+                default: 'GPS_UNAVAILABLE'
+            },
+            manualOverrideBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            manualOverrideReason: { type: String },
+            manualOverrideAt: { type: Date }
+        },
+        checkOut: {
+            time: { type: Date },
+            latitude: { type: Number },
+            longitude: { type: Number },
+            durationMinutes: { type: Number }
+        },
+        signature: {
+            technicianSignature: {
+                dataUrl: { type: String },
+                signedAt: { type: Date }
+            },
+            tenantSignature: {
+                dataUrl: { type: String },
+                signedBy: { type: String },
+                signedAt: { type: Date }
+            },
+            gpsAtSigning: {
+                latitude: { type: Number },
+                longitude: { type: Number },
+                accuracy: { type: Number }
+            },
+            deviceId: { type: String },
+            ipAddress: { type: String }
+        },
+        partsUsed: [{
+            name: { type: String, required: true },
+            quantity: { type: Number, default: 1 },
+            unitCost: { type: Number, default: 0 },
+            totalCost: { type: Number },
+            partNumber: { type: String },
+            category: {
+                type: String,
+                enum: ['pipe', 'valve', 'filter', 'motor', 'electrical', 'hardware', 'other'],
+                default: 'other'
+            }
+        }],
+        voiceNotes: [{
+            url: { type: String, required: true },
+            filename: { type: String },
+            mimeType: { type: String },
+            fileSizeBytes: { type: Number },
+            durationSeconds: { type: Number, default: 0 },
+            transcript: { type: String, default: '' },
+            uploadedAt: { type: Date, default: Date.now }
+        }],
+        qrScannedAt: { type: Date },
+        fieldChecklist: {
+            arrived: { done: { type: Boolean, default: false }, at: { type: Date } },
+            inspected: { done: { type: Boolean, default: false }, at: { type: Date } },
+            partsRecorded: { done: { type: Boolean, default: false }, at: { type: Date } },
+            repairCompleted: { done: { type: Boolean, default: false }, at: { type: Date } },
+            photosTaken: { done: { type: Boolean, default: false }, at: { type: Date } },
+            signatureCollected: { done: { type: Boolean, default: false }, at: { type: Date } },
+            notesAdded: { done: { type: Boolean, default: false }, at: { type: Date } },
+            jobCompleted: { done: { type: Boolean, default: false }, at: { type: Date } }
+        },
+        technicianETA: {
+            estimatedMinutes: { type: Number },
+            distanceKm: { type: Number },
+            updatedAt: { type: Date }
+        },
+
         notes: [noteSchema],
         internalNotes: [noteSchema],
         statusHistory: [statusHistorySchema],

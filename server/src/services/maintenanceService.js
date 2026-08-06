@@ -140,6 +140,36 @@ export class MaintenanceService {
 
     const oldStatus = request.status;
 
+    // --- Module 3: Backend Completion Guard ---
+    if (['completed', 'resolved'].includes(newStatus) && userContext.role === 'technician') {
+      const missingRequirements = [];
+
+      if (!request.checkIn?.time) {
+        missingRequirements.push('Check-in record (GPS check-in required)');
+      }
+      if (!request.checkOut?.time) {
+        missingRequirements.push('Check-out record (On-site work completed check-out required)');
+      }
+      const hasBefore = (request.beforePhotos && request.beforePhotos.length > 0) || (request.attachments && request.attachments.length > 0);
+      if (!hasBefore) {
+        missingRequirements.push('At least 1 Before photo');
+      }
+      if (!request.afterPhotos || request.afterPhotos.length === 0) {
+        missingRequirements.push('At least 1 After photo');
+      }
+      const hasSignature = request.signature?.technicianSignature?.dataUrl || request.signature?.tenantSignature?.dataUrl;
+      if (!hasSignature) {
+        missingRequirements.push('Digital signature (Technician or Tenant signature required)');
+      }
+
+      if (missingRequirements.length > 0) {
+        throw new AppError(
+          `Cannot complete ticket. Missing required steps:\n• ${missingRequirements.join('\n• ')}`,
+          400
+        );
+      }
+    }
+
     // Update status and push statusHistory entry
     const updated = await maintenanceRepository.addStatusHistory(ticketId, newStatus, userId, note);
 

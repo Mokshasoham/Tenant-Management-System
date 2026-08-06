@@ -22,6 +22,12 @@ export const getAllRequests = asyncHandler(async (req, res) => {
 
     if (user.role === 'tenant') {
         filter.requestedBy = userId;
+    } else if (user.role === 'technician') {
+        filter.assignedTo = userId;
+    }
+
+    if (req.query.assignedTechnicianId) {
+        filter.assignedTo = req.query.assignedTechnicianId;
     }
 
     if (status) filter.status = status;
@@ -286,4 +292,179 @@ export const getManagerDashboard = asyncHandler(async (req, res) => {
         data: metrics
     });
 });
+
+export const uploadPhasePhotos = asyncHandler(async (req, res) => {
+    const { id, phase } = req.params;
+    if (!['before', 'during', 'after'].includes(phase)) {
+        throw new AppError("Photo phase must be 'before', 'during', or 'after'", 400);
+    }
+
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const storageProvider = (await import('../platform/storage/storageProvider.js')).default;
+
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Maintenance ticket not found', 404);
+
+    if (phase === 'after') {
+        const hasBefore = (ticket.beforePhotos && ticket.beforePhotos.length > 0) || (ticket.attachments && ticket.attachments.length > 0);
+        if (!hasBefore) {
+            throw new AppError("Cannot upload 'after' photos without at least one 'before' photo", 400);
+        }
+    }
+
+    const files = req.files || (req.file ? [req.file] : []);
+    if (!files.length) throw new AppError('No files uploaded', 400);
+
+    const uploadedRecords = [];
+    for (const file of files) {
+        const timestamp = Date.now();
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filename = `${phase}_${id}_${timestamp}_${safeName}`;
+        const result = await storageProvider.upload(file.buffer, filename, file.mimetype, 'maintenance');
+
+        const record = {
+            url: result.url,
+            filename: file.originalname,
+            mimeType: file.mimetype,
+            fileSizeBytes: file.size,
+            uploadedAt: new Date()
+        };
+        uploadedRecords.push(record);
+    }
+
+    const fieldName = `${phase}Photos`;
+    if (!ticket[fieldName]) ticket[fieldName] = [];
+    ticket[fieldName].push(...uploadedRecords);
+    ticket.images.push(...uploadedRecords.map(r => r.url));
+
+    if (!ticket.fieldChecklist) ticket.fieldChecklist = {};
+    ticket.fieldChecklist.photosTaken = { done: true, at: new Date() };
+
+    await ticket.save();
+
+    res.status(200).json({
+        success: true,
+        message: `${phase.toUpperCase()} photos uploaded successfully`,
+        data: ticket
+    });
+});
+
+export const overrideCheckInGps = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    if (!reason?.trim()) throw new AppError('Override reason is required', 400);
+
+    const managerId = req.user.userId || req.user._id || req.user.id;
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+
+    if (!ticket.checkIn) {
+        ticket.checkIn = { time: new Date() };
+    }
+
+    const previousStatus = ticket.checkIn.gpsVerificationStatus || 'GPS_UNAVAILABLE';
+    ticket.checkIn.isGpsVerified = true;
+    ticket.checkIn.gpsVerificationStatus = 'MANUAL_OVERRIDE';
+    ticket.checkIn.manualOverrideBy = managerId;
+    ticket.checkIn.manualOverrideReason = reason;
+    ticket.checkIn.manualOverrideAt = new Date();
+
+    ticket.auditTrail.push({
+        field: 'checkIn.gpsVerificationStatus',
+        oldValue: previousStatus,
+        newValue: `MANUAL_OVERRIDE (Reason: ${reason})`,
+        changedBy: managerId,
+        changedAt: new Date()
+    });
+
+    await ticket.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'GPS check-in overridden successfully by manager',
+        data: ticket
+    });
+});
+
+export const saveSignature = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { technicianSignature, tenantSignature, gpsAtSigning, deviceId } = req.body;
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+
+    ticket.signature = {
+        technicianSignature: technicianSignature ? {
+            dataUrl: technicianSignature.dataUrl,
+            signedAt: technicianSignature.signedAt || new Date()
+        } : ticket.signature?.technicianSignature,
+        tenantSignature: tenantSignature ? {
+            dataUrl: tenantSignature.dataUrl,
+            signedBy: tenantSignature.signedBy,
+            signedAt: tenantSignature.signedAt || new Date()
+        } : ticket.signature?.tenantSignature,
+        gpsAtSigning: gpsAtSigning || ticket.signature?.gpsAtSigning,
+        deviceId: deviceId || req.headers['x-device-id'] || 'web',
+        ipAddress
+    };
+
+    if (!ticket.fieldChecklist) ticket.fieldChecklist = {};
+    ticket.fieldChecklist.signatureCollected = { done: true, at: new Date() };
+
+    await ticket.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Legal-grade digital signature captured successfully',
+        data: ticket
+    });
+});
+
+export const uploadVoiceNote = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { durationSeconds = 0, transcript = '' } = req.body;
+
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const storageProvider = (await import('../platform/storage/storageProvider.js')).default;
+
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+
+    const file = req.file || (req.files && req.files[0]);
+    if (!file) throw new AppError('No audio file uploaded', 400);
+
+    const timestamp = Date.now();
+    const filename = `voicenote_${id}_${timestamp}.webm`;
+    const result = await storageProvider.upload(file.buffer, filename, file.mimetype || 'audio/webm', 'maintenance');
+
+    const voiceNoteRecord = {
+        url: result.url,
+        filename: file.originalname || filename,
+        mimeType: file.mimetype || 'audio/webm',
+        fileSizeBytes: file.size,
+        durationSeconds: Number(durationSeconds),
+        transcript: transcript.trim(),
+        uploadedAt: new Date()
+    };
+
+    if (!ticket.voiceNotes) ticket.voiceNotes = [];
+    ticket.voiceNotes.push(voiceNoteRecord);
+
+    if (!ticket.fieldChecklist) ticket.fieldChecklist = {};
+    if (transcript) ticket.fieldChecklist.notesAdded = { done: true, at: new Date() };
+
+    await ticket.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Voice note uploaded with transcript',
+        data: ticket
+    });
+});
+
+
 
