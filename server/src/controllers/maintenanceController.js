@@ -198,6 +198,73 @@ export const getStats = asyncHandler(async (req, res) => {
     });
 });
 
+export const addInternalNote = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { text, attachmentUrl } = req.body;
+    if (!text?.trim()) throw new AppError('Internal note text is required', 400);
+
+    const request = await maintenanceService.addInternalNote(id, text, req.user, attachmentUrl);
+    res.status(201).json({ success: true, message: 'Internal note added', data: request });
+});
+
+export const escalateTicket = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    if (!reason?.trim()) throw new AppError('Escalation reason is required', 400);
+
+    const request = await maintenanceService.escalateTicket(id, reason, req.user);
+    res.status(200).json({ success: true, message: 'Ticket escalated to emergency', data: request });
+});
+
+export const mergeTicket = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { targetId } = req.body;
+    if (!targetId) throw new AppError('Target ticket ID is required', 400);
+
+    const request = await maintenanceService.mergeTicket(id, targetId, req.user);
+    res.status(200).json({ success: true, message: 'Ticket merged successfully', data: request });
+});
+
+export const updateCosts = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const costData = req.body;
+
+    const request = await maintenanceService.updateCostTracking(id, costData, req.user);
+    res.status(200).json({ success: true, message: 'Cost tracking updated', data: request });
+});
+
+export const getAuditTrail = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const request = await maintenanceRepository.findById(id);
+    if (!request) throw new AppError('Request not found', 404);
+
+    res.status(200).json({
+        success: true,
+        data: request.auditTrail || []
+    });
+});
+
+export const getRelatedTickets = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const request = await maintenanceRepository.findById(id);
+    if (!request) throw new AppError('Request not found', 404);
+
+    const filter = {
+        _id: { $ne: id },
+        $or: [
+            { property: request.property?._id },
+            { unit: request.unit },
+            { requestedBy: request.requestedBy?._id }
+        ]
+    };
+
+    const related = await maintenanceRepository.findWithFilters(filter, 0, 10);
+    res.status(200).json({
+        success: true,
+        data: related
+    });
+});
+
 export const getManagerDashboard = asyncHandler(async (req, res) => {
     const userId = req.user.userId || req.user._id || req.user.id;
     

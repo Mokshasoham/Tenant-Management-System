@@ -28,6 +28,21 @@ const ratingSchema = new mongoose.Schema({
     ratedAt: { type: Date, default: Date.now },
 });
 
+const auditTrailSchema = new mongoose.Schema({
+    field: { type: String, required: true },
+    oldValue: { type: String },
+    newValue: { type: String },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    changedAt: { type: Date, default: Date.now },
+});
+
+const invoiceSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    amount: { type: Number, required: true },
+    fileUrl: { type: String },
+    date: { type: Date, default: Date.now },
+});
+
 const maintenanceSchema = new mongoose.Schema(
     {
         title: {
@@ -105,7 +120,9 @@ const maintenanceSchema = new mongoose.Schema(
         images: [String],
         attachments: [attachmentSchema],
         notes: [noteSchema],
+        internalNotes: [noteSchema],
         statusHistory: [statusHistorySchema],
+        auditTrail: [auditTrailSchema],
         rating: ratingSchema,
         completionNotes: String,
         actualResolutionTimeMinutes: Number,
@@ -118,6 +135,17 @@ const maintenanceSchema = new mongoose.Schema(
             type: Number,
             min: 0,
         },
+        costTracking: {
+            estimated: { type: Number, default: 0 },
+            actual: { type: Number, default: 0 },
+            materials: { type: Number, default: 0 },
+            labor: { type: Number, default: 0 },
+            vendorCost: { type: Number, default: 0 },
+            invoices: [invoiceSchema],
+        },
+        isEscalated: { type: Boolean, default: false },
+        escalationReason: String,
+        mergedInto: { type: mongoose.Schema.Types.ObjectId, ref: 'Maintenance' },
         submissionSource: {
             type: String,
             default: 'web',

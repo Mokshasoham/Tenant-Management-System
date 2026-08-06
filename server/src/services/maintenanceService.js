@@ -220,6 +220,60 @@ export class MaintenanceService {
   }
 
   /**
+   * Adds a private internal note (Manager <-> Technician only).
+   */
+  async addInternalNote(ticketId, text, userContext, attachmentUrl = null) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const updated = await maintenanceRepository.addInternalNote(ticketId, text, userId, attachmentUrl);
+
+    await this.publishEvents('maintenance.internal_note.created', {
+      ticketId,
+      addedBy: userId
+    });
+
+    return updated;
+  }
+
+  /**
+   * Updates cost tracking & expenses for a work order.
+   */
+  async updateCostTracking(ticketId, costData, userContext) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const updated = await maintenanceRepository.updateCostTracking(ticketId, costData);
+
+    await maintenanceRepository.addAuditLog(ticketId, 'costTracking', 'Previous Costs', `Est: ₹${costData.estimated}, Act: ₹${costData.actual}`, userId);
+    await this.publishEvents('maintenance.cost.updated', { ticketId, costData, updatedBy: userId });
+
+    return updated;
+  }
+
+  /**
+   * Escalates a maintenance ticket to Emergency priority.
+   */
+  async escalateTicket(ticketId, reason, userContext) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const updated = await maintenanceRepository.escalateTicket(ticketId, reason);
+
+    await maintenanceRepository.addAuditLog(ticketId, 'isEscalated', 'false', `Escalated: ${reason}`, userId);
+    await this.publishEvents('maintenance.escalated', { ticketId, reason, escalatedBy: userId });
+
+    return updated;
+  }
+
+  /**
+   * Merges a duplicate ticket into a primary ticket.
+   */
+  async mergeTicket(ticketId, targetId, userContext) {
+    const userId = userContext.userId || userContext._id || userContext.id;
+    const updated = await maintenanceRepository.mergeTicket(ticketId, targetId);
+
+    await maintenanceRepository.addAuditLog(ticketId, 'mergedInto', 'none', targetId, userId);
+    await this.publishEvents('maintenance.merged', { ticketId, targetId, mergedBy: userId });
+
+    return updated;
+  }
+
+  /**
    * Submits tenant rating & feedback for a completed maintenance ticket.
    */
   async addRating(ticketId, score, feedback, userContext) {

@@ -27,7 +27,9 @@ export class MaintenanceRepository {
       .populate('assignedTo', 'firstName lastName email role phone rating experience')
       .populate('property', 'name address')
       .populate('notes.addedBy', 'firstName lastName role')
-      .populate('statusHistory.changedBy', 'firstName lastName role');
+      .populate('internalNotes.addedBy', 'firstName lastName role')
+      .populate('statusHistory.changedBy', 'firstName lastName role')
+      .populate('auditTrail.changedBy', 'firstName lastName role');
   }
 
   async update(id, data) {
@@ -36,7 +38,9 @@ export class MaintenanceRepository {
       .populate('assignedTo', 'firstName lastName email role phone rating experience')
       .populate('property', 'name address')
       .populate('notes.addedBy', 'firstName lastName role')
-      .populate('statusHistory.changedBy', 'firstName lastName role');
+      .populate('internalNotes.addedBy', 'firstName lastName role')
+      .populate('statusHistory.changedBy', 'firstName lastName role')
+      .populate('auditTrail.changedBy', 'firstName lastName role');
   }
 
   async addStatusHistory(id, status, changedBy, note = '') {
@@ -75,6 +79,82 @@ export class MaintenanceRepository {
       },
       { new: true }
     ).populate('notes.addedBy', 'firstName lastName role');
+  }
+
+  async addInternalNote(id, text, addedBy, attachmentUrl = null) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $push: {
+          internalNotes: {
+            text,
+            addedBy,
+            addedAt: new Date(),
+            attachmentUrl
+          }
+        }
+      },
+      { new: true }
+    ).populate('internalNotes.addedBy', 'firstName lastName role');
+  }
+
+  async addAuditLog(id, field, oldValue, newValue, changedBy) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $push: {
+          auditTrail: {
+            field,
+            oldValue: String(oldValue || ''),
+            newValue: String(newValue || ''),
+            changedBy,
+            changedAt: new Date()
+          }
+        }
+      },
+      { new: true }
+    ).populate('auditTrail.changedBy', 'firstName lastName role');
+  }
+
+  async updateCostTracking(id, costData) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          costTracking: costData,
+          estimatedCost: costData.estimated || 0,
+          actualCost: costData.actual || 0
+        }
+      },
+      { new: true }
+    );
+  }
+
+  async escalateTicket(id, reason) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          isEscalated: true,
+          escalationReason: reason,
+          priority: 'emergency'
+        }
+      },
+      { new: true }
+    );
+  }
+
+  async mergeTicket(id, targetId) {
+    return await Maintenance.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          mergedInto: targetId,
+          status: 'closed'
+        }
+      },
+      { new: true }
+    );
   }
 
   async addRating(id, score, feedback) {

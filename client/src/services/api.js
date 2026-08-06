@@ -130,6 +130,12 @@ export const maintenanceService = {
   deleteRequest: (id) => apiClient.delete(`/maintenance/${id}`),
   getStats: () => apiClient.get('/maintenance/stats'),
   getManagerDashboard: (params) => apiClient.get('/maintenance/manager-dashboard', { params }),
+  addInternalNote: (id, text, attachmentUrl) => apiClient.post(`/maintenance/${id}/internal-notes`, { text, attachmentUrl }),
+  escalateTicket: (id, reason) => apiClient.post(`/maintenance/${id}/escalate`, { reason }),
+  mergeTicket: (id, targetId) => apiClient.post(`/maintenance/${id}/merge`, { targetId }),
+  updateCosts: (id, costData) => apiClient.put(`/maintenance/${id}/costs`, costData),
+  getAuditTrail: (id) => apiClient.get(`/maintenance/${id}/audit-trail`),
+  getRelatedTickets: (id) => apiClient.get(`/maintenance/${id}/related`),
 };
 
 export const notificationService = {

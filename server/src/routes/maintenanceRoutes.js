@@ -18,14 +18,20 @@ router.get('/manager-dashboard', maintenanceController.getManagerDashboard);
 router.get('/:id', maintenanceController.getRequestById);
 router.get('/:id/timeline', maintenanceController.getTimeline);
 router.get('/:id/comments', maintenanceController.getComments);
+router.get('/:id/audit-trail', maintenanceController.getAuditTrail);
+router.get('/:id/related', maintenanceController.getRelatedTickets);
 
 router.post('/', maintenanceController.createRequest);
 router.post('/:id/attachments', upload.array('attachments', 10), maintenanceController.uploadAttachments);
 router.delete('/:id/attachments', maintenanceController.deleteAttachment);
 router.post('/:id/notes', maintenanceController.addNote);
 router.post('/:id/comments', maintenanceController.addNote);
+router.post('/:id/internal-notes', authorize('manager', 'admin'), maintenanceController.addInternalNote);
+router.post('/:id/escalate', authorize('manager', 'admin'), maintenanceController.escalateTicket);
+router.post('/:id/merge', authorize('manager', 'admin'), maintenanceController.mergeTicket);
 router.post('/:id/rating', maintenanceController.addRating);
 
+router.put('/:id/costs', authorize('manager', 'admin'), maintenanceController.updateCosts);
 router.put('/:id/status', maintenanceController.updateStatus);
 router.put('/:id', authorize('manager', 'admin'), maintenanceController.updateRequest);
 router.delete('/:id', authorize('manager', 'admin'), maintenanceController.deleteRequest);
