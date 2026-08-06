@@ -67,10 +67,14 @@ const userSchema = new mongoose.Schema(
       }],
       availabilityStatus: {
         type: String,
-        enum: ['available', 'working', 'travelling', 'break', 'meeting', 'emergency_call', 'on_leave', 'training', 'off_duty', 'free', 'busy', 'offline'],
+        enum: ['available', 'working', 'travelling', 'break', 'meeting', 'emergency_call', 'on_leave', 'training', 'off_duty', 'free', 'busy', 'offline', 'online'],
         default: 'available'
       },
-      liveStatus: { type: String, enum: ['online', 'travelling', 'working', 'break', 'off_duty', 'emergency'], default: 'online' },
+      liveStatus: {
+        type: String,
+        enum: ['online', 'offline', 'travelling', 'working', 'break', 'off_duty', 'emergency', 'emergency_call', 'available', 'free', 'busy'],
+        default: 'offline'
+      },
       shift: { type: String, enum: ['morning', 'afternoon', 'night', 'custom'], default: 'morning' },
       workingDays: [{ type: String, enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }],
       workingHours: { start: { type: String, default: '09:00' }, end: { type: String, default: '17:00' } },

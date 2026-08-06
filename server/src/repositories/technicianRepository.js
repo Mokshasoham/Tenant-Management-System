@@ -24,7 +24,7 @@ export class TechnicianRepository {
         employeeId: data.employeeId || inputProfile.employeeId || defaultEmployeeId,
         employmentStatus: inputProfile.employmentStatus || 'active',
         employmentType: inputProfile.employmentType || 'full_time',
-        availabilityStatus: inputProfile.availabilityStatus || 'free',
+        availabilityStatus: inputProfile.availabilityStatus || 'available',
         liveStatus: inputProfile.liveStatus || 'offline',
         verificationStatus: 'INVITED',
         createdBy: validCreatorId,
