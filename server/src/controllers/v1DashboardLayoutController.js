@@ -1,13 +1,89 @@
 /**
  * server/src/controllers/v1DashboardLayoutController.js
  *
- * REST Controller for Dashboard Personalization & Profile Switching APIs.
+ * REST Controller for Dashboard Personalization, Profile Switching, and Import/Export Engine.
  * Enforces authentication & role permissions.
  */
 
 import dashboardLayoutService from '../services/DashboardLayoutService.js';
+import dashboardExportService from '../services/DashboardExportService.js';
 
 export class V1DashboardLayoutController {
+  /**
+   * GET /api/v1/dashboard-layouts/export
+   * Downloads user layout profile as portable JSON package.
+   */
+  async exportLayout(req, res, next) {
+    try {
+      const userId = req.user?._id || req.user?.id || req.user?.userId;
+      const role = req.query.role || req.user?.role || 'admin';
+      const profileName = req.query.profileName || 'Default';
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'UNAUTHORIZED: User authentication required.' });
+      }
+
+      const packageDTO = await dashboardExportService.exportLayoutJSON(userId, role, profileName);
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="dashboard-layout-${profileName.toLowerCase().replace(/\s+/g, '-')}.json"`);
+      return res.status(200).json(packageDTO);
+    } catch (err) {
+      if (err.statusCode === 404) {
+        return res.status(404).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/dashboard-layouts/import/preview
+   * Non-destructively previews and validates an uploaded layout JSON package.
+   */
+  async previewImport(req, res, next) {
+    try {
+      const userId = req.user?._id || req.user?.id || req.user?.userId;
+      const role = req.body.role || req.user?.role || 'admin';
+      const { packageData } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'UNAUTHORIZED: User authentication required.' });
+      }
+
+      const summary = await dashboardExportService.previewImportJSON(userId, role, packageData);
+      return res.status(200).json(summary);
+    } catch (err) {
+      if (err.message?.startsWith('IMPORT_VALIDATION_')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v1/dashboard-layouts/import/execute
+   * Executes layout import applying chosen duplicate resolution strategy.
+   */
+  async executeImport(req, res, next) {
+    try {
+      const userId = req.user?._id || req.user?.id || req.user?.userId;
+      const role = req.body.role || req.user?.role || 'admin';
+      const { packageData, strategy } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'UNAUTHORIZED: User authentication required.' });
+      }
+
+      const result = await dashboardExportService.executeImportJSON(userId, role, packageData, strategy);
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err.message?.startsWith('IMPORT_VALIDATION_') || err.message?.startsWith('GRID_')) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  }
+
   /**
    * GET /api/v1/dashboard-layouts/profiles
    * Lists all saved profiles for user & role.

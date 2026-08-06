@@ -1,7 +1,7 @@
 /**
  * server/src/routes/v1DashboardLayoutRoutes.js
  *
- * REST Routes for Dashboard Personalization & Profile Switching APIs.
+ * REST Routes for Dashboard Personalization, Profile Switching, and Import/Export Engine.
  * Mount path: /api/v1/dashboard-layouts
  */
 
@@ -13,6 +13,11 @@ const router = express.Router();
 
 // All layout endpoints require authentication
 router.use(authenticate);
+
+// Import / Export Engine Routes
+router.get('/export', (req, res, next) => v1DashboardLayoutController.exportLayout(req, res, next));
+router.post('/import/preview', (req, res, next) => v1DashboardLayoutController.previewImport(req, res, next));
+router.post('/import/execute', (req, res, next) => v1DashboardLayoutController.executeImport(req, res, next));
 
 // Profile Management Routes
 router.get('/profiles', (req, res, next) => v1DashboardLayoutController.listProfiles(req, res, next));
