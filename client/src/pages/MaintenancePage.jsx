@@ -835,9 +835,88 @@ function TicketDetailsModal({ ticket, onClose, onRefresh }) {
     );
 }
 
+function AnimatedCardTimeline({ status }) {
+    const stageMap = {
+        open: 1, submitted: 1, manager_review: 1,
+        technician_assigned: 2, visit_scheduled: 2,
+        technician_en_route: 3, work_started: 3, waiting_parts: 3, in_progress: 3,
+        completed: 4, resolved: 4, closed: 4, cancelled: 0
+    };
+
+    const currentStage = stageMap[status] || 1;
+    const isCancelled = status === 'cancelled';
+    const pct = isCancelled ? 100 : currentStage === 1 ? 25 : currentStage === 2 ? 50 : currentStage === 3 ? 75 : 100;
+
+    const stages = [
+        { num: 1, label: 'Submitted', icon: FileText },
+        { num: 2, label: 'Assigned', icon: UserCheck },
+        { num: 3, label: 'In Work', icon: Wrench },
+        { num: 4, label: 'Resolved', icon: CheckCircle2 }
+    ];
+
+    return (
+        <div className="space-y-2 py-1.5 bg-muted/20 p-2.5 rounded-2xl border border-border/40">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+                <span className="text-muted-foreground/80 uppercase tracking-widest text-[9px] flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-amber-500 animate-spin" /> Live Status Timeline
+                </span>
+                <span className="font-mono text-amber-500 font-extrabold">{pct}% Progress</span>
+            </div>
+
+            {/* Animated glowing progress track */}
+            <div className="relative w-full h-2 rounded-full bg-muted/60 overflow-hidden p-0.5 border border-border/40">
+                <motion.div 
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className={cn(
+                        "h-full rounded-full transition-all shadow-sm",
+                        isCancelled
+                            ? "bg-rose-500"
+                            : "bg-gradient-to-r from-blue-500 via-amber-500 to-emerald-500"
+                    )}
+                />
+            </div>
+
+            {/* Timeline Stepper Nodes */}
+            <div className="grid grid-cols-4 gap-1 pt-1">
+                {stages.map((st) => {
+                    const Icon = st.icon;
+                    const isDone = currentStage > st.num;
+                    const isActive = currentStage === st.num && !isCancelled;
+
+                    return (
+                        <div key={st.num} className="flex flex-col items-center gap-1 text-center">
+                            <motion.div
+                                animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                                transition={isActive ? { repeat: Infinity, duration: 2 } : {}}
+                                className={cn(
+                                    "w-6 h-6 rounded-full border flex items-center justify-center transition-all text-[10px]",
+                                    isDone
+                                        ? "bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20"
+                                        : isActive
+                                        ? "bg-amber-500 text-white border-amber-300 ring-4 ring-amber-500/20 shadow-lg shadow-amber-500/30 font-black"
+                                        : "bg-muted/40 text-muted-foreground/50 border-border"
+                                )}
+                            >
+                                {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Icon className="w-3 h-3" />}
+                            </motion.div>
+                            <span className={cn(
+                                "text-[9px] font-extrabold tracking-tight truncate w-full",
+                                isActive ? "text-amber-500 font-black" : isDone ? "text-foreground font-bold" : "text-muted-foreground/40"
+                            )}>
+                                {st.label}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function RequestCard({ request, isManager, onStatusChange, onSchedule, onOpenDetails, highlighted, highlightedTicketId }) {
     const pc = PRIORITY_CONFIG[request.priority] || PRIORITY_CONFIG.medium;
-    const progress = STATUS_PROGRESS[request.status] || 25;
     const sc = SLOT_CONFIG[request.scheduledSlot];
     const statusClass = STATUS_COLORS[request.status] || STATUS_COLORS.open;
 
@@ -872,6 +951,9 @@ function RequestCard({ request, isManager, onStatusChange, onSchedule, onOpenDet
 
                 <p className="text-xs text-muted-foreground/80 line-clamp-2 leading-relaxed">{request.description}</p>
                 {request.unit && <p className="text-[10px] text-muted-foreground/60 font-semibold">📍 Unit {request.unit} {request.room ? `(${request.room})` : ''}</p>}
+
+                {/* Animated Lifecycle Timeline Stepper on Card */}
+                <AnimatedCardTimeline status={request.status} />
 
                 {request.assignedTo ? (
                     <div className="p-2 rounded-xl border border-border bg-muted/20 flex items-center justify-between text-xs">
