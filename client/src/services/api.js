@@ -151,6 +151,16 @@ export const technicianService = {
   searchTechnicians: (params) => apiClient.get('/technicians/search', { params }),
 };
 
+export const workforceSchedulingService = {
+  getScheduleCalendar: (params) => apiClient.get('/workforce/calendar', { params }),
+  createShift: (data) => apiClient.post('/workforce/shifts', data),
+  detectConflicts: (data) => apiClient.post('/workforce/conflicts', data),
+  autoSuggestTechnician: (ticketId) => apiClient.get(`/workforce/auto-suggest/${ticketId}`),
+  dispatchTicket: (data) => apiClient.post('/workforce/dispatch', data),
+  requestLeave: (data) => apiClient.post('/workforce/leave', data),
+  approveLeave: (id, managerNote) => apiClient.put(`/workforce/leave/${id}/approve`, { managerNote }),
+};
+
 export const notificationService = {
   getMyNotifications: (params) => apiClient.get('/notifications', { params }),
   getUnreadCount: () => apiClient.get('/notifications/unread-count'),

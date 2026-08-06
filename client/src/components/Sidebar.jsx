@@ -7,7 +7,7 @@ import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import {
   LayoutDashboard, Users, FileText, CreditCard, X,
   Building2, Wrench, UserCog, MessageSquare, Home, LogOut, BarChart2, Wallet, Compass,
-  Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck
+  Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -70,6 +70,7 @@ const ALL_NAV_ITEMS = [
   { label: 'Properties', key: 'properties', icon: Home, path: '/properties', roles: ['admin', 'manager'] },
   { label: 'Tenants', key: 'tenants', icon: Users, path: '/tenants', roles: ['admin', 'manager'] },
   { label: 'Workforce', key: 'technicians', icon: UserCheck, path: '/technicians', roles: ['admin', 'manager'] },
+  { label: 'Dispatch Board', key: 'workforceScheduling', icon: Calendar, path: '/workforce-scheduling', roles: ['admin', 'manager'] },
   { label: 'Leases', key: 'leases', icon: FileText, path: '/leases', roles: ['admin', 'manager'] },
   { label: 'Payments', key: 'payments', icon: CreditCard, path: '/payments', roles: ['admin', 'manager', 'tenant'] },
   { label: 'Bills', key: 'bills', icon: Receipt, path: '/bills', roles: ['tenant'] },
