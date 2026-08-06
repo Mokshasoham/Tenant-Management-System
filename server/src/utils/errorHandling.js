@@ -9,6 +9,8 @@ export const asyncHandler = (fn) => {
   };
 };
 
+export const catchAsync = asyncHandler;
+
 export const notFoundHandler = (req, res) => {
   const requestId = req.requestId || 'unknown';
   res.status(404).json({
