@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, Users, Wrench, CreditCard, Plus, ArrowUpRight,
     BarChart3, CalendarDays, CheckCircle2, Clock, XCircle,
     Activity, Check, FileText, UserCheck, RefreshCw, AlertTriangle, Eye, Download, Search, Bell
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { bookingService, visitService } from '../../services/api';
+import { bookingService, visitService, maintenanceService } from '../../services/api';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
