@@ -7,7 +7,7 @@
 
 import express from 'express';
 import asyncHandler from 'express-async-handler';
-import { protect } from '../middleware/authMiddleware.js';
+import { authenticate as protect } from '../middleware/auth.js';
 import { authorizeReminderRole } from '../middleware/reminderAuthorization.js';
 import telemetryService from '../platform/telemetry/telemetryService.js';
 

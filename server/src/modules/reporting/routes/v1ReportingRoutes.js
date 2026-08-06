@@ -6,7 +6,7 @@
  */
 
 import express from 'express';
-import { protect } from '../../../middleware/authMiddleware.js';
+import { authenticate as protect } from '../../../middleware/auth.js';
 import { authorizeReminderRole } from '../../../middleware/reminderAuthorization.js';
 import {
   generateReport,
