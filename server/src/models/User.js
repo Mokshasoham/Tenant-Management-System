@@ -43,16 +43,21 @@ const userSchema = new mongoose.Schema(
       employmentType: { type: String, enum: ['full_time', 'part_time', 'contract', 'vendor'], default: 'full_time' },
       joiningDate: { type: Date },
       yearsOfExperience: { type: Number, default: 0 },
+      maxCapacity: { type: Number, default: 5 },
       skills: [{
         name: String,
-        level: { type: String, enum: ['beginner', 'intermediate', 'expert'], default: 'intermediate' }
+        level: { type: String, enum: ['beginner', 'intermediate', 'expert'], default: 'intermediate' },
+        stars: { type: Number, min: 1, max: 5, default: 4 },
+        yearsExperience: { type: Number, default: 3 },
+        lastUsedDate: Date,
+        linkedCertification: String
       }],
       certifications: [{
         title: String,
         issuer: String,
         expiryDate: Date,
         certificateUrl: String,
-        status: { type: String, enum: ['valid', 'expired', 'pending'], default: 'valid' }
+        status: { type: String, enum: ['valid', 'expiring_soon', 'expired', 'pending'], default: 'valid' }
       }],
       documents: [{
         type: { type: String, enum: ['id_card', 'license', 'police_verification', 'insurance', 'training_certificate', 'other'] },
@@ -60,17 +65,26 @@ const userSchema = new mongoose.Schema(
         url: String,
         uploadedAt: { type: Date, default: Date.now }
       }],
-      availabilityStatus: { type: String, enum: ['free', 'busy', 'on_leave', 'emergency_duty', 'offline'], default: 'free' },
+      availabilityStatus: {
+        type: String,
+        enum: ['available', 'working', 'travelling', 'break', 'meeting', 'emergency_call', 'on_leave', 'training', 'off_duty', 'free', 'busy', 'offline'],
+        default: 'available'
+      },
       liveStatus: { type: String, enum: ['online', 'travelling', 'working', 'break', 'off_duty', 'emergency'], default: 'online' },
       shift: { type: String, enum: ['morning', 'afternoon', 'night', 'custom'], default: 'morning' },
       workingDays: [{ type: String, enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }],
       workingHours: { start: { type: String, default: '09:00' }, end: { type: String, default: '17:00' } },
       territory: {
-        properties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
-        cities: [String],
-        zones: [String],
-        radiusKm: { type: Number, default: 25 }
+        assignedBuildings: [String],
+        assignedProperties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
+        preferredZone: String,
+        travelRadiusKm: { type: Number, default: 25 }
       },
+      activityTimeline: [{
+        title: String,
+        time: { type: Date, default: Date.now },
+        type: String
+      }],
       rating: { type: Number, default: 5.0 },
       firstTimeFixRate: { type: Number, default: 95 },
       reopenedTickets: { type: Number, default: 0 }
