@@ -15,7 +15,10 @@ export class RevenueReportService {
     const since = new Date();
     since.setMonth(since.getMonth() - months);
 
-    const matchQuery = { status: 'paid', paymentDate: { $gte: since } };
+    const matchQuery = {
+      status: 'paid',
+      paymentDate: { $exists: true, $ne: null, $gte: since }
+    };
     if (filters.propertyId) matchQuery.property = filters.propertyId;
 
     const [revenueData, totalStats] = await Promise.all([
@@ -31,7 +34,7 @@ export class RevenueReportService {
             count: { $sum: 1 }
           }
         },
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
+        { $sort: { '_id.year': -1, '_id.month': -1 } }
       ]),
       Payment.aggregate([
         { $match: matchQuery },
@@ -48,16 +51,22 @@ export class RevenueReportService {
     const totalRev = totalStats[0]?.totalRevenue || 0;
     const totalCount = totalStats[0]?.totalTransactions || 0;
 
+    const formattedData = revenueData.map(r => ({
+      month: `${r._id.year}-${String(r._id.month).padStart(2, '0')}`,
+      revenue: r.total,
+      count: r.count
+    }));
+
     builder
       .setSummary({ totalRevenue: totalRev, transactionCount: totalCount, monthsAnalyzed: months })
-      .addKPI('total_revenue', 'Total Collected Revenue', totalRev, '$', 'positive')
+      .addKPI('total_revenue', 'Total Collected Revenue', `$${totalRev.toLocaleString()}`, '', 'positive')
       .addKPI('transaction_count', 'Total Payments Processed', totalCount, '', 'neutral')
-      .addChart('area', 'Revenue Over Time', revenueData.map(r => ({
-        month: `${r._id.year}-${String(r._id.month).padStart(2, '0')}`,
-        revenue: r.total,
-        count: r.count
-      })), { x: 'month', y: 'revenue' })
-      .setTrends(revenueData)
+      .addChart('area', 'Revenue Over Time', formattedData, { x: 'month', y: 'revenue' })
+      .setTable(
+        ['Month', 'Total Revenue ($)', 'Transactions'],
+        formattedData.map(d => [d.month, `$${d.revenue.toLocaleString()}`, d.count])
+      )
+      .setTrends(formattedData)
       .setMeta({ filters });
 
     return builder.build();

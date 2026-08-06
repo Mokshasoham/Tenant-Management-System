@@ -55,6 +55,18 @@ describe('Phase 2.3.4.6 — End-to-End Integration Quality Gate', () => {
       return Promise.resolve(45);
     });
 
+    const chainableMock = {
+      sort: () => ({ limit: () => ({ lean: () => Promise.resolve([]) }) }),
+      limit: () => ({ lean: () => Promise.resolve([]) }),
+      lean: () => Promise.resolve([])
+    };
+
+    jest.spyOn(Payment, 'find').mockReturnValue(chainableMock);
+    jest.spyOn(Property, 'find').mockReturnValue(chainableMock);
+    jest.spyOn(Lease, 'find').mockReturnValue(chainableMock);
+    jest.spyOn(Maintenance, 'find').mockReturnValue(chainableMock);
+    jest.spyOn(Notification, 'find').mockReturnValue(chainableMock);
+
     jest.spyOn(Property, 'countDocuments').mockImplementation((query = {}) => {
       if (query.status === 'occupied') return Promise.resolve(80);
       if (query.status === 'available') return Promise.resolve(20);

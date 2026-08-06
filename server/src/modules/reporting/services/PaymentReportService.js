@@ -11,7 +11,7 @@ export class PaymentReportService {
   async generate(filters = {}) {
     const builder = new ReportResponseBuilder('payment');
 
-    const [totalPayments, paidPayments, overduePayments, pendingPayments, methodBreakdown] = await Promise.all([
+    const [totalPayments, paidPayments, overduePayments, pendingPayments, methodBreakdown, recentPayments] = await Promise.all([
       Payment.countDocuments(),
       Payment.countDocuments({ status: 'paid' }),
       Payment.countDocuments({ status: 'overdue' }),
@@ -19,13 +19,14 @@ export class PaymentReportService {
       Payment.aggregate([
         { $match: { status: 'paid' } },
         { $group: { _id: '$paymentMethod', count: { $sum: 1 }, total: { $sum: '$amountPaid' } } }
-      ])
+      ]),
+      Payment.find().sort({ createdAt: -1 }).limit(50).lean()
     ]);
 
     const collectionRate = totalPayments > 0 ? Math.round((paidPayments / totalPayments) * 100) : 0;
 
     const chartData = methodBreakdown.map(item => ({
-      method: item._id || 'Standard/Online',
+      method: (item._id || 'Standard/Online').toUpperCase(),
       count: item.count,
       totalAmount: item.total
     }));
@@ -36,6 +37,16 @@ export class PaymentReportService {
       .addKPI('paid_payments_count', 'Paid Transactions', paidPayments, '', 'positive')
       .addKPI('overdue_payments_count', 'Overdue Payments', overduePayments, '', 'negative')
       .addChart('bar', 'Revenue by Payment Method', chartData, { x: 'method', y: 'totalAmount' })
+      .setTable(
+        ['Payment ID', 'Amount ($)', 'Method', 'Status', 'Date'],
+        recentPayments.map(p => [
+          String(p._id).substring(0, 8),
+          `$${(p.amountPaid || p.amount || 0).toLocaleString()}`,
+          (p.paymentMethod || 'Online').toUpperCase(),
+          (p.status || 'unknown').toUpperCase(),
+          p.paymentDate ? new Date(p.paymentDate).toISOString().split('T')[0] : 'N/A'
+        ])
+      )
       .setMeta({ filters });
 
     return builder.build();

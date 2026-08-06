@@ -11,11 +11,12 @@ export class OccupancyReportService {
   async generate(filters = {}) {
     const builder = new ReportResponseBuilder('occupancy');
 
-    const [total, occupied, available, maintenance] = await Promise.all([
+    const [total, occupied, available, maintenance, propertyList] = await Promise.all([
       Property.countDocuments(),
       Property.countDocuments({ status: 'occupied' }),
       Property.countDocuments({ status: 'available' }),
-      Property.countDocuments({ status: 'maintenance' })
+      Property.countDocuments({ status: 'maintenance' }),
+      Property.find({}, 'name address status rentAmount').limit(50).lean()
     ]);
 
     const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
@@ -33,6 +34,10 @@ export class OccupancyReportService {
       .addKPI('available_units', 'Available Units', available, '', 'neutral')
       .addKPI('maintenance_units', 'Units in Maintenance', maintenance, '', 'warning')
       .addChart('pie', 'Property Occupancy Breakdown', donutData, { key: 'name', value: 'value' })
+      .setTable(
+        ['Property Name', 'Status', 'Rent Amount ($)'],
+        propertyList.map(p => [p.name || 'Unnamed Property', (p.status || 'unknown').toUpperCase(), `$${(p.rentAmount || 0).toLocaleString()}`])
+      )
       .setMeta({ filters });
 
     return builder.build();

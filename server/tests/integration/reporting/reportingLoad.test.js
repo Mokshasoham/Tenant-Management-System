@@ -30,6 +30,15 @@ describe('Phase 2.3.4.6 — Reporting & Export Load/Stress Test Suite', () => {
       }
       return Promise.resolve([{ totalRevenue: 150000, totalTransactions: 45 }]);
     });
+    const chainableMock = {
+      sort: () => ({ limit: () => ({ lean: () => Promise.resolve([]) }) }),
+      limit: () => ({ lean: () => Promise.resolve([]) }),
+      lean: () => Promise.resolve([])
+    };
+
+    jest.spyOn(Payment, 'find').mockReturnValue(chainableMock);
+    jest.spyOn(Property, 'find').mockReturnValue(chainableMock);
+
     jest.spyOn(Payment, 'countDocuments').mockResolvedValue(45);
 
     jest.spyOn(Property, 'countDocuments').mockImplementation((query = {}) => {

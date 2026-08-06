@@ -392,9 +392,9 @@ export default function ReportingHubTab() {
                   <tbody className="divide-y divide-border/50 text-foreground font-medium">
                     {(reportData.table?.rows || reportData.tables?.[0]?.rows || []).map((row, rIdx) => (
                       <tr key={rIdx} className="hover:bg-muted/30 transition-colors">
-                        {Object.values(row).map((val, cIdx) => (
+                        {(Array.isArray(row) ? row : Object.values(row)).map((val, cIdx) => (
                           <td key={cIdx} className="p-3">
-                            {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                            {typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '')}
                           </td>
                         ))}
                       </tr>

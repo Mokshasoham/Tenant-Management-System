@@ -25,6 +25,7 @@ export class ManagerPerformanceReportService {
         return {
           id: m._id,
           name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email,
+          email: m.email,
           assignedProperties,
           openTickets
         };
@@ -39,6 +40,10 @@ export class ManagerPerformanceReportService {
         properties: s.assignedProperties,
         tickets: s.openTickets
       })), { x: 'manager', y: 'properties' })
+      .setTable(
+        ['Manager Name', 'Email', 'Assigned Properties', 'Open Maintenance Tickets'],
+        managerStats.map(s => [s.name, s.email, s.assignedProperties, s.openTickets])
+      )
       .setMeta({ filters });
 
     return builder.build();
