@@ -7,8 +7,8 @@
 import { jest } from '@jest/globals';
 import dashboardExportService from '../../../src/services/DashboardExportService.js';
 import dashboardLayoutRepository from '../../../src/repositories/dashboardLayoutRepository.js';
-import dashboardLayoutService from '../../../src/services/DashboardLayoutService.js';
 import eventBus from '../../../src/platform/events/eventBus.js';
+import mongoose from 'mongoose';
 
 describe('Phase 2.3.5.4 — Import / Export Engine Unit Tests', () => {
 
@@ -85,10 +85,10 @@ describe('Phase 2.3.5.4 — Import / Export Engine Unit Tests', () => {
   });
 
   // ─────────────────────────────────────────────────────────────
-  // 3. EXECUTE IMPORT & DUPLICATE RESOLUTION
+  // 3. EXECUTE IMPORT & DUPLICATE RESOLUTION (TRANSACTIONAL)
   // ─────────────────────────────────────────────────────────────
-  describe('Execute Import & Duplicate Resolution', () => {
-    test('executes import with CREATE_COPY strategy and emits event', async () => {
+  describe('Execute Import & Duplicate Resolution (Transactional)', () => {
+    test('executes import with CREATE_COPY strategy inside a session and emits event', async () => {
       const eventsEmitted = [];
       eventBus.subscribe('dashboard.layout.imported', (payload) => eventsEmitted.push(payload));
 
@@ -96,9 +96,17 @@ describe('Phase 2.3.5.4 — Import / Export Engine Unit Tests', () => {
         profileName: 'Finance'
       });
 
-      jest.spyOn(dashboardLayoutService, 'saveLayout').mockResolvedValue({
+      // Mock upsertLayout — the direct call inside the transaction.
+      jest.spyOn(dashboardLayoutRepository, 'upsertLayout').mockResolvedValue({
         widgets: [{ widgetId: 'revenue_kpi', x: 0, y: 0, w: 2, h: 1 }]
       });
+
+      // Mock mongoose session so we don't need a live MongoDB replica set.
+      const mockSession = {
+        withTransaction: async (fn) => { await fn(); },
+        endSession: jest.fn()
+      };
+      jest.spyOn(mongoose, 'startSession').mockResolvedValue(mockSession);
 
       const samplePackage = {
         schemaVersion: 1,
@@ -112,6 +120,26 @@ describe('Phase 2.3.5.4 — Import / Export Engine Unit Tests', () => {
       expect(res.profileName).toBe('Finance (Imported)');
       expect(eventsEmitted).toHaveLength(1);
       expect(eventsEmitted[0].profileName).toBe('Finance (Imported)');
+      expect(mockSession.endSession).toHaveBeenCalled();
+    });
+
+    test('SKIP strategy returns early without any DB writes', async () => {
+      jest.spyOn(dashboardLayoutRepository, 'findByUserAndRole').mockResolvedValue({
+        profileName: 'Operations'
+      });
+
+      const upsertSpy = jest.spyOn(dashboardLayoutRepository, 'upsertLayout');
+
+      const samplePackage = {
+        schemaVersion: 1,
+        profileName: 'Operations',
+        widgets: [{ widgetId: 'occupancy_kpi', x: 0, y: 0, w: 2, h: 1 }]
+      };
+
+      const res = await dashboardExportService.executeImportJSON('user123', 'admin', samplePackage, 'SKIP');
+
+      expect(res.imported).toBe(false);
+      expect(upsertSpy).not.toHaveBeenCalled();
     });
   });
 

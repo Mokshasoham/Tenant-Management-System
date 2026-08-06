@@ -3,6 +3,7 @@
  *
  * Repository pattern implementation for DashboardLayout persistence.
  * Enforces Mongoose __v Optimistic Concurrency Control (OCC) during updates.
+ * Accepts an optional Mongoose ClientSession for transactional callers.
  */
 
 import DashboardLayout from '../models/DashboardLayout.js';
@@ -40,9 +41,11 @@ export class DashboardLayoutRepository {
 
   /**
    * Upserts layout preferences enforcing __v Optimistic Concurrency Control.
+   * @param {object} [session] - Optional Mongoose ClientSession for transactional callers.
    */
-  async upsertLayout(userId, dashboardRole, profileName, widgets, expectedVersion = null) {
-    const existing = await DashboardLayout.findOne({ userId, dashboardRole, profileName });
+  async upsertLayout(userId, dashboardRole, profileName, widgets, expectedVersion = null, session = null) {
+    const queryOpts = session ? { session } : {};
+    const existing = await DashboardLayout.findOne({ userId, dashboardRole, profileName }, null, queryOpts);
 
     if (existing) {
       if (expectedVersion !== null && expectedVersion !== undefined && existing.__v !== expectedVersion) {
@@ -56,22 +59,26 @@ export class DashboardLayoutRepository {
       existing.widgets = widgets;
       existing.isActive = true;
       existing.markModified('widgets');
-      return existing.save();
+      existing.markModified('lastKnownGoodLayout');
+      return existing.save(queryOpts);
     }
 
     // Set other profiles inactive before creating active profile
     await DashboardLayout.updateMany(
       { userId, dashboardRole },
-      { $set: { isActive: false } }
+      { $set: { isActive: false } },
+      queryOpts
     );
 
-    return DashboardLayout.create({
+    const [created] = await DashboardLayout.create([{
       userId,
       dashboardRole,
       profileName,
       isActive: true,
       widgets
-    });
+    }], queryOpts);
+
+    return created;
   }
 
   /**

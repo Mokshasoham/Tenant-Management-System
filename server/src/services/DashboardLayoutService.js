@@ -11,6 +11,37 @@ import dashboardLayoutRepository from '../repositories/dashboardLayoutRepository
 import eventBus from '../platform/events/eventBus.js';
 import logger from '../platform/logging/logger.js';
 
+/**
+ * In-process audit ring-buffer.
+ * Captures all dashboard.* domain events published on EventBus.
+ * Keyed by userId, max 100 entries per user (FIFO eviction).
+ * This is a lightweight, zero-dependency, no-new-model solution.
+ */
+const AUDIT_MAX_PER_USER = 100;
+const _auditRingBuffer = new Map(); // Map<userId, Array<{action, details, timestamp}>>
+
+function _recordAuditEvent(userId, action, details) {
+  if (!userId) return;
+  const key = String(userId);
+  if (!_auditRingBuffer.has(key)) {
+    _auditRingBuffer.set(key, []);
+  }
+  const log = _auditRingBuffer.get(key);
+  log.unshift({ action, details, timestamp: new Date().toISOString() });
+  if (log.length > AUDIT_MAX_PER_USER) {
+    log.length = AUDIT_MAX_PER_USER; // FIFO eviction
+  }
+}
+export { _recordAuditEvent };
+
+// Subscribe to all dashboard domain events once at module load.
+eventBus.subscribe('dashboard.layout.updated', (p) => _recordAuditEvent(p.userId, 'LAYOUT_SAVED', `Saved layout profile '${p.profileName}' (${p.widgetCount} widgets)`));
+eventBus.subscribe('dashboard.layout.exported', (p) => _recordAuditEvent(p.userId, 'LAYOUT_EXPORTED', `Exported profile '${p.profileName}' — checksum ${p.checksum})`));
+eventBus.subscribe('dashboard.layout.imported', (p) => _recordAuditEvent(p.userId, 'LAYOUT_IMPORTED', `Imported '${p.profileName}' via ${p.strategy} (${p.importedWidgets} widgets, ${p.skippedWidgets} skipped)`));
+eventBus.subscribe('dashboard.profile.changed', (p) => _recordAuditEvent(p.userId, 'PROFILE_SWITCHED', `Switched active profile to '${p.profileName}'`));
+eventBus.subscribe('dashboard.profile.cloned', (p) => _recordAuditEvent(p.userId, 'PROFILE_CLONED', `Cloned preset '${p.presetId}' → '${p.profileName}'`));
+eventBus.subscribe('dashboard.template.applied', (p) => _recordAuditEvent(p.userId, 'TEMPLATE_APPLIED', `Applied template '${p.templateTitle}' → profile '${p.profileName}'`));
+
 export class DashboardLayoutService {
   /**
    * Generates AI layout suggestions DTO based on user role and activity.
@@ -31,16 +62,19 @@ export class DashboardLayoutService {
 
   /**
    * Retrieves Studio Activity Log audit events for a user.
+   * Reads from the in-process EventBus audit ring-buffer populated by all
+   * dashboard.* domain events. Returns up to 50 most recent events.
    */
   async getActivityLog(userId, dashboardRole) {
+    const key = String(userId);
+    const events = _auditRingBuffer.get(key) || [];
+
     return {
       success: true,
       userId,
       dashboardRole,
-      events: [
-        { action: 'PROFILE_SWITCHED', details: "Switched profile to 'Finance Executive'", timestamp: new Date().toISOString() },
-        { action: 'LAYOUT_SAVED', details: "Saved custom 4-widget arrangement for 'Default'", timestamp: new Date(Date.now() - 3600000).toISOString() }
-      ]
+      total: events.length,
+      events: events.slice(0, 50)
     };
   }
 
