@@ -5,6 +5,7 @@
 
 import mongoose from 'mongoose';
 import User from '../models/User.js';
+import Property from '../models/Property.js';
 
 export class TechnicianRepository {
   async create(data, creatorId = null) {
@@ -48,7 +49,7 @@ export class TechnicianRepository {
   async findById(id) {
     return await User.findOne({ _id: id, role: 'technician' })
       .select('-password')
-      .populate('technicianProfile.territory.properties', 'name address');
+      .populate('technicianProfile.territory.assignedProperties', 'name address');
   }
 
   async findWithFilters(filter = {}, skip = 0, limit = 50) {
@@ -58,7 +59,7 @@ export class TechnicianRepository {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 })
-      .populate('technicianProfile.territory.properties', 'name address');
+      .populate('technicianProfile.territory.assignedProperties', 'name address');
   }
 
   async countWithFilters(filter = {}) {
