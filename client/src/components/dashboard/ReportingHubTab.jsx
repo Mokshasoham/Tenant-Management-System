@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from '../../services/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Download, Calendar, Filter, Save, Sparkles, RefreshCw,
@@ -59,13 +59,13 @@ export default function ReportingHubTab() {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('/api/v1/reports/generate', {
+      const res = await apiClient.post('/v1/reports/generate', {
         reportType: selectedType,
         filters: normalizeFilters(dateRange, statusFilter)
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
 
-      setReportData(res.data.data || res.data);
+      // apiClient interceptor returns response.data directly
+      setReportData(res?.data || res);
     } catch (err) {
       console.error('Failed to generate report:', err);
       showToastMsg('Failed to generate report');
@@ -76,11 +76,8 @@ export default function ReportingHubTab() {
 
   const fetchSavedPresets = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/v1/reports/saved', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSavedPresets(res.data.data || []);
+      const res = await apiClient.get('/v1/reports/saved');
+      setSavedPresets(res?.data || res || []);
     } catch (err) {
       console.error('Failed to fetch saved presets:', err);
     }
@@ -96,11 +93,8 @@ export default function ReportingHubTab() {
     if (!activeJob || activeJob.status === 'completed' || activeJob.status === 'failed') return;
     const interval = setInterval(async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`/api/v1/reports/export/jobs/${activeJob._id || activeJob.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const jobState = res.data.data || res.data;
+        const res = await apiClient.get(`/v1/reports/export/jobs/${activeJob._id || activeJob.id}`);
+        const jobState = res?.data || res;
         setActiveJob(jobState);
         if (jobState.status === 'completed') {
           showToastMsg('Background Export Job Completed!');
@@ -115,28 +109,21 @@ export default function ReportingHubTab() {
   const handleExport = async (format) => {
     setExporting(true);
     try {
-      const token = localStorage.getItem('token');
-      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
       if (backgroundJob) {
-        // Enqueue background export job
-        const res = await axios.post('/api/v1/reports/export/jobs', {
+        const res = await apiClient.post('/v1/reports/export/jobs', {
           reportType: selectedType,
           filters: normalizeFilters(dateRange, statusFilter),
           format
-        }, authHeader);
-        
-        setActiveJob(res.data.data || res.data);
+        });
+        setActiveJob(res?.data || res);
         showToastMsg(`Background ${format.toUpperCase()} export job queued!`);
       } else {
-        // Direct synchronous export
-        const res = await axios.post('/api/v1/reports/export', {
+        const res = await apiClient.post('/v1/reports/export', {
           reportType: selectedType,
           filters: normalizeFilters(dateRange, statusFilter),
           format
-        }, authHeader);
-
-        const downloadUrl = res.data.data?.downloadUrl || res.data.downloadUrl;
+        });
+        const downloadUrl = res?.data?.downloadUrl || res?.downloadUrl;
         if (downloadUrl) {
           window.open(downloadUrl, '_blank');
           showToastMsg(`Successfully generated ${format.toUpperCase()} report export!`);
@@ -153,13 +140,11 @@ export default function ReportingHubTab() {
   const handleSavePreset = async () => {
     if (!presetName) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('/api/v1/reports/saved', {
+      await apiClient.post('/v1/reports/saved', {
         name: presetName,
         reportType: selectedType,
         filters: normalizeFilters(dateRange, statusFilter)
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
+      });
       showToastMsg(`Preset '${presetName}' saved!`);
       setPresetName('');
       setShowSaveModal(false);

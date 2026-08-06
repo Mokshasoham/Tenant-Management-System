@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from '../../services/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, Cpu, Database, RefreshCw, AlertTriangle, ShieldCheck,
@@ -21,20 +21,18 @@ export default function OperationsObservabilityTab() {
 
   const fetchAllData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
       const [telRes, opsRes, verRes, dlRes] = await Promise.allSettled([
-        axios.get('/api/v1/telemetry/metrics', authHeader),
-        axios.get('/api/v1/operations/status', authHeader),
-        axios.get('/api/v1/operations/version', authHeader),
-        axios.get('/api/v1/operations/dead-letter?page=1&limit=10', authHeader)
+        apiClient.get('/v1/telemetry/metrics'),
+        apiClient.get('/v1/operations/status'),
+        apiClient.get('/v1/operations/version'),
+        apiClient.get('/v1/operations/dead-letter?page=1&limit=10')
       ]);
 
-      if (telRes.status === 'fulfilled') setTelemetry(telRes.value.data.data || telRes.value.data);
-      if (opsRes.status === 'fulfilled') setOperations(opsRes.value.data.data || opsRes.value.data);
-      if (verRes.status === 'fulfilled') setVersionInfo(verRes.value.data.data || verRes.value.data);
-      if (dlRes.status === 'fulfilled') setDeadLetters(dlRes.value.data.data?.items || dlRes.value.data?.items || []);
+      // apiClient interceptor returns response.data directly
+      if (telRes.status === 'fulfilled') setTelemetry(telRes.value?.data || telRes.value);
+      if (opsRes.status === 'fulfilled') setOperations(opsRes.value?.data || opsRes.value);
+      if (verRes.status === 'fulfilled') setVersionInfo(verRes.value?.data || verRes.value);
+      if (dlRes.status === 'fulfilled') setDeadLetters(dlRes.value?.data?.items || dlRes.value?.items || []);
     } catch (err) {
       console.error('Failed to fetch operations telemetry:', err);
     } finally {
@@ -64,12 +62,10 @@ export default function OperationsObservabilityTab() {
   const handleBulkRetry = async () => {
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('/api/v1/operations/dead-letter/retry', {
+      const res = await apiClient.post('/v1/operations/dead-letter/retry', {
         itemIds: selectedIds.length > 0 ? selectedIds : undefined
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      
-      showToast(res.data.message || 'Successfully retried dead-letter jobs');
+      });
+      showToast(res?.message || 'Successfully retried dead-letter jobs');
       setSelectedIds([]);
       fetchAllData();
     } catch (err) {
@@ -83,12 +79,10 @@ export default function OperationsObservabilityTab() {
     if (!window.confirm('Are you sure you want to permanently purge these dead-letter jobs?')) return;
     setActionLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('/api/v1/operations/dead-letter/purge', {
+      const res = await apiClient.post('/v1/operations/dead-letter/purge', {
         itemIds: selectedIds.length > 0 ? selectedIds : undefined
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      showToast(res.data.message || 'Successfully purged dead-letter jobs');
+      });
+      showToast(res?.message || 'Successfully purged dead-letter jobs');
       setSelectedIds([]);
       fetchAllData();
     } catch (err) {

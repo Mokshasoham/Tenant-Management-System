@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import apiClient from '../../services/apiClient';
 import { motion } from 'framer-motion';
 import {
     Building2, Users, Wrench, CreditCard, Plus, ArrowUpRight,
@@ -150,11 +151,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
 
         const fetchRenewals = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('/api/renewals', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setRenewals(res.data.data || res.data || []);
+                const res = await apiClient.get('/renewals');
+                setRenewals(res?.data || res || []);
             } catch (e) {
                 console.error('Error fetching renewals:', e);
             }
@@ -715,14 +713,11 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        const token = localStorage.getItem('token');
-                                                        await axios.put(`/api/renewals/${r._id}/approve`, {}, {
-                                                            headers: { Authorization: `Bearer ${token}` }
-                                                        });
+                                                        await apiClient.put(`/renewals/${r._id}/approve`, {});
                                                         alert('Renewal approved successfully!');
                                                         window.location.reload();
                                                     } catch (e) {
-                                                        alert(e.response?.data?.message || 'Failed to approve renewal');
+                                                        alert(e?.message || 'Failed to approve renewal');
                                                     }
                                                 }}
                                                 className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all"
@@ -734,14 +729,11 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     const reason = prompt('Reason for rejection:');
                                                     if (!reason) return;
                                                     try {
-                                                        const token = localStorage.getItem('token');
-                                                        await axios.put(`/api/renewals/${r._id}/reject`, { rejectionReason: reason }, {
-                                                            headers: { Authorization: `Bearer ${token}` }
-                                                        });
+                                                        await apiClient.put(`/renewals/${r._id}/reject`, { rejectionReason: reason });
                                                         alert('Renewal rejected.');
                                                         window.location.reload();
                                                     } catch (e) {
-                                                        alert(e.response?.data?.message || 'Failed to reject renewal');
+                                                        alert(e?.message || 'Failed to reject renewal');
                                                     }
                                                 }}
                                                 className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all"
