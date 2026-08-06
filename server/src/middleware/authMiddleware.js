@@ -8,4 +8,4 @@
  *   restrictTo → authorize    (RBAC role guard)
  */
 
-export { authenticate as protect, authorize as restrictTo } from './auth.js';
+export { authenticate, authenticate as protect, authorize, authorize as restrictTo, authorize as authorizeRoles } from './auth.js';

@@ -4,8 +4,7 @@
  */
 
 import express from 'express';
-import { authenticate } from '../middleware/authMiddleware.js';
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import { authenticate, authorizeRoles } from '../middleware/authMiddleware.js';
 import {
   getRecommendations,
   getRecommendationHistory,
