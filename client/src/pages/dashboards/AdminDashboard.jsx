@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import AdminPayouts from './AdminPayouts';
+import OperationsObservabilityTab from '../../components/dashboard/OperationsObservabilityTab';
 
 // Animated counter hook
 function useCounter(end, duration = 2000) {
@@ -200,6 +201,15 @@ export default function AdminDashboard({ stats, loading }) {
                 >
                     PAYOUT REQUESTS
                 </button>
+                <button
+                    onClick={() => setView('operations')}
+                    className={cn(
+                        "px-6 py-2 rounded-xl text-xs font-black transition-all",
+                        view === 'operations' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
+                    )}
+                >
+                    OPERATIONS & OBSERVABILITY
+                </button>
             </div>
 
             {view === 'overview' ? (
@@ -344,13 +354,21 @@ export default function AdminDashboard({ stats, loading }) {
                         </motion.div>
                     </div>
                 </>
-            ) : (
+            ) : view === 'payouts' ? (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.4 }}
                 >
                     <AdminPayouts />
+                </motion.div>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <OperationsObservabilityTab />
                 </motion.div>
             )}
         </div>
