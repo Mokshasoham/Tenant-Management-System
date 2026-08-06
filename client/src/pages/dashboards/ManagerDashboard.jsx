@@ -361,57 +361,14 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
             </div>
 
             {view === 'overview' ? (
-                <div className="space-y-6">
+                <>
                     {/* Stat Cards */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {statCards.map((card) => (
                             <ManagerStatCard key={card.title} card={card} />
                         ))}
                     </div>
-
-                    {/* Overview Content Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Left 2 Cols: Bookings & Property Visits */}
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="p-6 rounded-3xl border border-border bg-card shadow-sm space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Live Activity</span>
-                                        <h3 className="text-base font-black text-foreground">Recent Booking &amp; Lease Requests</h3>
-                                    </div>
-                                    <button onClick={() => navigate('/tenants')} className="text-xs font-bold text-primary hover:underline">Manage All</button>
-                                </div>
-
-                                <div className="space-y-2">
-                                    {bookings.slice(0, 5).map((b) => (
-                                        <div key={b._id} className="p-3.5 rounded-2xl border border-border bg-muted/20 flex items-center justify-between text-xs">
-                                            <div>
-                                                <p className="font-bold text-foreground">{b.property?.name || 'Assigned Property'}</p>
-                                                <p className="text-[10px] text-muted-foreground">Requested by {b.tenant?.firstName} {b.tenant?.lastName} • ₹{b.rentAmount || 15000}/mo</p>
-                                            </div>
-                                            <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-bold border',
-                                                b.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                            )}>
-                                                {b.status?.toUpperCase()}
-                                            </span>
-                                        </div>
-                                    ))}
-                                    {bookings.length === 0 && (
-                                        <div className="p-6 rounded-2xl border border-dashed border-border text-center text-xs text-muted-foreground">
-                                            No active booking requests pending.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Right Col: Widgets & World Clock */}
-                        <div className="space-y-6">
-                            <CalendarWidget />
-                            <WorldClockWidget />
-                        </div>
-                    </div>
-                </div>
+                </>
             ) : view === 'maintenance' ? (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
                     <ManagerMaintenanceView navigate={navigate} />
