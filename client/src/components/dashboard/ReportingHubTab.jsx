@@ -123,8 +123,13 @@ export default function ReportingHubTab() {
           filters: normalizeFilters(dateRange, statusFilter),
           format
         });
-        const downloadUrl = res?.data?.downloadUrl || res?.downloadUrl;
+        let downloadUrl = res?.data?.downloadUrl || res?.downloadUrl;
         if (downloadUrl) {
+          if (downloadUrl.startsWith('/')) {
+            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+            const backendOrigin = apiBase.replace(/\/api\/?$/, '');
+            downloadUrl = `${backendOrigin}${downloadUrl}`;
+          }
           window.open(downloadUrl, '_blank');
           showToastMsg(`Successfully generated ${format.toUpperCase()} report export!`);
         }
