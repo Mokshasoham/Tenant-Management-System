@@ -13,6 +13,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.6.0] — 2026-08-07 — Phase 5.2 Manager Verification Portal
+### Added
+- **Manager Verification Dashboard Home**: `client/src/pages/manager/ManagerVerificationPage.jsx` mounted at `/manager/verification` as permanent verification home with VRF status, trust score, badge tier, required docs summary, quick navigation, and state-driven actions (`UNVERIFIED`, `DRAFT`, `SUBMITTED`, `AUTO_REVIEW`, `MANAGER_REVIEW`, `ADMIN_REVIEW`, `APPROVED`, `REJECTED`).
+- **Manager Verification Wizard**: `client/src/pages/manager/ManagerVerificationWizard.jsx` with 6-step progress stepper (Profile → Business → Identity Docs → Business Docs → Review → Submit) and 25-second background autosave.
+- **Categorized Document Workspace**: `client/src/pages/manager/ManagerVerificationDocuments.jsx` with category tabs (`IDENTITY`, `BUSINESS`, `TAX`, `PROPERTY`), drag & drop file upload, image compression, and status indicators.
+- **Audit & History Timeline**: `client/src/pages/manager/ManagerVerificationTimeline.jsx` displaying timestamped audit events and history drawer.
+- **Trust Score & Credibility Analytics**: `client/src/pages/manager/ManagerTrustScorePage.jsx` showing score card (0-100), badge tier, 7-part breakdown, score trend line, and dynamic improvement suggestions.
+- **Sidebar Integration**: Added `Verification` sub-module item (`/manager/verification`) to `Sidebar.jsx`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed in 26.82s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 3.47s).
+- **Git Commit**: `84e428714bdd9e3edd9a4b184dd5a57ec59e5dd4`
+
+---
+
 ## [1.5.0] — 2026-08-07 — Phase 5.1 Verification UI Foundation
 ### Added
 - **Feature Flag Service**: `client/src/services/FeatureFlagService.js` and `client/src/config/featureFlags.js` supporting dynamic Demo vs Production toggles.
