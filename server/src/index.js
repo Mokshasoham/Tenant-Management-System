@@ -46,6 +46,7 @@ import technicianRoutes from './routes/technicianRoutes.js';
 import workforceSchedulingRoutes from './routes/workforceSchedulingRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import leaseRenewalV1Routes from './modules/lease-renewal/routes.js';
+import verificationRoutes from './routes/verificationRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
 import { verifyEmailConfiguration } from './services/emailProvider.js';
@@ -274,6 +275,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/offers', offerRoutes);
 app.use('/api/visits', propertyVisitRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/verifications', verificationRoutes);
+app.use('/api/verification', verificationRoutes);
 
 // General auth-protected Stripe routes
 app.use('/api/stripe', stripeRoutes);

@@ -1,0 +1,293 @@
+import mongoose from 'mongoose';
+import verificationService from '../services/verificationService.js';
+import { AppError, asyncHandler } from '../utils/errorHandling.js';
+
+const ALLOWED_ENTITY_TYPES = ['TENANT', 'MANAGER', 'PROPERTY', 'TECHNICIAN', 'VENDOR', 'BROKER'];
+
+/**
+ * Controller Layer for Verification & Trust Platform.
+ * Enforces strict request validation, role boundaries, and delegates all business logic to verificationService.
+ */
+
+// 1. GET /api/verifications (Admin Queue / Filtered List)
+export const getVerifications = asyncHandler(async (req, res) => {
+  const { status, entityType, isOverdue, slaStatus, search, page = 1, limit = 20 } = req.query;
+
+  const parsedOverdue = isOverdue === 'true' ? true : isOverdue === 'false' ? false : undefined;
+
+  const result = await verificationService.getPendingQueue({
+    status,
+    entityType,
+    isOverdue: parsedOverdue,
+    slaStatus,
+    search,
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result.items,
+    pagination: result.pagination,
+  });
+});
+
+// 2. GET /api/verifications/:id
+export const getVerificationById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const verification = await verificationService.getVerificationById(id);
+
+  // Ownership Guard: Non-admin users can only view their own verification
+  const requesterId = (req.user.userId || req.user._id || req.user.id).toString();
+  const isOwner = verification.entityId.toString() === requesterId;
+  const isAdminOrManager = ['admin', 'manager'].includes(req.user.role);
+
+  if (!isOwner && !isAdminOrManager) {
+    throw new AppError('Forbidden: You can only view your own verification records', 403);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: verification,
+  });
+});
+
+// 3. POST /api/verifications (Initiate Verification)
+export const initiateVerification = asyncHandler(async (req, res) => {
+  const { entityType, entityId } = req.body;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!entityType || !ALLOWED_ENTITY_TYPES.includes(entityType.toUpperCase())) {
+    throw new AppError(`Invalid entityType. Allowed: ${ALLOWED_ENTITY_TYPES.join(', ')}`, 400);
+  }
+
+  const targetEntityId = entityId || requesterId;
+
+  if (!mongoose.Types.ObjectId.isValid(targetEntityId)) {
+    throw new AppError('Invalid target entityId format', 400);
+  }
+
+  // Permission Boundary: Non-admins can only initiate for themselves (unless initiating property)
+  const isSelf = targetEntityId.toString() === requesterId.toString();
+  const isAdminOrManager = ['admin', 'manager'].includes(req.user.role);
+
+  if (!isSelf && !isAdminOrManager && entityType !== 'PROPERTY') {
+    throw new AppError('Forbidden: Cannot initiate verification for another user', 403);
+  }
+
+  const verification = await verificationService.initiateVerification(
+    entityType.toUpperCase(),
+    targetEntityId,
+    requesterId
+  );
+
+  res.status(201).json({
+    success: true,
+    message: 'Verification initiated successfully',
+    data: verification,
+  });
+});
+
+// 4. PUT /api/verifications/:id (Update Draft)
+export const updateDraft = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.updateDraft(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification draft updated',
+    data: updated,
+  });
+});
+
+// 5. POST /api/verifications/:id/submit (Submit Verification)
+export const submitVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const submitted = await verificationService.submitVerification(id, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification submitted for review',
+    data: submitted,
+  });
+});
+
+// 6. POST /api/verifications/:id/resubmit (Resubmit Rejected Version)
+export const resubmitVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const resubmitted = await verificationService.resubmitVerification(id, requesterId, req.body.documents);
+
+  res.status(201).json({
+    success: true,
+    message: 'Verification resubmitted as a new version',
+    data: resubmitted,
+  });
+});
+
+// 7. POST /api/verifications/:id/documents (Upload / Attach Document)
+export const uploadDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { documentType, fileId, filename, url } = req.body;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  if (!documentType || (!fileId && !url && !filename)) {
+    throw new AppError('documentType and document file information (fileId, url, or filename) are required', 400);
+  }
+
+  const updated = await verificationService.uploadVerificationDocument(
+    id,
+    documentType.toUpperCase(),
+    { fileId, filename, url },
+    requesterId
+  );
+
+  res.status(200).json({
+    success: true,
+    message: `Document '${documentType}' attached successfully`,
+    data: updated,
+  });
+});
+
+// 8. POST /api/verifications/:id/review (Manager Level-2 Review)
+export const reviewVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision, remarks } = req.body;
+  const managerId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  if (!decision || !['APPROVE', 'REJECT'].includes(decision.toUpperCase())) {
+    throw new AppError("Review decision must be 'APPROVE' or 'REJECT'", 400);
+  }
+
+  const reviewed = await verificationService.managerReview(id, managerId, decision.toUpperCase(), remarks || '');
+
+  res.status(200).json({
+    success: true,
+    message: `Level 2 manager review recorded (${decision})`,
+    data: reviewed,
+  });
+});
+
+// 9. POST /api/verifications/:id/approve (Admin Final Approval)
+export const approveVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { remarks } = req.body;
+  const adminId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const approved = await verificationService.adminApprove(id, adminId, remarks || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification approved and trust score updated',
+    data: approved,
+  });
+});
+
+// 10. POST /api/verifications/:id/reject (Admin Final Rejection)
+export const rejectVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { remarks } = req.body;
+  const adminId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  if (!remarks || remarks.trim().length === 0) {
+    throw new AppError('Rejection remarks are required when rejecting a verification', 400);
+  }
+
+  const rejected = await verificationService.adminReject(id, adminId, remarks);
+
+  res.status(200).json({
+    success: true,
+    message: 'Verification rejected with remarks',
+    data: rejected,
+  });
+});
+
+// 11. GET /api/verifications/history/:entityType/:entityId
+export const getHistoryByEntity = asyncHandler(async (req, res) => {
+  const { entityType, entityId } = req.params;
+
+  if (!ALLOWED_ENTITY_TYPES.includes(entityType.toUpperCase())) {
+    throw new AppError(`Invalid entityType. Allowed: ${ALLOWED_ENTITY_TYPES.join(', ')}`, 400);
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(entityId)) {
+    throw new AppError('Invalid entityId format', 400);
+  }
+
+  const history = await verificationService.getHistoryByEntity(entityType.toUpperCase(), entityId);
+
+  res.status(200).json({
+    success: true,
+    data: history,
+  });
+});
+
+// 12. GET /api/verifications/widget/:profile/:entityId?
+export const getWidgetData = asyncHandler(async (req, res) => {
+  const { profile, entityId } = req.params;
+  const targetEntityId = entityId || req.user.userId || req.user._id || req.user.id;
+
+  const widgetData = await verificationService.getWidgetData(profile, targetEntityId);
+
+  res.status(200).json({
+    success: true,
+    data: widgetData,
+  });
+});
+
+// 13. GET /api/verifications/templates
+export const getDocumentTemplates = asyncHandler(async (_req, res) => {
+  const templates = await verificationService.getDocumentTemplates();
+
+  res.status(200).json({
+    success: true,
+    data: templates,
+  });
+});
+
+// 14. GET /api/verifications/workflows
+export const getWorkflows = asyncHandler(async (_req, res) => {
+  const workflows = await verificationService.getWorkflows();
+
+  res.status(200).json({
+    success: true,
+    data: workflows,
+  });
+});

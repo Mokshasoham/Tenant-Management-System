@@ -642,6 +642,47 @@ export class VerificationService {
         throw new AppError(`Unknown widget profile '${profile}'`, 400);
     }
   }
+
+  // ── Service Wrappers for Controller Delegation ─────────────────────
+
+  async getVerificationById(id) {
+    const doc = await verificationRepository.findById(id);
+    if (!doc) {
+      throw new AppError('Verification record not found', 404);
+    }
+    return doc;
+  }
+
+  async getPendingQueue(options = {}) {
+    return await verificationRepository.findPendingQueue(options);
+  }
+
+  async getHistoryByEntity(entityType, entityId) {
+    return await verificationRepository.findHistoryByEntity(entityType, entityId);
+  }
+
+  async getTrustHistory(entityType, entityId) {
+    return await trustScoreService.getTrustHistory(entityType, entityId);
+  }
+
+  async getDocumentTemplates() {
+    return await verificationRepository.findAllDocumentTemplates();
+  }
+
+  async getWorkflows() {
+    return await verificationRepository.findAllWorkflows();
+  }
+
+  async updateDraft(verificationId, updateData, requesterId) {
+    const verification = await verificationRepository.findById(verificationId);
+    if (!verification) {
+      throw new AppError('Verification record not found', 404);
+    }
+    if (verification.status !== 'DRAFT' && verification.status !== 'DOCUMENTS_UPLOADED') {
+      throw new AppError(`Cannot update verification in '${verification.status}' status`, 400);
+    }
+    return await verificationRepository.updateVerification(verificationId, updateData);
+  }
 }
 
 export default new VerificationService();
