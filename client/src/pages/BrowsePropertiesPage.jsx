@@ -12,6 +12,7 @@ import { cn } from '../utils/cn';
 import useAuthStore from '../context/authStore';
 import { useTheme } from '../context/ThemeContext';
 import { getDisplayStatus } from '../utils/propertyHelper';
+import handleViewPropertyNavigation from '../utils/propertyNavigationHelper';
 
 // ── Lazy-load the map so Leaflet errors never crash the whole page ──
 const InteractivePropertyMap = lazy(() => import('../components/PropertyMap'));
@@ -445,7 +446,7 @@ export default function BrowsePropertiesPage() {
                                         inCompare={compareList.some(c => c._id === p._id)}
                                         onSave={() => handleSave(p._id)}
                                         onCompare={() => toggleCompare(p)}
-                                        onClick={() => navigate(`/properties/${p._id}`)}
+                                        onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
                                     />
                                 ))
                         }
@@ -496,7 +497,7 @@ export default function BrowsePropertiesPage() {
                                             inCompare={compareList.some(c => c._id === p._id)}
                                             onSave={() => handleSave(p._id)}
                                             onCompare={() => toggleCompare(p)}
-                                            onClick={() => navigate(`/properties/${p._id}`)}
+                                            onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
                                         />
                                     ))
                             }

@@ -83,8 +83,9 @@ import AdminVerificationAnalytics from './pages/admin/verification/AdminVerifica
 import AdminVerificationSettings from './pages/admin/verification/AdminVerificationSettings';
 import AdminVerificationAudit from './pages/admin/verification/AdminVerificationAudit';
 
-// Admin Property Directory Page
+// Admin Property Directory & Inspection Pages
 import AdminPropertyDirectory from './pages/admin/directory/AdminPropertyDirectory';
+import AdminPropertyInspection from './pages/admin/property/AdminPropertyInspection';
 
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
@@ -249,6 +250,7 @@ function App() {
                 {/* Admin only */}
                 <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
                 <Route path="/admin/property-directory" element={<AdminRoute><DashboardLayout><AdminPropertyDirectory /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/property/:propertyId" element={<AdminRoute><DashboardLayout><AdminPropertyInspection /></DashboardLayout></AdminRoute>} />
 
                 {/* Admin Verification Center */}
                 <Route path="/admin/verification" element={<AdminRoute><DashboardLayout><AdminVerificationDashboard /></DashboardLayout></AdminRoute>} />

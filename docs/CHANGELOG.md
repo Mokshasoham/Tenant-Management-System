@@ -13,6 +13,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.2.0] — 2026-08-07 — Phase 6.1 Enterprise Property Inspection Workspace
+### Added
+- **Future-Proof Role Navigation Helper**: `client/src/utils/propertyNavigationHelper.js` exporting `handleViewPropertyNavigation({ navigate, property, role, mode })` delegating Admin users to `/admin/property/:propertyId` and Tenants/Managers to `/properties/:id`.
+- **Preserved Browse Properties Page**: Kept `client/src/pages/BrowsePropertiesPage.jsx` 100% visually identical while delegating card click handlers to `handleViewPropertyNavigation`.
+- **360° Enterprise Property Inspection Workspace**: Created `client/src/pages/admin/property/AdminPropertyInspection.jsx` mounted at `/admin/property/:propertyId` featuring Activity Ribbon chips, Status Banner, Quick Stats bar, high-risk admin action confirmation modal with mandatory audit reason logging, and inspection scheduler.
+- **9 Lazy-Loaded Workspace Tabs (`React.lazy` + `Suspense`)**:
+  - `PropertyOverviewTab.jsx`: Property gallery, specs, specs grid, owner/manager profiles.
+  - `PropertyVerificationTab.jsx`: Verification status, review level, priority, checklist, Triple Metrics (`Trust 92`, `Health 88`, `Compliance 94%`).
+  - `PropertyDocumentsTab.jsx`: Grouped document repository (`Ownership`, `Tax`, `Insurance`, `Safety`, `Utilities`, `Inspection`) with version history, expiry, uploaded/verified metadata.
+  - `PropertyTimelineTab.jsx`: Categorized lifecycle event log.
+  - `PropertyLeaseHistoryTab.jsx`: Past tenants, lease duration, rent changes, vacancy, security deposit records.
+  - `PropertyMaintenanceTab.jsx`: Maintenance tickets, AMC contracts, repair expenses.
+  - `PropertyCommunicationsTab.jsx`: Internal manager, tenant, and compliance notes stream.
+  - `PropertyAuditTab.jsx`: Compliance audit log table with IP and session telemetry.
+  - `PropertyReportsTab.jsx`: Report cards with Preview, Download, and Share options.
+- **Future Production API Hooks**: 8 disabled integration cards for `OCR Verification`, `AI Document Validation`, `Fraud Engine`, `Land Registry`, `Government APIs`, `Fire NOC Board`, `Utility Board`, `Drone GIS`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed cleanly in 25.16s (`0 errors`) with clean code-split chunks for all 9 lazy-loaded workspace tabs.
+- **Server Unit Tests**: 100% Passed (14/14 tests in 3.70s).
+
+---
+
 ## [2.1.0] — 2026-08-07 — Phase 6.1 Enterprise Property Directory
 ### Added
 - **Independent Admin Directory Page**: Created `client/src/pages/admin/directory/AdminPropertyDirectory.jsx` mounted at `/admin/property-directory` while leaving `BrowsePropertiesPage.jsx` 100% untouched to prevent regressions in public/tenant property browsing.
