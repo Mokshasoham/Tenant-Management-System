@@ -13,6 +13,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.7.0] — 2026-08-07 — Phase 5.3 Tenant Verification Portal
+### Added
+- **Centralized Mock Data Module**: `client/src/mocks/tenantVerificationMock.js` exporting 10 normalized datasets as single source of truth.
+- **Centralized Analytics Wrapper**: `client/src/utils/verificationAnalytics.js` exporting `trackEvent()` utility and `VERIFICATION_EVENTS` constants.
+- **Data Transformation Mapper**: `client/src/mappers/tenantVerificationMapper.js` mapping raw/mock payloads to UI domain models.
+- **Tenant Verification Dashboard Home**: `client/src/pages/tenant/TenantVerificationPage.jsx` at `/tenant/verification` featuring Notification Banner, Status Card with Tenant Verification Level (`Basic`, `Trusted`, `Premium`, `Elite`), Trust Score Hero ("Excellent Tenant · 72/100 · Top 18%"), Rental Reputation Card, Google Security-style Verification Widget, Renewal Lifecycle, Profile Summary, and Future Production Hooks (`DigiLocker`, `Face Verification`, `Video KYC`, `Background Check`, `Employer Check`).
+- **Tenant Verification Wizard**: `client/src/pages/tenant/TenantVerificationWizard.jsx` with 6 steps (Personal Info → Contact & References → Identity Docs → Address Proof → Review → Submit), editable References list, 25-second autosave, `localStorage` auto-restore, `beforeunload` unsaved changes warning, save status indicator, step progress text, and mobile-friendly vertical stepper + sticky bottom bar.
+- **Categorized Document Workspace**: `client/src/pages/tenant/TenantVerificationDocuments.jsx` with 5 KPI summary counters (`Uploaded`, `Pending`, `Rejected`, `Expired`, `Missing`), 8 category tabs (`ALL`, `IDENTITY`, `ADDRESS`, `EMPLOYMENT`, `INCOME`, `FINANCIAL`, `REFERENCES`, `OTHER`), document cards with `Replace File` CTA, and empty states.
+- **Color-Coded Audit Timeline**: `client/src/pages/tenant/TenantVerificationTimeline.jsx` displaying 12+ enriched events color-coded by type (🟢 Success, 🟡 Pending, 🔴 Rejected, 🔵 Info) with legend bar and history drawer.
+- **Trust Score & Credibility Analytics**: `client/src/pages/tenant/TenantTrustScorePage.jsx` featuring "Why is my score 72?" line-item breakdown table + penalties, score evolution trend chart, category breakdown, and actionable improvement tips.
+- **Sidebar & Route Integration**: Added `Verification` nav item (`/tenant/verification`) to tenant menu in `Sidebar.jsx`, registered 5 routes in `App.jsx` under `ProtectedRoute` and `DashboardLayout`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed in 45.14s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 9.17s).
+- **Git Commit**: `80c5bd33dd82bc9bec3f538ce5abbbd6ae046b1f`
+
+---
+
 ## [1.6.0] — 2026-08-07 — Phase 5.2 Manager Verification Portal
 ### Added
 - **Manager Verification Dashboard Home**: `client/src/pages/manager/ManagerVerificationPage.jsx` mounted at `/manager/verification` as permanent verification home with VRF status, trust score, badge tier, required docs summary, quick navigation, and state-driven actions (`UNVERIFIED`, `DRAFT`, `SUBMITTED`, `AUTO_REVIEW`, `MANAGER_REVIEW`, `ADMIN_REVIEW`, `APPROVED`, `REJECTED`).
