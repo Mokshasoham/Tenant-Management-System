@@ -76,6 +76,7 @@ const ALL_NAV_ITEMS = [
   { label: 'Bills', key: 'bills', icon: Receipt, path: '/bills', roles: ['tenant'] },
   { label: 'My Lease', key: 'myLease', icon: FileText, path: '/my-lease', roles: ['tenant'] },
   { label: 'Pay Now', key: 'payNow', icon: Wallet, path: '/pay-now', roles: ['tenant'] },
+  { label: 'Verification', key: 'tenantVerification', icon: ShieldCheck, path: '/tenant/verification', roles: ['tenant'] },
   { label: 'Maintenance', key: 'maintenance', icon: Wrench, path: '/maintenance', roles: ['admin', 'manager', 'tenant'] },
   { label: 'Analytics', key: 'analytics', icon: BarChart2, path: '/analytics', roles: ['admin', 'manager'] },
   { label: 'Verification', key: 'verification', icon: ShieldCheck, path: '/manager/verification', roles: ['manager'] },

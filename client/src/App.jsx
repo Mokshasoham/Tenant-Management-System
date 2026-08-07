@@ -53,6 +53,13 @@ import ManagerVerificationDocuments from './pages/manager/ManagerVerificationDoc
 import ManagerVerificationTimeline from './pages/manager/ManagerVerificationTimeline';
 import ManagerTrustScorePage from './pages/manager/ManagerTrustScorePage';
 
+// Tenant Verification Portal Pages
+import TenantVerificationPage from './pages/tenant/TenantVerificationPage';
+import TenantVerificationWizard from './pages/tenant/TenantVerificationWizard';
+import TenantVerificationDocuments from './pages/tenant/TenantVerificationDocuments';
+import TenantVerificationTimeline from './pages/tenant/TenantVerificationTimeline';
+import TenantTrustScorePage from './pages/tenant/TenantTrustScorePage';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -179,6 +186,11 @@ function App() {
               <Route path="/lease-history" element={<ProtectedRoute><DashboardLayout><LeaseHistoryPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/renewal-history" element={<ProtectedRoute><DashboardLayout><RenewalHistoryPage /></DashboardLayout></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><DashboardLayout><NotificationCenterPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/tenant/verification" element={<ProtectedRoute><DashboardLayout><TenantVerificationPage /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/tenant/verification/wizard" element={<ProtectedRoute><DashboardLayout><TenantVerificationWizard /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/tenant/verification/documents" element={<ProtectedRoute><DashboardLayout><TenantVerificationDocuments /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/tenant/verification/timeline" element={<ProtectedRoute><DashboardLayout><TenantVerificationTimeline /></DashboardLayout></ProtectedRoute>} />
+              <Route path="/tenant/trust-score" element={<ProtectedRoute><DashboardLayout><TenantTrustScorePage /></DashboardLayout></ProtectedRoute>} />
 
               {/* Manager + Admin */}
               <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
