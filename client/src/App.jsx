@@ -46,6 +46,13 @@ import WorkforceSchedulingPage from './pages/WorkforceSchedulingPage';
 import ActivateAccountPage from './pages/ActivateAccountPage';
 import VerificationComponentGallery from './pages/internal/VerificationComponentGallery';
 
+// Manager Verification Portal Pages
+import ManagerVerificationPage from './pages/manager/ManagerVerificationPage';
+import ManagerVerificationWizard from './pages/manager/ManagerVerificationWizard';
+import ManagerVerificationDocuments from './pages/manager/ManagerVerificationDocuments';
+import ManagerVerificationTimeline from './pages/manager/ManagerVerificationTimeline';
+import ManagerTrustScorePage from './pages/manager/ManagerTrustScorePage';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -182,6 +189,11 @@ function App() {
               <Route path="/analytics" element={<ManagerRoute><DashboardLayout><AnalyticsPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/lease-renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/verification" element={<ManagerRoute><DashboardLayout><ManagerVerificationPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/verification/wizard" element={<ManagerRoute><DashboardLayout><ManagerVerificationWizard /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/verification/documents" element={<ManagerRoute><DashboardLayout><ManagerVerificationDocuments /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/verification/timeline" element={<ManagerRoute><DashboardLayout><ManagerVerificationTimeline /></DashboardLayout></ManagerRoute>} />
+              <Route path="/manager/trust-score" element={<ManagerRoute><DashboardLayout><ManagerTrustScorePage /></DashboardLayout></ManagerRoute>} />
 
               {/* Admin only */}
               <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
