@@ -29,6 +29,17 @@ export const VERIFICATION_EVENTS = {
   PROPERTY_TIMELINE: 'property_verification.timeline_viewed',
   PROPERTY_TRUST: 'property_verification.trust_viewed',
   PROPERTY_RENEWAL: 'property_verification.renewal_action',
+
+  // Technician Verification Events
+  TECHNICIAN_STARTED: 'technician_verification.started',
+  TECHNICIAN_SUBMITTED: 'technician_verification.submitted',
+  TECHNICIAN_APPROVED: 'technician_verification.approved',
+  TECHNICIAN_DOCUMENT: 'technician_verification.document_action',
+  TECHNICIAN_SKILL: 'technician_verification.skill_action',
+  TECHNICIAN_PORTFOLIO: 'technician_verification.portfolio_action',
+  TECHNICIAN_TIMELINE: 'technician_verification.timeline_viewed',
+  TECHNICIAN_TRUST: 'technician_verification.trust_viewed',
+  TECHNICIAN_RENEWAL: 'technician_verification.renewal_action',
 };
 
 /**

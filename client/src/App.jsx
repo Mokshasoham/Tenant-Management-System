@@ -68,6 +68,13 @@ import PropertyVerificationDocuments from './pages/property/PropertyVerification
 import PropertyVerificationTimeline from './pages/property/PropertyVerificationTimeline';
 import PropertyTrustScorePage from './pages/property/PropertyTrustScorePage';
 
+// Technician Verification Portal Pages
+import TechnicianVerificationPage from './pages/technician/TechnicianVerificationPage';
+import TechnicianVerificationWizard from './pages/technician/TechnicianVerificationWizard';
+import TechnicianVerificationDocuments from './pages/technician/TechnicianVerificationDocuments';
+import TechnicianVerificationTimeline from './pages/technician/TechnicianVerificationTimeline';
+import TechnicianTrustScorePage from './pages/technician/TechnicianTrustScorePage';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -220,6 +227,13 @@ function App() {
                 <Route path="/property/verification/documents" element={<ManagerRoute><DashboardLayout><PropertyVerificationDocuments /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/timeline" element={<ManagerRoute><DashboardLayout><PropertyVerificationTimeline /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/trust-score" element={<ManagerRoute><DashboardLayout><PropertyTrustScorePage /></DashboardLayout></ManagerRoute>} />
+
+                {/* Technician Verification Portal */}
+                <Route path="/technician/verification" element={<ProtectedRoute><DashboardLayout><TechnicianVerificationPage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/technician/verification/wizard" element={<ProtectedRoute><DashboardLayout><TechnicianVerificationWizard /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/technician/verification/documents" element={<ProtectedRoute><DashboardLayout><TechnicianVerificationDocuments /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/technician/verification/timeline" element={<ProtectedRoute><DashboardLayout><TechnicianVerificationTimeline /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/technician/trust-score" element={<ProtectedRoute><DashboardLayout><TechnicianTrustScorePage /></DashboardLayout></ProtectedRoute>} />
 
                 {/* Admin only */}
                 <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />

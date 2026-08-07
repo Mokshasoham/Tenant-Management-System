@@ -14,6 +14,7 @@ export { default as MiniLineChart } from './charts/MiniLineChart';
 export { default as FileUploader } from './common/FileUploader';
 export { default as VerificationPageHeader } from './common/VerificationPageHeader';
 export { default as VerificationSectionCard } from './common/VerificationSectionCard';
+export { default as VerificationPortalLayout } from './common/VerificationPortalLayout';
 
 // Dialogs & Reviews
 export { default as ReviewRemarksCard } from './dialogs/ReviewRemarksCard';

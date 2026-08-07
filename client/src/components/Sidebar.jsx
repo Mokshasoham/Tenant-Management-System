@@ -81,6 +81,7 @@ const ALL_NAV_ITEMS = [
   { label: 'Analytics', key: 'analytics', icon: BarChart2, path: '/analytics', roles: ['admin', 'manager'] },
   { label: 'Verification', key: 'verification', icon: ShieldCheck, path: '/manager/verification', roles: ['manager'] },
   { label: 'Property Verification', key: 'propertyVerification', icon: Home, path: '/property/verification', roles: ['admin', 'manager'] },
+  { label: 'Technician Verification', key: 'technicianVerification', icon: Wrench, path: '/technician/verification', roles: ['technician'] },
   { label: 'Messages', key: 'messages', icon: MessageSquare, path: '/messages', roles: ['admin', 'manager', 'tenant'], badge: true },
   { label: 'Notifications', key: 'notifications', icon: Bell, path: '/notifications', roles: ['admin', 'manager', 'tenant'] },
   { label: 'Users', key: 'users', icon: UserCog, path: '/users', roles: ['admin'] },

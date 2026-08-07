@@ -6,13 +6,14 @@
 
 import tenantVerificationMapper from './tenantVerificationMapper';
 import propertyVerificationMapper from './propertyVerificationMapper';
+import technicianVerificationMapper from './technicianVerificationMapper';
 
 const MAPPERS = {
   TENANT: tenantVerificationMapper,
   PROPERTY: propertyVerificationMapper,
-  // Future mappers registered during Phase 5.5 - 5.6:
+  TECHNICIAN: technicianVerificationMapper,
+  // Future mappers registered during Phase 5.6:
   // MANAGER: managerVerificationMapper,
-  // TECHNICIAN: technicianVerificationMapper,
 };
 
 /**
