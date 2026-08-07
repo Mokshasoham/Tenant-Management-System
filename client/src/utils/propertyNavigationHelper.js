@@ -3,11 +3,16 @@
  * Role-agnostic navigation handler resolving proper workspace destination.
  */
 
-export function handleViewPropertyNavigation({ navigate, property, role = 'tenant', mode = 'default' }) {
+import useAuthStore from '../context/authStore';
+
+export function handleViewPropertyNavigation({ navigate, property, role, mode = 'default' }) {
   if (!navigate || !property) return;
   const propertyId = property._id || property.id || property;
 
-  switch (role) {
+  // Resolve role from parameters or fallback to active authStore state
+  const activeRole = role || useAuthStore.getState()?.user?.role || 'tenant';
+
+  switch (activeRole) {
     case 'admin':
     case 'super_admin':
     case 'compliance_officer':

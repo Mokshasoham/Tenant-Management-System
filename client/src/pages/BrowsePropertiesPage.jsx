@@ -212,9 +212,14 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                         </div>
                         <span className="text-[11px] font-black text-muted-foreground/60 tracking-wider uppercase">{p.manager?.firstName || 'Manager'}</span>
                     </div>
-                    <span className="text-sm font-black flex items-center gap-1.5 transition-colors group-hover:bg-primary group-hover:text-white px-3 py-1.5 rounded-xl" style={{ color }}>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onClick && onClick(); }}
+                        className="text-sm font-black flex items-center gap-1.5 transition-colors group-hover:bg-primary group-hover:text-white px-3 py-1.5 rounded-xl cursor-pointer bg-transparent border-none"
+                        style={{ color }}
+                    >
                         View <ArrowRight className="w-4 h-4" />
-                    </span>
+                    </button>
                 </div>
             </div>
         </motion.div>
@@ -226,6 +231,7 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 // ══════════════════════════════════════════
 export default function BrowsePropertiesPage() {
     const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(false);
     const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'map'
