@@ -75,6 +75,14 @@ import TechnicianVerificationDocuments from './pages/technician/TechnicianVerifi
 import TechnicianVerificationTimeline from './pages/technician/TechnicianVerificationTimeline';
 import TechnicianTrustScorePage from './pages/technician/TechnicianTrustScorePage';
 
+// Admin Verification Center Pages
+import AdminVerificationDashboard from './pages/admin/verification/AdminVerificationDashboard';
+import AdminVerificationQueue from './pages/admin/verification/AdminVerificationQueue';
+import AdminVerificationDetails from './pages/admin/verification/AdminVerificationDetails';
+import AdminVerificationAnalytics from './pages/admin/verification/AdminVerificationAnalytics';
+import AdminVerificationSettings from './pages/admin/verification/AdminVerificationSettings';
+import AdminVerificationAudit from './pages/admin/verification/AdminVerificationAudit';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -237,6 +245,14 @@ function App() {
 
                 {/* Admin only */}
                 <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
+
+                {/* Admin Verification Center */}
+                <Route path="/admin/verification" element={<AdminRoute><DashboardLayout><AdminVerificationDashboard /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/verification/queue" element={<AdminRoute><DashboardLayout><AdminVerificationQueue /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/verification/analytics" element={<AdminRoute><DashboardLayout><AdminVerificationAnalytics /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/verification/settings" element={<AdminRoute><DashboardLayout><AdminVerificationSettings /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/verification/audit" element={<AdminRoute><DashboardLayout><AdminVerificationAudit /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/verification/:id" element={<AdminRoute><DashboardLayout><AdminVerificationDetails /></DashboardLayout></AdminRoute>} />
 
                 {/* Catch-all fallback */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

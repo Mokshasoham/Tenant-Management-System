@@ -40,6 +40,18 @@ export const VERIFICATION_EVENTS = {
   TECHNICIAN_TIMELINE: 'technician_verification.timeline_viewed',
   TECHNICIAN_TRUST: 'technician_verification.trust_viewed',
   TECHNICIAN_RENEWAL: 'technician_verification.renewal_action',
+
+  // Admin Verification Center Events
+  ADMIN_QUEUE_OPEN: 'admin_verification.queue_open',
+  ADMIN_APPROVE: 'admin_verification.approve',
+  ADMIN_REJECT: 'admin_verification.reject',
+  ADMIN_ASSIGN: 'admin_verification.assign',
+  ADMIN_EXPORT: 'admin_verification.export',
+  ADMIN_SETTINGS_UPDATE: 'admin_verification.settings_update',
+  ADMIN_ANALYTICS_VIEW: 'admin_verification.analytics_view',
+  ADMIN_AUDIT_VIEW: 'admin_verification.audit_view',
+  ADMIN_BULK_ACTION: 'admin_verification.bulk_action',
+  ADMIN_DETAILS_OPEN: 'admin_verification.details_open',
 };
 
 /**

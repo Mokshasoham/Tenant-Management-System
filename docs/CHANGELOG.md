@@ -13,6 +13,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.0.0] — 2026-08-07 — Phase 5.6 Enterprise Admin Verification Center
+### Added
+- **Centralized Admin Mock & Mapper**: `client/src/mocks/adminVerificationMock.js` (11 normalized datasets) and `client/src/mappers/adminVerificationMapper.js` registered under key `ADMIN` in `verificationMapperFactory.js`.
+- **Enterprise Verification Control Room**: `client/src/pages/admin/verification/AdminVerificationDashboard.jsx` mounted at `/admin/verification` featuring 8 Top KPI cards, State-Driven Notification Banner, Quick Action tools, Pending Review Queue preview, High Risk Escalation Queue, Expiring Documents Watchlist, Live Verification Audit Log stream, and 5 future production hooks (`AI Document Validation`, `OCR Extraction Engine`, `Automated Fraud Engine`, `Background Screening`, `Auto-Assign Engine`).
+- **Multi-Criteria Review Queue**: `client/src/pages/admin/verification/AdminVerificationQueue.jsx` mounted at `/admin/verification/queue` featuring 7 Saved Filter Views (`All Requests`, `My Reviews`, `Pending Today`, `High Risk`, `SLA Breached`, `Rejected Today`, `Awaiting Level 3`), multi-criteria filtering by entity, status, risk, reviewer assignment, search, enterprise data table with select all / checkboxes, bulk approve, bulk reject, reviewer assignment toolbar, CSV export, and PDF report generator.
+- **Modular 360° Review Workspace**: `client/src/pages/admin/verification/AdminVerificationDetails.jsx` mounted at `/admin/verification/:id` featuring modular internal tabs (`Overview`, `Documents`, `Trust Score`, `Timeline`, `Risk Analysis`, `Review History`, `Actions & Case Notes`), `Download Verification Report` PDF CTA, reviewer assignment toolbar, interactive `ApprovalDialog` and `RejectDialog`, and **Internal Case Notes Timeline** (timestamped reviewer collaboration hidden from applicant).
+- **Executive Analytics & Compliance Insights**: `client/src/pages/admin/verification/AdminVerificationAnalytics.jsx` mounted at `/admin/verification/analytics` featuring SLA compliance gauges (96.2%), processing time telemetry, weekly submission throughput bar charts, entity type distribution progress bars, top rejection reasons Pareto breakdown, and risk matrix.
+- **Verification Engine Settings**: `client/src/pages/admin/verification/AdminVerificationSettings.jsx` mounted at `/admin/verification/settings` featuring active workflow configuration table, document template list, SLA target timers (Level 1: 4h, Level 2: 24h, Level 3: 48h), and 8 production feature flag toggles.
+- **Compliance Audit Center**: `client/src/pages/admin/verification/AdminVerificationAudit.jsx` mounted at `/admin/verification/audit` featuring immutable audit log table, IP/session telemetry, search/filters, CSV export, and PDF report export.
+- **Sidebar & Route Integration**: Added `Verification Center` menu item (`/admin/verification`) for `admin` role in `Sidebar.jsx`, registered 6 routes under `AdminRoute` + `DashboardLayout` in `App.jsx`.
+
+### Test Results & Platform Status
+- **Client Production Build**: Passed cleanly in 39.64s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 7.88s).
+- **Platform Milestone**: Completes the 6-Phase Verification & Trust Platform (Phase 5.1 UI Foundation, Phase 5.2 Manager Portal, Phase 5.3 Tenant Portal, Phase 5.4 Property Portal, Phase 5.5 Technician Portal, Phase 5.6 Admin Verification Center).
+
+---
+
 ## [1.9.0] — 2026-08-07 — Phase 5.5 Technician Verification Portal
 ### Added
 - **Reusable Portal Layout Component**: `client/src/components/verification/common/VerificationPortalLayout.jsx` standardizing the 7-tier dashboard structure (`header`, `notification`, `hero`, `widget`, `actions`, `content`, `integrations`) across all verification portals. Re-exported in `components/verification/index.js`.
