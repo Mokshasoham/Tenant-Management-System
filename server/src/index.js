@@ -96,6 +96,10 @@ try {
   await connectDB();
   logger.info('Database connected successfully.');
 
+  // 4b. Seed default verification templates and workflows (Idempotent)
+  const { seedVerificationDefaults } = await import('./utils/verificationSeed.js');
+  await seedVerificationDefaults();
+
   // 5. Register all schedulers & notification event listeners
   registerLeaseRenewalSchedulers();
   subscribeNotificationListeners();

@@ -1,4 +1,5 @@
 import LeaseRenewalAudit from '../../models/LeaseRenewalAudit.js';
+import ProfileAudit from '../../models/ProfileAudit.js';
 
 /**
  * Reusable Audit Log Service.
@@ -34,5 +35,27 @@ export const logRenewalAudit = async ({
     correlationId,
     traceId,
     ipAddress
+  });
+};
+
+/**
+ * Reusable Verification Audit Log Helper.
+ * Logs verification state changes asynchronously to ProfileAudit collection.
+ * 
+ * @param {object} payload - Verification audit details
+ */
+export const logVerificationAudit = async ({
+  userId,
+  updatedBy,
+  changedFields = [],
+  ipAddress = '',
+  userAgent = ''
+}) => {
+  return await ProfileAudit.create({
+    userId,
+    updatedBy: updatedBy || userId,
+    changedFields,
+    ipAddress,
+    userAgent
   });
 };

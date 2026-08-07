@@ -38,6 +38,18 @@ const config = {
   // Logs
   LOG_LEVEL: process.env.LOG_LEVEL || 'debug',
   
+  // Verification & Demo Configuration
+  DEMO_MODE: process.env.DEMO_MODE === 'true' || true,
+  ENGINE_VERSION: process.env.ENGINE_VERSION || 'demo-v1',
+  VERIFICATION_OTP_MODE: process.env.VERIFICATION_OTP_MODE || 'MOCK',
+  IDENTITY_VERIFICATION_MODE: process.env.IDENTITY_VERIFICATION_MODE || 'DEMO',
+  AADHAAR_ENABLED: process.env.AADHAAR_ENABLED === 'true' || false,
+  PAN_ENABLED: process.env.PAN_ENABLED === 'true' || false,
+  DIGILOCKER_ENABLED: process.env.DIGILOCKER_ENABLED === 'true' || false,
+  FACE_VERIFICATION_ENABLED: process.env.FACE_VERIFICATION_ENABLED === 'true' || false,
+  RISK_THRESHOLD: parseInt(process.env.RISK_THRESHOLD || '40', 10),
+  EXPIRY_REMINDER_DAYS: parseInt(process.env.EXPIRY_REMINDER_DAYS || '30', 10),
+  
   // Paths
   DIR: __dirname,
   ROOT_DIR: path.join(__dirname, '..', '..'),

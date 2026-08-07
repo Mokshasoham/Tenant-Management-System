@@ -10,6 +10,7 @@ export const FILE_CATEGORIES = {
   LEASES: 'leases',
   INVOICES: 'invoices',
   REVIEWS: 'reviews',
+  VERIFICATION: 'verification',
 };
 
 export const ALLOWED_FILE_CATEGORIES = Object.values(FILE_CATEGORIES);

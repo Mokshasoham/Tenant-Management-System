@@ -25,5 +25,17 @@ export const EventTypes = {
   },
   DOCUMENT: {
     UPLOADED: 'document.uploaded'
+  },
+  VERIFICATION: {
+    SUBMITTED: 'verification.submitted',
+    DOCUMENTS_UPLOADED: 'verification.documents.uploaded',
+    AUTO_REVIEW_PASSED: 'verification.auto_review.passed',
+    AUTO_REVIEW_FAILED: 'verification.auto_review.failed',
+    APPROVED: 'verification.approved',
+    REJECTED: 'verification.rejected',
+    BADGE_ISSUED: 'verification.badge.issued',
+    TRUST_UPDATED: 'verification.trust.updated',
+    FLAG_RAISED: 'verification.flag.raised',
+    EXPIRED: 'verification.expired'
   }
 };
