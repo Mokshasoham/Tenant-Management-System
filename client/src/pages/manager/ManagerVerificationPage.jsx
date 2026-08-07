@@ -187,6 +187,24 @@ export default function ManagerVerificationPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <UploadRequirementsCard requiredTypes={requiredDocTypes} uploadedTypes={uploadedDocTypes} />
 
+        {/* Verification Renewal Lifecycle Placeholder */}
+        <VerificationSectionCard title="Verification Renewal Lifecycle" subtitle="Document validity & annual renewal schedule" icon={Clock}>
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
+              <span className="font-semibold text-muted-foreground">Current Credential Expiry</span>
+              <span className="font-bold text-foreground">12 Dec 2027</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
+              <span className="font-semibold text-muted-foreground">Renewal Status</span>
+              <span className="font-bold text-emerald-500">Not Required (Valid)</span>
+            </div>
+            <Button variant="outline" disabled className="w-full text-xs opacity-75 cursor-not-allowed">
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              Renew Credentials (Coming Soon)
+            </Button>
+          </div>
+        </VerificationSectionCard>
+
         <VerificationSectionCard title="Quick Navigation" subtitle="Access verification sub-modules" icon={FileText}>
           <div className="grid grid-cols-2 gap-3 pt-1">
             <button
