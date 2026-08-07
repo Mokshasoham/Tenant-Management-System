@@ -13,6 +13,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.9.0] — 2026-08-07 — Phase 5.5 Technician Verification Portal
+### Added
+- **Reusable Portal Layout Component**: `client/src/components/verification/common/VerificationPortalLayout.jsx` standardizing the 7-tier dashboard structure (`header`, `notification`, `hero`, `widget`, `actions`, `content`, `integrations`) across all verification portals. Re-exported in `components/verification/index.js`.
+- **Centralized Technician Mock Module**: `client/src/mocks/technicianVerificationMock.js` exporting 11 normalized technician datasets.
+- **Technician Mapper & Factory Integration**: `client/src/mappers/technicianVerificationMapper.js` registered under `TECHNICIAN` in `verificationMapperFactory.js`.
+- **Technician Verification Dashboard Home**: `client/src/pages/technician/TechnicianVerificationPage.jsx` mounted at `/technician/verification` featuring State-Driven Notification Banner, Status Card with Technician Verification Level (`Registered`, `Verified`, `Professional`, `Elite`), Technician Trust Hero ("Professional Technician · 91/100 · Top Rated · Gold Technician"), Professional Summary, Readiness Widget, 4 Quick Actions, Professional Skills Grid, Certification & Trade Clearance Summary, Renewal Lifecycle with **Renewal History Array**, Operating Hours, and 4 Future Production Hooks (`NSDC Skill API`, `Police Clearance DB`, `Liability Insurance API`, `Trade License Portal`).
+- **Technician Verification Wizard**: `client/src/pages/technician/TechnicianVerificationWizard.jsx` with 6 steps (Personal Details → Professional Details → Professional Documents → Skills & Portfolio → Review → Submit), photo upload, 25-second background autosave, `localStorage` draft restore, `beforeunload` unsaved changes warning, save status indicator, and mobile-friendly vertical stepper + sticky bottom bar.
+- **Categorized Technician Document Workspace**: `client/src/pages/technician/TechnicianVerificationDocuments.jsx` with 5 KPI summary counters (`Uploaded`, `Pending`, `Rejected`, `Expired`, `Missing`), 8 category filter tabs (`ALL`, `IDENTITY`, `CERTIFICATES`, `LICENSE`, `EXPERIENCE`, `PORTFOLIO`, `INSURANCE`, `OTHER`), document cards with `Replace File` CTA, and empty states.
+- **Color-Coded Technician Audit Timeline**: `client/src/pages/technician/TechnicianVerificationTimeline.jsx` displaying 15 enriched technician audit events color-coded by event type (🟢 Success, 🟡 Pending, 🔴 Rejected, 🔵 Info) with legend bar and history drawer.
+- **Technician Trust Analytics**: `client/src/pages/technician/TechnicianTrustScorePage.jsx` featuring "Why is my score 91?" line-item breakdown table, score category progress bars, and actionable trade improvement tips.
+- **Sidebar & Route Integration**: Added `Technician Verification` nav item (`/technician/verification`) for technician role in `Sidebar.jsx`, registered 5 routes in `App.jsx` under `ProtectedRoute` and `DashboardLayout`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed cleanly in 33.13s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 7.85s).
+- **Git Commit**: `912e21f`
+
+---
+
 ## [1.8.0] — 2026-08-07 — Phase 5.4 Property Verification Portal
 ### Added
 - **Centralized Property Mock Module**: `client/src/mocks/propertyVerificationMock.js` exporting 10 normalized property datasets.
