@@ -13,6 +13,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.8.0] — 2026-08-07 — Phase 5.4 Property Verification Portal
+### Added
+- **Centralized Property Mock Module**: `client/src/mocks/propertyVerificationMock.js` exporting 10 normalized property datasets.
+- **Property Mapper & Factory Integration**: `client/src/mappers/propertyVerificationMapper.js` registered under `PROPERTY` in `verificationMapperFactory.js`.
+- **Property Verification Dashboard Home**: `client/src/pages/property/PropertyVerificationPage.jsx` mounted at `/property/verification` featuring State-Driven Notification Banner, Status Card with Property Verification Level (`Basic Property`, `Verified Property`, `Premium Property`, `Certified Property`) & Level Progression Requirements, Property Trust Hero ("Verified Property · 88/100 · Top Rated"), Property Quality Card, Property Health Completeness Gauge (`92%`), Google Security-style Verification Widget, Renewal Lifecycle with **Renewal History Array**, Property Specs Summary, and 6 Future Production Hooks (`Land Registry`, `Property Tax`, `Geo Verification`, `Building Safety`, `Utility Board`, `Fire NOC`).
+- **Property Verification Wizard**: `client/src/pages/property/PropertyVerificationWizard.jsx` with 6 steps (Property Details → Ownership Details → Property Documents → Property Photos → Review → Submit), **8 Ownership Categories** (`Individual Owner`, `Company`, `Builder`, `Housing Society`, `Property Management Company`, `Government`, `Trust`, `Inherited Property`), photo upload with canvas compression (`compressImage`), 25-second autosave, `localStorage` draft restore, `beforeunload` unsaved changes warning, save status indicator, and mobile-friendly vertical stepper + sticky bottom bar.
+- **Categorized Property Document Workspace**: `client/src/pages/property/PropertyVerificationDocuments.jsx` with 5 KPI summary counters (`Uploaded`, `Pending`, `Rejected`, `Expired`, `Missing`), 8 category filter tabs (`ALL`, `OWNERSHIP`, `LEGAL`, `TAX`, `UTILITY`, `PHOTOS`, `SAFETY`, `OTHER`), document cards with `Replace Deed` CTA, and empty states.
+- **Color-Coded Property Audit Timeline**: `client/src/pages/property/PropertyVerificationTimeline.jsx` displaying 15 enriched property lifecycle events color-coded by event type (🟢 Success, 🟡 Pending, 🔴 Rejected, 🔵 Info) with legend bar and history drawer.
+- **Property Trust & Health Analytics**: `client/src/pages/property/PropertyTrustScorePage.jsx` featuring "Why is my score 88?" line-item breakdown table, Property Health Completeness Card (`92%`), 6-month score evolution chart, category breakdown, and safety NOC improvement tips.
+- **Sidebar & Route Integration**: Added `Property Verification` nav item (`/property/verification`) to manager/admin menu in `Sidebar.jsx`, registered 5 routes in `App.jsx` under `ManagerRoute` and `DashboardLayout`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed in 34.70s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 9.01s).
+- **Git Commit**: `622af73323f14fcd44bc3979a310505a9e740200`
+
+---
+
 ## [1.7.0] — 2026-08-07 — Phase 5.3 Tenant Verification Portal
 ### Added
 - **Centralized Mock Data Module**: `client/src/mocks/tenantVerificationMock.js` exporting 10 normalized datasets as single source of truth.
