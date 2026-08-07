@@ -104,6 +104,22 @@ const propertySchema = new mongoose.Schema(
     reviewCount: { type: Number, default: 0 },
     verifiedBadge: { type: Boolean, default: false },
 
+    // Verification & Trust Platform Fields (Phase 3.5 — 100% Backward Compatible)
+    verificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'under_review', 'verified', 'rejected', 'expired'],
+      default: 'unverified',
+    },
+    verificationLevel: {
+      type: String,
+      enum: ['basic', 'standard', 'premium'],
+      default: 'basic',
+    },
+    verificationSubmittedAt: { type: Date, default: null },
+    verificationApprovedAt: { type: Date, default: null },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    verificationRemarks: { type: String, default: '' },
+
     // Saved by users
     savedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 

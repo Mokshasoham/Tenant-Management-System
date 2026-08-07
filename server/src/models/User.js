@@ -197,6 +197,55 @@ const userSchema = new mongoose.Schema(
       state: { type: String, default: '' },
       city: { type: String, default: '' },
       postalCode: { type: String, default: '' }
+    },
+    // Verification & Trust Platform Fields (Phase 3.5 — 100% Backward Compatible)
+    currentTrustScore: { type: Number, default: 0 },
+    verificationBadge: { type: Boolean, default: false },
+    verificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'under_review', 'approved', 'rejected', 'expired'],
+      default: 'unverified',
+    },
+    emailVerificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'verified'],
+      default: 'unverified',
+    },
+    phoneVerificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'verified'],
+      default: 'unverified',
+    },
+    identityVerificationStatus: {
+      type: String,
+      enum: ['unverified', 'pending', 'verified', 'rejected'],
+      default: 'unverified',
+    },
+    verificationSubmittedAt: { type: Date, default: null },
+    verificationApprovedAt: { type: Date, default: null },
+    verificationRejectedAt: { type: Date, default: null },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    verificationRemarks: { type: String, default: '' },
+    profileCompletion: { type: Number, default: 0 },
+    notificationPreferences: {
+      verification: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        push: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true },
+      },
+      expiryReminders: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        push: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true },
+        daysBeforeExpiry: { type: Number, default: 30 },
+      },
+      trustScore: {
+        email: { type: Boolean, default: false },
+        push: { type: Boolean, default: true },
+        inApp: { type: Boolean, default: true },
+      },
     }
   },
   {
