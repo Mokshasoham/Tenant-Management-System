@@ -60,6 +60,13 @@ import TenantVerificationDocuments from './pages/tenant/TenantVerificationDocume
 import TenantVerificationTimeline from './pages/tenant/TenantVerificationTimeline';
 import TenantTrustScorePage from './pages/tenant/TenantTrustScorePage';
 
+// Property Verification Portal Pages
+import PropertyVerificationPage from './pages/property/PropertyVerificationPage';
+import PropertyVerificationWizard from './pages/property/PropertyVerificationWizard';
+import PropertyVerificationDocuments from './pages/property/PropertyVerificationDocuments';
+import PropertyVerificationTimeline from './pages/property/PropertyVerificationTimeline';
+import PropertyTrustScorePage from './pages/property/PropertyTrustScorePage';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -206,6 +213,11 @@ function App() {
               <Route path="/manager/verification/documents" element={<ManagerRoute><DashboardLayout><ManagerVerificationDocuments /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/verification/timeline" element={<ManagerRoute><DashboardLayout><ManagerVerificationTimeline /></DashboardLayout></ManagerRoute>} />
               <Route path="/manager/trust-score" element={<ManagerRoute><DashboardLayout><ManagerTrustScorePage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/property/verification" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
+              <Route path="/property/verification/wizard" element={<ManagerRoute><DashboardLayout><PropertyVerificationWizard /></DashboardLayout></ManagerRoute>} />
+              <Route path="/property/verification/documents" element={<ManagerRoute><DashboardLayout><PropertyVerificationDocuments /></DashboardLayout></ManagerRoute>} />
+              <Route path="/property/verification/timeline" element={<ManagerRoute><DashboardLayout><PropertyVerificationTimeline /></DashboardLayout></ManagerRoute>} />
+              <Route path="/property/trust-score" element={<ManagerRoute><DashboardLayout><PropertyTrustScorePage /></DashboardLayout></ManagerRoute>} />
 
               {/* Admin only */}
               <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />

@@ -19,6 +19,16 @@ export const VERIFICATION_EVENTS = {
   IMPROVEMENT_TIP_CLICKED: 'verification.tip_clicked',
   STEP_CHANGED: 'verification.step_changed',
   CATEGORY_CHANGED: 'verification.category_changed',
+
+  // Property Verification Events
+  PROPERTY_STARTED: 'property_verification.started',
+  PROPERTY_SUBMITTED: 'property_verification.submitted',
+  PROPERTY_APPROVED: 'property_verification.approved',
+  PROPERTY_DOCUMENT: 'property_verification.document_action',
+  PROPERTY_PHOTO: 'property_verification.photo_action',
+  PROPERTY_TIMELINE: 'property_verification.timeline_viewed',
+  PROPERTY_TRUST: 'property_verification.trust_viewed',
+  PROPERTY_RENEWAL: 'property_verification.renewal_action',
 };
 
 /**
