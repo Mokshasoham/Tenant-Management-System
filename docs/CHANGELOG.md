@@ -13,6 +13,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.1.0] — 2026-08-07 — Phase 6.1 Enterprise Property Directory
+### Added
+- **Independent Admin Directory Page**: Created `client/src/pages/admin/directory/AdminPropertyDirectory.jsx` mounted at `/admin/property-directory` while leaving `BrowsePropertiesPage.jsx` 100% untouched to prevent regressions in public/tenant property browsing.
+- **Centralized Directory Infrastructure**: `client/src/mocks/adminPropertyDirectoryMock.js` and `client/src/mappers/adminPropertyDirectoryMapper.js` supplying directory stats, risk summaries, reviewer workloads, smart alerts, saved searches, and 18 enriched property objects.
+- **Modular Component Architecture**: 10 dedicated components under `client/src/pages/admin/directory/components/`:
+  - `SmartAlertsBar.jsx`: Collapsible smart alert notification banner (`3 SLA Breached`, `2 Duplicates`, `5 Expiring Docs`, `1 Missed Inspection`, `4 Ready Approval`).
+  - `ReviewerWorkloadBar.jsx`: Collapsible compliance officer workload strip (Alex: 32, Sarah: 18, David: 12).
+  - `RiskOverviewBar.jsx`: Collapsible risk summary bar (Critical: 2, High: 6, Medium: 8, Low: 22).
+  - `BulkActionsToolbar.jsx`: Checkbox multi-select toolbar (`Verify`, `Suspend`, `Assign`, `Archive`, `Mark Reviewed`, `Generate Report`, `Download Docs`, `Export CSV/Excel/PDF`).
+  - `ManagerPortfolioPopover.jsx`: Hover/Click manager profile popover showing portfolio size, manager trust score, and average response time.
+  - `RelatedPropertiesDrawer.jsx`: Contextual drawer tracking related properties (`Same Owner`, `Same Manager`, `Same Society`, `Same Builder`, `Nearby`).
+  - `PropertyInspectionModal.jsx`: 360° Property Inspection Modal with 11 tabs (`Overview`, `Documents`, `Checklist`, `Timeline`, `Maintenance`, `Lease History`, `Compliance`, `Inspection History`, `Audit`, `Reports`, `Notes`).
+  - `PropertyComparisonModal.jsx`: Side-by-side comparison matrix for 2 to 4 properties.
+  - `PropertyGridView.jsx`: Preserved property grid displaying Admin Cards with **Triple Metrics** (`Trust 92`, `Health 88`, `Compliance 94%`), Status lifecycle badge, SLA timer, Duplicate alert tag, Priority badge, and Admin CTAs.
+  - `PropertyMapView.jsx`: Interactive map side panel with GIS controls (`Locate Me`, `Reset View`, `Fit All`, `Full Screen`), Marker Color Legend (🟢 Verified, 🟡 Pending, 🔴 High Risk, 🔵 Occupied, 🟣 Premium, ⚫ Suspended), cluster labels with Avg Trust, Smart Popup, and Quick Hover Preview Card.
+- **Navigation & Integration**: Added `Property Directory` menu item (`/admin/property-directory`) for `admin` role in `Sidebar.jsx`, registered route in `App.jsx`.
+
+### Test Results & Build Status
+- **Client Production Build**: Passed cleanly in 29.58s (`0 errors`).
+- **Server Unit Tests**: 100% Passed (14/14 tests in 5.35s).
+- **Git Commit**: Implemented without touching tenant/manager property browsing.
+
+---
+
 ## [2.0.0] — 2026-08-07 — Phase 5.6 Enterprise Admin Verification Center
 ### Added
 - **Centralized Admin Mock & Mapper**: `client/src/mocks/adminVerificationMock.js` (11 normalized datasets) and `client/src/mappers/adminVerificationMapper.js` registered under key `ADMIN` in `verificationMapperFactory.js`.
