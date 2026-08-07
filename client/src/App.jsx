@@ -44,6 +44,7 @@ import NotificationCenterPage from './pages/NotificationCenterPage';
 import TechniciansPage from './pages/TechniciansPage';
 import WorkforceSchedulingPage from './pages/WorkforceSchedulingPage';
 import ActivateAccountPage from './pages/ActivateAccountPage';
+import VerificationComponentGallery from './pages/internal/VerificationComponentGallery';
 
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
@@ -131,6 +132,7 @@ function App() {
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
               <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
+              <Route path="/dev/verification-gallery" element={<VerificationComponentGallery />} />
 
               {/* Technician Portal Isolated Workspace */}
               <Route path="/technician/dashboard" element={<TechnicianRoute><TechnicianLayout><TechnicianDashboard /></TechnicianLayout></TechnicianRoute>} />

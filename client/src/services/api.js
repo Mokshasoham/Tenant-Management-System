@@ -276,5 +276,22 @@ export const technicianPortalService = {
   lookupPropertyByQR: (qrCode) => apiClient.get('/technicians/me/property-lookup', { params: { qrCode } }),
 };
 
+export const verificationService = {
+  getVerifications: (params) => apiClient.get('/verifications', { params }),
+  getVerificationById: (id) => apiClient.get(`/verifications/${id}`),
+  initiateVerification: (data) => apiClient.post('/verifications', data),
+  updateDraft: (id, data) => apiClient.put(`/verifications/${id}`, data),
+  submitVerification: (id) => apiClient.post(`/verifications/${id}/submit`),
+  resubmitVerification: (id, documents) => apiClient.post(`/verifications/${id}/resubmit`, { documents }),
+  uploadDocument: (id, data) => apiClient.post(`/verifications/${id}/documents`, data),
+  reviewVerification: (id, data) => apiClient.post(`/verifications/${id}/review`, data),
+  approveVerification: (id, data) => apiClient.post(`/verifications/${id}/approve`, data),
+  rejectVerification: (id, data) => apiClient.post(`/verifications/${id}/reject`, data),
+  getHistory: (entityType, entityId) => apiClient.get(`/verifications/history/${entityType}/${entityId}`),
+  getWidget: (profile, entityId) => apiClient.get(`/verifications/widget/${profile}${entityId ? `/${entityId}` : ''}`),
+  getTemplates: () => apiClient.get('/verifications/templates'),
+  getWorkflows: () => apiClient.get('/verifications/workflows'),
+};
+
 export default apiClient;
 
