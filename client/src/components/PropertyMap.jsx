@@ -12,6 +12,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import handleViewPropertyNavigation from '../utils/propertyNavigationHelper';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -252,7 +253,7 @@ export default function InteractivePropertyMap({
             marker.bindPopup(popup);
             marker.on('popupopen', () => {
                 const btn = document.getElementById(`cta-${property._id}`);
-                if (btn) btn.onclick = () => navigate(`/properties/${property._id}`);
+                if (btn) btn.onclick = () => handleViewPropertyNavigation({ navigate, property });
             });
 
             markersRef.current[property._id] = marker;
