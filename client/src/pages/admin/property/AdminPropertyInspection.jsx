@@ -84,7 +84,7 @@ export default function AdminPropertyInspection() {
       setCommunications(mapCommunications(propertyId));
       setReports(mapReports(propertyId));
     } catch (err) {
-      console.error('Error fetching property inspection workspace data:', err);
+      console.error('Error fetching property workspace data:', err);
     } finally {
       setLoading(false);
     }
@@ -122,10 +122,10 @@ export default function AdminPropertyInspection() {
 
   if (loading || !property) {
     return (
-      <div className={cn("min-h-screen p-8 flex items-center justify-center", theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#050508] text-white")}>
+      <div className={cn("min-h-screen p-8 flex items-center justify-center font-sans", theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#07070c] text-white")}>
         <div className="flex items-center gap-3">
           <RefreshCw className="w-5 h-5 animate-spin text-indigo-500" />
-          <span className="text-xs font-bold">Loading 360° Enterprise Workspace...</span>
+          <span className="text-xs font-black">Loading 360° Enterprise Workspace...</span>
         </div>
       </div>
     );
@@ -134,27 +134,27 @@ export default function AdminPropertyInspection() {
   return (
     <div className={cn(
       "min-h-screen relative overflow-hidden font-sans p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto transition-colors duration-300",
-      theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#050508] text-slate-100"
+      theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#07070c] text-slate-100"
     )}>
-      {/* ── Ambient Glow Backdrop ── */}
+      {/* ── Ambient Mesh Radial Glow Backdrop ── */}
       <div
-        className="fixed inset-0 pointer-events-none z-0"
+        className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-500"
         style={{
           background: theme === 'light'
-            ? 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08), transparent 70%)'
-            : 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 70%)',
+            ? 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08), transparent 70%), radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.05), transparent 50%)'
+            : 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.16), transparent 70%), radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.08), transparent 50%)',
         }}
       />
 
-      {/* Breadcrumb Button */}
+      {/* Single Breadcrumb Button */}
       <div className="relative z-10">
         <button
           onClick={() => navigate('/browse')}
           className={cn(
-            "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer shadow-lg",
+            "inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-black border transition-all cursor-pointer shadow-xl hover:scale-105",
             theme === 'light'
-              ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
-              : "bg-[#0c0d15] border-white/10 text-slate-300 hover:bg-white/10"
+              ? "bg-white/80 border-slate-200/80 text-slate-800 hover:bg-slate-100"
+              : "bg-[#0c0d15]/80 border-white/10 text-slate-200 hover:bg-white/10"
           )}
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Property Directory
@@ -176,7 +176,7 @@ export default function AdminPropertyInspection() {
       {/* ══ LIQUIDMORTIC TABS NAVIGATION ══ */}
       <div className="relative z-10 overflow-x-auto scrollbar-none">
         <div className={cn(
-          "inline-flex items-center gap-1.5 p-1.5 rounded-full border backdrop-blur-2xl shadow-2xl",
+          "inline-flex items-center gap-1.5 p-1.5 rounded-full border backdrop-blur-2xl shadow-2xl transition-all",
           theme === 'light' ? "bg-white/80 border-slate-200/80" : "bg-[#0c0d15]/80 border-white/10"
         )}>
           {TABS.map((tab) => {
