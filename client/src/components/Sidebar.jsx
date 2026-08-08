@@ -68,7 +68,6 @@ const ALL_NAV_ITEMS = [
   { label: 'Saved Homes', key: 'saved', icon: Bookmark, path: '/saved', roles: ['tenant'] },
   { label: 'Compare', key: 'compare', icon: Scale, path: '/compare', roles: ['tenant'] },
   { label: 'Properties', key: 'properties', icon: Home, path: '/properties', roles: ['admin', 'manager'] },
-  { label: 'Property Directory', key: 'propertyDirectory', icon: Compass, path: '/admin/property-directory', roles: ['admin'] },
   { label: 'Tenants', key: 'tenants', icon: Users, path: '/tenants', roles: ['admin', 'manager'] },
   { label: 'Workforce', key: 'technicians', icon: UserCheck, path: '/technicians', roles: ['admin', 'manager'] },
   { label: 'Dispatch Board', key: 'workforceScheduling', icon: Calendar, path: '/workforce-scheduling', roles: ['admin', 'manager'] },
