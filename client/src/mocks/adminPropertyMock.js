@@ -1,6 +1,6 @@
 /**
  * Enterprise Property Workspace Centralized Mock Data Module
- * Single source of truth for Admin Property Workspace, Triple Metrics, Grouped Documents, Communications, and Audits.
+ * Single source of truth for Admin Property Workspace, Media Showcase, Structural Specs, Tenant Reviews, Triple Metrics, Grouped Documents, Communications, and Audits.
  */
 
 export const MOCK_PROPERTY_DETAILS = {
@@ -20,10 +20,27 @@ export const MOCK_PROPERTY_DETAILS = {
   lng: 78.4347,
   createdDate: '2026-01-10',
   lastInspectionDate: '2026-07-15',
+
+  // Structural Specs
+  floorNumber: 4,
+  totalFloors: 12,
+  facingDirection: 'East',
+  parkingSpaces: 2,
+  furnishingGrade: 'Grade A Luxury',
+  constructionYear: 2023,
+  societyName: 'Skyline Luxury Co-Op Housing Society',
+  builderName: 'Apex Realty Developers',
+
+  // Media Showcase (Photos & Video Tours)
   images: [
-    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+  ],
+  videoTours: [
+    { id: 'v1', title: '360° Interior Walkthrough Tour', type: 'Walkthrough', duration: '3:45', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { id: 'v2', title: 'Drone Aerial & Society Amenities Tour', type: 'Drone', duration: '2:10', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
   ],
 
   // Enterprise Status & Review Queue
@@ -44,7 +61,6 @@ export const MOCK_PROPERTY_DETAILS = {
     { label: 'Created', value: '10 Jan 2026', color: 'indigo' },
     { label: 'Verified', value: 'Level 3 ✓', color: 'emerald' },
     { label: 'Occupied', value: 'Lease Active', color: 'blue' },
-    { label: 'Inspection', value: '15 Jul 2026', color: 'purple' },
     { label: 'Documents', value: '8 Files', color: 'amber' },
     { label: 'Health', value: '88 / 100', color: 'emerald' },
     { label: 'Compliance', value: '94%', color: 'emerald' },
@@ -86,11 +102,49 @@ export const MOCK_PROPERTY_DETAILS = {
 
   // Tags & Amenities
   tags: ['Luxury', 'Verified', 'Premium', 'Investment', 'Gated Community'],
-  amenities: ['24/7 Security', 'Swimming Pool', 'Gymnasium', 'Power Backup', 'Covered Parking', 'Clubhouse'],
+  amenities: ['24/7 Security', 'Swimming Pool', 'Gymnasium', 'Power Backup', 'Covered Parking', 'Clubhouse', 'EV Charging'],
   nearbyPlaces: [
     { name: 'KIMS Hospital', distance: '1.2 KM' },
     { name: 'City Center Mall', distance: '0.8 KM' },
     { name: 'Metro Station', distance: '0.4 KM' },
+  ],
+};
+
+export const MOCK_TENANT_REVIEWS = {
+  overallRating: 4.9,
+  totalReviews: 12,
+  categoryBreakdown: {
+    location: 4.9,
+    cleanliness: 4.9,
+    maintenance: 4.8,
+    security: 5.0,
+    valueForMoney: 4.7,
+  },
+  reviews: [
+    {
+      id: 'rev_1',
+      author: 'Aarav Patel',
+      role: 'Current Tenant',
+      verified: true,
+      rating: 5.0,
+      date: '2026-06-15',
+      title: 'Outstanding Luxury Apartment with Top-Tier Management',
+      comment: 'Living at Skyline Towers has been an absolute pleasure. High security, crystal clean amenities, and the property manager David responds within an hour whenever any maintenance is requested.',
+      likes: 8,
+      managerResponse: 'Thank you Aarav! We are proud to maintain Grade A living standards for all residents.',
+    },
+    {
+      id: 'rev_2',
+      author: 'Sneha Reddy',
+      role: 'Previous Tenant (2025)',
+      verified: true,
+      rating: 4.8,
+      date: '2025-12-20',
+      title: 'Great Location & Peaceful Environment',
+      comment: 'Very quiet neighbourhood in Banjara Hills with 24/7 power backup and easy metro connectivity. Security deposit was refunded seamlessly upon move out.',
+      likes: 5,
+      managerResponse: 'Appreciate your feedback Sneha! Wish you all the best.',
+    },
   ],
 };
 
@@ -111,7 +165,7 @@ export const MOCK_GROUPED_DOCUMENTS = {
     { id: 'doc_5', title: 'Electricity & Water Clearance Receipt', filename: 'utility_clearance.pdf', version: 'v1.0', uploadedBy: 'David Sterling', uploadedDate: '2026-01-10', verifiedBy: 'Automated Engine', status: 'VERIFIED', expiry: '2026-08-31' },
   ],
   INSPECTION: [
-    { id: 'doc_6', title: 'Annual Structural Health Inspection Report', filename: 'structural_health_audit.pdf', version: 'v1.0', uploadedBy: 'David Kim', uploadedDate: '2026-07-15', verifiedBy: 'David Kim', status: 'VERIFIED', expiry: '2027-07-14' },
+    { id: 'doc_6', title: 'Annual Structural Health Audit Report', filename: 'structural_health_audit.pdf', version: 'v1.0', uploadedBy: 'David Sterling', uploadedDate: '2026-07-15', verifiedBy: 'Alex Mercer', status: 'VERIFIED', expiry: '2027-07-14' },
   ],
 };
 
@@ -121,28 +175,29 @@ export const MOCK_PROPERTY_TIMELINE = [
   { id: 't3', title: 'Documents Verified & Format Checks Passed', timestamp: '2026-01-15T09:15:00Z', category: 'Documents', author: 'OCR Engine' },
   { id: 't4', title: 'Level 3 Compliance Approved', timestamp: '2026-01-20T16:00:00Z', category: 'Verification', author: 'Alex Mercer' },
   { id: 't5', title: 'Tenant Aarav Patel Moved In', timestamp: '2026-02-01T08:00:00Z', category: 'Lease', author: 'David Sterling' },
-  { id: 't6', title: 'Annual Inspection Completed', timestamp: '2026-07-15T11:45:00Z', category: 'Inspection', author: 'David Kim' },
+  { id: 't6', title: 'Annual Maintenance Audit Completed', timestamp: '2026-07-15T11:45:00Z', category: 'Maintenance', author: 'David Sterling' },
 ];
 
 export const MOCK_PROPERTY_AUDIT_LOG = [
-  { id: 'a1', timestamp: '2026-07-15T11:45:00Z', reviewer: 'David Kim', action: 'VERIFICATION_APPROVED', remarks: 'Annual inspection completed. All fire NOC and structural safety standards verified.', ip: '192.168.1.105', session: 'sess_90412a' },
+  { id: 'a1', timestamp: '2026-07-15T11:45:00Z', reviewer: 'Alex Mercer', action: 'VERIFICATION_APPROVED', remarks: 'Annual audit completed. All fire NOC and structural safety standards verified.', ip: '192.168.1.105', session: 'sess_90412a' },
   { id: 'a2', timestamp: '2026-01-20T16:00:00Z', reviewer: 'Alex Mercer', action: 'LEVEL_3_APPROVAL', remarks: 'Level 3 compliance sign-off granted.', ip: '192.168.1.104', session: 'sess_88192b' },
 ];
 
 export const MOCK_COMMUNICATIONS = [
   { id: 'c1', sender: 'David Sterling', role: 'Property Manager', timestamp: '2026-07-14T15:20:00Z', text: 'Uploaded renewed fire NOC and municipal tax receipt for review.' },
-  { id: 'c2', sender: 'Alex Mercer', role: 'Compliance Lead', timestamp: '2026-07-15T09:00:00Z', text: 'Confirmed document validity. Annual inspection scheduled with David Kim.' },
+  { id: 'c2', sender: 'Alex Mercer', role: 'Compliance Lead', timestamp: '2026-07-15T09:00:00Z', text: 'Confirmed document validity. Annual maintenance review approved.' },
 ];
 
 export const MOCK_PROPERTY_REPORTS = [
   { id: 'rep_1', title: 'Verification Compliance Audit Report', type: 'Verification', lastGenerated: '2026-07-20' },
-  { id: 'rep_2', title: 'Annual Property Health & Safety Inspection', type: 'Inspection', lastGenerated: '2026-07-15' },
+  { id: 'rep_2', title: 'Annual Property Health & Safety Inspection', type: 'Health', lastGenerated: '2026-07-15' },
   { id: 'rep_3', title: 'Financial & Lease Yield Summary', type: 'Financial', lastGenerated: '2026-06-30' },
   { id: 'rep_4', title: 'Maintenance & Repairs Audit Trail', type: 'Maintenance', lastGenerated: '2026-07-01' },
 ];
 
 export default {
   MOCK_PROPERTY_DETAILS,
+  MOCK_TENANT_REVIEWS,
   MOCK_GROUPED_DOCUMENTS,
   MOCK_PROPERTY_TIMELINE,
   MOCK_PROPERTY_AUDIT_LOG,

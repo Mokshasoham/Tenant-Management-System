@@ -4,6 +4,7 @@
 
 import {
   MOCK_PROPERTY_DETAILS,
+  MOCK_TENANT_REVIEWS,
   MOCK_GROUPED_DOCUMENTS,
   MOCK_PROPERTY_TIMELINE,
   MOCK_PROPERTY_AUDIT_LOG,
@@ -13,6 +14,10 @@ import {
 
 export function mapPropertyDetails(id, raw) {
   return raw || MOCK_PROPERTY_DETAILS;
+}
+
+export function mapTenantReviews(id, raw) {
+  return raw || MOCK_TENANT_REVIEWS;
 }
 
 export function mapGroupedDocuments(id, raw) {
@@ -37,6 +42,7 @@ export function mapReports(id, raw) {
 
 export default {
   mapPropertyDetails,
+  mapTenantReviews,
   mapGroupedDocuments,
   mapTimeline,
   mapAuditLog,

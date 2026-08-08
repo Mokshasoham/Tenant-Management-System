@@ -464,7 +464,7 @@ export default function BrowsePropertiesPage() {
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50" />
           <span className="text-xs font-black tracking-widest uppercase">TMS Property</span>
           <span className="opacity-30">|</span>
-          <span className="text-xs font-medium opacity-70">Structure. Logic. Craft.</span>
+          <span className="text-xs font-medium opacity-70">Portfolio Management</span>
         </div>
 
         {/* Small Inline Summary Pills & Notification Bell */}
@@ -507,10 +507,10 @@ export default function BrowsePropertiesPage() {
           Portfolio Directory
         </span>
         <h1 className={cn("text-3xl sm:text-4xl md:text-5xl font-black tracking-tight", theme === 'light' ? "text-slate-900" : "text-white")}>
-          Structure. Logic. Craft.
+          Property Directory
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto font-medium">
-          From first principles to enterprise verification. No operational noise.
+          Centralized property inspection, verification tracking, and portfolio management.
         </p>
       </div>
 
