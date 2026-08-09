@@ -144,6 +144,7 @@ export const maintenanceService = {
   uploadPhasePhotos: (id, phase, formData) => apiClient.post(`/maintenance/${id}/photos/${phase}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  deletePhasePhoto: (id, phase, photoUrl) => apiClient.delete(`/maintenance/${id}/photos/${phase}`, { data: { photoUrl } }),
   saveSignature: (id, data) => apiClient.post(`/maintenance/${id}/signature`, data),
   uploadVoiceNote: (id, formData) => apiClient.post(`/maintenance/${id}/voice-notes`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

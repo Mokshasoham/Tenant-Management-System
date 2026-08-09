@@ -179,12 +179,23 @@ export default function SignaturePad({
     setIsSubmitting(true);
 
     const payload = {
-      technicianSignature: techSignatureData,
-      tenantSignature: tenantSignatureData,
+      technicianSignature: techSignatureData ? {
+        dataUrl: techSignatureData,
+        signedAt: new Date().toISOString()
+      } : null,
+      tenantSignature: tenantSignatureData ? {
+        dataUrl: tenantSignatureData,
+        signedBy: tenantName.trim() || 'Tenant',
+        signedAt: new Date().toISOString()
+      } : null,
       technicianName: technicianName.trim(),
       tenantName: tenantName.trim(),
-      location: gpsData,
-      deviceId,
+      gpsAtSigning: (gpsData?.latitude && gpsData?.longitude) ? {
+        latitude: Number(gpsData.latitude),
+        longitude: Number(gpsData.longitude),
+        accuracy: Number(gpsData.accuracy || 0)
+      } : null,
+      deviceId: deviceId || 'web',
       timestamp: new Date().toISOString(),
     };
 

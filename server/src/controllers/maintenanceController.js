@@ -301,6 +301,7 @@ export const uploadPhasePhotos = asyncHandler(async (req, res) => {
 
     const Maintenance = (await import('../models/Maintenance.js')).default;
     const storageProvider = (await import('../platform/storage/storageProvider.js')).default;
+    const FileStorage = (await import('../models/FileStorage.js')).default;
 
     const ticket = await Maintenance.findById(id);
     if (!ticket) throw new AppError('Maintenance ticket not found', 404);
@@ -322,6 +323,24 @@ export const uploadPhasePhotos = asyncHandler(async (req, res) => {
         const filename = `${phase}_${id}_${timestamp}_${safeName}`;
         const result = await storageProvider.upload(file.buffer, filename, file.mimetype, 'maintenance');
 
+        // Store file buffer into MongoDB FileStorage collection for permanent fallback serving
+        try {
+            await FileStorage.findOneAndUpdate(
+                { filename },
+                {
+                    filename,
+                    category: 'maintenance',
+                    mimeType: file.mimetype,
+                    size: file.size,
+                    data: file.buffer,
+                    uploadedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+        } catch (dbErr) {
+            console.warn('[uploadPhasePhotos] FileStorage DB backup warning:', dbErr.message);
+        }
+
         const record = {
             url: result.url,
             filename: file.originalname,
@@ -335,6 +354,7 @@ export const uploadPhasePhotos = asyncHandler(async (req, res) => {
     const fieldName = `${phase}Photos`;
     if (!ticket[fieldName]) ticket[fieldName] = [];
     ticket[fieldName].push(...uploadedRecords);
+    if (!ticket.images) ticket.images = [];
     ticket.images.push(...uploadedRecords.map(r => r.url));
 
     if (!ticket.fieldChecklist) ticket.fieldChecklist = {};
@@ -345,6 +365,39 @@ export const uploadPhasePhotos = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: `${phase.toUpperCase()} photos uploaded successfully`,
+        data: ticket
+    });
+});
+
+export const deletePhasePhoto = asyncHandler(async (req, res) => {
+    const { id, phase } = req.params;
+    const { photoUrl } = req.body;
+    if (!['before', 'during', 'after'].includes(phase)) {
+        throw new AppError("Photo phase must be 'before', 'during', or 'after'", 400);
+    }
+    if (!photoUrl) throw new AppError('Photo URL is required for deletion', 400);
+
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Maintenance ticket not found', 404);
+
+    const fieldName = `${phase}Photos`;
+    if (Array.isArray(ticket[fieldName])) {
+        ticket[fieldName] = ticket[fieldName].filter(p => {
+            const pUrl = typeof p === 'string' ? p : p.url;
+            return pUrl !== photoUrl && !pUrl?.endsWith(photoUrl) && !photoUrl?.endsWith(pUrl);
+        });
+    }
+
+    if (Array.isArray(ticket.images)) {
+        ticket.images = ticket.images.filter(img => img !== photoUrl && !img?.endsWith(photoUrl) && !photoUrl?.endsWith(img));
+    }
+
+    await ticket.save();
+
+    res.status(200).json({
+        success: true,
+        message: `${phase.toUpperCase()} photo deleted successfully`,
         data: ticket
     });
 });
@@ -390,27 +443,49 @@ export const overrideCheckInGps = asyncHandler(async (req, res) => {
 
 export const saveSignature = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { technicianSignature, tenantSignature, gpsAtSigning, deviceId } = req.body;
+    const { technicianSignature, tenantSignature, gpsAtSigning, deviceId, tenantName, technicianName } = req.body;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
 
     const Maintenance = (await import('../models/Maintenance.js')).default;
     const ticket = await Maintenance.findById(id);
     if (!ticket) throw new AppError('Ticket not found', 404);
 
-    ticket.signature = {
-        technicianSignature: technicianSignature ? {
-            dataUrl: technicianSignature.dataUrl,
-            signedAt: technicianSignature.signedAt || new Date()
-        } : ticket.signature?.technicianSignature,
-        tenantSignature: tenantSignature ? {
-            dataUrl: tenantSignature.dataUrl,
-            signedBy: tenantSignature.signedBy,
-            signedAt: tenantSignature.signedAt || new Date()
-        } : ticket.signature?.tenantSignature,
-        gpsAtSigning: gpsAtSigning || ticket.signature?.gpsAtSigning,
-        deviceId: deviceId || req.headers['x-device-id'] || 'web',
-        ipAddress
+    if (!ticket.signature) ticket.signature = {};
+
+    const extractDataUrl = (sig) => {
+        if (!sig) return null;
+        if (typeof sig === 'string') return sig;
+        if (typeof sig === 'object' && sig.dataUrl) return sig.dataUrl;
+        return null;
     };
+
+    const techUrl = extractDataUrl(technicianSignature);
+    if (techUrl) {
+        ticket.signature.technicianSignature = {
+            dataUrl: techUrl,
+            signedAt: (typeof technicianSignature === 'object' && technicianSignature?.signedAt) ? new Date(technicianSignature.signedAt) : new Date()
+        };
+    }
+
+    const tenantUrl = extractDataUrl(tenantSignature);
+    if (tenantUrl) {
+        ticket.signature.tenantSignature = {
+            dataUrl: tenantUrl,
+            signedBy: (typeof tenantSignature === 'object' && tenantSignature?.signedBy) || tenantName || 'Tenant',
+            signedAt: (typeof tenantSignature === 'object' && tenantSignature?.signedAt) ? new Date(tenantSignature.signedAt) : new Date()
+        };
+    }
+
+    if (gpsAtSigning && typeof gpsAtSigning === 'object' && (gpsAtSigning.latitude || gpsAtSigning.longitude)) {
+        ticket.signature.gpsAtSigning = {
+            latitude: Number(gpsAtSigning.latitude || 0),
+            longitude: Number(gpsAtSigning.longitude || 0),
+            accuracy: Number(gpsAtSigning.accuracy || 0)
+        };
+    }
+
+    ticket.signature.deviceId = deviceId || req.headers['x-device-id'] || ticket.signature.deviceId || 'web';
+    ticket.signature.ipAddress = ipAddress;
 
     if (!ticket.fieldChecklist) ticket.fieldChecklist = {};
     ticket.fieldChecklist.signatureCollected = { done: true, at: new Date() };

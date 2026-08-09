@@ -144,7 +144,7 @@ const uploadsPath = path.join(__dirname, '..', 'uploads');
 
 // Step 1: Try centralized FileMetadata lookup (covers all new uploads)
 // Step 1: Try centralized FileMetadata lookup (covers all new uploads)
-app.get(/^\/+(?:uploads)\/+(properties|leases|invoices|chat|kyc|avatars)\/+(.+)$/i, async (req, res, next) => {
+app.get(/^\/+(?:uploads)\/+(properties|leases|invoices|chat|kyc|avatars|maintenance)\/+(.+)$/i, async (req, res, next) => {
   const category = req.params[0];
   const filename = req.params[1];
   

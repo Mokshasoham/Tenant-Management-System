@@ -25,6 +25,7 @@ router.get('/:id/related', maintenanceController.getRelatedTickets);
 router.post('/', maintenanceController.createRequest);
 router.post('/:id/attachments', upload.array('attachments', 10), maintenanceController.uploadAttachments);
 router.post('/:id/photos/:phase', upload.any(), maintenanceController.uploadPhasePhotos);
+router.delete('/:id/photos/:phase', maintenanceController.deletePhasePhoto);
 router.post('/:id/signature', maintenanceController.saveSignature);
 router.post('/:id/voice-notes', upload.single('audio'), maintenanceController.uploadVoiceNote);
 router.post('/:id/check-in/override', authorize('manager', 'admin'), maintenanceController.overrideCheckInGps);

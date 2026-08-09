@@ -138,12 +138,41 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
     }
   };
 
-  const triggerCamera = () => {
-    if (isAfterPhaseLocked) {
-      setErrorMsg('Upload at least 1 "Before" photo first before capturing "After" photos.');
+  const [deletingPhoto, setDeletingPhoto] = useState(null);
+
+  const handleDeletePhoto = async (photoObj, e) => {
+    if (e) e.stopPropagation();
+    const rawUrl = typeof photoObj === 'string' ? photoObj : photoObj.url || photoObj.path;
+    if (!rawUrl) return;
+
+    if (!resolvedTicketId) {
+      setErrorMsg('Ticket ID missing. Cannot delete photo.');
       return;
     }
-    fileInputRef.current?.click();
+
+    try {
+      setDeletingPhoto(rawUrl);
+      await maintenanceService.deletePhasePhoto(resolvedTicketId, activePhase, rawUrl);
+      
+      const updatedList = photos[activePhase].filter(p => {
+        const pUrl = typeof p === 'string' ? p : p.url;
+        return pUrl !== rawUrl && !pUrl?.endsWith(rawUrl) && !rawUrl?.endsWith(pUrl);
+      });
+
+      const updatedAll = {
+        ...photos,
+        [activePhase]: updatedList,
+      };
+
+      setPhotos(updatedAll);
+      if (onPhotoUploaded) onPhotoUploaded(updatedAll);
+      if (onUploadSuccess) onUploadSuccess(updatedAll);
+    } catch (err) {
+      console.error('Failed to delete photo:', err);
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to delete photo.');
+    } finally {
+      setDeletingPhoto(null);
+    }
   };
 
   return (
@@ -288,6 +317,9 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
             {photos[activePhase].map((photo, idx) => {
               const fullUrl = resolveImageUrl(photo);
+              const rawUrl = typeof photo === 'string' ? photo : photo.url || photo.path;
+              const isDeleting = deletingPhoto === rawUrl;
+
               return (
                 <div
                   key={idx}
@@ -295,8 +327,29 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
                   className="group relative aspect-square rounded-xl overflow-hidden bg-slate-950 border border-slate-800 cursor-pointer hover:border-cyan-400 transition-all"
                 >
                   <img src={fullUrl} alt={`Phase ${activePhase} ${idx + 1}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Eye className="w-5 h-5 text-white" />
+                  
+                  {/* Action Overlay */}
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPreview(fullUrl);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:text-cyan-400 border border-slate-700"
+                      title="Preview"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isDeleting}
+                      onClick={(e) => handleDeletePhoto(photo, e)}
+                      className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40"
+                      title="Delete Photo"
+                    >
+                      {isDeleting ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
               );
@@ -308,9 +361,20 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
       {/* Photo Preview Modal */}
       {selectedPreview && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-2 space-y-3">
-            <img src={resolveImageUrl(selectedPreview)} alt="Preview" className="w-full max-h-[70vh] object-contain rounded-xl" />
-            <div className="flex justify-end">
+          <div className="relative max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-3 space-y-3 shadow-2xl">
+            <img src={resolveImageUrl(selectedPreview)} alt="Preview" className="w-full max-h-[70vh] object-contain rounded-xl bg-black/40" />
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  handleDeletePhoto(selectedPreview, e);
+                  setSelectedPreview(null);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Photo
+              </button>
               <button
                 onClick={() => setSelectedPreview(null)}
                 className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
