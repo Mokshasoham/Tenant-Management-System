@@ -1,115 +1,111 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { technicianPortalService } from '../../services/api';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTechnicianJobs } from '../../hooks/useTechnicianJobs';
+import { STATUS_LABELS } from '../../services/technicianJobService';
 import useAuthStore from '../../context/authStore';
+import { useTheme } from '../../context/ThemeContext';
 import {
   Wrench,
   CheckCircle2,
   Clock,
   Star,
-  Award,
   Zap,
-  TrendingUp,
-  AlertTriangle,
   ArrowRight,
   ShieldCheck,
-  MapPin
+  MapPin,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { cn } from '../../utils/cn';
 
 export default function TechnicianDashboard() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const [kpis, setKpis] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
 
-  useEffect(() => {
-    // Session event telemetry guard: fire technician.dashboard.viewed ONCE per session
-    const sessionKey = 'tech_dashboard_viewed_published';
-    if (!sessionStorage.getItem(sessionKey)) {
-      sessionStorage.setItem(sessionKey, 'true');
-      console.log('[Telemetry] Published technician.dashboard.viewed session event');
-    }
-
-    async function loadDashboardData() {
-      try {
-        const [kpiRes, jobsRes] = await Promise.all([
-          technicianPortalService.getMyKPIs().catch(() => null),
-          technicianPortalService.getMyJobs({ limit: 5 }).catch(() => null)
-        ]);
-        if (kpiRes?.data) setKpis(kpiRes.data);
-        if (jobsRes?.data) setJobs(jobsRes.data);
-      } catch (err) {
-        console.error('Failed to load technician dashboard data', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboardData();
-  }, []);
+  const { jobs, activeJobs, completedJobs, scheduledJobs, loading, error, refetch } = useTechnicianJobs();
 
   const stats = [
     {
       label: 'ACTIVE JOBS',
-      value: kpis?.workload?.currentJobs ?? jobs.filter(j => !['resolved', 'completed', 'closed'].includes(j.status)).length,
+      value: loading ? '...' : activeJobs.length,
       icon: Wrench,
-      color: 'from-cyan-500/20 to-blue-500/10',
-      border: 'border-cyan-500/30',
-      text: 'text-cyan-400'
+      color: 'text-cyan-500 dark:text-cyan-400',
+      bg: 'bg-cyan-500/10 border-cyan-500/20',
     },
     {
       label: 'TODAY COMPLETED',
-      value: kpis?.workload?.completedToday ?? jobs.filter(j => ['resolved', 'completed', 'closed'].includes(j.status)).length,
+      value: loading ? '...' : completedJobs.length,
       icon: CheckCircle2,
-      color: 'from-emerald-500/20 to-teal-500/10',
-      border: 'border-emerald-500/30',
-      text: 'text-emerald-400'
+      color: 'text-emerald-500 dark:text-emerald-400',
+      bg: 'bg-emerald-500/10 border-emerald-500/20',
     },
     {
       label: 'SCHEDULED',
-      value: kpis?.workload?.scheduledCount ?? jobs.filter(j => ['scheduled', 'visit_scheduled'].includes(j.status) || j.requestedVisitDate).length,
+      value: loading ? '...' : scheduledJobs.length,
       icon: Zap,
-      color: 'from-amber-500/20 to-orange-500/10',
-      border: 'border-amber-500/30',
-      text: 'text-amber-400'
+      color: 'text-amber-500 dark:text-amber-400',
+      bg: 'bg-amber-500/10 border-amber-500/20',
     },
     {
       label: 'AVG RESOLUTION',
-      value: kpis?.avgResolutionTimeHours ? `${kpis.avgResolutionTimeHours}h` : 'Not available',
+      value: 'Not available',
       icon: Star,
-      color: 'from-purple-500/20 to-pink-500/10',
-      border: 'border-purple-500/30',
-      text: 'text-purple-400'
+      color: 'text-purple-500 dark:text-purple-400',
+      bg: 'bg-purple-500/10 border-purple-500/20',
     }
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto transition-colors duration-300">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-900/40 via-blue-900/30 to-slate-900 border border-cyan-500/30 p-6 shadow-xl">
+      <div className={cn(
+        "relative overflow-hidden rounded-3xl border p-6 shadow-xl backdrop-blur-xl transition-all",
+        theme === 'light'
+          ? "bg-gradient-to-r from-cyan-50 via-sky-50 to-indigo-50 border-cyan-200 text-slate-900"
+          : "bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-slate-900 border-cyan-500/30 text-white"
+      )}>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-semibold border border-cyan-500/30 mb-3">
+            <div className={cn(
+              "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border mb-3",
+              theme === 'light'
+                ? "bg-cyan-500/10 text-cyan-700 border-cyan-300"
+                : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
+            )}>
               <ShieldCheck className="w-3.5 h-3.5" />
               Verified Technician Mobile Hub
             </div>
-            <h1 className="text-2xl font-bold text-white">
-              Welcome back, {user?.firstName}!
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Welcome back, {user?.firstName || 'Technician'}!
             </h1>
-            <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              You are signed in as Employee ID <span className="font-mono text-cyan-300 font-semibold">{user?.technicianProfile?.employeeId}</span>. Here is your operational dispatch summary for today.
+            <p className={cn("text-xs sm:text-sm font-medium mt-1 max-w-xl", theme === 'light' ? "text-slate-600" : "text-slate-300")}>
+              You are signed in as Employee ID <span className="font-mono font-black text-cyan-600 dark:text-cyan-400">{user?.technicianProfile?.employeeId || 'TECH-7846'}</span>. Here is your operational dispatch summary for today.
             </p>
           </div>
-          <Link
-            to="/technician/jobs"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-medium text-sm shadow-lg shadow-cyan-500/25 transition-all"
+          <button
+            onClick={() => navigate('/technician/jobs?status=active')}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs shadow-lg shadow-cyan-600/30 transition-all cursor-pointer shrink-0"
           >
-            View Active Jobs
+            View Active Jobs ({activeJobs.length})
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-rose-500 text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>{error}</span>
+          </div>
+          <button onClick={refetch} className="px-3 py-1 rounded-xl bg-rose-600 text-white hover:bg-rose-500 flex items-center gap-1 cursor-pointer">
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -121,75 +117,96 @@ export default function TechnicianDashboard() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`rounded-xl bg-gradient-to-br ${stat.color} border ${stat.border} p-4 backdrop-blur-md`}
+              className={cn(
+                "rounded-3xl border p-5 backdrop-blur-xl transition-all shadow-md flex flex-col justify-between space-y-2",
+                theme === 'light'
+                  ? "bg-white border-slate-200/80 shadow-slate-200/50"
+                  : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+              )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400 font-medium">{stat.label}</span>
-                <Icon className={`w-4 h-4 ${stat.text}`} />
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{stat.label}</span>
+                <div className={cn("p-2 rounded-xl border", stat.bg)}>
+                  <Icon className={cn("w-4 h-4", stat.color)} />
+                </div>
               </div>
-              <p className={`text-2xl font-bold mt-2 ${stat.text}`}>
-                {loading ? '...' : stat.value}
+              <p className={cn("text-2xl sm:text-3xl font-mono font-black tracking-tight", stat.color)}>
+                {stat.value}
               </p>
             </motion.div>
           );
         })}
       </div>
 
-      {/* Recent Assigned Jobs List */}
-      <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5 backdrop-blur-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <Clock className="w-4 h-4 text-cyan-400" />
+      {/* Recent Assigned Dispatch Queue */}
+      <div className={cn(
+        "rounded-3xl border p-6 backdrop-blur-xl shadow-xl transition-all space-y-4",
+        theme === 'light' ? "bg-white border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+      )}>
+        <div className="flex items-center justify-between pb-2 border-b border-border/40">
+          <h2 className="text-base font-black text-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4 text-cyan-500" />
             Assigned Dispatch Queue
           </h2>
-          <Link to="/technician/jobs" className="text-xs text-cyan-400 hover:underline">
-            See All
-          </Link>
+          <button onClick={() => navigate('/technician/jobs')} className="text-xs font-bold text-cyan-500 hover:underline cursor-pointer">
+            See All ({jobs.length})
+          </button>
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-slate-500 text-sm">Loading assigned jobs...</div>
+          <div className="space-y-3 py-4">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-2xl bg-muted/40 animate-pulse border border-border/40" />
+            ))}
+          </div>
         ) : jobs.length === 0 ? (
-          <div className="py-8 text-center text-slate-400 text-sm rounded-xl border border-dashed border-slate-800">
-            No maintenance tickets currently assigned.
+          <div className="py-12 text-center text-muted-foreground text-xs font-bold rounded-2xl border border-dashed border-border/60">
+            No maintenance jobs currently assigned to you.
           </div>
         ) : (
           <div className="space-y-3">
-            {jobs.map((job) => (
-              <div
-                key={job._id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-800/40 border border-slate-800 hover:border-slate-700 transition-all"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                      job.priority === 'emergency' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                      job.priority === 'high' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                      'bg-slate-700 text-slate-300'
-                    }`}>
-                      {job.priority || 'medium'}
-                    </span>
-                    <h3 className="text-sm font-medium text-slate-200">{job.title}</h3>
+            {jobs.slice(0, 5).map((job) => {
+              const statusText = STATUS_LABELS[job.status] || job.status?.replace(/_/g, ' ') || 'Assigned';
+              return (
+                <div
+                  key={job._id}
+                  className={cn(
+                    "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border transition-all hover:scale-[1.005]",
+                    theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
+                  )}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-[9px] uppercase font-black px-2.5 py-0.5 rounded-full border",
+                        job.priority === 'emergency' ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
+                        job.priority === 'high' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                        "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                      )}>
+                        {job.priority || 'medium'}
+                      </span>
+                      <h3 className="text-sm font-black text-foreground">{job.title}</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-cyan-500" />
+                      📍 {job.property?.name || 'Assigned Property'} • Unit {job.unit || 'N/A'} • {job.category || 'General'}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-slate-500" />
-                    Unit {job.unit || 'N/A'} • {job.category || 'General'}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 capitalize">
-                    {job.status?.replace('_', ' ')}
-                  </span>
-                  <Link
-                    to={`/technician/jobs/${job._id}`}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 text-xs font-medium border border-cyan-500/30 transition-all"
-                  >
-                    Details
-                  </Link>
+                  <div className="flex items-center gap-3 justify-between sm:justify-end">
+                    <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
+                      {statusText}
+                    </span>
+                    <button
+                      onClick={() => navigate(`/technician/jobs/${job._id}`)}
+                      className="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black shadow-md transition-all cursor-pointer"
+                    >
+                      Details →
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

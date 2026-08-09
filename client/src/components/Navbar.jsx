@@ -275,12 +275,13 @@ export default function Navbar({ toggleSidebar }) {
 
   return (
     <nav className={cn(
-      "w-full border border-white/10 dark:border-white/5 bg-[#0e1622]/45 dark:bg-[#070b12]/45 backdrop-blur-xl relative group",
-      "px-4 py-2.5 rounded-2xl flex items-center justify-between gap-4 transition-all duration-300",
-      "shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
+      "w-full border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#070b12]/45 backdrop-blur-xl relative group h-[64px] min-h-[64px]",
+      "px-4 py-2 rounded-2xl flex items-center justify-between gap-4 transition-all duration-300",
+      "shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
       role === 'admin' && "shadow-violet-500/5 hover:border-violet-500/25",
       role === 'manager' && "shadow-blue-500/5 hover:border-blue-500/25",
-      role === 'tenant' && "shadow-emerald-500/5 hover:border-emerald-500/25"
+      role === 'tenant' && "shadow-emerald-500/5 hover:border-emerald-500/25",
+      role === 'technician' && "shadow-cyan-500/5 hover:border-cyan-500/25"
     )}>
       {/* Glossy Reflection Overlay */}
       <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
@@ -295,17 +296,17 @@ export default function Navbar({ toggleSidebar }) {
         <button 
           onClick={() => setSearchOpen(true)}
           className={cn(
-            'hidden sm:flex items-center justify-between gap-2 bg-muted border border-border px-3 py-2 rounded-xl transition-all duration-200 w-64 text-left cursor-text hover:bg-muted-foreground/5',
+            'hidden sm:flex items-center justify-between gap-2 bg-slate-100 dark:bg-muted border border-slate-200 dark:border-border px-3 py-1.5 rounded-xl transition-all duration-200 w-56 sm:w-64 text-left cursor-text hover:bg-slate-200/50 dark:hover:bg-muted-foreground/5 shrink-0 h-9',
             theme.searchFocus
           )}
         >
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground truncate whitespace-nowrap overflow-hidden text-ellipsis">
               {role === 'technician' ? 'Search jobs, requests...' : (t('common.search') || 'Search') + '...'}
             </span>
           </div>
-          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-background text-[9px] font-black text-muted-foreground/60 select-none">
+          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-background text-[9px] font-black text-muted-foreground/60 select-none shrink-0">
             Ctrl K
           </kbd>
         </button>

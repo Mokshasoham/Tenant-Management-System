@@ -18,6 +18,8 @@ import {
   Navigation,
   PhoneCall
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { cn } from '../utils/cn';
 
 import CheckInOutPanel from '../components/technician/CheckInOutPanel';
 import PhotoWorkflowCapture from '../components/technician/PhotoWorkflowCapture';
@@ -26,13 +28,15 @@ import SignaturePad from '../components/technician/SignaturePad';
 
 export default function TechnicianJobDetailPage() {
   const { id } = useParams();
+  const { theme } = useTheme();
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [noteText, setNoteText] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'checkin' | 'photos' | 'voicenotes' | 'signature'
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchJobDetail();
@@ -41,7 +45,7 @@ export default function TechnicianJobDetailPage() {
   const fetchJobDetail = async () => {
     try {
       const res = await maintenanceService.getRequestById(id);
-      if (res?.data) setJob(res.data);
+      if (res?.data) setJob(res.data?.data || res.data);
     } catch (err) {
       console.error('Failed to load job detail', err);
     } finally {
@@ -76,36 +80,37 @@ export default function TechnicianJobDetailPage() {
   };
 
   if (loading) {
-    return <div className="py-12 text-center text-slate-500 text-sm">Loading ticket details...</div>;
+    return <div className="py-16 text-center text-muted-foreground text-xs font-bold">Loading job details...</div>;
   }
 
   if (!job) {
     return (
-      <div className="py-12 text-center text-slate-400 text-sm">
-        Ticket not found. <Link to="/technician/jobs" className="text-cyan-400 underline">Return to jobs</Link>
+      <div className="py-16 text-center text-muted-foreground text-xs font-bold space-y-2">
+        <p>Ticket not found or permission denied.</p>
+        <Link to="/technician/jobs" className="text-cyan-500 underline font-black">Return to jobs list</Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12 transition-colors duration-300">
       {/* Top Navigation */}
       <div className="flex items-center justify-between">
         <Link
           to="/technician/jobs"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Jobs
         </Link>
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2.5 py-1 rounded-full font-semibold uppercase ${
-            job.priority === 'emergency' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-            'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-          }`}>
+          <span className={cn(
+            "text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider border",
+            job.priority === 'emergency' ? "bg-rose-500/20 text-rose-500 border-rose-500/40" : "bg-cyan-500/20 text-cyan-500 border-cyan-500/30"
+          )}>
             {job.priority || 'Medium'} Priority
           </span>
-          <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700 capitalize">
+          <span className="text-xs px-3 py-1 rounded-full font-mono font-bold bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 capitalize">
             {job.status?.replace('_', ' ')}
           </span>
         </div>
@@ -113,26 +118,29 @@ export default function TechnicianJobDetailPage() {
 
       {/* Completion Error Alert */}
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-500 font-bold flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="whitespace-pre-line">{errorMessage}</div>
         </div>
       )}
 
       {/* Main Ticket Info Card */}
-      <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 backdrop-blur-xl space-y-4">
+      <div className={cn(
+        "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+        theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+      )}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold text-white">{job.title}</h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Ticket ID: <span className="font-mono text-cyan-300">{job._id}</span>
-              {job.unit && <span className="ml-3 font-semibold text-slate-300">Unit: {job.unit}</span>}
+            <h1 className="text-xl font-black text-foreground">{job.title}</h1>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Ticket ID: <span className="font-mono text-cyan-500 font-bold">{job.ticketNumber || job._id}</span>
+              {job.unit && <span className="ml-3 font-bold text-foreground">Unit: {job.unit}</span>}
             </p>
           </div>
           {job.tenant?.phone && (
             <a
               href={`tel:${job.tenant.phone}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold hover:bg-emerald-500/30 self-start sm:self-center"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-xs font-black hover:bg-emerald-500/30 self-start sm:self-center transition-all cursor-pointer"
             >
               <PhoneCall className="w-3.5 h-3.5" />
               Call Tenant
@@ -140,12 +148,15 @@ export default function TechnicianJobDetailPage() {
           )}
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 text-sm text-slate-200">
+        <div className={cn(
+          "p-4 rounded-2xl border text-xs font-medium text-foreground",
+          theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
+        )}>
           {job.description}
         </div>
 
         {/* Action Tabs Navigation */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-2 pt-2 border-t border-slate-800">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 pt-2 border-t border-border/40">
           {[
             { id: 'overview', label: 'Overview', icon: FileText },
             { id: 'checkin', label: 'GPS Check-In', icon: Navigation },
@@ -159,11 +170,12 @@ export default function TechnicianJobDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer",
                   isActive
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm'
-                    : 'bg-slate-900 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-slate-200'
-                }`}
+                    ? "bg-cyan-600 text-white shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 <Icon className="w-3.5 h-3.5" />
                 {tab.label}
@@ -196,22 +208,26 @@ export default function TechnicianJobDetailPage() {
           <CheckInOutPanel ticket={job} onUpdate={fetchJobDetail} />
 
           {/* Status Actions */}
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 backdrop-blur-xl space-y-4">
-            <h2 className="text-sm font-semibold text-white flex items-center justify-between">
+          <div className={cn(
+            "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+            theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+          )}>
+            <h2 className="text-sm font-black text-foreground flex items-center justify-between">
               <span>Job Status Controls</span>
-              <span className="text-xs font-mono text-slate-400 capitalize">Current: {job.status?.replace('_', ' ')}</span>
+              <span className="text-xs font-mono text-cyan-500 font-bold capitalize">Current: {job.status?.replace('_', ' ')}</span>
             </h2>
             <div className="flex flex-wrap items-center gap-2">
-              {['work_started', 'in_progress', 'waiting_parts', 'completed'].map((st) => (
+              {['work_started', 'in_progress', 'waiting_parts', 'resolved'].map((st) => (
                 <button
                   key={st}
                   onClick={() => handleStatusUpdate(st)}
                   disabled={updatingStatus || job.status === st}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-xs font-black capitalize transition-all cursor-pointer",
                     job.status === st
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-                  }`}
+                      ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 shadow-sm"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 border border-slate-200 dark:border-slate-700"
+                  )}
                 >
                   Set {st.replace('_', ' ')}
                 </button>
@@ -220,9 +236,12 @@ export default function TechnicianJobDetailPage() {
           </div>
 
           {/* Notes & Activity Section */}
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 backdrop-blur-xl space-y-4">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-cyan-400" />
+          <div className={cn(
+            "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+            theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+          )}>
+            <h2 className="text-sm font-black text-foreground flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-cyan-500" />
               Technician Field Notes
             </h2>
 
@@ -232,11 +251,14 @@ export default function TechnicianJobDetailPage() {
                 placeholder="Add a field work update or note..."
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
-                className="flex-1 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                className={cn(
+                  "flex-1 px-4 py-2 rounded-xl text-xs font-medium border focus:outline-none",
+                  theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15] border-white/10"
+                )}
               />
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-semibold text-xs hover:bg-cyan-400 flex items-center gap-1 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-black text-xs hover:bg-cyan-500 flex items-center gap-1 cursor-pointer shadow-md"
               >
                 <Send className="w-3.5 h-3.5" />
                 Add Note
@@ -246,16 +268,19 @@ export default function TechnicianJobDetailPage() {
             {job.notes?.length > 0 ? (
               <div className="space-y-2 pt-2">
                 {job.notes.map((n, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-800/30 border border-slate-800 text-xs text-slate-300">
+                  <div key={idx} className={cn(
+                    "p-3 rounded-2xl border text-xs text-foreground font-medium",
+                    theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
+                  )}>
                     <p>{n.text}</p>
-                    <span className="text-[10px] text-slate-500 mt-1 block">
+                    <span className="text-[10px] text-muted-foreground mt-1 block font-mono">
                       {new Date(n.createdAt || Date.now()).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-500 py-2 italic">No field notes added yet.</div>
+              <div className="text-xs text-muted-foreground py-2 italic font-medium">No field notes added yet.</div>
             )}
           </div>
         </div>
@@ -263,4 +288,3 @@ export default function TechnicianJobDetailPage() {
     </div>
   );
 }
-

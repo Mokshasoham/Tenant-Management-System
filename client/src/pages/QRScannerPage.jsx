@@ -31,6 +31,7 @@ import { technicianPortalService } from '../services/api';
  */
 export default function QRScannerPage() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const [qrInput, setQrInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);

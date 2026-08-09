@@ -14,19 +14,16 @@ import {
   PlayCircle,
   User
 } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { cn } from '../../utils/cn';
 
-/**
- * TechnicianJobCard Component
- * Immersive mobile-first field job card for field technicians.
- * Features priority badge, SLA timer, tenant call, Google Maps navigation, distance/ETA, check-in status, and quick actions.
- */
 export default function TechnicianJobCard({
   job,
   onCheckIn,
   onPhotos,
   onStartJob,
-  onViewDetails,
 }) {
+  const { theme } = useTheme();
   const [slaTimeLeft, setSlaTimeLeft] = useState('');
   const [isSlaOverdue, setIsSlaOverdue] = useState(false);
 
@@ -87,7 +84,7 @@ export default function TechnicianJobCard({
   };
 
   const tenantPhone = job?.tenant?.phone || job?.tenantPhone || job?.phone || '';
-  const tenantName = job?.tenant?.name || job?.tenantName || job?.reportedBy || 'Tenant';
+  const tenantName = job?.tenant?.name || job?.tenantName || job?.reportedBy || 'Resident';
   const propertyName = job?.property?.name || job?.propertyName || 'Property Site';
   const unitNumber = job?.unit || job?.property?.unit || 'N/A';
 
@@ -99,38 +96,42 @@ export default function TechnicianJobCard({
 
     if (isCheckedOut) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
           <CheckCircle2 className="w-3 h-3" /> Checked Out
         </span>
       );
     }
     if (isCheckedIn) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/20 text-cyan-500 border border-cyan-500/30">
           <CheckCircle2 className="w-3 h-3 animate-pulse" /> {status === 'OUTSIDE_RADIUS' ? 'Checked In (Outside)' : 'Checked In'}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/20">
         <MapPin className="w-3 h-3" /> Pending Check-In
       </span>
     );
   };
 
   return (
-    <div className="rounded-2xl bg-slate-900/70 border border-slate-800/90 hover:border-slate-700 p-5 backdrop-blur-xl transition-all duration-300 shadow-xl flex flex-col justify-between space-y-4">
+    <div className={cn(
+      "rounded-3xl border p-5 backdrop-blur-xl transition-all duration-300 shadow-xl flex flex-col justify-between space-y-4 hover:scale-[1.005]",
+      theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+    )}>
       {/* Top Bar: Priority Pill & SLA Timer */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+      <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-3">
         <div className="flex items-center gap-2">
           <span
-            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+            className={cn(
+              "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
               job?.priority === 'emergency'
-                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse'
+                ? "bg-rose-500/20 text-rose-500 border-rose-500/40 animate-pulse"
                 : job?.priority === 'high'
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-            }`}
+                ? "bg-amber-500/20 text-amber-500 border-amber-500/40"
+                : "bg-cyan-500/20 text-cyan-500 border-cyan-500/30"
+            )}
           >
             {job?.priority || 'medium'}
           </span>
@@ -139,11 +140,12 @@ export default function TechnicianJobCard({
 
         {/* SLA Timer */}
         <div
-          className={`flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg border ${
+          className={cn(
+            "flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-xl border",
             isSlaOverdue
-              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-              : 'bg-slate-800/80 text-cyan-300 border-slate-700'
-          }`}
+              ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+              : "bg-cyan-500/10 text-cyan-500 border-cyan-500/20"
+          )}
         >
           <Clock className="w-3.5 h-3.5" />
           <span>{slaTimeLeft}</span>
@@ -152,35 +154,41 @@ export default function TechnicianJobCard({
 
       {/* Main Details Section */}
       <div className="space-y-2">
-        <h3 className="text-base font-bold text-white line-clamp-1 flex items-center justify-between">
+        <h3 className="text-base font-black text-foreground line-clamp-1 flex items-center justify-between">
           <span>{job?.title || 'Maintenance Request'}</span>
-          <span className="text-xs font-mono text-slate-400 font-normal">#{job?._id?.slice(-6)}</span>
+          <span className="text-xs font-mono text-muted-foreground font-bold">#{job?.ticketNumber || job?._id?.slice(-6)}</span>
         </h3>
 
-        <p className="text-xs text-slate-400 line-clamp-2">{job?.description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{job?.description}</p>
 
         {/* Property & Tenant Meta */}
         <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
-            <MapPin className="w-4 h-4 text-cyan-400 shrink-0" />
+          <div className={cn(
+            "flex items-center gap-2 p-2.5 rounded-2xl border",
+            theme === 'light' ? "bg-slate-100/80 border-slate-200" : "bg-slate-950/60 border-white/5"
+          )}>
+            <MapPin className="w-4 h-4 text-cyan-500 shrink-0" />
             <div className="truncate">
-              <span className="text-white font-semibold truncate block">{propertyName}</span>
-              <span className="text-slate-400 text-[11px]">Unit {unitNumber}</span>
+              <span className="text-foreground font-black truncate block">{propertyName}</span>
+              <span className="text-muted-foreground text-[11px]">Unit {unitNumber}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
+          <div className={cn(
+            "flex items-center justify-between p-2.5 rounded-2xl border",
+            theme === 'light' ? "bg-slate-100/80 border-slate-200" : "bg-slate-950/60 border-white/5"
+          )}>
             <div className="flex items-center gap-2 truncate">
-              <User className="w-4 h-4 text-cyan-400 shrink-0" />
+              <User className="w-4 h-4 text-cyan-500 shrink-0" />
               <div className="truncate">
-                <span className="text-white font-semibold truncate block">{tenantName}</span>
-                <span className="text-slate-400 text-[11px]">Resident</span>
+                <span className="text-foreground font-black truncate block">{tenantName}</span>
+                <span className="text-muted-foreground text-[11px]">Resident</span>
               </div>
             </div>
             {tenantPhone && (
               <a
                 href={`tel:${tenantPhone}`}
-                className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95"
+                className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 <Phone className="w-3 h-3" /> Call
               </a>
@@ -190,19 +198,19 @@ export default function TechnicianJobCard({
 
         {/* Distance & ETA Badges */}
         <div className="flex items-center gap-2 pt-1">
-          <span className="px-2.5 py-1 rounded-lg bg-slate-800/60 text-slate-300 text-[11px] font-medium flex items-center gap-1">
-            <Navigation className="w-3 h-3 text-cyan-400" />
+          <span className="px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 text-[11px] font-bold flex items-center gap-1">
+            <Navigation className="w-3 h-3 text-cyan-500" />
             {job?.distance ? `${job.distance} km away` : '1.4 km away'}
           </span>
-          <span className="px-2.5 py-1 rounded-lg bg-slate-800/60 text-slate-300 text-[11px] font-medium flex items-center gap-1">
-            <Clock className="w-3 h-3 text-amber-400" />
+          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[11px] font-bold flex items-center gap-1">
+            <Clock className="w-3 h-3 text-amber-500" />
             {job?.eta ? `${job.eta} min ETA` : '~10 min ETA'}
           </span>
           <a
             href={getGoogleMapsUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto px-3 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/40 text-[11px] font-bold flex items-center gap-1 transition-all"
+            className="ml-auto px-3 py-1 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 text-[11px] font-black flex items-center gap-1 transition-all cursor-pointer"
           >
             <Navigation className="w-3 h-3" /> Navigate
           </a>
@@ -210,11 +218,11 @@ export default function TechnicianJobCard({
       </div>
 
       {/* Quick Action Buttons Grid */}
-      <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="pt-3 border-t border-border/40 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {/* Check In Action */}
         <button
           onClick={() => onCheckIn && onCheckIn(job)}
-          className="h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+          className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
         >
           <LogIn className="w-3.5 h-3.5" />
           Check In
@@ -223,9 +231,9 @@ export default function TechnicianJobCard({
         {/* Photos Action */}
         <button
           onClick={() => onPhotos && onPhotos(job)}
-          className="h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+          className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
         >
-          <Camera className="w-3.5 h-3.5 text-amber-400" />
+          <Camera className="w-3.5 h-3.5" />
           Photos
         </button>
 
@@ -233,11 +241,12 @@ export default function TechnicianJobCard({
         <button
           onClick={() => onStartJob && onStartJob(job._id)}
           disabled={job?.status === 'in_progress' || job?.status === 'completed'}
-          className={`h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+          className={cn(
+            "h-10 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer",
             job?.status === 'in_progress'
-              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-              : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-md shadow-cyan-500/10 cursor-pointer'
-          }`}
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+              : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md"
+          )}
         >
           <PlayCircle className="w-3.5 h-3.5" />
           {job?.status === 'in_progress' ? 'In Progress' : 'Start Job'}
@@ -246,10 +255,10 @@ export default function TechnicianJobCard({
         {/* View Details Action */}
         <Link
           to={`/technician/jobs/${job._id}`}
-          className="h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+          className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs flex items-center justify-center gap-1.5 transition-all"
         >
           Details
-          <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
+          <ArrowUpRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     </div>

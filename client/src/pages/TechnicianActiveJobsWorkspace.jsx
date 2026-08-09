@@ -1,138 +1,110 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Wrench,
   Navigation,
   RefreshCw,
   Search,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   X,
   Camera,
   Layers,
-  MapPin
+  MapPin,
+  Clock
 } from 'lucide-react';
-import { technicianPortalService, maintenanceService } from '../services/api';
+import { useTechnicianJobs } from '../hooks/useTechnicianJobs';
+import { isJobActive, isJobCompleted } from '../services/technicianJobService';
 import useGPSTracker from '../hooks/useGPSTracker';
 import TechnicianJobCard from '../components/technician/TechnicianJobCard';
 import CheckInOutPanel from '../components/technician/CheckInOutPanel';
 import PhotoWorkflowCapture from '../components/technician/PhotoWorkflowCapture';
+import { useTheme } from '../context/ThemeContext';
+import { cn } from '../utils/cn';
 
-/**
- * TechnicianActiveJobsWorkspace Page
- * Full-screen mobile-first active jobs workspace for technicians.
- * Integrates live GPS telemetry tracking, status filter tabs, TechnicianJobCards,
- * check-in/check-out drawer, and 3-phase photo workflow wizard.
- */
 export default function TechnicianActiveJobsWorkspace() {
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('active'); // 'todays' | 'active' | 'all'
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { theme } = useTheme();
+
+  const initialStatus = searchParams.get('status') || 'active';
+  const [activeTab, setActiveTab] = useState(initialStatus); // 'active' | 'completed' | 'all'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Selected job for CheckInOutModal or PhotoWorkflowModal
+  const { jobs, loading, error, refetch } = useTechnicianJobs();
+
+  // Modals state
   const [checkInModalJob, setCheckInModalJob] = useState(null);
   const [photoModalJob, setPhotoModalJob] = useState(null);
 
-  // Hook for high accuracy 30s location telemetry
+  // Hook for high accuracy location telemetry
   const { coords, error: gpsError, isTracking, startTracking, stopTracking } = useGPSTracker(true);
 
+  // Sync tab if URL changes
   useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const fetchJobs = async () => {
-    setLoading(true);
-    try {
-      const res = await technicianPortalService.getMyJobs();
-      const jobList = res?.data || res || [];
-      setJobs(Array.isArray(jobList) ? jobList : []);
-    } catch (err) {
-      console.error('Failed to fetch active jobs:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const statusParam = searchParams.get('status');
+    if (statusParam) setActiveTab(statusParam);
+  }, [searchParams]);
 
   // Filter jobs based on active tab and search query
   const filteredJobs = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-
     return jobs.filter((job) => {
       // Search matching
       const matchesSearch =
         searchQuery === '' ||
         job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.property?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.tenant?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.unit?.toLowerCase().includes(searchQuery.toLowerCase());
+        job.unit?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.category?.toLowerCase().includes(searchQuery.toLowerCase());
 
       if (!matchesSearch) return false;
 
       // Tab filtering
-      if (activeTab === 'todays') {
-        const createdDateStr = job.createdAt ? new Date(job.createdAt).toISOString().split('T')[0] : '';
-        const scheduledDateStr = job.scheduledDate ? new Date(job.scheduledDate).toISOString().split('T')[0] : '';
-        return createdDateStr === todayStr || scheduledDateStr === todayStr;
+      if (activeTab === 'active') {
+        return isJobActive(job.status);
       }
 
-      if (activeTab === 'active') {
-        return (
-          job.status === 'technician_assigned' ||
-          job.status === 'in_progress' ||
-          job.status === 'checked_in'
-        );
+      if (activeTab === 'completed') {
+        return isJobCompleted(job.status);
       }
 
       return true; // 'all'
     });
   }, [jobs, activeTab, searchQuery]);
 
-  // Handler for starting job status
-  const handleStartJob = async (jobId) => {
-    try {
-      await maintenanceService.updateStatus(jobId, 'in_progress', 'Technician initiated field work.');
-      fetchJobs();
-    } catch (err) {
-      console.error('Failed to start job:', err);
-    }
-  };
-
-  // Callback when check-in/out updates
-  const handleJobStatusChange = (updatedTicket) => {
-    setJobs((prevJobs) =>
-      prevJobs.map((j) => (j._id === updatedTicket._id ? { ...j, ...updatedTicket } : j))
-    );
-  };
-
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12 transition-colors duration-300">
       {/* Workspace Header & Telemetry Status Bar */}
-      <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 backdrop-blur-xl space-y-4 shadow-xl">
+      <div className={cn(
+        "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+        theme === 'light' ? "bg-white border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+      )}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-white flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-cyan-400" />
-              Technician Workspace
+            <h1 className="text-xl font-black text-foreground flex items-center gap-2">
+              <Wrench className="w-6 h-6 text-cyan-500" />
+              Technician Job Workspace
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Mobile-first dispatch center for assigned maintenance tickets
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+              Field operations dispatch center for your assigned maintenance requests
             </p>
           </div>
 
-          {/* Refresh Button */}
           <button
-            onClick={fetchJobs}
+            onClick={refetch}
             disabled={loading}
-            className="self-start sm:self-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 border border-slate-700 transition-all cursor-pointer active:scale-95"
+            className="self-start sm:self-auto px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh Jobs
           </button>
         </div>
 
         {/* GPS Live Telemetry Indicator Banner */}
-        <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className={cn(
+          "p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs",
+          theme === 'light' ? "bg-slate-100/70 border-slate-200" : "bg-slate-950/80 border-white/5"
+        )}>
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               {isTracking ? (
@@ -141,28 +113,29 @@ export default function TechnicianActiveJobsWorkspace() {
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </>
               ) : (
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-600"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400"></span>
               )}
             </span>
-            <span className="text-slate-300 font-semibold">
+            <span className="font-bold text-foreground">
               {isTracking ? 'GPS Telemetry Active (30s Ping)' : 'GPS Telemetry Paused'}
             </span>
             {coords.latitude && coords.longitude && (
-              <span className="text-[11px] font-mono text-cyan-400/90 hidden md:inline">
+              <span className="text-[11px] font-mono text-cyan-500 font-bold hidden md:inline">
                 ({coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)}) ±{Math.round(coords.accuracy || 0)}m
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            {gpsError && <span className="text-[11px] text-rose-400">{gpsError}</span>}
+            {gpsError && <span className="text-[11px] text-rose-500">{gpsError}</span>}
             <button
               onClick={isTracking ? stopTracking : startTracking}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+              className={cn(
+                "px-3 py-1 rounded-xl text-[11px] font-black border transition-all cursor-pointer",
                 isTracking
-                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-              }`}
+                  ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
+                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+              )}
             >
               {isTracking ? 'Pause Tracking' : 'Enable Telemetry'}
             </button>
@@ -173,20 +146,24 @@ export default function TechnicianActiveJobsWorkspace() {
       {/* Navigation Tabs & Search Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl overflow-x-auto">
+        <div className={cn(
+          "flex items-center gap-1.5 p-1.5 rounded-2xl border backdrop-blur-xl overflow-x-auto",
+          theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15]/80 border-white/10"
+        )}>
           {[
             { id: 'active', label: '⚡ Active Jobs' },
-            { id: 'todays', label: "📅 Today's Jobs" },
-            { id: 'all', label: '📋 All Jobs' },
+            { id: 'completed', label: '✓ Completed' },
+            { id: 'all', label: '📋 All Assigned' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer",
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
+                  ? "bg-cyan-600 text-white shadow-md"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
               {tab.label}
             </button>
@@ -195,28 +172,34 @@ export default function TechnicianActiveJobsWorkspace() {
 
         {/* Search Input */}
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search job, unit, tenant..."
+            placeholder="Search job, unit, property..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+            className={cn(
+              "w-full pl-9 pr-4 py-2 rounded-xl text-xs font-semibold border focus:outline-none transition-all",
+              theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15] border-white/10"
+            )}
           />
         </div>
       </div>
 
       {/* Jobs Grid / List */}
       {loading ? (
-        <div className="py-16 text-center text-slate-500 text-sm flex flex-col items-center gap-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-          Loading field jobs...
+        <div className="py-16 text-center text-muted-foreground text-xs font-bold flex flex-col items-center gap-2">
+          <RefreshCw className="w-6 h-6 animate-spin text-cyan-500" />
+          Loading your assigned maintenance jobs...
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="py-16 text-center text-slate-400 text-sm rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 space-y-2">
-          <Layers className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="font-semibold text-slate-300">No assigned jobs found</p>
-          <p className="text-xs text-slate-500">
+        <div className={cn(
+          "py-16 text-center text-muted-foreground text-xs font-bold rounded-3xl border border-dashed p-8 space-y-2",
+          theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15]/50 border-white/10"
+        )}>
+          <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+          <p className="font-extrabold text-foreground text-sm">No assigned jobs found</p>
+          <p className="text-xs text-muted-foreground">
             {searchQuery ? 'Try matching another search term.' : 'Check back later for new dispatch assignments.'}
           </p>
         </div>
@@ -228,7 +211,10 @@ export default function TechnicianActiveJobsWorkspace() {
               job={job}
               onCheckIn={(j) => setCheckInModalJob(j)}
               onPhotos={(j) => setPhotoModalJob(j)}
-              onStartJob={handleStartJob}
+              onStartJob={async (jobId) => {
+                await technicianJobService.startWork(jobId);
+                refetch();
+              }}
             />
           ))}
         </div>
@@ -236,18 +222,19 @@ export default function TechnicianActiveJobsWorkspace() {
 
       {/* Check-In / Check-Out Modal */}
       {checkInModalJob && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative max-w-xl w-full space-y-3 animate-fade-scale">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="relative max-w-xl w-full space-y-3">
             <button
               onClick={() => setCheckInModalJob(null)}
-              className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+              className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-slate-800 text-white border border-white/10 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
             <CheckInOutPanel
               ticket={checkInModalJob}
-              onStatusChange={(updated) => {
-                handleJobStatusChange(updated);
+              onStatusChange={() => {
+                setCheckInModalJob(null);
+                refetch();
               }}
             />
           </div>
@@ -256,21 +243,20 @@ export default function TechnicianActiveJobsWorkspace() {
 
       {/* 3-Phase Photo Workflow Modal */}
       {photoModalJob && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative max-w-xl w-full max-h-[90vh] overflow-y-auto space-y-3 animate-fade-scale">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="relative max-w-xl w-full max-h-[90vh] overflow-y-auto space-y-3">
             <button
               onClick={() => setPhotoModalJob(null)}
-              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-800 text-white border border-white/10 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
             <PhotoWorkflowCapture
               ticketId={photoModalJob._id}
               existingPhotos={photoModalJob.photos || photoModalJob.phasePhotos}
-              onPhotoUploaded={(photos) => {
-                setJobs((prev) =>
-                  prev.map((j) => (j._id === photoModalJob._id ? { ...j, photos } : j))
-                );
+              onPhotoUploaded={() => {
+                setPhotoModalJob(null);
+                refetch();
               }}
             />
           </div>
