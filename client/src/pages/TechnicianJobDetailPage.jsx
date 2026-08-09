@@ -191,7 +191,7 @@ export default function TechnicianJobDetailPage() {
       )}
 
       {activeTab === 'photos' && (
-        <PhotoWorkflowCapture ticket={job} onUploadSuccess={fetchJobDetail} />
+        <PhotoWorkflowCapture ticket={job} ticketId={job._id} onUploadSuccess={fetchJobDetail} onPhotoUploaded={fetchJobDetail} />
       )}
 
       {activeTab === 'voicenotes' && (

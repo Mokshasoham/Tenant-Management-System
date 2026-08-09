@@ -20,7 +20,9 @@ import { maintenanceService } from '../../services/api';
  * Compresses images automatically before uploading to `/api/maintenance/:id/photos/:phase`.
  * Enforces requirement: "After" photos cannot be uploaded without at least one "Before" photo.
  */
-export default function PhotoWorkflowCapture({ ticketId, existingPhotos, onPhotoUploaded }) {
+export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos, onPhotoUploaded, onUploadSuccess }) {
+  const resolvedTicketId = ticketId || ticket?._id || ticket?.id;
+
   const [activePhase, setActivePhase] = useState('before'); // 'before' | 'during' | 'after'
   const [photos, setPhotos] = useState({
     before: [],
@@ -37,14 +39,15 @@ export default function PhotoWorkflowCapture({ ticketId, existingPhotos, onPhoto
 
   // Initialize photo lists from props if provided
   useEffect(() => {
-    if (existingPhotos) {
+    const photoSource = existingPhotos || ticket;
+    if (photoSource) {
       setPhotos({
-        before: existingPhotos.before || existingPhotos.beforePhotos || [],
-        during: existingPhotos.during || existingPhotos.duringPhotos || [],
-        after: existingPhotos.after || existingPhotos.afterPhotos || [],
+        before: photoSource.beforePhotos || photoSource.before || [],
+        during: photoSource.duringPhotos || photoSource.during || [],
+        after: photoSource.afterPhotos || photoSource.after || [],
       });
     }
-  }, [existingPhotos]);
+  }, [existingPhotos, ticket]);
 
   const phases = [
     { key: 'before', label: '1. Before Work', description: 'Capture initial condition before work starts', icon: '📸' },
@@ -61,6 +64,11 @@ export default function PhotoWorkflowCapture({ ticketId, existingPhotos, onPhoto
 
     // Reset input value so same file can be chosen again if needed
     e.target.value = '';
+
+    if (!resolvedTicketId) {
+      setErrorMsg('Ticket ID is missing. Cannot upload photo.');
+      return;
+    }
 
     // Enforce "After" photo constraint
     if (activePhase === 'after' && photos.before.length === 0) {
@@ -79,12 +87,13 @@ export default function PhotoWorkflowCapture({ ticketId, existingPhotos, onPhoto
       // 2. Prepare FormData
       setUploading(true);
       const formData = new FormData();
+      formData.append('photos', compressedFile);
       formData.append('photo', compressedFile);
       formData.append('phase', activePhase);
 
       // 3. Upload to API
-      const res = await maintenanceService.uploadPhasePhotos(ticketId, activePhase, formData);
-      const uploadedData = res?.data || res || {};
+      const res = await maintenanceService.uploadPhasePhotos(resolvedTicketId, activePhase, formData);
+      const uploadedData = res?.data?.data || res?.data || res || {};
 
       // New photo record or URL
       const newPhotoObj = uploadedData.photo || uploadedData.url || {
@@ -104,9 +113,12 @@ export default function PhotoWorkflowCapture({ ticketId, existingPhotos, onPhoto
       if (onPhotoUploaded) {
         onPhotoUploaded(updatedAllPhotos);
       }
+      if (onUploadSuccess) {
+        onUploadSuccess(updatedAllPhotos);
+      }
     } catch (err) {
       console.error('Failed to process/upload photo:', err);
-      setErrorMsg(err.message || 'Photo upload failed. Please try again.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Photo upload failed. Please try again.');
     } finally {
       setCompressing(false);
       setUploading(false);
