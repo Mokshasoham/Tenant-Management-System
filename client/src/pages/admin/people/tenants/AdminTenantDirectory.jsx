@@ -28,9 +28,20 @@ export default function AdminTenantDirectory() {
         leaseService.getAllLeases({ limit: 200 }),
         maintenanceService.getAllRequests({ limit: 200 }),
       ]);
-      const users = usersRes.data?.data || [];
-      const leases = leasesRes.data?.data || [];
-      const maint = maintRes.data?.data || [];
+
+      const extractList = (res) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.users)) return res.users;
+        if (Array.isArray(res.leases)) return res.leases;
+        if (Array.isArray(res.requests)) return res.requests;
+        return [];
+      };
+
+      const users = extractList(usersRes);
+      const leases = extractList(leasesRes);
+      const maint = extractList(maintRes);
       setTenants(mapTenantsList(users, leases, maint));
     } catch (err) {
       console.error('Error fetching tenant directory:', err);

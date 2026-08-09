@@ -27,8 +27,18 @@ export default function AdminTechnicianDirectory() {
         userService.getAllUsers({ role: 'technician', limit: 200 }),
         maintenanceService.getAllRequests({ limit: 200 }),
       ]);
-      const users = usersRes.data?.data || [];
-      const maint = maintRes.data?.data || [];
+
+      const extractList = (res) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.users)) return res.users;
+        if (Array.isArray(res.requests)) return res.requests;
+        return [];
+      };
+
+      const users = extractList(usersRes);
+      const maint = extractList(maintRes);
       setTechnicians(mapTechniciansList(users, maint));
     } catch (err) {
       console.error('Error fetching technician directory:', err);

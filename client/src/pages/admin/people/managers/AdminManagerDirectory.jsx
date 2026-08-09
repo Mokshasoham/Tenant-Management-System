@@ -27,8 +27,18 @@ export default function AdminManagerDirectory() {
         userService.getAllUsers({ role: 'manager', limit: 200 }),
         propertyService.getAllProperties({ limit: 200 }),
       ]);
-      const users = usersRes.data?.data || [];
-      const properties = propsRes.data?.data || [];
+
+      const extractList = (res) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.users)) return res.users;
+        if (Array.isArray(res.properties)) return res.properties;
+        return [];
+      };
+
+      const users = extractList(usersRes);
+      const properties = extractList(propsRes);
       setManagers(mapManagersList(users, properties));
     } catch (err) {
       console.error('Error fetching manager directory:', err);

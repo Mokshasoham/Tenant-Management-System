@@ -64,12 +64,30 @@ export default function AdminPeopleCommandCenter() {
         maintenanceService.getAllRequests({ limit: 200 }),
       ]);
 
-      const summaryData = summaryRes.status === 'fulfilled' ? summaryRes.value?.data?.data : null;
-      const mapData = mapRes.status === 'fulfilled' ? mapRes.value?.data?.data?.markers || [] : [];
-      const usersList = usersRes.status === 'fulfilled' ? usersRes.value?.data?.data || [] : [];
-      const propsList = propsRes.status === 'fulfilled' ? propsRes.value?.data?.data || [] : [];
-      const leasesList = leasesRes.status === 'fulfilled' ? leasesRes.value?.data?.data || [] : [];
-      const maintList = maintRes.status === 'fulfilled' ? maintRes.value?.data?.data || [] : [];
+      const extractVal = (res) => (res.status === 'fulfilled' ? res.value : null);
+      
+      const summaryPayload = extractVal(summaryRes);
+      const summaryData = summaryPayload?.data || summaryPayload;
+
+      const mapPayload = extractVal(mapRes);
+      const mapData = mapPayload?.data?.markers || mapPayload?.markers || mapPayload?.data || [];
+
+      const extractList = (res) => {
+        if (res.status !== 'fulfilled' || !res.value) return [];
+        const v = res.value;
+        if (Array.isArray(v)) return v;
+        if (Array.isArray(v.data)) return v.data;
+        if (Array.isArray(v.properties)) return v.properties;
+        if (Array.isArray(v.users)) return v.users;
+        if (Array.isArray(v.leases)) return v.leases;
+        if (Array.isArray(v.requests)) return v.requests;
+        return [];
+      };
+
+      const usersList = extractList(usersRes);
+      const propsList = extractList(propsRes);
+      const leasesList = extractList(leasesRes);
+      const maintList = extractList(maintRes);
 
       setKpis(mapPeopleKPIs(summaryData));
       setMapMarkers(mapData);
