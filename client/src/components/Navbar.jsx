@@ -33,6 +33,14 @@ const ROLE_THEME = {
     searchFocus: 'focus-within:border-emerald-500/50 focus-within:bg-emerald-500/5',
     label: 'Tenant', emoji: '🏡',
   },
+  technician: {
+    pillBg: 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/20 dark:border-cyan-500/30 text-cyan-700 dark:text-cyan-300',
+    pillDot: 'bg-cyan-400',
+    avatarGrad: 'from-cyan-500 to-teal-600',
+    avatarGlow: 'rgba(6,182,212,0.4)',
+    searchFocus: 'focus-within:border-cyan-500/50 focus-within:bg-cyan-500/5',
+    label: 'Technician', emoji: '🔧',
+  },
 };
 
 const TYPE_ICONS = {
@@ -110,23 +118,34 @@ export default function Navbar({ toggleSidebar }) {
     
     const loadSearchData = async () => {
       try {
-        const promises = [
-          propertyService.getAllProperties({ limit: 50 }),
-          role === 'tenant' ? paymentService.getMyPayments() : paymentService.getAllPayments({ limit: 50 }),
-          maintenanceService.getAllRequests({ limit: 50 })
-        ];
-        if (role !== 'tenant') {
-          promises.push(tenantService.getAllTenants({ limit: 50 }));
-        }
+        if (role === 'technician') {
+          const res = await maintenanceService.getAllRequests({ limit: 100 });
+          const list = res.data?.data || res.data || (Array.isArray(res) ? res : []);
+          setSearchData({
+            properties: [...new Set(list.map(r => r.property).filter(Boolean))],
+            payments: [],
+            maintenance: list,
+            tenants: []
+          });
+        } else {
+          const promises = [
+            propertyService.getAllProperties({ limit: 50 }),
+            role === 'tenant' ? paymentService.getMyPayments() : paymentService.getAllPayments({ limit: 50 }),
+            maintenanceService.getAllRequests({ limit: 50 })
+          ];
+          if (role !== 'tenant') {
+            promises.push(tenantService.getAllTenants({ limit: 50 }));
+          }
 
-        const results = await Promise.allSettled(promises);
-        
-        setSearchData({
-          properties: results[0].status === 'fulfilled' ? (results[0].value.data?.data || results[0].value.data || []) : [],
-          payments: results[1].status === 'fulfilled' ? (results[1].value.data?.data || results[1].value.data || []) : [],
-          maintenance: results[2].status === 'fulfilled' ? (results[2].value.data?.data || results[2].value.data || []) : [],
-          tenants: (role !== 'tenant' && results[3]?.status === 'fulfilled') ? (results[3].value.data?.data || results[3].value.data || []) : []
-        });
+          const results = await Promise.allSettled(promises);
+          
+          setSearchData({
+            properties: results[0].status === 'fulfilled' ? (results[0].value.data?.data || results[0].value.data || []) : [],
+            payments: results[1].status === 'fulfilled' ? (results[1].value.data?.data || results[1].value.data || []) : [],
+            maintenance: results[2].status === 'fulfilled' ? (results[2].value.data?.data || results[2].value.data || []) : [],
+            tenants: (role !== 'tenant' && results[3]?.status === 'fulfilled') ? (results[3].value.data?.data || results[3].value.data || []) : []
+          });
+        }
       } catch (err) {
         console.error('Failed to prefetch search data', err);
       } finally {
@@ -138,16 +157,25 @@ export default function Navbar({ toggleSidebar }) {
   }, [searchOpen, role]);
 
   // Filtering calculations
-  const filteredLinks = [
+  const rawLinks = role === 'technician' ? [
+    { label: 'My Jobs', path: '/technician/jobs', icon: '🔧' },
+    { label: "Today's Schedule", path: '/technician/schedule', icon: '📅' },
+    { label: 'Nearby Jobs', path: '/technician/jobs?filter=nearby', icon: '📍' },
+    { label: 'QR Scanner', path: '/technician/qr', icon: '▣' },
+    { label: 'Completed Jobs', path: '/technician/jobs?status=completed', icon: '✓' },
+    { label: 'Messages', path: '/messages', icon: '💬' },
+  ] : [
     { label: t('nav.dashboard') || 'Dashboard', path: '/dashboard', icon: '📊' },
     { label: t('nav.properties') || 'Properties', path: '/properties', icon: '🏠' },
     { label: t('nav.tenants') || 'Tenants', path: '/tenants', icon: '👥', role: ['manager', 'admin'] },
-    { label: t('nav.leases') || 'Leases', path: '/leases', icon: '📄' },
+    { label: t('nav.leases') || 'Leases', path: '/leases', icon: '📄', role: ['manager', 'admin'] },
     { label: t('nav.payments') || 'Payments', path: '/payments', icon: '💳' },
     { label: t('nav.maintenance') || 'Maintenance', path: '/maintenance', icon: '🔧' },
     { label: t('nav.messages') || 'Messages', path: '/messages', icon: '💬' },
-    { label: t('nav.profile') || 'My Profile', path: '/profile', icon: '👤' },
-  ].filter(l => {
+    { label: t('nav.profile') || 'Profile', path: '/profile', icon: '👤' },
+  ];
+
+  const filteredLinks = rawLinks.filter(l => {
     if (l.role && !l.role.includes(role)) return false;
     return l.label.toLowerCase().includes(query.toLowerCase());
   });
@@ -273,7 +301,9 @@ export default function Navbar({ toggleSidebar }) {
         >
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{t('common.search') || 'Search'}...</span>
+            <span className="text-sm text-muted-foreground">
+              {role === 'technician' ? 'Search jobs, requests...' : (t('common.search') || 'Search') + '...'}
+            </span>
           </div>
           <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-background text-[9px] font-black text-muted-foreground/60 select-none">
             Ctrl K
@@ -286,7 +316,7 @@ export default function Navbar({ toggleSidebar }) {
         {/* Role Badge */}
         <div className={cn('hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold', theme.pillBg)}>
           <span>{theme.emoji}</span>
-          <span>{theme.label}</span>
+          <span className="capitalize">{theme.label}</span>
           <span className={cn('w-1.5 h-1.5 rounded-full ml-0.5', theme.pillDot)} />
         </div>
 
@@ -294,7 +324,7 @@ export default function Navbar({ toggleSidebar }) {
         <NavbarNotificationBell />
 
         {/* User Avatar */}
-        <button onClick={() => navigate('/profile')} className="flex items-center gap-2 pl-1">
+        <button onClick={() => navigate(role === 'technician' ? '/technician/profile' : '/profile')} className="flex items-center gap-2 pl-1">
           <motion.div
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg cursor-pointer', `bg-gradient-to-br ${theme.avatarGrad}`)}
@@ -343,7 +373,7 @@ export default function Navbar({ toggleSidebar }) {
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Search properties, bills, settings..."
+                  placeholder={role === 'technician' ? 'Search jobs, requests, properties, units...' : 'Search properties, bills, settings...'}
                   className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder-muted-foreground/50"
                 />
                 <button

@@ -504,6 +504,92 @@ export const assignTechnician = asyncHandler(async (req, res) => {
     });
 });
 
+export const searchTechnicianData = asyncHandler(async (req, res) => {
+    const { q } = req.query;
+    const userId = req.user.userId || req.user._id || req.user.id;
+
+    if (!q || !q.trim()) {
+        return res.status(200).json({
+            success: true,
+            jobs: [],
+            properties: [],
+            schedule: [],
+            units: []
+        });
+    }
+
+    const regex = new RegExp(q.trim(), 'i');
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const Property = (await import('../models/Property.js')).default;
+
+    const requests = await Maintenance.find({
+        $and: [
+            { $or: [{ assignedTo: userId }, { requestedBy: userId }] },
+            {
+                $or: [
+                    { title: regex },
+                    { description: regex },
+                    { category: regex },
+                    { priority: regex },
+                    { status: regex },
+                    { ticketNumber: regex }
+                ]
+            }
+        ]
+    }).populate('property', 'name city address').limit(15);
+
+    const propertyIds = [...new Set(requests.map(r => r.property?._id).filter(Boolean))];
+    const properties = await Property.find({
+        $or: [
+            { _id: { $in: propertyIds } },
+            { name: regex },
+            { city: regex },
+            { address: regex }
+        ]
+    }).limit(10);
+
+    const jobs = requests.map(r => ({
+        _id: r._id,
+        title: r.title,
+        ticketNumber: r.ticketNumber || String(r._id).slice(-6),
+        priority: r.priority,
+        status: r.status,
+        category: r.category,
+        propertyName: r.property?.name || 'Assigned Property',
+        unit: r.unit || 'N/A',
+        createdAt: r.createdAt
+    }));
+
+    const schedule = requests
+        .filter(r => r.requestedVisitDate || r.scheduledDate)
+        .map(r => ({
+            _id: r._id,
+            title: r.title,
+            scheduledDate: r.requestedVisitDate || r.scheduledDate,
+            propertyName: r.property?.name || 'Assigned Property',
+            unit: r.unit || 'N/A',
+            priority: r.priority
+        }));
+
+    const units = requests
+        .filter(r => r.unit && regex.test(r.unit))
+        .map(r => ({
+            unitNumber: r.unit,
+            propertyName: r.property?.name || 'Property',
+            requestId: r._id,
+            title: r.title
+        }));
+
+    res.status(200).json({
+        success: true,
+        jobs,
+        properties: properties.map(p => ({ _id: p._id, name: p.name, city: p.city, address: p.address })),
+        schedule,
+        units
+    });
+});
+
+
 
 
 

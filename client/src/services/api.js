@@ -278,6 +278,7 @@ export const technicianPortalService = {
   checkOutJob: (id, data) => apiClient.post(`/technicians/me/jobs/${id}/check-out`, data),
   updateLocationTelemetry: (coords) => apiClient.post('/technicians/me/location', coords),
   lookupPropertyByQR: (qrCode) => apiClient.get('/technicians/me/property-lookup', { params: { qrCode } }),
+  searchTechnicianData: (q) => apiClient.get('/maintenance/technician/search', { params: { q } }),
 };
 
 export const verificationService = {
