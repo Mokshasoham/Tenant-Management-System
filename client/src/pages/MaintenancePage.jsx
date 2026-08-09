@@ -1058,96 +1058,16 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 }
 
 import AdminMaintenanceCommandCenter from './admin/maintenance/AdminMaintenanceCommandCenter';
+import TenantMaintenancePortal from './tenant/maintenance/TenantMaintenancePortal';
 
 export default function MaintenancePage() {
     const { user } = useAuthStore();
     const isAdmin = user?.role === 'admin';
     const isManager = user?.role === 'manager';
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState(null);
-    const [priorityFilter, setPriorityFilter] = useState('');
-    const [showSubmit, setShowSubmit] = useState(false);
-    const [activeTab, setActiveTab] = useState('board');
-    const [detailsTarget, setDetailsTarget] = useState(null);
-
-    const fetchData = useCallback(async () => {
-        if (isAdmin) return;
-        try {
-            setLoading(true);
-            const [reqRes, statsRes] = await Promise.all([
-                maintenanceService.getAllRequests({ priority: priorityFilter, limit: 100 }),
-                maintenanceService.getStats(),
-            ]);
-            setRequests(reqRes.data?.data || reqRes.data || []);
-            setStats(statsRes.data?.data || statsRes.data || {});
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
-    }, [priorityFilter, isAdmin]);
-
-    useEffect(() => {
-        if (!isAdmin) {
-            fetchData();
-        }
-    }, [fetchData, isAdmin]);
 
     if (isAdmin) {
         return <AdminMaintenanceCommandCenter />;
     }
 
-    const byStatus = (colKey) => {
-        const col = STATUS_COLS.find(c => c.key === colKey);
-        if (!col) return [];
-        return requests.filter(r => col.statuses?.includes(r.status) || r.status === colKey);
-    };
-
-    return (
-        <div className="space-y-6 pb-8">
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-amber-400 to-orange-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">Enterprise Operations</p>
-                    </div>
-                    <h1 className="text-3xl font-black text-foreground">Maintenance Command Center</h1>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setShowSubmit(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black text-sm hover:opacity-90 shadow-lg">
-                        <Plus className="w-4 h-4" /> Submit Request
-                    </button>
-                </div>
-            </motion.div>
-
-            {/* Board View */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {STATUS_COLS.map(col => {
-                    const cards = byStatus(col.key);
-                    const ColIcon = col.icon;
-                    return (
-                        <div key={col.key} className="space-y-3">
-                            <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-muted border border-border shadow-sm">
-                                <div className="flex items-center gap-2">
-                                    <ColIcon className="w-4 h-4 text-amber-500" />
-                                    <span className="text-sm font-black text-foreground">{col.label}</span>
-                                </div>
-                                <span className="px-2 py-0.5 rounded-md bg-muted-foreground/10 text-[10px] font-black">{cards.length}</span>
-                            </div>
-                            <div className="space-y-3 min-h-[200px]">
-                                {cards.map(r => (
-                                    <RequestCard key={r._id} request={r} isManager={isManager}
-                                        onOpenDetails={(t) => setDetailsTarget(t)} />
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <AnimatePresence>
-                {showSubmit && <SubmitModal onClose={() => setShowSubmit(false)} onSave={() => { setShowSubmit(false); fetchData(); }} />}
-                {detailsTarget && <TicketDetailsModal ticket={detailsTarget} onClose={() => setDetailsTarget(null)} onRefresh={fetchData} />}
-            </AnimatePresence>
-        </div>
-    );
+    return <TenantMaintenancePortal />;
 }
