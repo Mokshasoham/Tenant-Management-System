@@ -6,8 +6,21 @@ import { cn } from '../../../../utils/cn';
 export default function MaintenanceSpatialMap({ properties = [], onSelectProperty, theme }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const markersRef = useRef([]);
 
+  // 1. Theme-adaptive Tile Layer URL Update
+  useEffect(() => {
+    const tileUrl = theme === 'light'
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.setUrl(tileUrl);
+    }
+  }, [theme]);
+
+  // 2. Map Initialization & Marker Placement
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -24,11 +37,12 @@ export default function MaintenanceSpatialMap({ properties = [], onSelectPropert
         ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
         : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
-      L.tileLayer(tileUrl, {
+      const tileLayer = L.tileLayer(tileUrl, {
         attribution: '&copy; CartoDB &copy; OpenStreetMap',
         maxZoom: 19,
       }).addTo(map);
 
+      tileLayerRef.current = tileLayer;
       mapInstanceRef.current = map;
     }
 
@@ -82,10 +96,12 @@ export default function MaintenanceSpatialMap({ properties = [], onSelectPropert
 
           const marker = L.marker([prop.lat, prop.lng], { icon: customIcon }).addTo(map);
 
-          // Spatial Popup Content
-          const popupContent = document.createElement('div');
-          popupContent.className = 'p-3 text-xs space-y-2 font-sans';
-          popupContent.innerHTML = `
+          // Build Popup Container DOM directly for 100% reliable click event handling
+          const popupContainer = document.createElement('div');
+          popupContainer.className = 'p-3 text-xs space-y-2 font-sans';
+          popupContainer.style.minWidth = '200px';
+
+          popupContainer.innerHTML = `
             <div style="font-weight: 900; font-size: 13px; color: ${theme === 'light' ? '#0f172a' : '#ffffff'};">
               ${prop.name}
             </div>
@@ -107,33 +123,32 @@ export default function MaintenanceSpatialMap({ properties = [], onSelectPropert
                 <strong style="color: #10b981;">₹${prop.monthlyCost?.toLocaleString()}</strong>
               </div>
             </div>
-
-            <button id="hist-btn-${prop.id}" style="
-              width: 100%;
-              margin-top: 8px;
-              padding: 6px 0;
-              background: #6366f1;
-              color: #ffffff;
-              font-weight: 800;
-              font-size: 10px;
-              border: none;
-              border-radius: 9999px;
-              cursor: pointer;
-            ">
-              View Maintenance History →
-            </button>
           `;
 
-          marker.bindPopup(popupContent);
+          // History Button with direct DOM listener
+          const btn = document.createElement('button');
+          btn.innerText = 'View Maintenance History →';
+          btn.style.width = '100%';
+          btn.style.marginTop = '8px';
+          btn.style.padding = '8px 12px';
+          btn.style.background = '#6366f1';
+          btn.style.color = '#ffffff';
+          btn.style.fontWeight = '800';
+          btn.style.fontSize = '11px';
+          btn.style.border = 'none';
+          btn.style.borderRadius = '9999px';
+          btn.style.cursor = 'pointer';
 
-          marker.on('popupopen', () => {
-            const btn = document.getElementById(`hist-btn-${prop.id}`);
-            if (btn) {
-              btn.onclick = () => {
-                if (onSelectProperty) onSelectProperty(prop);
-              };
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onSelectProperty) {
+              onSelectProperty(prop);
             }
-          });
+          };
+
+          popupContainer.appendChild(btn);
+          marker.bindPopup(popupContainer);
 
           markersRef.current.push(marker);
         }
@@ -143,7 +158,7 @@ export default function MaintenanceSpatialMap({ properties = [], onSelectPropert
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
       }
     }
-  }, [properties, theme]);
+  }, [properties]);
 
   return (
     <div className={cn(

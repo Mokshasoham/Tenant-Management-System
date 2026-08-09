@@ -4,6 +4,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import useAuthStore from '../../../context/authStore';
 import { cn } from '../../../utils/cn';
 
+import PropertyMaintenanceHistoryModal from './components/PropertyMaintenanceHistoryModal';
+
 // Subcomponents
 import MaintenanceHeader from './components/MaintenanceHeader';
 import MaintenanceStatusStrip from './components/MaintenanceStatusStrip';
@@ -48,8 +50,9 @@ export default function AdminMaintenanceCommandCenter() {
     priority: '',
   });
 
-  // Active Request Drawer
+  // Active Request Drawer & History Modal
   const [activeRequest, setActiveRequest] = useState(null);
+  const [historyModalProperty, setHistoryModalProperty] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -82,6 +85,11 @@ export default function AdminMaintenanceCommandCenter() {
     if (activeRequest && activeRequest.id === reqId) {
       setActiveRequest((prev) => ({ ...prev, status: newStatus }));
     }
+  };
+
+  const handleSelectProperty = (prop) => {
+    setSelectedProperty(prop);
+    setHistoryModalProperty(prop);
   };
 
   // Filtered Request Stream
@@ -139,7 +147,7 @@ export default function AdminMaintenanceCommandCenter() {
         {/* WHERE? GIS Maintenance Activity Map */}
         <MaintenanceSpatialMap
           properties={spatialProperties}
-          onSelectProperty={(prop) => setSelectedProperty(prop)}
+          onSelectProperty={handleSelectProperty}
           theme={theme}
         />
 
@@ -156,7 +164,7 @@ export default function AdminMaintenanceCommandCenter() {
       <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
         <PropertyMaintenanceRanking
           properties={spatialProperties}
-          onSelectProperty={(prop) => setSelectedProperty(prop)}
+          onSelectProperty={handleSelectProperty}
           theme={theme}
         />
         <MaintenanceCostSummary costData={costAnalytics} theme={theme} />
@@ -180,6 +188,17 @@ export default function AdminMaintenanceCommandCenter() {
           theme={theme}
         />
       </div>
+
+      {/* ══ PROPERTY HISTORY WORKSPACE MODAL ══ */}
+      <AnimatePresence>
+        {historyModalProperty && (
+          <PropertyMaintenanceHistoryModal
+            property={historyModalProperty}
+            onClose={() => setHistoryModalProperty(null)}
+            theme={theme}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ══ REQUEST INVESTIGATION WORKSPACE SIDE DRAWER ══ */}
       <AnimatePresence>
