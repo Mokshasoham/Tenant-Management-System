@@ -1,7 +1,16 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+let defaultApiBase = 'http://localhost:5000/api';
+if (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+  defaultApiBase = 'https://tenant-management-backend-ohr6.onrender.com/api';
+}
+
+const envBase = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = (envBase && !envBase.includes('localhost'))
+  ? envBase
+  : (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? 'https://tenant-management-backend-ohr6.onrender.com/api'
+    : (envBase || defaultApiBase));
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

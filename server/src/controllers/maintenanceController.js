@@ -351,8 +351,11 @@ export const uploadPhasePhotos = asyncHandler(async (req, res) => {
         uploadedRecords.push(record);
     }
 
+    if (!ticket.beforePhotos) ticket.beforePhotos = [];
+    if (!ticket.duringPhotos) ticket.duringPhotos = [];
+    if (!ticket.afterPhotos) ticket.afterPhotos = [];
+
     const fieldName = `${phase}Photos`;
-    if (!ticket[fieldName]) ticket[fieldName] = [];
     ticket[fieldName].push(...uploadedRecords);
     if (!ticket.images) ticket.images = [];
     ticket.images.push(...uploadedRecords.map(r => r.url));

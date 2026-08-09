@@ -27,8 +27,20 @@ export function resolveImageUrl(rawUrl) {
   if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-  const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
+
+  let serverUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (!serverUrl || serverUrl.includes('localhost')) {
+    if (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      serverUrl = 'https://tenant-management-backend-ohr6.onrender.com';
+    } else {
+      serverUrl = 'http://localhost:5000';
+    }
+  }
+
+  if (serverUrl.endsWith('/api')) {
+    serverUrl = serverUrl.slice(0, -4);
+  }
+
   const cleanServer = serverUrl.replace(/\/$/, '');
   const cleanUrl = url.startsWith('/') ? url : '/' + url;
   return `${cleanServer}${cleanUrl}`;
@@ -51,14 +63,19 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
 
   const fileInputRef = useRef(null);
 
-  // Initialize photo lists from props if provided
+  // Initialize photo lists from props with strict array checks & phase isolation
   useEffect(() => {
     const photoSource = existingPhotos || ticket;
-    if (photoSource) {
+    if (photoSource && typeof photoSource === 'object') {
+      const getArray = (val) => {
+        if (!Array.isArray(val)) return [];
+        return val.map((item) => (typeof item === 'string' ? { url: item } : item));
+      };
+
       setPhotos({
-        before: photoSource.beforePhotos || photoSource.before || [],
-        during: photoSource.duringPhotos || photoSource.during || [],
-        after: photoSource.afterPhotos || photoSource.after || [],
+        before: getArray(photoSource.beforePhotos),
+        during: getArray(photoSource.duringPhotos),
+        after: getArray(photoSource.afterPhotos),
       });
     }
   }, [existingPhotos, ticket]);
