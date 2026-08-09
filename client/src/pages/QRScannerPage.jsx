@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { technicianPortalService } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * QRScannerPage Component
