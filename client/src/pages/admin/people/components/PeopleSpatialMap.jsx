@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 
 export default function PeopleSpatialMap({
@@ -11,6 +12,7 @@ export default function PeopleSpatialMap({
   onInspectPerson,
   theme,
 }) {
+  const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const tileLayerRef = useRef(null);
@@ -69,12 +71,14 @@ export default function PeopleSpatialMap({
     markersRef.current = [];
 
     const bounds = L.latLngBounds();
+    let hasPoints = false;
 
     // 🟣 MANAGERS
     if (layers.managers) {
       managers.forEach((m) => {
-        if (m.lat && m.lng) {
+        if (typeof m.lat === 'number' && typeof m.lng === 'number') {
           bounds.extend([m.lat, m.lng]);
+          hasPoints = true;
           const icon = L.divIcon({
             className: 'custom-people-marker',
             html: `
@@ -99,7 +103,17 @@ export default function PeopleSpatialMap({
             iconAnchor: [55, 13],
           });
           const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
-          marker.on('click', () => onInspectPerson && onInspectPerson(m));
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; padding: 4px; min-width: 140px;">
+              <h4 style="margin: 0; font-size: 12px; font-weight: 900; color: #7e22ce;">🟣 ${m.name}</h4>
+              <p style="margin: 4px 0; font-size: 10px; color: #64748b;">Manager · ${m.managedPropertiesCount || 0} Managed Properties</p>
+              <button id="inspect-mgr-${m.id || m.rawId}" style="margin-top: 6px; width: 100%; padding: 4px; background: #7e22ce; color: #fff; border: none; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">View Portfolio →</button>
+            </div>
+          `);
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-mgr-${m.id || m.rawId}`);
+            if (btn) btn.onclick = () => onInspectPerson && onInspectPerson(m);
+          });
           markersRef.current.push(marker);
         }
       });
@@ -108,8 +122,9 @@ export default function PeopleSpatialMap({
     // 🔵 TENANTS
     if (layers.tenants) {
       tenants.forEach((t) => {
-        if (t.lat && t.lng) {
+        if (typeof t.lat === 'number' && typeof t.lng === 'number') {
           bounds.extend([t.lat, t.lng]);
+          hasPoints = true;
           const icon = L.divIcon({
             className: 'custom-people-marker',
             html: `
@@ -134,7 +149,17 @@ export default function PeopleSpatialMap({
             iconAnchor: [55, 13],
           });
           const marker = L.marker([t.lat, t.lng], { icon }).addTo(map);
-          marker.on('click', () => onInspectPerson && onInspectPerson(t));
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; padding: 4px; min-width: 140px;">
+              <h4 style="margin: 0; font-size: 12px; font-weight: 900; color: #1d4ed8;">🔵 ${t.name}</h4>
+              <p style="margin: 4px 0; font-size: 10px; color: #64748b;">${t.propertyName || 'Property Location'} · ${t.unit || 'Unit N/A'}</p>
+              <button id="inspect-tenant-${t.id || t.rawId}" style="margin-top: 6px; width: 100%; padding: 4px; background: #1d4ed8; color: #fff; border: none; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">View Profile →</button>
+            </div>
+          `);
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-tenant-${t.id || t.rawId}`);
+            if (btn) btn.onclick = () => onInspectPerson && onInspectPerson(t);
+          });
           markersRef.current.push(marker);
         }
       });
@@ -143,8 +168,9 @@ export default function PeopleSpatialMap({
     // 🟢 TECHNICIANS
     if (layers.technicians) {
       technicians.forEach((tech) => {
-        if (tech.lat && tech.lng) {
+        if (typeof tech.lat === 'number' && typeof tech.lng === 'number') {
           bounds.extend([tech.lat, tech.lng]);
+          hasPoints = true;
           const icon = L.divIcon({
             className: 'custom-people-marker',
             html: `
@@ -169,7 +195,17 @@ export default function PeopleSpatialMap({
             iconAnchor: [55, 13],
           });
           const marker = L.marker([tech.lat, tech.lng], { icon }).addTo(map);
-          marker.on('click', () => onInspectPerson && onInspectPerson(tech));
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; padding: 4px; min-width: 140px;">
+              <h4 style="margin: 0; font-size: 12px; font-weight: 900; color: #047857;">🟢 ${tech.name}</h4>
+              <p style="margin: 4px 0; font-size: 10px; color: #64748b;">${tech.specialty || 'Field Tech'} · ${tech.dispatchStatus}</p>
+              <button id="inspect-tech-${tech.id || tech.rawId}" style="margin-top: 6px; width: 100%; padding: 4px; background: #047857; color: #fff; border: none; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">View Profile →</button>
+            </div>
+          `);
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-tech-${tech.id || tech.rawId}`);
+            if (btn) btn.onclick = () => onInspectPerson && onInspectPerson(tech);
+          });
           markersRef.current.push(marker);
         }
       });
@@ -178,8 +214,11 @@ export default function PeopleSpatialMap({
     // 🏠 PROPERTIES
     if (layers.properties) {
       properties.forEach((p) => {
-        if (p.lat && p.lng) {
-          bounds.extend([p.lat, p.lng]);
+        const lat = p.location?.lat || p.lat;
+        const lng = p.location?.lng || p.lng;
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          bounds.extend([lat, lng]);
+          hasPoints = true;
           const icon = L.divIcon({
             className: 'custom-people-marker',
             html: `
@@ -200,51 +239,70 @@ export default function PeopleSpatialMap({
                 <span>🏠</span> ${p.name}
               </div>
             `,
-            iconSize: [120, 26],
-            iconAnchor: [60, 13],
+            iconSize: [110, 26],
+            iconAnchor: [55, 13],
           });
-          const marker = L.marker([p.lat, p.lng], { icon }).addTo(map);
+          const marker = L.marker([lat, lng], { icon }).addTo(map);
+          marker.bindPopup(`
+            <div style="font-family: sans-serif; padding: 4px; min-width: 140px;">
+              <h4 style="margin: 0; font-size: 12px; font-weight: 900; color: #4338ca;">🏠 ${p.name}</h4>
+              <p style="margin: 4px 0; font-size: 10px; color: #64748b;">📍 ${p.city || 'Location'} · ${p.address || ''}</p>
+              <button id="inspect-prop-${p._id}" style="margin-top: 6px; width: 100%; padding: 4px; background: #4338ca; color: #fff; border: none; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer;">View Property →</button>
+            </div>
+          `);
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-prop-${p._id}`);
+            if (btn) btn.onclick = () => navigate(`/admin/property/${p._id}`);
+          });
           markersRef.current.push(marker);
         }
       });
     }
 
-    if (markersRef.current.length > 0) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+    // Auto-fit bounds over real coordinates
+    if (hasPoints) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
     }
-  }, [properties, tenants, managers, technicians, layers]);
+  }, [layers, properties, tenants, managers, technicians, theme, onInspectPerson, navigate]);
+
+  const toggleLayer = (key) => {
+    setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className={cn(
-      "h-[420px] w-full rounded-[2.25rem] overflow-hidden border shadow-2xl relative transition-all backdrop-blur-2xl",
-      theme === 'light' ? "bg-slate-100 border-slate-200" : "bg-[#0c0d15] border-white/10"
+      "h-[420px] w-full rounded-[2.25rem] border shadow-2xl relative transition-all backdrop-blur-2xl overflow-hidden",
+      theme === 'light' ? "bg-white/80 border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
     )}>
-      <div ref={mapContainerRef} className="w-full h-full z-10" />
-
-      {/* Layer Toggle Control Overlay */}
-      <div className={cn(
-        "absolute top-3 right-3 z-20 p-2.5 rounded-2xl border text-[11px] font-bold flex flex-wrap items-center gap-2 shadow-2xl backdrop-blur-2xl",
-        theme === 'light' ? "bg-white/90 border-slate-200 text-slate-800" : "bg-[#0c0d15]/90 border-white/10 text-white"
-      )}>
-        {Object.keys(layers).map((layerKey) => (
-          <button
-            key={layerKey}
-            onClick={() => setLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }))}
-            className={cn(
-              "px-2.5 py-1 rounded-full border text-[10px] font-black transition-all cursor-pointer",
-              layers[layerKey]
-                ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
-                : "bg-slate-800/40 text-muted-foreground border-transparent"
-            )}
-          >
-            {layerKey === 'tenants' && '🔵 Tenants'}
-            {layerKey === 'managers' && '🟣 Managers'}
-            {layerKey === 'technicians' && '🟢 Technicians'}
-            {layerKey === 'properties' && '🏠 Properties'}
-            {layerKey === 'risk' && '🔴 Risk'}
-          </button>
-        ))}
+      {/* Interactive Layer Toggles Bar */}
+      <div className="absolute top-4 right-4 z-[400] flex flex-wrap gap-1.5 p-1.5 rounded-full border shadow-xl backdrop-blur-2xl bg-slate-900/90 border-white/10">
+        {[
+          { key: 'properties', label: 'Properties', icon: '🏠', color: 'bg-indigo-500/20 text-indigo-400' },
+          { key: 'tenants', label: 'Tenants', icon: '🔵', color: 'bg-blue-500/20 text-blue-400' },
+          { key: 'managers', label: 'Managers', icon: '🟣', color: 'bg-purple-500/20 text-purple-400' },
+          { key: 'technicians', label: 'Technicians', icon: '🟢', color: 'bg-emerald-500/20 text-emerald-400' },
+          { key: 'risk', label: 'Risk', icon: '🔴', color: 'bg-rose-500/20 text-rose-400' },
+        ].map((layer) => {
+          const isActive = layers[layer.key];
+          return (
+            <button
+              key={layer.key}
+              onClick={() => toggleLayer(layer.key)}
+              className={cn(
+                "px-3 py-1 rounded-full text-[10px] font-black transition-all cursor-pointer flex items-center gap-1.5 border",
+                isActive
+                  ? `${layer.color} border-white/20 shadow-sm`
+                  : "bg-slate-800/40 text-slate-500 border-transparent opacity-60"
+              )}
+            >
+              <span>{layer.icon}</span> {layer.label}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Leaflet Map Canvas */}
+      <div ref={mapContainerRef} className="w-full h-full z-0" />
     </div>
   );
 }

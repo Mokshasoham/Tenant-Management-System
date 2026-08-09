@@ -365,4 +365,52 @@ export const getPeopleMapData = asyncHandler(async (req, res) => {
   });
 });
 
+export const getPeople = asyncHandler(async (req, res) => {
+  const { role, search, status, city, page = 1, limit = 4, sort = '-createdAt' } = req.query;
+
+  const filter = {};
+  if (role) {
+    if (role === 'tenant') {
+      filter.role = { $in: ['tenant', 'user'] };
+    } else {
+      filter.role = role;
+    }
+  }
+
+  if (status === 'active') filter.isActive = true;
+  if (status === 'inactive') filter.isActive = false;
+
+  if (search) {
+    filter.$or = [
+      { firstName: { $regex: search, $options: 'i' } },
+      { lastName: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  const p = parseInt(page);
+  const l = parseInt(limit);
+  const skip = (p - 1) * l;
+
+  const users = await User.find(filter)
+    .sort(sort)
+    .skip(skip)
+    .limit(l)
+    .select('-password');
+
+  const total = await User.countDocuments(filter);
+
+  res.status(200).json({
+    success: true,
+    data: users.map((u) => resolveUserUrls(u, req)),
+    pagination: {
+      page: p,
+      limit: l,
+      total,
+      totalPages: Math.ceil(total / l) || 1,
+    },
+  });
+});
+
+
 

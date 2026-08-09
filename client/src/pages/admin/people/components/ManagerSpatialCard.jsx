@@ -24,19 +24,21 @@ export default function ManagerSpatialCard({ manager, onInspect, theme }) {
           </div>
         </div>
 
-        <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
-          <Star className="w-3.5 h-3.5 fill-current" /> {manager.rating}
-        </span>
+        {manager.rating && (
+          <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 fill-current" /> {manager.rating}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs pt-1">
         <div className="p-2.5 rounded-2xl bg-slate-900/40 border border-white/5 space-y-0.5">
           <span className="text-[9px] text-muted-foreground block font-bold">Managed Portfolio</span>
-          <p className="font-extrabold text-purple-400">{manager.managedPropertiesCount} Properties</p>
+          <p className="font-extrabold text-purple-400">{manager.managedPropertiesCount || 0} Properties</p>
         </div>
         <div className="p-2.5 rounded-2xl bg-slate-900/40 border border-white/5 space-y-0.5">
-          <span className="text-[9px] text-muted-foreground block font-bold">Trust Score</span>
-          <p className="font-extrabold text-indigo-400">{manager.trustScore}/100</p>
+          <span className="text-[9px] text-muted-foreground block font-bold">Status</span>
+          <p className="font-extrabold text-indigo-400 uppercase text-xs">{manager.status || 'Active'}</p>
         </div>
       </div>
 
