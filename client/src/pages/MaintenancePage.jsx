@@ -1058,6 +1058,7 @@ function CalendarView({ requests, onScheduleRequest, user }) {
 }
 
 import AdminMaintenanceCommandCenter from './admin/maintenance/AdminMaintenanceCommandCenter';
+import ManagerMaintenanceCommandCenter from './manager/maintenance/ManagerMaintenanceCommandCenter';
 import TenantMaintenancePortal from './tenant/maintenance/TenantMaintenancePortal';
 
 export default function MaintenancePage() {
@@ -1067,6 +1068,10 @@ export default function MaintenancePage() {
 
     if (isAdmin) {
         return <AdminMaintenanceCommandCenter />;
+    }
+
+    if (isManager) {
+        return <ManagerMaintenanceCommandCenter />;
     }
 
     return <TenantMaintenancePortal />;

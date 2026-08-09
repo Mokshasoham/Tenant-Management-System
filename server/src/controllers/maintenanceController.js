@@ -466,5 +466,44 @@ export const uploadVoiceNote = asyncHandler(async (req, res) => {
     });
 });
 
+export const assignTechnician = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { technicianId, scheduledDate, scheduledTimeSlot } = req.body;
+
+    const Maintenance = (await import('../models/Maintenance.js')).default;
+    const User = (await import('../models/User.js')).default;
+
+    const ticket = await Maintenance.findById(id);
+    if (!ticket) throw new AppError('Ticket not found', 404);
+
+    if (technicianId) {
+        const tech = await User.findById(technicianId);
+        if (!tech) throw new AppError('Technician user not found', 404);
+        ticket.assignedTo = technicianId;
+        ticket.status = 'technician_assigned';
+    }
+
+    if (scheduledDate) ticket.scheduledDate = scheduledDate;
+    if (scheduledTimeSlot) ticket.requestedTimeSlot = scheduledTimeSlot;
+
+    ticket.auditTrail.push({
+        field: 'assignedTo',
+        oldValue: ticket.assignedTo ? String(ticket.assignedTo) : 'Unassigned',
+        newValue: String(technicianId),
+        changedBy: req.user.userId || req.user._id,
+        changedAt: new Date()
+    });
+
+    await ticket.save();
+    const updated = await Maintenance.findById(id).populate('assignedTo', 'firstName lastName email phone').populate('property');
+
+    res.status(200).json({
+        success: true,
+        message: 'Technician assigned successfully',
+        data: updated
+    });
+});
+
+
 
 

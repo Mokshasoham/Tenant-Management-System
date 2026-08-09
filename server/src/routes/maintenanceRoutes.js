@@ -38,6 +38,7 @@ router.post('/:id/rating', maintenanceController.addRating);
 router.put('/:id/costs', authorize('manager', 'admin'), maintenanceController.updateCosts);
 router.put('/:id/checklist', authorize('manager', 'admin'), maintenanceController.updateChecklist);
 router.put('/:id/status', maintenanceController.updateStatus);
+router.put('/:id/assign', authorize('manager', 'admin'), maintenanceController.assignTechnician);
 router.put('/:id', authorize('manager', 'admin'), maintenanceController.updateRequest);
 router.delete('/:id', authorize('manager', 'admin'), maintenanceController.deleteRequest);
 
