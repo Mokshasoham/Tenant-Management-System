@@ -23,8 +23,8 @@ export default function AdminTenantDirectory() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, leasesRes, maintRes] = await Promise.all([
-        userService.getAllUsers({ role: 'tenant', limit: 200 }),
+      const [peopleRes, leasesRes, maintRes] = await Promise.all([
+        userService.getPeople({ role: 'tenant', limit: 200 }),
         leaseService.getAllLeases({ limit: 200 }),
         maintenanceService.getAllRequests({ limit: 200 }),
       ]);
@@ -39,9 +39,10 @@ export default function AdminTenantDirectory() {
         return [];
       };
 
-      const users = extractList(usersRes);
+      const users = extractList(peopleRes);
       const leases = extractList(leasesRes);
       const maint = extractList(maintRes);
+
       setTenants(mapTenantsList(users, leases, maint));
     } catch (err) {
       console.error('Error fetching tenant directory:', err);

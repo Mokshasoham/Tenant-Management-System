@@ -23,8 +23,8 @@ export default function AdminTechnicianDirectory() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, maintRes] = await Promise.all([
-        userService.getAllUsers({ role: 'technician', limit: 200 }),
+      const [peopleRes, maintRes] = await Promise.all([
+        userService.getPeople({ role: 'technician', limit: 200 }),
         maintenanceService.getAllRequests({ limit: 200 }),
       ]);
 
@@ -37,7 +37,7 @@ export default function AdminTechnicianDirectory() {
         return [];
       };
 
-      const users = extractList(usersRes);
+      const users = extractList(peopleRes);
       const maint = extractList(maintRes);
       setTechnicians(mapTechniciansList(users, maint));
     } catch (err) {

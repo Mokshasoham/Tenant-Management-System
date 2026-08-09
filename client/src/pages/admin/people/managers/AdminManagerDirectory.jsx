@@ -23,8 +23,8 @@ export default function AdminManagerDirectory() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, propsRes] = await Promise.all([
-        userService.getAllUsers({ role: 'manager', limit: 200 }),
+      const [peopleRes, propsRes] = await Promise.all([
+        userService.getPeople({ role: 'manager', limit: 200 }),
         propertyService.getAllProperties({ limit: 200 }),
       ]);
 
@@ -37,7 +37,7 @@ export default function AdminManagerDirectory() {
         return [];
       };
 
-      const users = extractList(usersRes);
+      const users = extractList(peopleRes);
       const properties = extractList(propsRes);
       setManagers(mapManagersList(users, properties));
     } catch (err) {

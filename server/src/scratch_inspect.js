@@ -6,57 +6,33 @@ dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tenant-management';
 
-async function inspectDb() {
+async function testPeopleQueries() {
   try {
-    console.log('Connecting to MongoDB:', MONGODB_URI);
+    console.log('Connecting to MongoDB...');
     await mongoose.connect(MONGODB_URI);
-    console.log('Connected to MongoDB successfully!');
 
-    const db = mongoose.connection.db;
+    const User = mongoose.connection.db.collection('users');
 
-    // Collections
-    const collections = await db.listCollections().toArray();
-    console.log('Collections in DB:', collections.map(c => c.name));
+    const tenants = await User.find({ role: { $in: ['tenant', 'user', 'Tenant', 'User'] } }).toArray();
+    console.log('\n--- GET /api/users/admin/people?role=tenant ---');
+    console.log('Total Tenants Found:', tenants.length);
+    tenants.forEach(t => console.log(`- ${t.firstName} ${t.lastName} (Role: "${t.role}", Email: ${t.email})`));
 
-    // Users
-    const users = await db.collection('users').find({}).toArray();
-    console.log('\n--- USERS COUNT:', users.length);
-    const rolesCount = {};
-    users.forEach(u => {
-      rolesCount[u.role] = (rolesCount[u.role] || 0) + 1;
-      console.log(`User ID: ${u._id} | Name: ${u.firstName} ${u.lastName} | Role: "${u.role}" | Email: ${u.email} | Active: ${u.isActive}`);
-    });
-    console.log('Roles breakdown:', rolesCount);
+    const managers = await User.find({ role: { $in: ['manager', 'Manager'] } }).toArray();
+    console.log('\n--- GET /api/users/admin/people?role=manager ---');
+    console.log('Total Managers Found:', managers.length);
+    managers.forEach(m => console.log(`- ${m.firstName} ${m.lastName} (Role: "${m.role}", Email: ${m.email})`));
 
-    // Tenants
-    if (collections.some(c => c.name === 'tenants')) {
-      const tenants = await db.collection('tenants').find({}).toArray();
-      console.log('\n--- TENANTS COLLECTION COUNT:', tenants.length);
-      tenants.forEach(t => {
-        console.log(`Tenant ID: ${t._id} | UserRef: ${t.user} | PropertyRef: ${t.property} | Name: ${t.firstName || t.name}`);
-      });
-    }
-
-    // Properties
-    const properties = await db.collection('properties').find({}).toArray();
-    console.log('\n--- PROPERTIES COUNT:', properties.length);
-    properties.forEach(p => {
-      console.log(`Property ID: ${p._id} | Name: ${p.name} | City: ${p.city} | Manager: ${p.manager} | Owner: ${p.owner} | Location:`, p.location);
-    });
-
-    // Maintenance
-    const maintenance = await db.collection('maintenances').find({}).toArray();
-    console.log('\n--- MAINTENANCE COUNT:', maintenance.length);
-
-    // Leases
-    const leases = await db.collection('leases').find({}).toArray();
-    console.log('\n--- LEASES COUNT:', leases.length);
+    const technicians = await User.find({ role: { $in: ['technician', 'Technician'] } }).toArray();
+    console.log('\n--- GET /api/users/admin/people?role=technician ---');
+    console.log('Total Technicians Found:', technicians.length);
+    technicians.forEach(tc => console.log(`- ${tc.firstName} ${tc.lastName} (Role: "${tc.role}", Email: ${tc.email})`));
 
     await mongoose.disconnect();
-    console.log('Done!');
+    console.log('\nDone testing people queries!');
   } catch (err) {
-    console.error('Error inspecting DB:', err);
+    console.error('Error:', err);
   }
 }
 
-inspectDb();
+testPeopleQueries();

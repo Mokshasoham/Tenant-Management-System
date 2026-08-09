@@ -366,12 +366,17 @@ export const getPeopleMapData = asyncHandler(async (req, res) => {
 });
 
 export const getPeople = asyncHandler(async (req, res) => {
-  const { role, search, status, city, page = 1, limit = 4, sort = '-createdAt' } = req.query;
+  const { role, search, status, city, page = 1, limit = 25, sort = '-createdAt' } = req.query;
 
   const filter = {};
   if (role) {
-    if (role === 'tenant') {
-      filter.role = { $in: ['tenant', 'user'] };
+    const roleLower = String(role).toLowerCase();
+    if (roleLower === 'tenant' || roleLower === 'user') {
+      filter.role = { $in: ['tenant', 'user', 'Tenant', 'User'] };
+    } else if (roleLower === 'manager') {
+      filter.role = { $in: ['manager', 'Manager'] };
+    } else if (roleLower === 'technician') {
+      filter.role = { $in: ['technician', 'Technician'] };
     } else {
       filter.role = role;
     }
@@ -381,15 +386,16 @@ export const getPeople = asyncHandler(async (req, res) => {
   if (status === 'inactive') filter.isActive = false;
 
   if (search) {
+    const searchRegex = { $regex: search, $options: 'i' };
     filter.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
-      { lastName: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { firstName: searchRegex },
+      { lastName: searchRegex },
+      { email: searchRegex },
     ];
   }
 
-  const p = parseInt(page);
-  const l = parseInt(limit);
+  const p = Math.max(1, parseInt(page) || 1);
+  const l = Math.max(1, parseInt(limit) || 25);
   const skip = (p - 1) * l;
 
   const users = await User.find(filter)
