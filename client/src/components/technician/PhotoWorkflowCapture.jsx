@@ -20,6 +20,20 @@ import { maintenanceService } from '../../services/api';
  * Compresses images automatically before uploading to `/api/maintenance/:id/photos/:phase`.
  * Enforces requirement: "After" photos cannot be uploaded without at least one "Before" photo.
  */
+export function resolveImageUrl(rawUrl) {
+  if (!rawUrl) return '';
+  const url = typeof rawUrl === 'string' ? rawUrl : rawUrl.url || rawUrl.path || '';
+  if (!url) return '';
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
+  const cleanServer = serverUrl.replace(/\/$/, '');
+  const cleanUrl = url.startsWith('/') ? url : '/' + url;
+  return `${cleanServer}${cleanUrl}`;
+}
+
 export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos, onPhotoUploaded, onUploadSuccess }) {
   const resolvedTicketId = ticketId || ticket?._id || ticket?.id;
 
@@ -84,11 +98,10 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
       const compressedFile = await compressImage(file, 1920, 0.8);
       setCompressing(false);
 
-      // 2. Prepare FormData
+      // 2. Prepare FormData (ONLY append 1 file field to avoid duplicate Multer uploads)
       setUploading(true);
       const formData = new FormData();
       formData.append('photos', compressedFile);
-      formData.append('photo', compressedFile);
       formData.append('phase', activePhase);
 
       // 3. Upload to API
@@ -96,7 +109,7 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
       const uploadedData = res?.data?.data || res?.data || res || {};
 
       // New photo record or URL
-      const newPhotoObj = uploadedData.photo || uploadedData.url || {
+      const newPhotoObj = uploadedData.photo || uploadedData.url || (Array.isArray(uploadedData.photos) ? uploadedData.photos[0] : null) || {
         url: URL.createObjectURL(compressedFile),
         uploadedAt: new Date().toISOString(),
         _id: Date.now().toString(),
@@ -158,41 +171,42 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
         className="hidden"
       />
 
-      {/* Phase Stepper Tabs */}
+      {/* Phase Navigation Tabs */}
       <div className="grid grid-cols-3 gap-2">
         {phases.map((phase) => {
           const count = photos[phase.key]?.length || 0;
-          const isActive = activePhase === phase.key;
-          const isCompleted = count > 0;
+          const isSelected = activePhase === phase.key;
           const isLocked = phase.key === 'after' && photos.before.length === 0;
 
           return (
             <button
               key={phase.key}
               onClick={() => {
+                if (isLocked) {
+                  setErrorMsg('Upload at least 1 "Before" photo first before unlocking "After" phase.');
+                  return;
+                }
                 setActivePhase(phase.key);
                 setErrorMsg(null);
               }}
-              className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
-                isActive
-                  ? 'bg-cyan-500/15 border-cyan-500/50 text-white shadow-lg shadow-cyan-500/10'
-                  : 'bg-slate-950/60 border-slate-800/80 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden cursor-pointer ${
+                isSelected
+                  ? 'bg-cyan-500/10 border-cyan-400 text-white shadow-lg shadow-cyan-500/10'
+                  : isLocked
+                  ? 'bg-slate-950/40 border-slate-800/80 text-slate-600 cursor-not-allowed'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
               }`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-base">{phase.icon}</span>
-                {isCompleted ? (
-                  <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-[10px] font-bold">
-                    ✓
-                  </span>
-                ) : isLocked ? (
-                  <Lock className="w-3.5 h-3.5 text-amber-400/80" />
+              <div className="flex items-center justify-between">
+                <span className="text-lg">{phase.icon}</span>
+                {isLocked ? (
+                  <Lock className="w-3.5 h-3.5 text-amber-500/70" />
+                ) : count > 0 ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 ) : null}
               </div>
-              <div>
-                <p className="text-xs font-bold truncate">{phase.label}</p>
-                <span className="text-[10px] text-slate-500">{count} captured</span>
-              </div>
+              <p className="text-xs font-bold mt-1.5">{phase.label}</p>
+              <p className="text-[10px] opacity-70">{count} captured</p>
             </button>
           );
         })}
@@ -273,14 +287,14 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
             {photos[activePhase].map((photo, idx) => {
-              const url = typeof photo === 'string' ? photo : photo.url || photo.path;
+              const fullUrl = resolveImageUrl(photo);
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedPreview(url)}
+                  onClick={() => setSelectedPreview(fullUrl)}
                   className="group relative aspect-square rounded-xl overflow-hidden bg-slate-950 border border-slate-800 cursor-pointer hover:border-cyan-400 transition-all"
                 >
-                  <img src={url} alt={`Phase ${activePhase} ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={fullUrl} alt={`Phase ${activePhase} ${idx + 1}`} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Eye className="w-5 h-5 text-white" />
                   </div>
@@ -295,11 +309,11 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
       {selectedPreview && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="relative max-w-lg w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-2 space-y-3">
-            <img src={selectedPreview} alt="Preview" className="w-full max-h-[70vh] object-contain rounded-xl" />
+            <img src={resolveImageUrl(selectedPreview)} alt="Preview" className="w-full max-h-[70vh] object-contain rounded-xl" />
             <div className="flex justify-end">
               <button
                 onClick={() => setSelectedPreview(null)}
-                className="px-4 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-white hover:bg-slate-700"
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
               >
                 Close
               </button>
