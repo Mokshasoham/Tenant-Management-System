@@ -138,6 +138,14 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
     }
   };
 
+  const triggerCamera = () => {
+    if (isAfterPhaseLocked) {
+      setErrorMsg('Upload at least 1 "Before" photo first before capturing "After" photos.');
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   const [deletingPhoto, setDeletingPhoto] = useState(null);
 
   const handleDeletePhoto = async (photoObj, e) => {
