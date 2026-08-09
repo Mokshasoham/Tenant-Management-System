@@ -185,15 +185,17 @@ function App() {
                 <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
                 <Route path="/dev/verification-gallery" element={<VerificationComponentGallery />} />
 
-                {/* Technician Portal Isolated Workspace */}
-                <Route path="/technician/dashboard" element={<TechnicianRoute><TechnicianLayout><TechnicianDashboard /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/jobs" element={<TechnicianRoute><TechnicianLayout><TechnicianJobsPage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/jobs/:id" element={<TechnicianRoute><TechnicianLayout><TechnicianJobDetailPage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/schedule" element={<TechnicianRoute><TechnicianLayout><TechnicianSchedulePage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/qr-scanner" element={<TechnicianRoute><TechnicianLayout><QRScannerPage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/messages" element={<TechnicianRoute><TechnicianLayout><MessagesPage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/notifications" element={<TechnicianRoute><TechnicianLayout><NotificationCenterPage /></TechnicianLayout></TechnicianRoute>} />
-                <Route path="/technician/profile" element={<TechnicianRoute><TechnicianLayout><TechnicianProfilePage /></TechnicianLayout></TechnicianRoute>} />
+                {/* Technician Portal Unified TMS Workspace */}
+                <Route path="/technician" element={<TechnicianRoute><DashboardLayout><TechnicianDashboard /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/dashboard" element={<TechnicianRoute><DashboardLayout><TechnicianDashboard /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/jobs" element={<TechnicianRoute><DashboardLayout><TechnicianJobsPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/jobs/:id" element={<TechnicianRoute><DashboardLayout><TechnicianJobDetailPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/schedule" element={<TechnicianRoute><DashboardLayout><TechnicianSchedulePage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/qr" element={<TechnicianRoute><DashboardLayout><QRScannerPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/qr-scanner" element={<TechnicianRoute><DashboardLayout><QRScannerPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/messages" element={<TechnicianRoute><DashboardLayout><MessagesPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/notifications" element={<TechnicianRoute><DashboardLayout><NotificationCenterPage /></DashboardLayout></TechnicianRoute>} />
+                <Route path="/technician/profile" element={<TechnicianRoute><DashboardLayout><TechnicianProfilePage /></DashboardLayout></TechnicianRoute>} />
 
                 {/* All authenticated */}
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />

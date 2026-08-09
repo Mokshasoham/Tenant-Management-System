@@ -5,6 +5,7 @@ import useAuthStore from '../context/authStore';
 import AdminDashboard from './dashboards/AdminDashboard';
 import ManagerDashboard from './dashboards/ManagerDashboard';
 import TenantDashboard from './dashboards/TenantDashboard';
+import TechnicianDashboard from './dashboards/TechnicianDashboard';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -79,6 +80,8 @@ export default function DashboardPage() {
       return <AdminDashboard stats={stats} loading={loading} navigate={navigate} />;
     case 'manager':
       return <ManagerDashboard stats={stats} loading={loading} navigate={navigate} />;
+    case 'technician':
+      return <TechnicianDashboard />;
     case 'tenant':
     case 'user':  // legacy role name — treat same as tenant
       return <TenantDashboard user={user} navigate={navigate} />;

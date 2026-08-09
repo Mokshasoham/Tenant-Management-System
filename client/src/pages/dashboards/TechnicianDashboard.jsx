@@ -51,32 +51,32 @@ export default function TechnicianDashboard() {
 
   const stats = [
     {
-      label: 'Active Jobs Today',
-      value: kpis?.workload?.currentJobs ?? 0,
+      label: 'ACTIVE JOBS',
+      value: kpis?.workload?.currentJobs ?? jobs.filter(j => !['resolved', 'completed', 'closed'].includes(j.status)).length,
       icon: Wrench,
       color: 'from-cyan-500/20 to-blue-500/10',
       border: 'border-cyan-500/30',
       text: 'text-cyan-400'
     },
     {
-      label: 'Completed Today',
-      value: kpis?.workload?.completedToday ?? 0,
+      label: 'TODAY COMPLETED',
+      value: kpis?.workload?.completedToday ?? jobs.filter(j => ['resolved', 'completed', 'closed'].includes(j.status)).length,
       icon: CheckCircle2,
       color: 'from-emerald-500/20 to-teal-500/10',
       border: 'border-emerald-500/30',
       text: 'text-emerald-400'
     },
     {
-      label: 'First-Time Fix Rate',
-      value: `${kpis?.firstTimeFixRate || user?.technicianProfile?.firstTimeFixRate || 95}%`,
+      label: 'SCHEDULED',
+      value: kpis?.workload?.scheduledCount ?? jobs.filter(j => ['scheduled', 'visit_scheduled'].includes(j.status) || j.requestedVisitDate).length,
       icon: Zap,
       color: 'from-amber-500/20 to-orange-500/10',
       border: 'border-amber-500/30',
       text: 'text-amber-400'
     },
     {
-      label: 'Rating Score',
-      value: `${kpis?.rating || user?.technicianProfile?.rating || 5.0} ★`,
+      label: 'AVG RESOLUTION',
+      value: kpis?.avgResolutionTimeHours ? `${kpis.avgResolutionTimeHours}h` : 'Not available',
       icon: Star,
       color: 'from-purple-500/20 to-pink-500/10',
       border: 'border-purple-500/30',
