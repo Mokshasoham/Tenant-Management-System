@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import Property from '../models/Property.js';
+import Maintenance from '../models/Maintenance.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import { hashPassword } from '../utils/password.js';
 import logger from '../utils/logger.js';
@@ -261,4 +263,106 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
     }
   });
 });
+
+export const getPeopleSummary = asyncHandler(async (req, res) => {
+  const [
+    tenantTotal,
+    tenantActive,
+    managerTotal,
+    managerActive,
+    techTotal,
+    techActive,
+    techOnJob,
+    propertyTotal,
+    propertyActive,
+    attentionTotal,
+  ] = await Promise.all([
+    User.countDocuments({ role: { $in: ['tenant', 'user'] } }),
+    User.countDocuments({ role: { $in: ['tenant', 'user'] }, isActive: true }),
+    User.countDocuments({ role: 'manager' }),
+    User.countDocuments({ role: 'manager', isActive: true }),
+    User.countDocuments({ role: 'technician' }),
+    User.countDocuments({ role: 'technician', isActive: true }),
+    User.countDocuments({ role: 'technician', 'technicianProfile.liveStatus': { $in: ['working', 'busy', 'emergency_call'] } }),
+    Property.countDocuments({}),
+    Property.countDocuments({ isAvailable: { $ne: false } }),
+    Maintenance.countDocuments({ status: { $in: ['open', 'submitted', 'in_progress', 'pending'] } }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      tenants: { total: tenantTotal, active: tenantActive, inactive: Math.max(0, tenantTotal - tenantActive) },
+      managers: { total: managerTotal, active: managerActive, inactive: Math.max(0, managerTotal - managerActive) },
+      technicians: { total: techTotal, active: techActive, available: Math.max(0, techActive - techOnJob), onJob: techOnJob },
+      properties: { total: propertyTotal, active: propertyActive },
+      attention: { total: attentionTotal },
+    },
+  });
+});
+
+export const getPeopleMapData = asyncHandler(async (req, res) => {
+  const properties = await Property.find({}).populate('manager', 'firstName lastName email phone').populate('owner', 'firstName lastName');
+  const users = await User.find({}).select('-password');
+  const maintenance = await Maintenance.find({ status: { $in: ['open', 'in_progress', 'submitted'] } }).populate('property');
+
+  const markers = [];
+
+  // Real Property Markers (Only if valid location exists)
+  properties.forEach((p) => {
+    if (p.location && typeof p.location.lat === 'number' && typeof p.location.lng === 'number') {
+      markers.push({
+        id: `prop-${p._id}`,
+        type: 'property',
+        name: p.name,
+        lat: p.location.lat,
+        lng: p.location.lng,
+        city: p.city || 'Location N/A',
+        address: p.address,
+        raw: p,
+      });
+    }
+  });
+
+  // Real User Markers (Technicians with GPS coordinates or assigned property)
+  users.forEach((u) => {
+    if (u.role === 'technician' && u.technicianProfile?.currentLatitude && u.technicianProfile?.currentLongitude) {
+      markers.push({
+        id: `tech-${u._id}`,
+        type: 'technician',
+        name: `${u.firstName} ${u.lastName}`,
+        lat: u.technicianProfile.currentLatitude,
+        lng: u.technicianProfile.currentLongitude,
+        specialty: u.technicianProfile?.skills?.[0]?.name || 'General Field Tech',
+        raw: u,
+      });
+    }
+  });
+
+  // Real Risk Markers (Urgent Maintenance Tickets on Properties with Lat/Lng)
+  maintenance.forEach((m) => {
+    if (m.priority === 'emergency' || m.priority === 'urgent' || m.priority === 'high') {
+      if (m.property && m.property.location && typeof m.property.location.lat === 'number' && typeof m.property.location.lng === 'number') {
+        markers.push({
+          id: `risk-${m._id}`,
+          type: 'risk',
+          name: `⚠️ ${m.title || 'High Priority Maintenance'}`,
+          lat: m.property.location.lat,
+          lng: m.property.location.lng,
+          propertyName: m.property.name,
+          raw: m,
+        });
+      }
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      markers,
+      count: markers.length,
+    },
+  });
+});
+
 

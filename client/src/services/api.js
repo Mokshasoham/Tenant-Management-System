@@ -25,6 +25,8 @@ export const userService = {
   assignRole: (id, role) => apiClient.post(`/users/admin/${id}/role`, { role }),
   toggleUserStatus: (id) => apiClient.post(`/users/admin/${id}/toggle-status`),
   getDashboardStats: () => apiClient.get('/users/admin/stats'),
+  getPeopleSummary: () => apiClient.get('/users/admin/people-summary'),
+  getPeopleMapData: () => apiClient.get('/users/admin/people-map'),
   uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 

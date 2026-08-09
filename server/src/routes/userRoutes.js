@@ -13,6 +13,8 @@ router.post('/kyc', uploadKYC.array('documents', 5), userController.uploadKycDoc
 
 // Admin only routes
 router.get('/admin/all', adminOnly, userController.getAllUsers);
+router.get('/admin/people-summary', adminOnly, userController.getPeopleSummary);
+router.get('/admin/people-map', adminOnly, userController.getPeopleMapData);
 router.post('/admin/create', adminOnly, userController.createUser);
 router.get('/admin/stats', adminOnly, userController.getDashboardStats);
 router.get('/:id', userController.getUserById);

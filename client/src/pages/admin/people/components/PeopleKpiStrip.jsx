@@ -1,14 +1,49 @@
 import React from 'react';
-import { Users, UserCheck, Wrench, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Users, UserCheck, Wrench, Home, AlertTriangle } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 
 export default function PeopleKpiStrip({ kpis, selectedCategory, onSelectCategory, theme }) {
   const items = [
-    { key: 'tenants', label: 'TENANTS', count: kpis?.totalTenants || 128, sub: `${kpis?.activeTenants || 112} Active`, icon: Users, color: 'indigo' },
-    { key: 'managers', label: 'MANAGERS', count: kpis?.totalManagers || 24, sub: `${kpis?.activeManagers || 21} Active`, icon: UserCheck, color: 'purple' },
-    { key: 'technicians', label: 'TECHNICIANS', count: kpis?.totalTechnicians || 42, sub: `${kpis?.activeTechnicians || 36} Active`, icon: Wrench, color: 'emerald' },
-    { key: 'verified', label: 'VERIFIED', count: `${kpis?.ecosystemVerifiedPercent || 94}%`, sub: 'Ecosystem', icon: ShieldCheck, color: 'sky' },
-    { key: 'attention', label: 'ATTENTION', count: kpis?.totalAttentionNeeded || 12, sub: 'Need Review', icon: AlertTriangle, color: 'rose' },
+    {
+      key: 'tenants',
+      label: 'TENANTS',
+      count: kpis?.tenantsCount ?? 0,
+      sub: `${kpis?.activeTenantsCount ?? 0} Active`,
+      icon: Users,
+      color: 'indigo'
+    },
+    {
+      key: 'managers',
+      label: 'MANAGERS',
+      count: kpis?.managersCount ?? 0,
+      sub: `${kpis?.activeManagersCount ?? 0} Active`,
+      icon: UserCheck,
+      color: 'purple'
+    },
+    {
+      key: 'technicians',
+      label: 'TECHNICIANS',
+      count: kpis?.techniciansCount ?? 0,
+      sub: `${kpis?.activeTechniciansCount ?? 0} Active`,
+      icon: Wrench,
+      color: 'emerald'
+    },
+    {
+      key: 'properties',
+      label: 'PROPERTIES',
+      count: kpis?.propertiesCount ?? 0,
+      sub: 'Active Properties',
+      icon: Home,
+      color: 'sky'
+    },
+    {
+      key: 'attention',
+      label: 'ATTENTION',
+      count: kpis?.attentionCount ?? 0,
+      sub: 'Requires Review',
+      icon: AlertTriangle,
+      color: 'rose'
+    },
   ];
 
   return (
