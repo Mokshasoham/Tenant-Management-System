@@ -1057,9 +1057,14 @@ function CalendarView({ requests, onScheduleRequest, user }) {
     );
 }
 
+import AdminMaintenanceCommandCenter from './admin/maintenance/AdminMaintenanceCommandCenter';
+
 export default function MaintenancePage() {
     const { user } = useAuthStore();
-    const isManager = user?.role === 'manager' || user?.role === 'admin';
+    if (user?.role === 'admin') {
+        return <AdminMaintenanceCommandCenter />;
+    }
+    const isManager = user?.role === 'manager';
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState(null);

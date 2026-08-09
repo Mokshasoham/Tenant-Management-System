@@ -85,6 +85,7 @@ import AdminVerificationAudit from './pages/admin/verification/AdminVerification
 
 // Admin Property Inspection Workspace
 import AdminPropertyInspection from './pages/admin/property/AdminPropertyInspection';
+import AdminMaintenanceCommandCenter from './pages/admin/maintenance/AdminMaintenanceCommandCenter';
 
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
@@ -248,6 +249,7 @@ function App() {
 
                 {/* Admin only */}
                 <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/maintenance" element={<AdminRoute><DashboardLayout><AdminMaintenanceCommandCenter /></DashboardLayout></AdminRoute>} />
                 <Route path="/admin/property-directory" element={<Navigate to="/browse" replace />} />
                 <Route path="/admin/property/:propertyId" element={<AdminRoute><DashboardLayout><AdminPropertyInspection /></DashboardLayout></AdminRoute>} />
 
