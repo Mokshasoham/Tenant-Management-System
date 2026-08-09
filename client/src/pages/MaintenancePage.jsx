@@ -1061,9 +1061,7 @@ import AdminMaintenanceCommandCenter from './admin/maintenance/AdminMaintenanceC
 
 export default function MaintenancePage() {
     const { user } = useAuthStore();
-    if (user?.role === 'admin') {
-        return <AdminMaintenanceCommandCenter />;
-    }
+    const isAdmin = user?.role === 'admin';
     const isManager = user?.role === 'manager';
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1074,6 +1072,7 @@ export default function MaintenancePage() {
     const [detailsTarget, setDetailsTarget] = useState(null);
 
     const fetchData = useCallback(async () => {
+        if (isAdmin) return;
         try {
             setLoading(true);
             const [reqRes, statsRes] = await Promise.all([
@@ -1084,9 +1083,17 @@ export default function MaintenancePage() {
             setStats(statsRes.data?.data || statsRes.data || {});
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
-    }, [priorityFilter]);
+    }, [priorityFilter, isAdmin]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        if (!isAdmin) {
+            fetchData();
+        }
+    }, [fetchData, isAdmin]);
+
+    if (isAdmin) {
+        return <AdminMaintenanceCommandCenter />;
+    }
 
     const byStatus = (colKey) => {
         const col = STATUS_COLS.find(c => c.key === colKey);
