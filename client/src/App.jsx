@@ -87,6 +87,15 @@ import AdminVerificationAudit from './pages/admin/verification/AdminVerification
 import AdminPropertyInspection from './pages/admin/property/AdminPropertyInspection';
 import AdminMaintenanceCommandCenter from './pages/admin/maintenance/AdminMaintenanceCommandCenter';
 
+// Admin People & Workforce Spatial Command Center
+import AdminPeopleCommandCenter from './pages/admin/people/AdminPeopleCommandCenter';
+import AdminTenantDirectory from './pages/admin/people/tenants/AdminTenantDirectory';
+import AdminTenantProfile from './pages/admin/people/tenants/AdminTenantProfile';
+import AdminManagerDirectory from './pages/admin/people/managers/AdminManagerDirectory';
+import AdminManagerProfile from './pages/admin/people/managers/AdminManagerProfile';
+import AdminTechnicianDirectory from './pages/admin/people/technicians/AdminTechnicianDirectory';
+import AdminTechnicianProfile from './pages/admin/people/technicians/AdminTechnicianProfile';
+
 // Technician Portal Pages & Layout
 import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/dashboards/TechnicianDashboard';
@@ -250,6 +259,13 @@ function App() {
                 {/* Admin only */}
                 <Route path="/users" element={<AdminRoute><DashboardLayout><UsersPage /></DashboardLayout></AdminRoute>} />
                 <Route path="/admin/maintenance" element={<AdminRoute><DashboardLayout><AdminMaintenanceCommandCenter /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people" element={<AdminRoute><DashboardLayout><AdminPeopleCommandCenter /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/tenants" element={<AdminRoute><DashboardLayout><AdminTenantDirectory /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/tenants/:id" element={<AdminRoute><DashboardLayout><AdminTenantProfile /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/managers" element={<AdminRoute><DashboardLayout><AdminManagerDirectory /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/managers/:id" element={<AdminRoute><DashboardLayout><AdminManagerProfile /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/technicians" element={<AdminRoute><DashboardLayout><AdminTechnicianDirectory /></DashboardLayout></AdminRoute>} />
+                <Route path="/admin/people/technicians/:id" element={<AdminRoute><DashboardLayout><AdminTechnicianProfile /></DashboardLayout></AdminRoute>} />
                 <Route path="/admin/property-directory" element={<Navigate to="/browse" replace />} />
                 <Route path="/admin/property/:propertyId" element={<AdminRoute><DashboardLayout><AdminPropertyInspection /></DashboardLayout></AdminRoute>} />
 
