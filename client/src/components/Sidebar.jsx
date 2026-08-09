@@ -69,7 +69,6 @@ const ALL_NAV_ITEMS = [
   { label: 'Compare', key: 'compare', icon: Scale, path: '/compare', roles: ['tenant'] },
   { label: 'Properties', key: 'properties', icon: Home, path: '/properties', roles: ['admin', 'manager'] },
   { label: 'People Command Center', key: 'peopleCommandCenter', icon: Users, path: '/admin/people', roles: ['admin'] },
-  { label: 'Tenants', key: 'tenants', icon: Users, path: '/admin/people/tenants', roles: ['admin'] },
   { label: 'Tenants', key: 'tenantsManager', icon: Users, path: '/tenants', roles: ['manager'] },
   { label: 'Workforce', key: 'technicians', icon: UserCheck, path: '/admin/people/technicians', roles: ['admin'] },
   { label: 'Workforce', key: 'techniciansManager', icon: UserCheck, path: '/technicians', roles: ['manager'] },
