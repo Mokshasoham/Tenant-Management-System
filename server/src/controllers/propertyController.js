@@ -160,14 +160,31 @@ export const getAllProperties = asyncHandler(async (req, res) => {
   });
 });
 
-// POST /api/properties/:id/save — toggle save/unsave
+// POST / DELETE /api/properties/:id/save — toggle or set save/unsave
 export const saveProperty = asyncHandler(async (req, res) => {
   const property = await Property.findById(req.params.id);
   if (!property) throw new AppError('Property not found', 404);
 
   const userId = req.user.userId;
-  const isSaved = property.savedBy.includes(userId);
+  const isSaved = property.savedBy.some(id => String(id) === String(userId));
 
+  if (req.method === 'DELETE' || req.body?.action === 'unsave') {
+    if (isSaved) {
+      property.savedBy.pull(userId);
+      await property.save();
+    }
+    return res.status(200).json({ success: true, saved: false, propertyId: property._id });
+  }
+
+  if (req.body?.action === 'save') {
+    if (!isSaved) {
+      property.savedBy.push(userId);
+      await property.save();
+    }
+    return res.status(200).json({ success: true, saved: true, propertyId: property._id });
+  }
+
+  // Toggle behavior
   if (isSaved) {
     property.savedBy.pull(userId);
   } else {
@@ -175,7 +192,8 @@ export const saveProperty = asyncHandler(async (req, res) => {
   }
   await property.save();
 
-  res.status(200).json({ success: true, saved: !isSaved });
+  const finalSaved = property.savedBy.some(id => String(id) === String(userId));
+  res.status(200).json({ success: true, saved: finalSaved, propertyId: property._id });
 });
 
 // GET /api/properties/:id/availability

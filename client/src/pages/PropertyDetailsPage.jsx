@@ -3,12 +3,14 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService, bookingService, visitService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
+import useAuthStore from '../context/authStore';
 import {
     MapPin, IndianRupee, Bed, Bath, Square,
     ArrowLeft, Shield, CheckCircle2, Star,
     Calendar, User, Home, Building2, Zap,
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
-    ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle
+    ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
+    Loader2, X, ShieldCheck, Check
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus } from '../utils/propertyHelper';
@@ -30,10 +32,18 @@ export default function PropertyDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const user = useAuthStore((state) => state.user);
+
     const [property, setProperty] = useState(null);
     const [similarProperties, setSimilarProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState(0);
+
+    // Save & Info state
+    const [isSaved, setIsSaved] = useState(false);
+    const [savingState, setSavingState] = useState(false);
+    const [toastMessage, setToastMessage] = useState(null);
+    const [showInfoDrawer, setShowInfoDrawer] = useState(false);
 
     const [existingBooking, setExistingBooking] = useState(null);
     const [bookingLoading, setBookingLoading] = useState(false);
@@ -82,6 +92,14 @@ export default function PropertyDetailsPage() {
     const [startDate, setStartDate] = useState(getSevenDaysOutStr());
     const [endDate, setEndDate] = useState(getOneMonthSevenDaysOutStr());
 
+    // Keyboard Escape listener for closing Info Drawer
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') setShowInfoDrawer(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -89,6 +107,14 @@ export default function PropertyDetailsPage() {
                 const res = await propertyService.getPropertyById(id);
                 const prop = res.data;
                 setProperty(prop);
+
+                // Initial saved state from MongoDB
+                const activeUser = useAuthStore.getState().user;
+                if (prop && activeUser) {
+                    const userId = activeUser._id || activeUser.id;
+                    const saved = Array.isArray(prop.savedBy) && prop.savedBy.some(sId => String(sId._id || sId) === String(userId));
+                    setIsSaved(saved);
+                }
 
                 const activeLease = prop?.leases?.find(l => l && l.status === 'active');
                 if (activeLease && new Date(activeLease.endDate) > new Date()) {
@@ -133,6 +159,29 @@ export default function PropertyDetailsPage() {
         };
         fetchProperty();
     }, [id]);
+
+    const handleToggleSave = async () => {
+        if (savingState) return;
+        setSavingState(true);
+        try {
+            const res = await propertyService.saveProperty(id);
+            const nextSaved = res.data?.saved ?? !isSaved;
+            setIsSaved(nextSaved);
+            setToastMessage({
+                type: 'success',
+                text: nextSaved ? '★ Property saved to your favorites' : '☆ Property removed from saved properties'
+            });
+        } catch (err) {
+            console.error('Save property error:', err);
+            setToastMessage({
+                type: 'error',
+                text: 'Unable to save property. Please try again.'
+            });
+        } finally {
+            setSavingState(false);
+            setTimeout(() => setToastMessage(null), 3500);
+        }
+    };
 
     const handleChat = () => {
         // Navigate to messages with context
@@ -212,11 +261,30 @@ export default function PropertyDetailsPage() {
                     Back to listings
                 </button>
                 <div className="flex items-center gap-3">
-                    <button className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground transition-all shadow-sm">
-                        <Star className="w-5 h-5" />
+                    <button
+                        onClick={handleToggleSave}
+                        disabled={savingState}
+                        className={cn(
+                            "p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer active:scale-95",
+                            savingState && "opacity-70 cursor-wait",
+                            isSaved
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 shadow-amber-500/10"
+                                : "bg-muted border-border text-muted-foreground hover:text-foreground hover:border-amber-500/40"
+                        )}
+                        title={isSaved ? "Remove from saved properties" : "Save property"}
+                    >
+                        {savingState ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
+                        ) : (
+                            <Star className={cn("w-5 h-5 transition-transform hover:scale-110", isSaved && "fill-amber-400 text-amber-400")} />
+                        )}
                     </button>
-                    <button className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground transition-all shadow-sm">
-                        <Info className="w-5 h-5" />
+                    <button
+                        onClick={() => setShowInfoDrawer(true)}
+                        className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/40 transition-all shadow-sm cursor-pointer active:scale-95"
+                        title="View detailed property information"
+                    >
+                        <Info className="w-5 h-5 text-indigo-400" />
                     </button>
                 </div>
             </div>
@@ -888,7 +956,226 @@ export default function PropertyDetailsPage() {
                 </div>
             )}
 
-            {/* Razorpay Escrow Component decoupled to User Dashboard explicitly */}
+            {/* ══ FLOATING TOAST NOTIFICATION ══ */}
+            <AnimatePresence>
+                {toastMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className={cn(
+                            "fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 border",
+                            toastMessage.type === 'error'
+                                ? "bg-rose-500/90 text-white border-rose-400/40 shadow-rose-500/20"
+                                : "bg-slate-900/95 text-white border-indigo-500/40 shadow-indigo-500/20 dark:bg-white dark:text-slate-900"
+                        )}
+                    >
+                        <span>{toastMessage.text}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ══ PROPERTY INFORMATION DRAWER / MODAL ══ */}
+            <AnimatePresence>
+                {showInfoDrawer && (
+                    <div 
+                        className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm transition-opacity"
+                        onClick={() => setShowInfoDrawer(false)}
+                    >
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                            className="w-full max-w-lg h-full bg-card border-l border-border p-6 flex flex-col justify-between shadow-2xl overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="space-y-6">
+                                {/* Drawer Header */}
+                                <div className="flex items-center justify-between pb-4 border-b border-border">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-400">
+                                            Property Information
+                                        </span>
+                                        <h2 className="text-xl font-black text-foreground truncate">
+                                            {property.name}
+                                        </h2>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowInfoDrawer(false)}
+                                        className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {/* Section 1: Basic Information */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Basic Information</h3>
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Property Name</span>
+                                            <span className="font-bold text-foreground truncate block mt-0.5">{property.name || 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Property ID</span>
+                                            <span className="font-bold text-indigo-400 truncate block mt-0.5 font-mono">
+                                                PROP-{property._id?.substring(property._id.length - 6).toUpperCase() || 'N/A'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Property Type</span>
+                                            <span className="font-bold text-foreground capitalize block mt-0.5">{property.type || 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Availability</span>
+                                            <span className="font-bold text-emerald-400 capitalize block mt-0.5">{property.status || 'Available'}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Verification Status Banner */}
+                                    <div className={cn(
+                                        "p-3.5 rounded-2xl border flex items-center gap-3 text-xs font-bold shadow-sm",
+                                        (property.verificationStatus === 'verified' || property.verifiedBadge)
+                                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                            : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                    )}>
+                                        <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                                        <div>
+                                            <p className="font-black">
+                                                {(property.verificationStatus === 'verified' || property.verifiedBadge) ? '✓ Verified Property' : 'Pending Verification'}
+                                            </p>
+                                            <p className="text-[10px] opacity-80 font-normal mt-0.5">
+                                                {(property.verificationStatus === 'verified' || property.verifiedBadge) ? 'Verified by TMS Audit & Safety Standards' : 'Property is undergoing background verification'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 2: Location */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Location & Coordinates</h3>
+                                    <div className="space-y-2 text-xs">
+                                        <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/60 flex items-start gap-2.5">
+                                            <MapPin className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
+                                            <div>
+                                                <span className="text-muted-foreground block text-[10px] font-bold">Full Address</span>
+                                                <span className="font-bold text-foreground block mt-0.5">
+                                                    {property.address || 'Not available'}{property.city ? `, ${property.city}` : ''} {property.state || ''} {property.zipCode || ''}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                                <span className="text-muted-foreground block text-[10px] font-bold">City</span>
+                                                <span className="font-bold text-foreground block mt-0.5">{property.city || 'Not available'}</span>
+                                            </div>
+                                            <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                                <span className="text-muted-foreground block text-[10px] font-bold">Geo Coordinates</span>
+                                                <span className="font-bold text-foreground font-mono text-[11px] block mt-0.5">
+                                                    {property.location?.lat && property.location?.lng 
+                                                        ? `${property.location.lat.toFixed(4)}, ${property.location.lng.toFixed(4)}`
+                                                        : 'Not available'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 3: Financials & Specifications */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground font-bold">Specs & Pricing</h3>
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Monthly Rent</span>
+                                            <span className="font-black text-emerald-400 text-sm block mt-0.5">
+                                                ₹{property.rentAmount?.toLocaleString('en-IN') || 'Not available'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Security Deposit</span>
+                                            <span className="font-black text-foreground text-sm block mt-0.5">
+                                                ₹{property.depositAmount?.toLocaleString('en-IN') || 'Not available'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Bedrooms</span>
+                                            <span className="font-bold text-foreground block mt-0.5">{property.bedrooms ? `${property.bedrooms} Bed` : 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Bathrooms</span>
+                                            <span className="font-bold text-foreground block mt-0.5">{property.bathrooms ? `${property.bathrooms} Bath` : 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Area (SqFt)</span>
+                                            <span className="font-bold text-foreground block mt-0.5">{property.squareFeet ? `${property.squareFeet} sqft` : 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Furnishing</span>
+                                            <span className="font-bold text-foreground capitalize block mt-0.5">{property.furnishing || 'Not available'}</span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Floor</span>
+                                            <span className="font-bold text-foreground block mt-0.5">
+                                                {property.floor ? `Floor ${property.floor}${property.totalFloors ? ` of ${property.totalFloors}` : ''}` : 'Not available'}
+                                            </span>
+                                        </div>
+                                        <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                                            <span className="text-muted-foreground block text-[10px] font-bold">Booking Type</span>
+                                            <span className="font-bold text-foreground uppercase block mt-0.5">{property.bookingType || 'Paid'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 4: Amenities */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Amenities</h3>
+                                    {property.amenities && property.amenities.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {property.amenities.map((am, i) => (
+                                                <span key={i} className="px-3 py-1.5 rounded-xl bg-muted border border-border text-xs font-bold text-foreground flex items-center gap-1.5">
+                                                    <Check className="w-3.5 h-3.5 text-emerald-400" /> {am}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground italic">Not available</p>
+                                    )}
+                                </div>
+
+                                {/* Section 5: Property Rules & Policies */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground">Policies & Rules</h3>
+                                    <div className="p-4 rounded-2xl bg-muted/50 border border-border/60 space-y-2 text-xs">
+                                        <div className="flex justify-between items-center py-1 border-b border-border/40">
+                                            <span className="text-muted-foreground">Cancellation Policy</span>
+                                            <span className="font-bold text-foreground uppercase">{property.cancellationPolicy || 'Flexible'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-1 border-b border-border/40">
+                                            <span className="text-muted-foreground">Minimum Rent Duration</span>
+                                            <span className="font-bold text-foreground">{property.minRentDuration || 1} {property.minRentDurationUnit || 'months'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-1">
+                                            <span className="text-muted-foreground">Visitor & Safety Rules</span>
+                                            <span className="font-bold text-foreground">Standard Tenant Agreement Applies</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Drawer Footer */}
+                            <div className="pt-6 border-t border-border mt-6">
+                                <button
+                                    onClick={() => setShowInfoDrawer(false)}
+                                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-indigo-600/20"
+                                >
+                                    Close Information
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

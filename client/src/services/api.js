@@ -52,6 +52,7 @@ export const propertyService = {
     apiClient.post(`/properties/${id}/status`, { status }),
   getPropertyStats: () => apiClient.get('/properties/stats'),
   saveProperty: (id) => apiClient.post(`/properties/${id}/save`),
+  unsaveProperty: (id) => apiClient.delete(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
   getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
   uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

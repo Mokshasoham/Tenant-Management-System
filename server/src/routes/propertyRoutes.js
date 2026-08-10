@@ -17,6 +17,7 @@ router.get('/:id/similar', propertyController.getSimilarProperties);
 
 // Toggle save/unsave (all authenticated)
 router.post('/:id/save', propertyController.saveProperty);
+router.delete('/:id/save', propertyController.saveProperty);
 
 // Manager/Admin only
 router.post('/', managerOrAdmin, validatePropertyCreation, validationMiddleware, propertyController.createProperty);
