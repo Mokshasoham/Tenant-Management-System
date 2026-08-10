@@ -418,5 +418,72 @@ export const getPeople = asyncHandler(async (req, res) => {
   });
 });
 
+export const getAvailableTechnicians = asyncHandler(async (req, res) => {
+  const technicians = await User.find({
+    role: { $in: ['technician', 'Technician'] },
+    isActive: { $ne: false }
+  }).select('-password');
+
+  const techIds = technicians.map(t => t._id);
+
+  const activeStatuses = [
+    'assigned',
+    'technician_assigned',
+    'visit_scheduled',
+    'technician_en_route',
+    'work_started',
+    'in_progress',
+    'waiting_parts'
+  ];
+
+  const activeJobsCounts = await Maintenance.aggregate([
+    {
+      $match: {
+        assignedTo: { $in: techIds },
+        status: { $in: activeStatuses }
+      }
+    },
+    {
+      $group: {
+        _id: '$assignedTo',
+        activeCount: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const jobsMap = {};
+  activeJobsCounts.forEach(item => {
+    jobsMap[String(item._id)] = item.activeCount;
+  });
+
+  const formattedTechnicians = technicians.map(t => {
+    const userObj = resolveUserUrls(t, req);
+    const activeJobs = jobsMap[String(t._id)] || 0;
+    const specialty = t.technicianProfile?.skills?.[0]?.name || 'Field Technician';
+    const isWorking = t.technicianProfile?.liveStatus === 'working' || t.technicianProfile?.liveStatus === 'busy';
+
+    return {
+      _id: t._id,
+      id: t._id,
+      firstName: t.firstName,
+      lastName: t.lastName,
+      name: `${t.firstName || ''} ${t.lastName || ''}`.trim() || 'Technician',
+      email: t.email,
+      phone: t.phone || 'Not available',
+      role: t.role || 'technician',
+      specialty: specialty,
+      status: activeJobs > 0 || isWorking ? 'busy' : 'available',
+      availabilityLabel: activeJobs > 0 ? 'On Job' : 'Available',
+      activeJobs: activeJobs,
+      avatar: userObj.avatar || null
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    data: formattedTechnicians
+  });
+});
+
 
 

@@ -11,11 +11,16 @@ router.use(authenticate);
 // KYC upload
 router.post('/kyc', uploadKYC.array('documents', 5), userController.uploadKycDocuments);
 
+// Technicians available for maintenance assignment
+router.get('/technicians/available', authorize('admin', 'manager'), userController.getAvailableTechnicians);
+
+// Admin & Manager people list
+router.get('/admin/people', authorize('admin', 'manager'), userController.getPeople);
+
 // Admin only routes
 router.get('/admin/all', adminOnly, userController.getAllUsers);
 router.get('/admin/people-summary', adminOnly, userController.getPeopleSummary);
 router.get('/admin/people-map', adminOnly, userController.getPeopleMapData);
-router.get('/admin/people', adminOnly, userController.getPeople);
 router.post('/admin/create', adminOnly, userController.createUser);
 router.get('/admin/stats', adminOnly, userController.getDashboardStats);
 router.get('/:id', userController.getUserById);

@@ -35,7 +35,7 @@ export default function ManagerMaintenanceCommandCenter() {
       const [propsRes, reqsRes, techRes] = await Promise.allSettled([
         propertyService.getAllProperties({ limit: 100 }),
         maintenanceService.getAllRequests({ limit: 200 }),
-        userService.getPeople({ role: 'technician', limit: 100 }),
+        userService.getAvailableTechnicians(),
       ]);
 
       const extractList = (res) => {

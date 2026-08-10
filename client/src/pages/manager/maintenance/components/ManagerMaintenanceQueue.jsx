@@ -103,14 +103,25 @@ export default function ManagerMaintenanceQueue({
                     <p className={cn("font-bold text-xs", req.assignedTo ? "text-purple-400" : "text-amber-500")}>
                       {techName}
                     </p>
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-wider block mt-0.5",
+                      req.assignedTo ? "text-emerald-400" : "text-amber-400"
+                    )}>
+                      Status: {req.status?.replace('_', ' ')?.toUpperCase() || (req.assignedTo ? 'ASSIGNED' : 'UNASSIGNED')}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onOpenAssignModal && onOpenAssignModal(req)}
-                      className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition-all flex items-center gap-1 cursor-pointer"
+                      className={cn(
+                        "px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer",
+                        req.assignedTo
+                          ? "bg-indigo-600/80 hover:bg-indigo-500 text-white border border-indigo-500/30"
+                          : "bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/20"
+                      )}
                     >
-                      <UserCheck className="w-3.5 h-3.5" /> Assign Tech
+                      <UserCheck className="w-3.5 h-3.5" /> {req.assignedTo ? 'Reassign Tech' : 'Assign Tech'}
                     </button>
                     <button
                       onClick={() => onOpenDetailsDrawer && onOpenDetailsDrawer(req)}

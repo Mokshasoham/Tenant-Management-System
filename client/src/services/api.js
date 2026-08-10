@@ -28,6 +28,7 @@ export const userService = {
   getPeopleSummary: () => apiClient.get('/users/admin/people-summary'),
   getPeopleMapData: () => apiClient.get('/users/admin/people-map'),
   getPeople: (params) => apiClient.get('/users/admin/people', { params }),
+  getAvailableTechnicians: (params) => apiClient.get('/users/technicians/available', { params }),
   uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
