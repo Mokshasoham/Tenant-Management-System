@@ -102,6 +102,7 @@ export default function TenantMaintenancePortal() {
       <TenantMaintenanceHistory
         requests={requests}
         onSelectTicket={(t) => setSelectedTicket(t)}
+        onRefresh={fetchTenantData}
         theme={theme}
       />
 

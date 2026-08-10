@@ -116,8 +116,8 @@ export default function MaintenanceRequestDrawer({ request, onClose, onUpdateSta
             theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-950/80 border-white/5"
           )}>
             <span className="text-[10px] font-bold text-muted-foreground block">Assigned Technician</span>
-            <p className="font-extrabold text-indigo-400">{request.assignedTechnician?.name || 'Unassigned'}</p>
-            <p className="text-[11px] text-muted-foreground">{request.assignedTechnician?.phone}</p>
+            <p className="font-extrabold text-indigo-400">{request.assignedTechnician?.name || request.assignedTo?.firstName ? `${request.assignedTo?.firstName} ${request.assignedTo?.lastName}` : 'Unassigned'}</p>
+            <p className="text-[11px] text-muted-foreground">{request.assignedTechnician?.phone || request.assignedTo?.phone || ''}</p>
           </div>
 
           <div className={cn(
@@ -125,10 +125,60 @@ export default function MaintenanceRequestDrawer({ request, onClose, onUpdateSta
             theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-950/80 border-white/5"
           )}>
             <span className="text-[10px] font-bold text-muted-foreground block">Property Manager</span>
-            <p className="font-extrabold text-emerald-400">{request.manager?.name}</p>
-            <p className="text-[11px] text-muted-foreground">{request.manager?.contact}</p>
+            <p className="font-extrabold text-emerald-400">{request.manager?.name || 'Property Admin'}</p>
+            <p className="text-[11px] text-muted-foreground">{request.manager?.contact || ''}</p>
           </div>
         </div>
+
+        {/* ══ TENANT FEEDBACK LIFECYCLE AUDIT CARD ══ */}
+        {(['resolved', 'completed', 'closed'].includes(request.status) || request.rating || request.tenantFeedback) && (
+          <div className={cn(
+            "p-4 rounded-3xl border space-y-3 backdrop-blur-xl shadow-lg",
+            theme === 'light' ? "bg-amber-500/5 border-amber-500/30" : "bg-amber-500/10 border-amber-500/30"
+          )}>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                ★ Tenant Performance Feedback
+              </h4>
+              <span className="text-[10px] font-mono text-muted-foreground font-bold">
+                {request.rating?.ratedAt || request.rating?.submittedAt ? new Date(request.rating.ratedAt || request.rating.submittedAt).toLocaleDateString() : 'Lifecycle Complete'}
+              </span>
+            </div>
+
+            {request.rating?.score || request.rating?.rating || request.tenantFeedback?.rating ? (
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-amber-400 text-base">
+                    {'★'.repeat(request.rating?.score || request.rating?.rating || request.tenantFeedback?.rating || 5)}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-extrabold text-xs">
+                    {(request.rating?.score || request.rating?.rating || request.tenantFeedback?.rating || 5).toFixed(1)} / 5.0
+                  </span>
+                </div>
+
+                {(request.rating?.comment || request.rating?.feedback || request.tenantFeedback?.comment) && (
+                  <p className="p-3 rounded-2xl bg-black/20 border border-white/5 italic text-foreground text-xs font-medium">
+                    "{request.rating?.comment || request.rating?.feedback || request.tenantFeedback?.comment}"
+                  </p>
+                )}
+
+                {Array.isArray(request.rating?.tags) && request.rating.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {request.rating.tags.map((tag, i) => (
+                      <span key={i} className="px-2.5 py-0.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
+                        ✓ {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs font-bold text-muted-foreground italic py-1 text-center">
+                Waiting for tenant feedback submission
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ══ ADMIN ACTIONS (NO REQUEST CREATION) ══ */}
         <div className="space-y-2 pt-2 border-t border-border/50">

@@ -23,9 +23,15 @@ const statusHistorySchema = new mongoose.Schema({
 });
 
 const ratingSchema = new mongoose.Schema({
-    score: { type: Number, required: true, min: 1, max: 5 },
-    feedback: { type: String },
+    score: { type: Number, min: 1, max: 5 },
+    rating: { type: Number, min: 1, max: 5 },
+    feedback: { type: String, maxlength: 500 },
+    comment: { type: String, maxlength: 500 },
+    tags: [{ type: String }],
+    wouldRecommend: { type: Boolean, default: true },
+    submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     ratedAt: { type: Date, default: Date.now },
+    submittedAt: { type: Date, default: Date.now },
 });
 
 const auditTrailSchema = new mongoose.Schema({

@@ -319,15 +319,45 @@ export class MaintenanceService {
   }
 
   /**
-   * Submits tenant rating & feedback for a completed maintenance ticket.
+   * Submits tenant rating & feedback for a completed/resolved maintenance ticket.
    */
-  async addRating(ticketId, score, feedback, userContext) {
-    const updated = await maintenanceRepository.addRating(ticketId, score, feedback);
+  async addRating(ticketId, ratingData, userContext) {
+    const request = await maintenanceRepository.findById(ticketId);
+    if (!request) throw new AppError('Maintenance request not found', 404);
+
+    const userId = userContext?.userId || userContext?._id || userContext?.id;
+
+    // Rule 1: Verification that user is tenant who requested it (or admin/manager override)
+    if (userContext?.role === 'tenant' && String(request.requestedBy?._id || request.requestedBy) !== String(userId)) {
+      throw new AppError('Only the tenant who created this maintenance request can submit feedback.', 403);
+    }
+
+    // Rule 2: Request status must be resolved or completed
+    const allowedStatuses = ['resolved', 'completed', 'closed'];
+    if (!allowedStatuses.includes(request.status)) {
+      throw new AppError('Feedback can only be submitted for completed or resolved maintenance requests.', 400);
+    }
+
+    // Rule 3: Check duplicate feedback
+    if (request.rating?.score || request.rating?.rating) {
+      throw new AppError('Feedback has already been submitted for this maintenance request.', 400);
+    }
+
+    // Rule 4: Verify assigned technician exists
+    if (!request.assignedTo) {
+      throw new AppError('Cannot submit feedback for a ticket with no assigned technician.', 400);
+    }
+
+    const updated = await maintenanceRepository.addRating(ticketId, {
+      ...ratingData,
+      submittedBy: userId
+    });
 
     await this.publishEvents('maintenance.feedback.submitted', {
       ticketId,
-      score,
-      feedback
+      score: ratingData.rating || ratingData.score,
+      feedback: ratingData.comment || ratingData.feedback,
+      technicianId: request.assignedTo._id || request.assignedTo
     });
 
     return updated;

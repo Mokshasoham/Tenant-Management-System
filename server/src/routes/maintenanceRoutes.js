@@ -36,6 +36,7 @@ router.post('/:id/internal-notes', authorize('manager', 'admin'), maintenanceCon
 router.post('/:id/escalate', authorize('manager', 'admin'), maintenanceController.escalateTicket);
 router.post('/:id/merge', authorize('manager', 'admin'), maintenanceController.mergeTicket);
 router.post('/:id/rating', maintenanceController.addRating);
+router.post('/:id/feedback', maintenanceController.addRating);
 
 router.put('/:id/costs', authorize('manager', 'admin'), maintenanceController.updateCosts);
 router.put('/:id/checklist', authorize('manager', 'admin'), maintenanceController.updateChecklist);

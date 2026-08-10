@@ -130,7 +130,11 @@ export const maintenanceService = {
   updateRequest: (id, data) => apiClient.put(`/maintenance/${id}`, data),
   addNote: (id, text, attachmentUrl) => apiClient.post(`/maintenance/${id}/notes`, { text, attachmentUrl }),
   addComment: (id, text, attachmentUrl) => apiClient.post(`/maintenance/${id}/comments`, { text, attachmentUrl }),
-  submitRating: (id, score, feedback) => apiClient.post(`/maintenance/${id}/rating`, { score, feedback }),
+  submitRating: (id, payload, feedbackText) => {
+    const data = typeof payload === 'object' ? payload : { rating: payload, score: payload, comment: feedbackText, feedback: feedbackText };
+    return apiClient.post(`/maintenance/${id}/feedback`, data);
+  },
+  submitFeedback: (id, data) => apiClient.post(`/maintenance/${id}/feedback`, data),
   deleteRequest: (id) => apiClient.delete(`/maintenance/${id}`),
   getStats: () => apiClient.get('/maintenance/stats'),
   getManagerDashboard: (params) => apiClient.get('/maintenance/manager-dashboard', { params }),

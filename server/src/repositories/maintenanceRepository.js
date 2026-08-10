@@ -157,20 +157,32 @@ export class MaintenanceRepository {
     );
   }
 
-  async addRating(id, score, feedback) {
+  async addRating(id, ratingData) {
+    const { score, rating, feedback, comment, tags, wouldRecommend, submittedBy } = ratingData || {};
+    const finalScore = Number(rating || score || 5);
+    const finalComment = String(comment || feedback || '').trim();
+    const finalTags = Array.isArray(tags) ? tags : [];
+
+    const ratingObj = {
+      score: finalScore,
+      rating: finalScore,
+      feedback: finalComment,
+      comment: finalComment,
+      tags: finalTags,
+      wouldRecommend: typeof wouldRecommend === 'boolean' ? wouldRecommend : true,
+      submittedBy: submittedBy || undefined,
+      ratedAt: new Date(),
+      submittedAt: new Date()
+    };
+
     return await Maintenance.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          rating: {
-            score,
-            feedback,
-            ratedAt: new Date()
-          }
-        }
-      },
+      { $set: { rating: ratingObj } },
       { new: true }
-    );
+    )
+      .populate('requestedBy', 'firstName lastName email role phone')
+      .populate('assignedTo', 'firstName lastName email role phone rating experience')
+      .populate('property', 'name address city');
   }
 
   async appendAttachment(id, attachmentData) {

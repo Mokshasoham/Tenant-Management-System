@@ -16,7 +16,10 @@ import {
   Mic,
   FileSignature,
   Navigation,
-  PhoneCall
+  PhoneCall,
+  Star,
+  Check,
+  ThumbsUp
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { cn } from '../utils/cn';
@@ -91,6 +94,13 @@ export default function TechnicianJobDetailPage() {
       </div>
     );
   }
+
+  const isResolvedJob = ['resolved', 'completed', 'closed'].includes(job.status);
+  const hasFeedback = Boolean(job.rating?.score || job.rating?.rating);
+  const feedbackScore = Number(job.rating?.score || job.rating?.rating || 5);
+  const feedbackComment = job.rating?.comment || job.rating?.feedback || '';
+  const feedbackTags = Array.isArray(job.rating?.tags) ? job.rating.tags : [];
+  const feedbackDate = job.rating?.ratedAt || job.rating?.submittedAt ? new Date(job.rating.ratedAt || job.rating.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12 transition-colors duration-300">
@@ -206,6 +216,65 @@ export default function TechnicianJobDetailPage() {
         <div className="space-y-6">
           {/* Quick Check-in Summary */}
           <CheckInOutPanel ticket={job} onUpdate={fetchJobDetail} />
+
+          {/* ══ TENANT FEEDBACK CARD ON JOB DETAILS ══ */}
+          {isResolvedJob && (
+            <div className={cn(
+              "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+              theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+            )}>
+              <div className="flex items-center justify-between pb-3 border-b border-border/40">
+                <div className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                  <h2 className="text-sm font-black uppercase tracking-wider text-foreground">TENANT FEEDBACK</h2>
+                </div>
+                {feedbackDate && (
+                  <span className="text-[11px] font-mono font-bold text-muted-foreground">Reviewed {feedbackDate}</span>
+                )}
+              </div>
+
+              {hasFeedback ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl font-black text-amber-400 tracking-tight">{'★'.repeat(feedbackScore)}</span>
+                    <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-400 font-extrabold text-sm border border-amber-500/30">
+                      {feedbackScore.toFixed(1)} / 5.0
+                    </span>
+                    {job.rating?.wouldRecommend && (
+                      <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30 flex items-center gap-1">
+                        <ThumbsUp className="w-3.5 h-3.5" /> Recommended
+                      </span>
+                    )}
+                  </div>
+
+                  {feedbackComment && (
+                    <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 text-xs font-medium text-foreground italic leading-relaxed">
+                      "{feedbackComment}"
+                    </div>
+                  )}
+
+                  {feedbackTags.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Highlight Tags</span>
+                      <div className="flex flex-wrap gap-2">
+                        {feedbackTags.map((tag, i) => (
+                          <span key={i} className="px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-400" /> {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-6 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
+                  <Star className="w-6 h-6 mx-auto text-muted-foreground/40 mb-1" />
+                  <p className="text-xs font-bold text-foreground">Waiting for tenant feedback</p>
+                  <p className="text-[10px] text-muted-foreground">No tenant review has been submitted yet for this completed job.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status Actions */}
           <div className={cn(

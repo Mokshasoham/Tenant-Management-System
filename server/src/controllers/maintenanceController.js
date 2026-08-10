@@ -158,14 +158,24 @@ export const getComments = asyncHandler(async (req, res) => {
 
 export const addRating = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { score, feedback } = req.body;
+    const { score, rating, feedback, comment, tags, wouldRecommend } = req.body;
 
-    if (!score || score < 1 || score > 5) {
-        throw new AppError('Score must be between 1 and 5', 400);
+    const finalScore = Number(rating || score);
+    if (!finalScore || finalScore < 1 || finalScore > 5) {
+        throw new AppError('Rating score must be between 1 and 5', 400);
     }
 
-    const updated = await maintenanceService.addRating(id, score, feedback, req.user);
-    res.status(200).json({ success: true, message: 'Rating submitted successfully', data: updated });
+    const ratingData = {
+        score: finalScore,
+        rating: finalScore,
+        feedback: comment || feedback || '',
+        comment: comment || feedback || '',
+        tags: Array.isArray(tags) ? tags : [],
+        wouldRecommend: typeof wouldRecommend === 'boolean' ? wouldRecommend : true
+    };
+
+    const updated = await maintenanceService.addRating(id, ratingData, req.user);
+    res.status(200).json({ success: true, message: 'Feedback submitted successfully', data: updated });
 });
 
 export const deleteRequest = asyncHandler(async (req, res) => {

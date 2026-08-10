@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   ArrowUpRight,
   PlayCircle,
-  User
+  User,
+  Star,
+  Check
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { cn } from '../../utils/cn';
@@ -87,6 +89,12 @@ export default function TechnicianJobCard({
   const tenantName = job?.tenant?.name || job?.tenantName || job?.reportedBy || 'Resident';
   const propertyName = job?.property?.name || job?.propertyName || 'Property Site';
   const unitNumber = job?.unit || job?.property?.unit || 'N/A';
+
+  const isResolvedJob = ['resolved', 'completed', 'closed'].includes(job?.status);
+  const hasFeedback = Boolean(job?.rating?.score || job?.rating?.rating);
+  const feedbackScore = Number(job?.rating?.score || job?.rating?.rating || 5);
+  const feedbackComment = job?.rating?.comment || job?.rating?.feedback || '';
+  const feedbackTags = Array.isArray(job?.rating?.tags) ? job.rating.tags : [];
 
   // Check-In Status Pill renderer
   const renderCheckInBadge = () => {
@@ -215,6 +223,39 @@ export default function TechnicianJobCard({
             <Navigation className="w-3 h-3" /> Navigate
           </a>
         </div>
+
+        {/* ══ TENANT FEEDBACK SECTION ON RESOLVED JOB ══ */}
+        {isResolvedJob && (
+          <div className="pt-2">
+            {hasFeedback ? (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Tenant Feedback</span>
+                  <div className="flex items-center gap-1 font-black text-amber-400">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <span>{'★'.repeat(feedbackScore)} {feedbackScore.toFixed(1)}</span>
+                  </div>
+                </div>
+                {feedbackComment && (
+                  <p className="text-xs text-foreground italic font-medium">"{feedbackComment}"</p>
+                )}
+                {feedbackTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {feedbackTags.map((tag, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-400" /> {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-muted/40 border border-border/60 text-center text-xs font-bold text-muted-foreground">
+                Tenant Feedback: <span className="italic font-normal text-muted-foreground/80">Waiting for tenant feedback</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Action Buttons Grid */}
