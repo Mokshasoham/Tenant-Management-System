@@ -2,11 +2,12 @@ import React from 'react';
 import LeaseRenewalDashboard from '../modules/lease-renewal/dashboard/LeaseRenewalDashboard';
 
 /**
- * Tenant Lease Renewal Dashboard Wrapper Page.
+ * Enterprise Tenant Lease Renewal Workspace Page.
+ * Route: /lease-renewal
  */
 export default function LeaseRenewalPage() {
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/20 py-6">
+    <div className="min-h-screen bg-[#F6F8FC] dark:bg-[#0B0F17] py-6 transition-colors duration-200">
       <LeaseRenewalDashboard />
     </div>
   );

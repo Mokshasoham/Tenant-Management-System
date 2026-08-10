@@ -27,14 +27,29 @@ export const getTenantDashboardData = async (userId) => {
     return { hasActiveLease: false, user: { name: user.name } };
   }
 
-  // 2. Resolve Active Lease
-  const lease = await Lease.findOne({ tenant: tenant._id, status: 'active' }).populate('property');
+  // 2. Resolve Active Lease with populated Property & Manager
+  const lease = await Lease.findOne({ tenant: tenant._id, status: 'active' }).populate({
+    path: 'property',
+    populate: { path: 'manager', select: 'name email phone firstName lastName profilePicture' }
+  });
   if (!lease) {
     return { hasActiveLease: false, user: { name: user.name }, tenantId: tenant._id };
   }
 
   const property = lease.property;
   const unitNumber = lease.unitNumber || property?.unitNumber || 'N/A';
+  const managerUser = property?.manager;
+  const managerInfo = managerUser ? {
+    id: managerUser._id,
+    name: managerUser.name || `${managerUser.firstName || ''} ${managerUser.lastName || ''}`.trim() || 'Property Manager',
+    email: managerUser.email || 'manager@tms.com',
+    phone: managerUser.phone || '+1 (555) 019-2834',
+    profilePicture: managerUser.profilePicture
+  } : {
+    name: 'Property Manager',
+    email: 'manager@tms.com',
+    phone: '+1 (555) 019-2834'
+  };
 
   // 3. Calculate remaining days
   const endDate = new Date(lease.endDate);
@@ -148,6 +163,7 @@ export const getTenantDashboardData = async (userId) => {
       address: property?.address || 'N/A',
       unitNumber
     },
+    manager: managerInfo,
     lease: {
       id: lease._id,
       rentAmount: lease.rentAmount,
