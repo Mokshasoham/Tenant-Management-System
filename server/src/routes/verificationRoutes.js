@@ -50,6 +50,11 @@ import {
   confirmFraud,
   dismissFraud,
   unlockFraudDetection,
+  screenSanction,
+  getSanctionStatus,
+  confirmSanctionMatch,
+  dismissSanctionMatch,
+  unlockSanctionScreening,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
