@@ -516,6 +516,85 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const screenSanction = useCallback(async (id, payload = {}, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.screenSanction(id, payload, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const confirmSanctionMatch = useCallback(async (id, notes, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.confirmSanctionMatch(id, { notes }, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const dismissSanctionMatch = useCallback(async (id, notes, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.dismissSanctionMatch(id, { notes }, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getSanctionStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getSanctionStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const unlockSanctionScreening = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockSanctionScreening(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -556,6 +635,11 @@ export const VerificationProvider = ({ children }) => {
     dismissFraud,
     getFraudStatus,
     unlockFraudDetection,
+    screenSanction,
+    confirmSanctionMatch,
+    dismissSanctionMatch,
+    getSanctionStatus,
+    unlockSanctionScreening,
   };
 
   return (

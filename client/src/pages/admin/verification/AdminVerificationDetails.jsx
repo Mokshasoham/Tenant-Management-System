@@ -519,6 +519,73 @@ export default function AdminVerificationDetails() {
                   </div>
                 )}
               </VerificationSectionCard>
+
+              {/* Global Sanctions, PEP & Adverse Media Watchlist Card (Phase 3.6.7) */}
+              <VerificationSectionCard title="Global Sanctions, PEP & Adverse Media Watchlist Engine (Phase 3.6.7)" icon={ShieldCheck}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Watchlist Match Status</span>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {record.sanctionScreening?.matchStatus || 'NOT_EVALUATED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      Highest Score: {record.sanctionScreening?.highestMatchScore ?? 0}%
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Review State & Lock</span>
+                    <p className="text-sm font-bold text-indigo-300">
+                      {record.sanctionScreening?.reviewState || 'NONE'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      Lock Status: {record.sanctionScreening?.lockStatus || 'NONE'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Monitoring & Freshness</span>
+                    <p className="text-sm font-bold text-slate-300">
+                      {record.sanctionScreening?.lastSuccessfulScreenAt ? new Date(record.sanctionScreening.lastSuccessfulScreenAt).toLocaleDateString() : 'N/A'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block truncate">
+                      Last Status: {record.sanctionScreening?.lastSuccessfulMatchStatus || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Matched Hits</span>
+                    <p className="text-sm font-bold text-amber-400 font-mono">
+                      {record.sanctionScreening?.matches?.length || 0} Matches Found
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Provider: {record.sanctionScreening?.provider || 'development'}
+                    </span>
+                  </div>
+                </div>
+
+                {record.sanctionScreening?.matches?.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Active Watchlist Hits</h4>
+                    <div className="space-y-1.5">
+                      {record.sanctionScreening.matches.map((m, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              {m.matchType}
+                            </span>
+                            <span className="text-slate-300 text-xs font-semibold">{m.listName}</span>
+                            <span className="text-slate-500 text-[10px]">({m.anonymizedReference})</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-indigo-400 font-bold">
+                            Score: {m.similarityScore}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </VerificationSectionCard>
             </div>
           </div>
         )}

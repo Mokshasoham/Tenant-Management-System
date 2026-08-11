@@ -100,6 +100,19 @@ const config = {
   FRAUD_METADATA_RETENTION_DAYS: parseInt(process.env.FRAUD_METADATA_RETENTION_DAYS || '365', 10),
   FRAUD_AUDIT_RETENTION_DAYS: parseInt(process.env.FRAUD_AUDIT_RETENTION_DAYS || '1095', 10),
 
+  // Phase 3.6.7 Sanctions, PEP & Adverse Media Screening Configuration
+  REAL_SANCTION_SCREENING: process.env.REAL_SANCTION_SCREENING === 'true' || false,
+  SANCTION_PROVIDER_API_KEY: process.env.SANCTION_PROVIDER_API_KEY || '',
+  SANCTION_PROVIDER_SECRET: process.env.SANCTION_PROVIDER_SECRET || '',
+  SANCTION_PROVIDER_URL: process.env.SANCTION_PROVIDER_URL || '',
+  SANCTION_TIMEOUT_MS: parseInt(process.env.SANCTION_TIMEOUT_MS || '10000', 10),
+  SANCTION_MAX_ATTEMPTS: parseInt(process.env.SANCTION_MAX_ATTEMPTS || '5', 10),
+  SANCTION_ATTEMPT_WINDOW_HOURS: parseInt(process.env.SANCTION_ATTEMPT_WINDOW_HOURS || '24', 10),
+  SANCTION_MATCH_THRESHOLD: parseInt(process.env.SANCTION_MATCH_THRESHOLD || '80', 10),
+  PEP_MATCH_THRESHOLD: parseInt(process.env.PEP_MATCH_THRESHOLD || '75', 10),
+  SANCTION_METADATA_RETENTION_DAYS: parseInt(process.env.SANCTION_METADATA_RETENTION_DAYS || '90', 10),
+  SANCTION_AUDIT_RETENTION_DAYS: parseInt(process.env.SANCTION_AUDIT_RETENTION_DAYS || '2555', 10),
+
   ENGINE_VERSION: process.env.ENGINE_VERSION || 'demo-v1',
   VERIFICATION_OTP_MODE: process.env.VERIFICATION_OTP_MODE || 'MOCK',
   IDENTITY_VERIFICATION_MODE: process.env.IDENTITY_VERIFICATION_MODE || 'DEMO',
@@ -142,6 +155,26 @@ export const validateFraudConfig = (cfg) => {
   }
 };
 
+export const validateSanctionConfig = (cfg) => {
+  const { SANCTION_MATCH_THRESHOLD, PEP_MATCH_THRESHOLD } = cfg;
+  if (
+    typeof SANCTION_MATCH_THRESHOLD !== 'number' || isNaN(SANCTION_MATCH_THRESHOLD) ||
+    typeof PEP_MATCH_THRESHOLD !== 'number' || isNaN(PEP_MATCH_THRESHOLD)
+  ) {
+    throw new Error('[ConfigValidation] Sanction/PEP match thresholds must be valid numbers.');
+  }
+  if (
+    SANCTION_MATCH_THRESHOLD < 0 || SANCTION_MATCH_THRESHOLD > 100 ||
+    PEP_MATCH_THRESHOLD < 0 || PEP_MATCH_THRESHOLD > 100
+  ) {
+    throw new Error('[ConfigValidation] Sanction/PEP match thresholds must be between 0 and 100.');
+  }
+  if (SANCTION_MATCH_THRESHOLD < PEP_MATCH_THRESHOLD) {
+    throw new Error('[ConfigValidation] SANCTION_MATCH_THRESHOLD must be greater than or equal to PEP_MATCH_THRESHOLD.');
+  }
+};
+
 validateFraudConfig(config);
+validateSanctionConfig(config);
 
 export default config;

@@ -6,6 +6,7 @@ import digilockerService from './digilockerService.js';
 import facialVerificationService from './facialVerificationService.js';
 import videoKycService from './videoKycService.js';
 import fraudDetectionService from './fraudDetectionService.js';
+import sanctionScreeningService from './sanctionScreeningService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -846,6 +847,28 @@ export class VerificationService {
     return await fraudDetectionService.unlockFraudDetection(verificationId, adminUserId, note);
   }
 
+  // ── Phase 3.6.7 Global Sanctions, PEP & Adverse Media Screening Methods ──
+
+  async screenSanction(verificationId, requesterUser = {}, options = {}) {
+    return await sanctionScreeningService.screenEntity(verificationId, requesterUser, options);
+  }
+
+  async getSanctionStatus(verificationId, requesterUser = {}) {
+    return await sanctionScreeningService.getSanctionStatus(verificationId, requesterUser);
+  }
+
+  async confirmSanctionMatch(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await sanctionScreeningService.confirmSanctionMatch(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
+  async dismissSanctionMatch(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await sanctionScreeningService.dismissSanctionMatch(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
+  async unlockSanctionScreening(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await sanctionScreeningService.unlockSanctionScreening(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
   // ── Scheduled Maintenance Sweep ──────────────────────────────
 
   async runVerificationMaintenanceJobs() {
@@ -862,6 +885,8 @@ export class VerificationService {
       const videoKycPurgeRes = await videoKycService.purgeExpiredVideoKYCMetadata();
       const facialPurgeRes = await facialVerificationService.purgeExpiredBiometricMetadata();
       const fraudPurgeRes = await fraudDetectionService.purgeExpiredFraudMetadata();
+      const sanctionMonitoringRes = await sanctionScreeningService.runContinuousMonitoring();
+      const sanctionPurgeRes = await sanctionScreeningService.purgeExpiredSanctionMetadata();
 
       logger.info('[VerificationService] Completed verification maintenance sweep safely.');
 
@@ -871,6 +896,8 @@ export class VerificationService {
         videoKycMetadataPurged: videoKycPurgeRes?.modifiedCount || 0,
         facialMetadataPurged: facialPurgeRes?.modifiedCount || 0,
         fraudMetadataPurged: fraudPurgeRes?.modifiedCount || 0,
+        sanctionMonitoring: sanctionMonitoringRes?.status || 'COMPLETED',
+        sanctionMetadataPurged: sanctionPurgeRes?.purgedCount || 0,
       };
     } catch (err) {
       logger.error(`[VerificationService] Maintenance sweep error: ${err.message}`);

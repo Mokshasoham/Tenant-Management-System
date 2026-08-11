@@ -115,6 +115,13 @@ router.post('/:id/fraud/confirm', authorize('admin', 'manager'), confirmFraud);
 router.post('/:id/fraud/dismiss', authorize('admin', 'manager'), dismissFraud);
 router.post('/:id/fraud/unlock', authorize('admin'), unlockFraudDetection);
 
+// ── Phase 3.6.7 Sanctions, PEP & Adverse Media Screening Routes ──
+router.post('/:id/sanction/screen', authorize('admin', 'manager'), screenSanction);
+router.get('/:id/sanction/status', getSanctionStatus);
+router.post('/:id/sanction/confirm', authorize('admin', 'manager'), confirmSanctionMatch);
+router.post('/:id/sanction/dismiss', authorize('admin', 'manager'), dismissSanctionMatch);
+router.post('/:id/sanction/unlock', authorize('admin'), unlockSanctionScreening);
+
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);
 router.post('/', initiateVerification);

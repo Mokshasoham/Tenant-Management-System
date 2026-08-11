@@ -173,8 +173,50 @@ export class FraudSignalService {
       }
     }
 
+    // 7. Phase 3.6.7 Sanctions & PEP Signals
+    if (verification.sanctionScreening) {
+      const sanc = verification.sanctionScreening;
+      if (sanc.matchStatus === 'CONFIRMED_MATCH') {
+        const ref = sanc.matches?.[0]?.anonymizedReference || 'SANCTION_CONFIRMED';
+        const fp = this.generateFingerprint('SIG_SANCTION_MATCH_CONFIRMED', ref, 'Phase3.6.7');
+        signals.push({
+          signalFingerprint: fp,
+          signalCode: 'SIG_SANCTION_MATCH_CONFIRMED',
+          category: 'IDENTITY',
+          severity: 'CRITICAL',
+          scoreImpact: 50,
+          confidence: 100,
+          description: 'Official global sanctions or watchlist match confirmed by compliance officer',
+          evidenceRef: ref,
+          detectedAt: new Date(),
+        });
+      } else if (sanc.matches && Array.isArray(sanc.matches)) {
+        for (const match of sanc.matches) {
+          if (match.matchType === 'PEP_MATCH') {
+            const ref = match.anonymizedReference || 'PEP_MATCH';
+            const fp = this.generateFingerprint('SIG_PEP_MATCH_DETECTED', ref, 'Phase3.6.7');
+            signals.push({
+              signalFingerprint: fp,
+              signalCode: 'SIG_PEP_MATCH_DETECTED',
+              category: 'IDENTITY',
+              severity: 'MEDIUM',
+              scoreImpact: 15,
+              confidence: 85,
+              description: 'Politically Exposed Person (PEP) designation detected during watchlist screening',
+              evidenceRef: ref,
+              detectedAt: new Date(),
+            });
+          }
+        }
+      }
+    }
+
     logger.debug(`[FraudSignalService] Extracted ${signals.length} signals for verification ${verification._id}`);
     return signals;
+  }
+
+  async extractSanctionSignals(verificationId) {
+    return this.extractSignals(verificationId);
   }
 }
 

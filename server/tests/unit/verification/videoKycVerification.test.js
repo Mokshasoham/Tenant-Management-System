@@ -5,6 +5,7 @@ import verificationRepository from '../../../src/repositories/verificationReposi
 import videoKycService from '../../../src/services/videoKycService.js';
 import verificationService from '../../../src/services/verificationService.js';
 import trustScoreService from '../../../src/services/trustScoreService.js';
+import EventService from '../../../src/services/eventService.js';
 import config from '../../../src/config/config.js';
 import { AppError } from '../../../src/utils/errorHandling.js';
 
@@ -51,6 +52,15 @@ describe('Phase 3.6.5 — Video KYC & Agent Assisted Verification Unit Tests', (
 
     jest.spyOn(mockVerification, 'save').mockImplementation(() => Promise.resolve(mockVerification));
     jest.spyOn(trustScoreService, 'recalculateTrustScore').mockResolvedValue({ score: 90, delta: 15 });
+    jest.spyOn(EventService, 'publish').mockResolvedValue(true);
+    jest.spyOn(Verification, 'findOne').mockResolvedValue(mockVerification);
+    const makeQueryMock = (val) => {
+      const q = Promise.resolve(val);
+      q.select = jest.fn().mockReturnValue(q);
+      q.exec = jest.fn().mockReturnValue(q);
+      return q;
+    };
+    jest.spyOn(Verification, 'find').mockImplementation(() => makeQueryMock([mockVerification]));
   });
 
   afterEach(() => {

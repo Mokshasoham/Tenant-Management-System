@@ -433,6 +433,105 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Global Sanctions, PEP & Adverse Media Screening Sub-document (Phase 3.6.7)
+    sanctionScreening: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      scanId: { type: String, default: '' },
+      searchCorrelationId: { type: String, default: '' },
+      engineVersion: { type: String, default: 'v1.0' },
+      listPolicyVersion: { type: String, default: 'v1.0' },
+      matchStatus: {
+        type: String,
+        enum: ['NOT_EVALUATED', 'NO_MATCH', 'POTENTIAL_MATCH', 'CONFIRMED_MATCH', 'DISMISSED_MATCH', 'UNAVAILABLE'],
+        default: 'NOT_EVALUATED',
+      },
+      reviewState: {
+        type: String,
+        enum: ['NONE', 'PENDING_REVIEW', 'UNDER_REVIEW', 'CONFIRMED', 'DISMISSED'],
+        default: 'NONE',
+      },
+      scanStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PROCESSING', 'COMPLETED', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      highestMatchScore: { type: Number, min: 0, max: 100, default: 0 },
+      lastSuccessfulScreenAt: { type: Date, default: null },
+      lastSuccessfulMatchStatus: { type: String, default: 'NOT_EVALUATED' },
+      lastMonitoringAttemptAt: { type: Date, default: null },
+      nextMonitoringAt: { type: Date, default: null },
+      matches: [
+        {
+          matchId: { type: String, required: true },
+          evidenceFingerprint: { type: String, required: true },
+          matchType: {
+            type: String,
+            enum: ['SANCTION_MATCH', 'PEP_MATCH', 'RCA_MATCH', 'ADVERSE_MEDIA_MATCH', 'ENFORCEMENT_MATCH'],
+            required: true,
+          },
+          listName: { type: String, required: true },
+          matchedName: { type: String, required: true },
+          similarityScore: { type: Number, required: true },
+          country: { type: String, default: '' },
+          anonymizedReference: { type: String, required: true },
+          sourceProvider: { type: String, required: true },
+          sourceList: { type: String, required: true },
+          sourceType: { type: String, required: true },
+          sourceRecordReference: { type: String, required: true },
+          sourceRetrievedAt: { type: Date, default: Date.now },
+          sourcePolicyVersion: { type: String, default: 'v1.0' },
+          adverseMediaDetails: {
+            sourceName: { type: String, default: '' },
+            sourceUrl: { type: String, default: '' },
+            publicationDate: { type: Date, default: null },
+            entityResolutionConfidence: { type: Number, min: 0, max: 100, default: 0 },
+            relevanceConfidence: { type: Number, min: 0, max: 100, default: 0 },
+            mediaCategory: { type: String, default: '' },
+            classification: {
+              type: String,
+              enum: ['NONE', 'ALLEGATION', 'INVESTIGATION', 'CHARGE', 'CONVICTION', 'REGULATORY_ACTION', 'CONFIRMED_ENFORCEMENT'],
+              default: 'NONE',
+            },
+          },
+          firstSeenAt: { type: Date, default: Date.now },
+          lastSeenAt: { type: Date, default: Date.now },
+        },
+      ],
+      reviewHistory: [
+        {
+          decision: { type: String, enum: ['CONFIRMED', 'DISMISSED'], required: true },
+          reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+          reviewedByRole: { type: String, default: '' },
+          reviewedAt: { type: Date, default: Date.now },
+          notes: { type: String, default: '' },
+          evidenceFingerprint: { type: String, required: true },
+        },
+      ],
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      reviewLockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewLockedUntil: { type: Date, default: null },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedByRole: { type: String, default: '' },
+      reviewedAt: { type: Date, default: null },
+      reviewNotes: { type: String, default: '' },
+      scannedAt: { type: Date, default: null },
+      metadataRetentionExpiresAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          scanId: { type: String, default: '' },
+          matchStatus: { type: String, required: true },
+          highestMatchScore: { type: Number, required: true },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
@@ -603,6 +702,10 @@ VerificationSchema.index({ 'fraudDetection.riskScore': 1, isDeleted: 1 });
 VerificationSchema.index({ 'fraudDetection.scanStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'fraudDetection.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'fraudDetection.metadataRetentionExpiresAt': 1, isDeleted: 1 });
+VerificationSchema.index({ 'sanctionScreening.matchStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'sanctionScreening.scanStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'sanctionScreening.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'sanctionScreening.metadataRetentionExpiresAt': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

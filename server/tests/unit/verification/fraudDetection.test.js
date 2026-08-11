@@ -76,11 +76,18 @@ describe('Phase 3.6.6 — Fraud Detection Engine Unit Tests', () => {
     });
     jest.spyOn(Verification, 'updateOne').mockResolvedValue({ modifiedCount: 1 });
     jest.spyOn(Verification, 'updateMany').mockResolvedValue({ modifiedCount: 1 });
+    const makeQueryMock = (val) => {
+      const q = Promise.resolve(val);
+      q.select = jest.fn().mockReturnValue(q);
+      q.exec = jest.fn().mockReturnValue(q);
+      return q;
+    };
+    jest.spyOn(Verification, 'find').mockImplementation(() => makeQueryMock([mockVerification]));
 
     jest.spyOn(FraudIdempotencyRecord, 'findOne').mockResolvedValue(null);
     jest.spyOn(FraudIdempotencyRecord, 'create').mockResolvedValue({ _id: new mongoose.Types.ObjectId().toString() });
 
-    jest.spyOn(trustScoreService, 'recalculateTrustScore').mockResolvedValue({ score: 85, delta: 15 });
+    jest.spyOn(trustScoreService, 'recalculateTrustScore').mockResolvedValue({ score: 90, delta: 15 });
     jest.spyOn(EventService, 'publish').mockResolvedValue(true);
   });
 

@@ -1062,3 +1062,138 @@ export const unlockFraudDetection = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.7 Sanctions, PEP & Adverse Media Screening Controllers ─────
+
+// 50. POST /api/verifications/:id/sanction/screen
+export const screenSanction = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const resultData = await verificationService.screenSanction(id, requesterUser, {
+    ...req.body,
+    idempotencyKey,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Sanctions screening completed',
+    data: resultData,
+  });
+});
+
+// 51. GET /api/verifications/:id/sanction/status
+export const getSanctionStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'tenant',
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const sanctionStatus = await verificationService.getSanctionStatus(id, requesterUser);
+
+  res.status(200).json({
+    success: true,
+    data: sanctionStatus,
+  });
+});
+
+// 52. POST /api/verifications/:id/sanction/confirm (Manager / Admin)
+export const confirmSanctionMatch = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'manager',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.confirmSanctionMatch(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Sanctions match confirmed by reviewer',
+    data: updated,
+  });
+});
+
+// 53. POST /api/verifications/:id/sanction/dismiss (Manager / Admin)
+export const dismissSanctionMatch = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'manager',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.dismissSanctionMatch(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Sanctions match dismissed by reviewer',
+    data: updated,
+  });
+});
+
+// 54. POST /api/verifications/:id/sanction/unlock (Admin Only)
+export const unlockSanctionScreening = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'admin',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockSanctionScreening(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Sanctions screening unlocked by admin',
+    data: updated,
+  });
+});
+
+

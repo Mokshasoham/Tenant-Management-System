@@ -101,5 +101,12 @@ export const EventTypes = {
     FRAUD_UNLOCKED: 'fraud.verification.unlocked',
     FRAUD_CONFIG_CHANGED: 'fraud.config.changed',
     FRAUD_METADATA_PURGED: 'fraud.metadata.purged',
+    SANCTION_SCAN_STARTED: 'sanction.verification.scan_started',
+    SANCTION_MATCH_DETECTED: 'sanction.verification.match_detected',
+    SANCTION_CONFIRMED: 'sanction.verification.confirmed',
+    SANCTION_DISMISSED: 'sanction.verification.dismissed',
+    SANCTION_UNAVAILABLE: 'sanction.verification.unavailable',
+    SANCTION_UNLOCKED: 'sanction.verification.unlocked',
+    SANCTION_METADATA_PURGED: 'sanction.metadata.purged',
   }
 };

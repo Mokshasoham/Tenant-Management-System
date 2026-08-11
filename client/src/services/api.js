@@ -337,6 +337,11 @@ export const verificationService = {
   confirmFraud: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fraud/confirm`, data, { headers }),
   dismissFraud: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fraud/dismiss`, data, { headers }),
   unlockFraudDetection: (id, data) => apiClient.post(`/verifications/${id}/fraud/unlock`, data),
+  screenSanction: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/sanction/screen`, data, { headers }),
+  getSanctionStatus: (id) => apiClient.get(`/verifications/${id}/sanction/status`),
+  confirmSanctionMatch: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/sanction/confirm`, data, { headers }),
+  dismissSanctionMatch: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/sanction/dismiss`, data, { headers }),
+  unlockSanctionScreening: (id, data) => apiClient.post(`/verifications/${id}/sanction/unlock`, data),
 };
 
 export default apiClient;
