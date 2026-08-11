@@ -1,6 +1,7 @@
 import verificationRepository from '../repositories/verificationRepository.js';
 import trustScoreService from './trustScoreService.js';
 import identityVerificationService from './identityVerificationService.js';
+import propertyVerificationService from './propertyVerificationService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -709,6 +710,32 @@ export class VerificationService {
 
   async unlockIdentity(verificationId, adminUserId, note) {
     return await identityVerificationService.unlockIdentityVerification(verificationId, adminUserId, note);
+  }
+
+  // ── Phase 3.6.2 Property Verification Delegation ───────────────
+
+  async startPropertyVerification(entityType, entityId, requesterId) {
+    return await propertyVerificationService.verifyProperty(
+      (await this.initiateVerification(entityType, entityId, requesterId))._id,
+      {},
+      requesterId
+    );
+  }
+
+  async verifyProperty(verificationId, payload, requesterId) {
+    return await propertyVerificationService.verifyProperty(verificationId, payload, requesterId);
+  }
+
+  async getPropertyStatus(verificationId) {
+    return await propertyVerificationService.getPropertyStatus(verificationId);
+  }
+
+  async retryPropertyVerification(verificationId, payload, requesterId) {
+    return await propertyVerificationService.verifyProperty(verificationId, payload, requesterId);
+  }
+
+  async unlockProperty(verificationId, adminUserId, note) {
+    return await propertyVerificationService.unlockPropertyVerification(verificationId, adminUserId, note);
   }
 }
 

@@ -20,6 +20,12 @@ import {
   getIdentityStatus,
   retryIdentityVerification,
   unlockIdentity,
+  startPropertyVerification,
+  uploadPropertyDocument,
+  verifyProperty,
+  getPropertyStatus,
+  retryPropertyVerification,
+  unlockProperty,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -42,6 +48,14 @@ router.post('/:id/identity/verify', verifyIdentity);
 router.get('/:id/identity/status', getIdentityStatus);
 router.post('/:id/identity/retry', retryIdentityVerification);
 router.post('/:id/identity/unlock', authorize('admin'), unlockIdentity);
+
+// ── Phase 3.6.2 Property Verification Routes ──────────────────────
+router.post('/:id/property/start', startPropertyVerification);
+router.post('/:id/property/documents', uploadPropertyDocument);
+router.post('/:id/property/verify', verifyProperty);
+router.get('/:id/property/status', getPropertyStatus);
+router.post('/:id/property/retry', retryPropertyVerification);
+router.post('/:id/property/unlock', authorize('admin'), unlockProperty);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

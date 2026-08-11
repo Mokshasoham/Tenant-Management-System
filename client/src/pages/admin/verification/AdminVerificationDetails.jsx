@@ -290,6 +290,45 @@ export default function AdminVerificationDetails() {
                 </div>
               </VerificationSectionCard>
             </div>
+
+            {/* Real Property Verification Engine Card (Phase 3.6.2) */}
+            <div className="col-span-1 md:col-span-2">
+              <VerificationSectionCard title="Real Property Title & Ownership Verification Engine (Phase 3.6.2)" icon={Building}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Land Registry Provider</span>
+                    <p className="text-sm font-black text-indigo-400 uppercase">
+                      {record.propertyVerification?.provider || 'Development'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Req ID: {record.propertyVerification?.providerRequestId || 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Property Match Confidence</span>
+                    <p className="text-sm font-black text-emerald-400 font-mono">
+                      {record.propertyVerification?.confidenceScore ?? 100}%
+                    </p>
+                    <span className="text-[10px] text-slate-400 font-bold block">
+                      Match Result: <span className="text-indigo-400">{record.propertyVerification?.matchResult || 'MATCH'}</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Masked Title Reference</span>
+                    <p className="text-sm font-mono font-bold text-slate-200">
+                      {record.propertyVerification?.maskedDocumentReference || 'XXXX-XXXX-9988'}
+                    </p>
+                    <span className="text-[10px] text-slate-400 font-bold block">
+                      Lock Status: <span className={record.propertyVerification?.lockStatus === 'LOCKED' ? 'text-rose-400 font-black' : 'text-slate-300'}>
+                        {record.propertyVerification?.lockStatus || 'NONE'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </VerificationSectionCard>
+            </div>
           </div>
         )}
 

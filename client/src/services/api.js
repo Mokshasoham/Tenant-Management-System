@@ -308,6 +308,12 @@ export const verificationService = {
   getIdentityStatus: (id) => apiClient.get(`/verifications/${id}/identity/status`),
   retryIdentityVerification: (id, data) => apiClient.post(`/verifications/${id}/identity/retry`, data),
   unlockIdentity: (id, data) => apiClient.post(`/verifications/${id}/identity/unlock`, data),
+  startPropertyVerification: (id, data) => apiClient.post(`/verifications/${id}/property/start`, data),
+  uploadPropertyDocument: (id, data) => apiClient.post(`/verifications/${id}/property/documents`, data),
+  verifyProperty: (id, data) => apiClient.post(`/verifications/${id}/property/verify`, data),
+  getPropertyVerificationStatus: (id) => apiClient.get(`/verifications/${id}/property/status`),
+  retryPropertyVerification: (id, data) => apiClient.post(`/verifications/${id}/property/retry`, data),
+  unlockPropertyVerification: (id, data) => apiClient.post(`/verifications/${id}/property/unlock`, data),
 };
 
 export default apiClient;

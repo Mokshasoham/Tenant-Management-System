@@ -104,6 +104,57 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const verifyProperty = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.verifyProperty(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const retryProperty = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.retryPropertyVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const unlockProperty = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockPropertyVerification(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -118,6 +169,9 @@ export const VerificationProvider = ({ children }) => {
     verifyIdentity,
     retryIdentity,
     unlockIdentity,
+    verifyProperty,
+    retryProperty,
+    unlockProperty,
   };
 
   return (

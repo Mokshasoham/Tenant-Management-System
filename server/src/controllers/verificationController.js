@@ -405,3 +405,144 @@ export const unlockIdentity = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.2 Property Verification Handlers ─────────────────
+
+const checkPropertyVerificationAccess = (verification, user) => {
+  const requesterId = (user.userId || user._id || user.id).toString();
+  const isOwner = verification.entityId?.toString() === requesterId;
+  const isAdminOrManager = ['admin', 'manager'].includes(user.role);
+
+  if (!isOwner && !isAdminOrManager) {
+    throw new AppError('Forbidden: You can only access property verification records for authorized properties', 403);
+  }
+};
+
+// 20. POST /api/verifications/:id/property/start
+export const startPropertyVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkPropertyVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.verifyProperty(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Property verification started successfully',
+    data: updated,
+  });
+});
+
+// 21. POST /api/verifications/:id/property/documents
+export const uploadPropertyDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { documentType } = req.body;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkPropertyVerificationAccess(existing, req.user);
+
+  const fileData = {
+    fileId: req.body.fileId || null,
+    filename: req.body.filename || `${documentType}_doc`,
+    url: req.body.url || `/uploads/${documentType}_doc.pdf`,
+  };
+
+  const updated = await verificationService.uploadVerificationDocument(id, documentType, fileData, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Property document uploaded successfully',
+    data: updated,
+  });
+});
+
+// 22. POST /api/verifications/:id/property/verify
+export const verifyProperty = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkPropertyVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.verifyProperty(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Property verification evaluated successfully',
+    data: updated,
+  });
+});
+
+// 23. GET /api/verifications/:id/property/status
+export const getPropertyStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkPropertyVerificationAccess(existing, req.user);
+
+  const statusData = await verificationService.getPropertyStatus(id);
+
+  res.status(200).json({
+    success: true,
+    data: statusData,
+  });
+});
+
+// 24. POST /api/verifications/:id/property/retry
+export const retryPropertyVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkPropertyVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.retryPropertyVerification(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Property verification retried successfully',
+    data: updated,
+  });
+});
+
+// 25. POST /api/verifications/:id/property/unlock (Admin Only)
+export const unlockProperty = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockProperty(id, adminUserId, note || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Property verification unlocked by admin',
+    data: updated,
+  });
+});
+

@@ -57,6 +57,7 @@ const TrustScoreHistorySchema = new mongoose.Schema(
         'MANUAL_ADJUSTMENT',
         'SYSTEM_RECALCULATION',
         'IDENTITY_VERIFIED',
+        'PROPERTY_VERIFIED',
         'BADGE_AWARDED',
         'BADGE_REVOKED',
       ],
