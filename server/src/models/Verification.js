@@ -173,8 +173,41 @@ const VerificationSchema = new mongoose.Schema(
         reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
         reviewedAt: { type: Date, default: null },
         rejectionReason: { type: String, default: '' },
+        source: { type: String, enum: ['UPLOAD', 'DIGILOCKER'], default: 'UPLOAD' },
+        providerDocumentId: { type: String, default: '' },
+        providerRequestId: { type: String, default: '' },
+        documentHash: { type: String, default: '' },
+        retrievedAt: { type: Date, default: null },
       },
     ],
+
+    // DigiLocker Connection & Acquisition Sub-document (Phase 3.6.3)
+    digilocker: {
+      connected: { type: Boolean, default: false },
+      providerUserReference: { type: String, default: '' },
+      encryptedAccessToken: { type: String, default: '' },
+      encryptedRefreshToken: { type: String, default: '' },
+      tokenExpiresAt: { type: Date, default: null },
+      connectedAt: { type: Date, default: null },
+      lastSyncedAt: { type: Date, default: null },
+      consentStatus: {
+        type: String,
+        enum: ['NONE', 'GRANTED', 'DENIED', 'EXPIRED', 'REVOKED'],
+        default: 'NONE',
+      },
+      revokedAt: { type: Date, default: null },
+      documents: [
+        {
+          providerDocumentId: { type: String, required: true },
+          documentType: { type: String, required: true },
+          documentName: { type: String, default: '' },
+          documentHash: { type: String, default: '' },
+          importedAt: { type: Date, default: Date.now },
+          verifiedAt: { type: Date, default: null },
+          status: { type: String, default: 'IMPORTED' },
+        },
+      ],
+    },
 
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -325,6 +358,10 @@ VerificationSchema.index({ 'propertyVerification.propertyId': 1, isDeleted: 1 })
 VerificationSchema.index({ 'propertyVerification.verificationStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'propertyVerification.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'propertyVerification.providerRequestId': 1, isDeleted: 1 });
+VerificationSchema.index({ 'digilocker.providerUserReference': 1, isDeleted: 1 });
+VerificationSchema.index({ 'digilocker.consentStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'documents.providerDocumentId': 1, isDeleted: 1 });
+VerificationSchema.index({ 'documents.documentHash': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

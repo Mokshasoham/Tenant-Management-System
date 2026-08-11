@@ -546,3 +546,123 @@ export const unlockProperty = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.3 DigiLocker Route Handlers ─────────────────
+
+// 26. GET /api/verifications/:id/digilocker/connect
+export const connectDigiLocker = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const connectData = await verificationService.getDigiLockerConnectUrl(id, requesterId);
+
+  res.status(200).json({
+    success: true,
+    data: connectData,
+  });
+});
+
+// 27. GET /api/verifications/digilocker/callback
+export const handleDigiLockerCallback = asyncHandler(async (req, res) => {
+  const { code, state } = req.query;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!code || !state) {
+    throw new AppError('Missing required OAuth parameters (code, state)', 400);
+  }
+
+  const updated = await verificationService.handleDigiLockerCallback(code, state, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'DigiLocker account connected successfully',
+    data: updated,
+  });
+});
+
+// 28. GET /api/verifications/:id/digilocker/status
+export const getDigiLockerStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const statusData = await verificationService.getDigiLockerStatus(id);
+
+  res.status(200).json({
+    success: true,
+    data: statusData,
+  });
+});
+
+// 29. GET /api/verifications/:id/digilocker/documents
+export const listDigiLockerDocuments = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const documents = await verificationService.listDigiLockerDocuments(id);
+
+  res.status(200).json({
+    success: true,
+    data: documents,
+  });
+});
+
+// 30. POST /api/verifications/:id/digilocker/import
+export const importDigiLockerDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.importDigiLockerDocument(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'DigiLocker document imported and evaluated successfully',
+    data: updated,
+  });
+});
+
+// 31. POST /api/verifications/:id/digilocker/disconnect
+export const disconnectDigiLocker = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.disconnectDigiLocker(id, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'DigiLocker connection disconnected successfully',
+    data: updated,
+  });
+});
+

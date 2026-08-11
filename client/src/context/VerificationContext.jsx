@@ -155,6 +155,81 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const connectDigiLocker = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.connectDigiLocker(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getDigiLockerStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getDigiLockerStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const getDigiLockerDocuments = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.getDigiLockerDocuments(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const importDigiLockerDocument = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.importDigiLockerDocument(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const disconnectDigiLocker = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.disconnectDigiLocker(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -172,6 +247,11 @@ export const VerificationProvider = ({ children }) => {
     verifyProperty,
     retryProperty,
     unlockProperty,
+    connectDigiLocker,
+    getDigiLockerStatus,
+    getDigiLockerDocuments,
+    importDigiLockerDocument,
+    disconnectDigiLocker,
   };
 
   return (

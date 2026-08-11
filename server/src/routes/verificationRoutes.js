@@ -26,6 +26,12 @@ import {
   getPropertyStatus,
   retryPropertyVerification,
   unlockProperty,
+  connectDigiLocker,
+  handleDigiLockerCallback,
+  getDigiLockerStatus,
+  listDigiLockerDocuments,
+  importDigiLockerDocument,
+  disconnectDigiLocker,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -42,6 +48,9 @@ router.get('/history/:entityType/:entityId', getHistoryByEntity);
 // ── Admin Queue Route (Admin only) ────────────────────────────────
 router.get('/', authorize('admin'), getVerifications);
 
+// ── Phase 3.6.3 DigiLocker OAuth Callback Route ──────────────────
+router.get('/digilocker/callback', handleDigiLockerCallback);
+
 // ── Phase 3.6.1 Identity Verification Routes ──────────────────────
 router.post('/:id/identity/start', startIdentityVerification);
 router.post('/:id/identity/verify', verifyIdentity);
@@ -56,6 +65,13 @@ router.post('/:id/property/verify', verifyProperty);
 router.get('/:id/property/status', getPropertyStatus);
 router.post('/:id/property/retry', retryPropertyVerification);
 router.post('/:id/property/unlock', authorize('admin'), unlockProperty);
+
+// ── Phase 3.6.3 DigiLocker Document Acquisition Routes ───────────
+router.get('/:id/digilocker/connect', connectDigiLocker);
+router.get('/:id/digilocker/status', getDigiLockerStatus);
+router.get('/:id/digilocker/documents', listDigiLockerDocuments);
+router.post('/:id/digilocker/import', importDigiLockerDocument);
+router.post('/:id/digilocker/disconnect', disconnectDigiLocker);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

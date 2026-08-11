@@ -54,6 +54,13 @@ export const EventTypes = {
     PROPERTY_REJECTED: 'property.verification.rejected',
     PROPERTY_FAILED: 'property.verification.failed',
     PROPERTY_EXPIRED: 'property.verification.expired',
-    PROPERTY_LOCKED: 'property.verification.locked'
+    PROPERTY_LOCKED: 'property.verification.locked',
+    DIGILOCKER_STARTED: 'digilocker.connection.started',
+    DIGILOCKER_COMPLETED: 'digilocker.connection.completed',
+    DIGILOCKER_FAILED: 'digilocker.connection.failed',
+    DIGILOCKER_DOC_LISTED: 'digilocker.document.listed',
+    DIGILOCKER_DOC_IMPORTED: 'digilocker.document.imported',
+    DIGILOCKER_DOC_FAILED: 'digilocker.document.failed',
+    DIGILOCKER_REVOKED: 'digilocker.connection.revoked',
   }
 };

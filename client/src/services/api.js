@@ -314,6 +314,11 @@ export const verificationService = {
   getPropertyVerificationStatus: (id) => apiClient.get(`/verifications/${id}/property/status`),
   retryPropertyVerification: (id, data) => apiClient.post(`/verifications/${id}/property/retry`, data),
   unlockPropertyVerification: (id, data) => apiClient.post(`/verifications/${id}/property/unlock`, data),
+  connectDigiLocker: (id) => apiClient.get(`/verifications/${id}/digilocker/connect`),
+  getDigiLockerStatus: (id) => apiClient.get(`/verifications/${id}/digilocker/status`),
+  getDigiLockerDocuments: (id) => apiClient.get(`/verifications/${id}/digilocker/documents`),
+  importDigiLockerDocument: (id, data) => apiClient.post(`/verifications/${id}/digilocker/import`, data),
+  disconnectDigiLocker: (id) => apiClient.post(`/verifications/${id}/digilocker/disconnect`),
 };
 
 export default apiClient;

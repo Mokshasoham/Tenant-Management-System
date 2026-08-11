@@ -329,6 +329,43 @@ export default function AdminVerificationDetails() {
                 </div>
               </VerificationSectionCard>
             </div>
+
+            {/* DigiLocker Trusted Provenance Card (Phase 3.6.3) */}
+            <div className="col-span-1 md:col-span-2">
+              <VerificationSectionCard title="DigiLocker Trusted Provenance & Connection (Phase 3.6.3)" icon={ShieldCheck}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">DigiLocker Connection</span>
+                    <p className="text-sm font-black text-indigo-400 uppercase">
+                      {record.digilocker?.connected ? 'CONNECTED' : 'DISCONNECTED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Consent: {record.digilocker?.consentStatus || 'NONE'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Provider Reference</span>
+                    <p className="text-sm font-mono font-bold text-slate-200 truncate">
+                      {record.digilocker?.providerUserReference ? `DL-***-${record.digilocker.providerUserReference.slice(-4)}` : 'N/A'}
+                    </p>
+                    <span className="text-[10px] text-slate-400 font-bold block">
+                      Imported Documents: <span className="text-emerald-400 font-mono">{record.digilocker?.documents?.length || 0}</span>
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Document Provenance</span>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {record.digilocker?.connected ? 'VERIFIED GOVT ISSUER' : 'MANUAL UPLOAD / UNLINKED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Last Synced: {record.digilocker?.lastSyncedAt ? new Date(record.digilocker.lastSyncedAt).toLocaleDateString() : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </VerificationSectionCard>
+            </div>
           </div>
         )}
 
@@ -337,12 +374,25 @@ export default function AdminVerificationDetails() {
           <VerificationSectionCard title="Submitted Proof Documents" icon={FileCheck}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {documents.map((doc) => (
-                <div key={doc.id} className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div key={doc.id || doc._id} className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
                   <div className="flex justify-between items-start">
-                    <FileText className="w-5 h-5 text-indigo-400" />
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-indigo-400" />
+                      {doc.source === 'DIGILOCKER' && (
+                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          DigiLocker Verified
+                        </span>
+                      )}
+                    </div>
                     <VerificationStatusBadge status={doc.status} />
                   </div>
                   <div>
+                    <h4 className="text-sm font-bold text-slate-200 truncate">{doc.label || doc.documentType}</h4>
+                    {doc.documentHash && (
+                      <span className="text-[10px] font-mono text-slate-500 block truncate mt-0.5">
+                        SHA256: {doc.documentHash.slice(0, 16)}...
+                      </span>
+                    )}
                     <p className="text-xs font-bold text-slate-200 truncate">{doc.filename}</p>
                     <p className="text-[10px] text-indigo-400 font-semibold mt-0.5">{doc.category}</p>
                   </div>

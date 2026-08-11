@@ -2,6 +2,7 @@ import verificationRepository from '../repositories/verificationRepository.js';
 import trustScoreService from './trustScoreService.js';
 import identityVerificationService from './identityVerificationService.js';
 import propertyVerificationService from './propertyVerificationService.js';
+import digilockerService from './digilockerService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -736,6 +737,32 @@ export class VerificationService {
 
   async unlockProperty(verificationId, adminUserId, note) {
     return await propertyVerificationService.unlockPropertyVerification(verificationId, adminUserId, note);
+  }
+
+  // ── Phase 3.6.3 DigiLocker Integration Delegation ───────────────
+
+  async getDigiLockerConnectUrl(verificationId, requesterId) {
+    return await digilockerService.getConnectUrl(verificationId, requesterId);
+  }
+
+  async handleDigiLockerCallback(code, state, requesterId) {
+    return await digilockerService.handleCallback(code, state, requesterId);
+  }
+
+  async getDigiLockerStatus(verificationId) {
+    return await digilockerService.getStatus(verificationId);
+  }
+
+  async listDigiLockerDocuments(verificationId) {
+    return await digilockerService.listDocuments(verificationId);
+  }
+
+  async importDigiLockerDocument(verificationId, payload, requesterId) {
+    return await digilockerService.importDocument(verificationId, payload, requesterId);
+  }
+
+  async disconnectDigiLocker(verificationId, requesterId) {
+    return await digilockerService.disconnect(verificationId, requesterId);
   }
 }
 
