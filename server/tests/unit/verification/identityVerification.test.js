@@ -8,6 +8,8 @@ import identityMatchingService from '../../../src/services/identityMatchingServi
 import identityDecisionService from '../../../src/services/identityDecisionService.js';
 import identityVerificationService from '../../../src/services/identityVerificationService.js';
 import identityDocumentService from '../../../src/services/identityDocumentService.js';
+import { encryptData, decryptData } from '../../../src/utils/encryption.js';
+import ProductionProvider from '../../../src/services/providers/productionProvider.js';
 import { seedVerificationDefaults } from '../../../src/utils/verificationSeed.js';
 
 describe('Phase 3.6.1 Real Identity Verification Unit & Integration Tests', () => {
@@ -43,9 +45,20 @@ describe('Phase 3.6.1 Real Identity Verification Unit & Integration Tests', () =
     }
   });
 
-  // ── 1. Document & Masking Service Tests ─────────────────────────
+  // ── 1. Document & Encryption Service Tests ─────────────────────
 
-  describe('IdentityDocumentService', () => {
+  describe('IdentityDocumentService & AES-256-GCM Encryption', () => {
+    it('should encrypt and decrypt sensitive identity references using AES-256-GCM', () => {
+      const plaintext = 'SEC-REF-AADHAAR-123456-7890';
+      const cipherText = encryptData(plaintext);
+
+      expect(cipherText).not.toBe(plaintext);
+      expect(cipherText).toContain(':'); // iv:authTag:encrypted
+
+      const decrypted = decryptData(cipherText);
+      expect(decrypted).toBe(plaintext);
+    });
+
     it('should correctly mask document numbers', () => {
       expect(identityDocumentService.maskDocumentNumber('123456789012')).toBe('XXXXXXXX9012');
       expect(identityDocumentService.maskDocumentNumber('ABC12345')).toBe('XXXX2345');
@@ -62,6 +75,13 @@ describe('Phase 3.6.1 Real Identity Verification Unit & Integration Tests', () =
     it('should generate secure reference strings', () => {
       const ref = identityDocumentService.generateSecureReference('AADHAAR', mockUserId);
       expect(ref).toContain('SEC-REF-AADHAAR-');
+    });
+  });
+
+  describe('ProductionProvider Security & Isolation', () => {
+    it('should throw configuration error if credentials are missing in production mode', () => {
+      const prodProvider = new ProductionProvider();
+      expect(() => prodProvider.validateConfig()).toThrow(/Production identity provider credentials are not configured/);
     });
   });
 

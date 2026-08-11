@@ -11,6 +11,7 @@ import logger from '../platform/logging/logger.js';
 import eventBus from '../platform/events/eventBus.js';
 import { EventTypes } from '../platform/events/eventTypes.js';
 import { AppError } from '../utils/errorHandling.js';
+import { encryptData } from '../utils/encryption.js';
 
 export class IdentityVerificationService {
   constructor() {
@@ -134,7 +135,7 @@ export class IdentityVerificationService {
       documentType: docType,
       documentReference: secureReference,
       maskedDocumentNumber: maskedDocNumber,
-      encryptedDocumentReference: Buffer.from(secureReference).toString('base64'),
+      encryptedDocumentReference: encryptData(secureReference),
       provider: provider.providerName,
       providerRequestId: providerResponse.requestId,
       providerStatus: providerResponse.providerStatus || 'COMPLETED',

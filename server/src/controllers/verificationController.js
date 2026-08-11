@@ -294,6 +294,16 @@ export const getWorkflows = asyncHandler(async (_req, res) => {
 
 // ── Phase 3.6.1 Identity Verification Handlers ─────────────────
 
+const checkVerificationAccess = (verification, user) => {
+  const requesterId = (user.userId || user._id || user.id).toString();
+  const isOwner = verification.entityId?.toString() === requesterId;
+  const isAdminOrManager = ['admin', 'manager'].includes(user.role);
+
+  if (!isOwner && !isAdminOrManager) {
+    throw new AppError('Forbidden: You can only access your own identity verification records', 403);
+  }
+};
+
 // 15. POST /api/verifications/:id/identity/start
 export const startIdentityVerification = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -302,6 +312,9 @@ export const startIdentityVerification = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError('Invalid verification ID format', 400);
   }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
 
   const updated = await verificationService.verifyIdentity(id, req.body, requesterId);
 
@@ -321,6 +334,9 @@ export const verifyIdentity = asyncHandler(async (req, res) => {
     throw new AppError('Invalid verification ID format', 400);
   }
 
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
   const updated = await verificationService.verifyIdentity(id, req.body, requesterId);
 
   res.status(200).json({
@@ -338,6 +354,9 @@ export const getIdentityStatus = asyncHandler(async (req, res) => {
     throw new AppError('Invalid verification ID format', 400);
   }
 
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
   const identityStatus = await verificationService.getIdentityStatus(id);
 
   res.status(200).json({
@@ -354,6 +373,9 @@ export const retryIdentityVerification = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError('Invalid verification ID format', 400);
   }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
 
   const updated = await verificationService.retryIdentityVerification(id, req.body, requesterId);
 

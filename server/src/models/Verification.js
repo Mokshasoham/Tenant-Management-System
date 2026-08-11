@@ -278,6 +278,8 @@ VerificationSchema.index({ entityType: 1, entityId: 1, isLatestVersion: 1 });
 VerificationSchema.index({ status: 1, manualReviewRequired: 1, isDeleted: 1 });
 VerificationSchema.index({ 'reviewLevels.currentLevel': 1, status: 1, isDeleted: 1 });
 VerificationSchema.index({ 'sla.slaStatus': 1, 'sla.isOverdue': 1 });
+VerificationSchema.index({ 'identityVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'identityVerification.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

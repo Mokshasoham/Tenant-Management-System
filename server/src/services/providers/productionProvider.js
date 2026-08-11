@@ -26,6 +26,9 @@ export class ProductionProvider extends IdentityVerificationProvider {
 
     logger.info(`[ProductionProvider] Sending HTTPS verification request to ${this.apiEndpoint}/verify`);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     try {
       // Production HTTPS request payload normalization
       const response = await fetch(`${this.apiEndpoint}/verify`, {
@@ -42,7 +45,9 @@ export class ProductionProvider extends IdentityVerificationProvider {
           lastName: payload.lastName,
           dob: payload.dob,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -80,14 +85,16 @@ export class ProductionProvider extends IdentityVerificationProvider {
         reason: data.reason || 'Production provider verification completed',
       };
     } catch (err) {
-      logger.error(`[ProductionProvider] Network or execution error: ${err.message}`);
+      clearTimeout(timeoutId);
+      const isTimeout = err.name === 'AbortError';
+      logger.error(`[ProductionProvider] ${isTimeout ? 'Request timed out after 10s' : 'Network error'}: ${err.message}`);
       return {
         success: false,
         requestId: `PROD-NET-ERR-${Date.now()}`,
         status: 'UNAVAILABLE',
-        providerStatus: 'NETWORK_FAILURE',
+        providerStatus: isTimeout ? 'TIMEOUT' : 'NETWORK_FAILURE',
         confidenceScore: 0,
-        reason: `Network error connecting to production provider: ${err.message}`,
+        reason: isTimeout ? 'Identity provider connection timed out' : `Network error connecting to production provider: ${err.message}`,
       };
     }
   }
