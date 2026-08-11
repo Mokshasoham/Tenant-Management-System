@@ -209,6 +209,66 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Biometric Consent Sub-document (Phase 3.6.4)
+    biometricConsent: {
+      consentStatus: {
+        type: String,
+        enum: ['NONE', 'GRANTED', 'DENIED', 'REVOKED', 'EXPIRED', 'RECONSENT_REQUIRED'],
+        default: 'NONE',
+      },
+      consentVersion: { type: String, default: 'v1.0' },
+      consentPurpose: { type: String, default: 'Identity Verification & Liveness Audit' },
+      grantedAt: { type: Date, default: null },
+      revokedAt: { type: Date, default: null },
+      ipAddress: { type: String, default: '' },
+      retentionExpiresAt: { type: Date, default: null },
+    },
+
+    // Real Facial Biometric & Liveness Verification Sub-document (Phase 3.6.4)
+    facialVerification: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      providerRequestId: { type: String, default: '' },
+      providerStatus: { type: String, default: 'NOT_STARTED' },
+      livenessResult: {
+        type: String,
+        enum: ['NONE', 'LIVE', 'SPOOF_DETECTED', 'REVIEW_REQUIRED', 'FAILED', 'UNAVAILABLE'],
+        default: 'NONE',
+      },
+      livenessConfidence: { type: Number, min: 0, max: 100, default: 0 },
+      faceMatchResult: {
+        type: String,
+        enum: ['NONE', 'MATCH', 'PARTIAL_MATCH', 'MISMATCH', 'UNKNOWN'],
+        default: 'NONE',
+      },
+      faceMatchScore: { type: Number, min: 0, max: 100, default: 0 },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PENDING', 'PROCESSING', 'VERIFIED', 'REVIEW_REQUIRED', 'REJECTED', 'UNAVAILABLE', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: 0 },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+      metadataRetentionExpiresAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          providerRequestId: { type: String, default: '' },
+          livenessResult: { type: String, required: true },
+          faceMatchResult: { type: String, required: true },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
@@ -362,6 +422,11 @@ VerificationSchema.index({ 'digilocker.providerUserReference': 1, isDeleted: 1 }
 VerificationSchema.index({ 'digilocker.consentStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'documents.providerDocumentId': 1, isDeleted: 1 });
 VerificationSchema.index({ 'documents.documentHash': 1, isDeleted: 1 });
+VerificationSchema.index({ 'facialVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'facialVerification.livenessResult': 1, isDeleted: 1 });
+VerificationSchema.index({ 'facialVerification.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'biometricConsent.consentStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'facialVerification.metadataRetentionExpiresAt': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

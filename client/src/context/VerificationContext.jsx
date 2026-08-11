@@ -230,6 +230,102 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const grantBiometricConsent = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.grantBiometricConsent(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const revokeBiometricConsent = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.revokeBiometricConsent(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const verifyFacialBiometrics = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.verifyFacialBiometrics(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getFacialStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getFacialStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const retryFacialVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.retryFacialVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const unlockFacialVerification = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockFacialVerification(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -252,6 +348,12 @@ export const VerificationProvider = ({ children }) => {
     getDigiLockerDocuments,
     importDigiLockerDocument,
     disconnectDigiLocker,
+    grantBiometricConsent,
+    revokeBiometricConsent,
+    verifyFacialBiometrics,
+    getFacialStatus,
+    retryFacialVerification,
+    unlockFacialVerification,
   };
 
   return (

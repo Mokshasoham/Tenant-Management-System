@@ -3,6 +3,7 @@ import trustScoreService from './trustScoreService.js';
 import identityVerificationService from './identityVerificationService.js';
 import propertyVerificationService from './propertyVerificationService.js';
 import digilockerService from './digilockerService.js';
+import facialVerificationService from './facialVerificationService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -763,6 +764,32 @@ export class VerificationService {
 
   async disconnectDigiLocker(verificationId, requesterId) {
     return await digilockerService.disconnect(verificationId, requesterId);
+  }
+
+  // ── Phase 3.6.4 Facial Verification Delegation ───────────────
+
+  async grantBiometricConsent(verificationId, requesterId, ipAddress) {
+    return await facialVerificationService.grantConsent(verificationId, requesterId, ipAddress);
+  }
+
+  async revokeBiometricConsent(verificationId, requesterId) {
+    return await facialVerificationService.revokeConsent(verificationId, requesterId);
+  }
+
+  async verifyFacialBiometrics(verificationId, payload, requesterId) {
+    return await facialVerificationService.verifyFacialBiometrics(verificationId, payload, requesterId);
+  }
+
+  async getFacialStatus(verificationId) {
+    return await facialVerificationService.getStatus(verificationId);
+  }
+
+  async retryFacialVerification(verificationId, payload, requesterId) {
+    return await facialVerificationService.verifyFacialBiometrics(verificationId, payload, requesterId);
+  }
+
+  async unlockFacialVerification(verificationId, adminUserId, note) {
+    return await facialVerificationService.unlockFacialVerification(verificationId, adminUserId, note);
   }
 }
 

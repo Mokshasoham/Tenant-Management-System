@@ -62,5 +62,17 @@ export const EventTypes = {
     DIGILOCKER_DOC_IMPORTED: 'digilocker.document.imported',
     DIGILOCKER_DOC_FAILED: 'digilocker.document.failed',
     DIGILOCKER_REVOKED: 'digilocker.connection.revoked',
+    FACIAL_CONSENT_GRANTED: 'facial.consent.granted',
+    FACIAL_CONSENT_REVOKED: 'facial.consent.revoked',
+    FACIAL_STARTED: 'facial.verification.started',
+    FACIAL_PROCESSING: 'facial.verification.processing',
+    FACIAL_VERIFIED: 'facial.verification.verified',
+    FACIAL_REVIEW_REQUIRED: 'facial.verification.review_required',
+    FACIAL_SPOOF_DETECTED: 'facial.verification.spoof_detected',
+    FACIAL_REJECTED: 'facial.verification.rejected',
+    FACIAL_FAILED: 'facial.verification.failed',
+    FACIAL_LOCKED: 'facial.verification.locked',
+    FACIAL_UNLOCKED: 'facial.verification.unlocked',
+    FACIAL_METADATA_PURGED: 'facial.metadata.purged',
   }
 };

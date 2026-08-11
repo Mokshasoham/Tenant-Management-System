@@ -366,6 +366,45 @@ export default function AdminVerificationDetails() {
                 </div>
               </VerificationSectionCard>
             </div>
+
+            {/* Facial Biometric & Liveness Verification Card (Phase 3.6.4) */}
+            <div className="col-span-1 md:col-span-2">
+              <VerificationSectionCard title="Facial Biometric & Anti-Spoofing Liveness (Phase 3.6.4)" icon={UserCheck}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Liveness Result</span>
+                    <p className="text-sm font-black text-emerald-400 uppercase">
+                      {record.facialVerification?.livenessResult || 'NOT_STARTED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Confidence: {record.facialVerification?.livenessConfidence || 0}%
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Face Match Score</span>
+                    <p className="text-sm font-mono font-bold text-slate-200 truncate">
+                      {record.facialVerification?.faceMatchResult || 'NONE'} ({record.facialVerification?.faceMatchScore || 0}%)
+                    </p>
+                    <span className="text-[10px] text-slate-400 font-bold block">
+                      Lock Status: <span className={record.facialVerification?.lockStatus === 'LOCKED' ? 'text-rose-400 font-black' : 'text-slate-300'}>
+                        {record.facialVerification?.lockStatus || 'NONE'}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Biometric Consent Policy</span>
+                    <p className="text-sm font-bold text-indigo-400">
+                      {record.biometricConsent?.consentStatus || 'NONE'} ({record.biometricConsent?.consentVersion || 'v1.0'})
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Req ID: {record.facialVerification?.providerRequestId ? `FACIAL-***-${record.facialVerification.providerRequestId.slice(-4)}` : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </VerificationSectionCard>
+            </div>
           </div>
         )}
 

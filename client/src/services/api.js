@@ -319,6 +319,12 @@ export const verificationService = {
   getDigiLockerDocuments: (id) => apiClient.get(`/verifications/${id}/digilocker/documents`),
   importDigiLockerDocument: (id, data) => apiClient.post(`/verifications/${id}/digilocker/import`, data),
   disconnectDigiLocker: (id) => apiClient.post(`/verifications/${id}/digilocker/disconnect`),
+  grantBiometricConsent: (id) => apiClient.post(`/verifications/${id}/facial/consent`),
+  revokeBiometricConsent: (id) => apiClient.post(`/verifications/${id}/facial/revoke-consent`),
+  verifyFacialBiometrics: (id, data) => apiClient.post(`/verifications/${id}/facial/verify`, data),
+  getFacialStatus: (id) => apiClient.get(`/verifications/${id}/facial/status`),
+  retryFacialVerification: (id, data) => apiClient.post(`/verifications/${id}/facial/retry`, data),
+  unlockFacialVerification: (id, data) => apiClient.post(`/verifications/${id}/facial/unlock`, data),
 };
 
 export default apiClient;

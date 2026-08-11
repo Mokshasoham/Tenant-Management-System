@@ -666,3 +666,128 @@ export const disconnectDigiLocker = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.4 Facial Verification Handlers ─────────────────
+
+// 32. POST /api/verifications/:id/facial/consent
+export const grantBiometricConsent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || '';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.grantBiometricConsent(id, requesterId, ipAddress);
+
+  res.status(200).json({
+    success: true,
+    message: 'Biometric processing consent granted successfully',
+    data: updated,
+  });
+});
+
+// 33. POST /api/verifications/:id/facial/revoke-consent
+export const revokeBiometricConsent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.revokeBiometricConsent(id, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Biometric processing consent revoked successfully',
+    data: updated,
+  });
+});
+
+// 34. POST /api/verifications/:id/facial/verify
+export const verifyFacialBiometrics = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.verifyFacialBiometrics(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Facial biometric & liveness verification evaluated successfully',
+    data: updated,
+  });
+});
+
+// 35. GET /api/verifications/:id/facial/status
+export const getFacialStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const statusData = await verificationService.getFacialStatus(id);
+
+  res.status(200).json({
+    success: true,
+    data: statusData,
+  });
+});
+
+// 36. POST /api/verifications/:id/facial/retry
+export const retryFacialVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.retryFacialVerification(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Facial verification retried successfully',
+    data: updated,
+  });
+});
+
+// 37. POST /api/verifications/:id/facial/unlock (Admin Only)
+export const unlockFacialVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockFacialVerification(id, adminUserId, note || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Facial verification unlocked by admin',
+    data: updated,
+  });
+});
+

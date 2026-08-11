@@ -32,6 +32,12 @@ import {
   listDigiLockerDocuments,
   importDigiLockerDocument,
   disconnectDigiLocker,
+  grantBiometricConsent,
+  revokeBiometricConsent,
+  verifyFacialBiometrics,
+  getFacialStatus,
+  retryFacialVerification,
+  unlockFacialVerification,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -72,6 +78,14 @@ router.get('/:id/digilocker/status', getDigiLockerStatus);
 router.get('/:id/digilocker/documents', listDigiLockerDocuments);
 router.post('/:id/digilocker/import', importDigiLockerDocument);
 router.post('/:id/digilocker/disconnect', disconnectDigiLocker);
+
+// ── Phase 3.6.4 Facial Verification Routes ────────────────────────
+router.post('/:id/facial/consent', grantBiometricConsent);
+router.post('/:id/facial/revoke-consent', revokeBiometricConsent);
+router.post('/:id/facial/verify', verifyFacialBiometrics);
+router.get('/:id/facial/status', getFacialStatus);
+router.post('/:id/facial/retry', retryFacialVerification);
+router.post('/:id/facial/unlock', authorize('admin'), unlockFacialVerification);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);
