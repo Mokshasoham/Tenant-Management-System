@@ -291,3 +291,95 @@ export const getWorkflows = asyncHandler(async (_req, res) => {
     data: workflows,
   });
 });
+
+// ── Phase 3.6.1 Identity Verification Handlers ─────────────────
+
+// 15. POST /api/verifications/:id/identity/start
+export const startIdentityVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.verifyIdentity(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Identity verification started successfully',
+    data: updated,
+  });
+});
+
+// 16. POST /api/verifications/:id/identity/verify
+export const verifyIdentity = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.verifyIdentity(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Identity verification evaluated successfully',
+    data: updated,
+  });
+});
+
+// 17. GET /api/verifications/:id/identity/status
+export const getIdentityStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const identityStatus = await verificationService.getIdentityStatus(id);
+
+  res.status(200).json({
+    success: true,
+    data: identityStatus,
+  });
+});
+
+// 18. POST /api/verifications/:id/identity/retry
+export const retryIdentityVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.retryIdentityVerification(id, req.body, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Identity verification retried successfully',
+    data: updated,
+  });
+});
+
+// 19. POST /api/verifications/:id/identity/unlock (Admin Only)
+export const unlockIdentity = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockIdentity(id, adminUserId, note || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Identity verification unlocked by admin',
+    data: updated,
+  });
+});
+

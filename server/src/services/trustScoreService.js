@@ -38,11 +38,13 @@ export class TrustScoreService {
 
     // 1. Identity Component
     const docs = Array.isArray(vDoc.documents) ? vDoc.documents : [];
+    const identityObj = vDoc.identityVerification || {};
     const hasVerifiedIdentity = docs.some(
-      (d) => ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'].includes(d.documentType) && d.reviewStatus === 'ACCEPTED'
-    ) || eDoc.identityVerificationStatus === 'verified' || eDoc.isEmailVerified;
+      (d) => ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'GOVT_ID'].includes(d.documentType) && d.reviewStatus === 'ACCEPTED'
+    ) || eDoc.identityVerificationStatus === 'verified' || eDoc.isEmailVerified || identityObj.verificationStatus === 'VERIFIED';
     if (hasVerifiedIdentity) {
-      identity = weights.identity;
+      const confidenceBonus = identityObj.confidenceScore ? Math.round((identityObj.confidenceScore / 100) * weights.identity) : weights.identity;
+      identity = Math.max(weights.identity, confidenceBonus);
     }
 
     // 2. Phone Component
@@ -176,6 +178,10 @@ export class TrustScoreService {
 
   async getTrustHistory(entityType, entityId) {
     return await verificationRepository.findTrustHistoryByEntity(entityType, entityId);
+  }
+
+  async recalculateTrustScore(entityType, entityId, reason = 'RECALCULATE') {
+    return await this.updateTrustScore({ entityType, entityId, reason });
   }
 }
 

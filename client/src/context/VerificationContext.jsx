@@ -53,6 +53,57 @@ export const VerificationProvider = ({ children }) => {
     await fetchCatalogs();
   }, [fetchCatalogs]);
 
+  const verifyIdentity = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.verifyIdentity(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const retryIdentity = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.retryIdentityVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const unlockIdentity = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockIdentity(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -64,6 +115,9 @@ export const VerificationProvider = ({ children }) => {
     fetchCatalogs,
     loadWidget,
     refresh,
+    verifyIdentity,
+    retryIdentity,
+    unlockIdentity,
   };
 
   return (

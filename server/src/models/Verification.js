@@ -207,6 +207,46 @@ const VerificationSchema = new mongoose.Schema(
     isDemoVerification: { type: Boolean, default: false },
     demoApprovedBy: { type: String, default: null },
 
+    // Real Identity Verification Sub-document (Phase 3.6.1)
+    identityVerification: {
+      documentType: { type: String, default: '' },
+      documentReference: { type: String, default: '' },
+      maskedDocumentNumber: { type: String, default: '' },
+      encryptedDocumentReference: { type: String, default: '' },
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      providerRequestId: { type: String, default: '' },
+      providerStatus: { type: String, default: 'NOT_STARTED' },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PENDING', 'PROCESSING', 'VERIFIED', 'REVIEW_REQUIRED', 'REJECTED', 'UNAVAILABLE', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: 0 },
+      matchResult: {
+        type: String,
+        enum: ['NONE', 'MATCH', 'PARTIAL_MATCH', 'MISMATCH', 'UNKNOWN'],
+        default: 'NONE',
+      },
+      mismatchFields: [{ type: String }],
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          providerRequestId: { type: String, default: '' },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification SLA Tracking
     sla: {
       submittedAt: { type: Date, default: null },

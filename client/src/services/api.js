@@ -303,6 +303,11 @@ export const verificationService = {
   getWidget: (profile, entityId) => apiClient.get(`/verifications/widget/${profile}${entityId ? `/${entityId}` : ''}`),
   getTemplates: () => apiClient.get('/verifications/templates'),
   getWorkflows: () => apiClient.get('/verifications/workflows'),
+  startIdentityVerification: (id, data) => apiClient.post(`/verifications/${id}/identity/start`, data),
+  verifyIdentity: (id, data) => apiClient.post(`/verifications/${id}/identity/verify`, data),
+  getIdentityStatus: (id) => apiClient.get(`/verifications/${id}/identity/status`),
+  retryIdentityVerification: (id, data) => apiClient.post(`/verifications/${id}/identity/retry`, data),
+  unlockIdentity: (id, data) => apiClient.post(`/verifications/${id}/identity/unlock`, data),
 };
 
 export default apiClient;

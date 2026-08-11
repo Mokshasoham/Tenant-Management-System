@@ -15,6 +15,11 @@ import {
   getWidgetData,
   getDocumentTemplates,
   getWorkflows,
+  startIdentityVerification,
+  verifyIdentity,
+  getIdentityStatus,
+  retryIdentityVerification,
+  unlockIdentity,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -30,6 +35,13 @@ router.get('/history/:entityType/:entityId', getHistoryByEntity);
 
 // ── Admin Queue Route (Admin only) ────────────────────────────────
 router.get('/', authorize('admin'), getVerifications);
+
+// ── Phase 3.6.1 Identity Verification Routes ──────────────────────
+router.post('/:id/identity/start', startIdentityVerification);
+router.post('/:id/identity/verify', verifyIdentity);
+router.get('/:id/identity/status', getIdentityStatus);
+router.post('/:id/identity/retry', retryIdentityVerification);
+router.post('/:id/identity/unlock', authorize('admin'), unlockIdentity);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

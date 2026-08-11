@@ -1,5 +1,6 @@
 import verificationRepository from '../repositories/verificationRepository.js';
 import trustScoreService from './trustScoreService.js';
+import identityVerificationService from './identityVerificationService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -682,6 +683,32 @@ export class VerificationService {
       throw new AppError(`Cannot update verification in '${verification.status}' status`, 400);
     }
     return await verificationRepository.updateVerification(verificationId, updateData);
+  }
+
+  // ── Phase 3.6.1 Identity Verification Delegation ───────────────
+
+  async startIdentityVerification(entityType, entityId, requesterId) {
+    return await identityVerificationService.verifyIdentity(
+      (await this.initiateVerification(entityType, entityId, requesterId))._id,
+      {},
+      requesterId
+    );
+  }
+
+  async verifyIdentity(verificationId, payload, requesterId) {
+    return await identityVerificationService.verifyIdentity(verificationId, payload, requesterId);
+  }
+
+  async getIdentityStatus(verificationId) {
+    return await identityVerificationService.getIdentityStatus(verificationId);
+  }
+
+  async retryIdentityVerification(verificationId, payload, requesterId) {
+    return await identityVerificationService.verifyIdentity(verificationId, payload, requesterId);
+  }
+
+  async unlockIdentity(verificationId, adminUserId, note) {
+    return await identityVerificationService.unlockIdentityVerification(verificationId, adminUserId, note);
   }
 }
 
