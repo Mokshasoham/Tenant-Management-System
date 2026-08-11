@@ -84,6 +84,22 @@ const config = {
   VIDEO_KYC_GEO_RETENTION_DAYS: parseInt(process.env.VIDEO_KYC_GEO_RETENTION_DAYS || '90', 10),
   VIDEO_KYC_CONSENT_RETENTION_DAYS: parseInt(process.env.VIDEO_KYC_CONSENT_RETENTION_DAYS || '730', 10),
   VIDEO_KYC_AUDIT_RETENTION_DAYS: parseInt(process.env.VIDEO_KYC_AUDIT_RETENTION_DAYS || '1095', 10),
+
+  // Phase 3.6.6 Fraud Detection Engine Configuration
+  REAL_FRAUD_DETECTION: process.env.REAL_FRAUD_DETECTION === 'true' || false,
+  FRAUD_PROVIDER_API_KEY: process.env.FRAUD_PROVIDER_API_KEY || '',
+  FRAUD_PROVIDER_SECRET: process.env.FRAUD_PROVIDER_SECRET || '',
+  FRAUD_PROVIDER_URL: process.env.FRAUD_PROVIDER_URL || '',
+  FRAUD_TIMEOUT_MS: parseInt(process.env.FRAUD_TIMEOUT_MS || '10000', 10),
+  FRAUD_MAX_ATTEMPTS: parseInt(process.env.FRAUD_MAX_ATTEMPTS || '5', 10),
+  FRAUD_ATTEMPT_WINDOW_HOURS: parseInt(process.env.FRAUD_ATTEMPT_WINDOW_HOURS || '24', 10),
+  FRAUD_LOW_RISK_MAX: parseInt(process.env.FRAUD_LOW_RISK_MAX || '24', 10),
+  FRAUD_MEDIUM_RISK_MAX: parseInt(process.env.FRAUD_MEDIUM_RISK_MAX || '49', 10),
+  FRAUD_HIGH_RISK_MAX: parseInt(process.env.FRAUD_HIGH_RISK_MAX || '74', 10),
+  FRAUD_CRITICAL_RISK_MIN: parseInt(process.env.FRAUD_CRITICAL_RISK_MIN || '75', 10),
+  FRAUD_METADATA_RETENTION_DAYS: parseInt(process.env.FRAUD_METADATA_RETENTION_DAYS || '365', 10),
+  FRAUD_AUDIT_RETENTION_DAYS: parseInt(process.env.FRAUD_AUDIT_RETENTION_DAYS || '1095', 10),
+
   ENGINE_VERSION: process.env.ENGINE_VERSION || 'demo-v1',
   VERIFICATION_OTP_MODE: process.env.VERIFICATION_OTP_MODE || 'MOCK',
   IDENTITY_VERIFICATION_MODE: process.env.IDENTITY_VERIFICATION_MODE || 'DEMO',
@@ -98,5 +114,34 @@ const config = {
   DIR: __dirname,
   ROOT_DIR: path.join(__dirname, '..', '..'),
 };
+
+export const validateFraudConfig = (cfg) => {
+  const { FRAUD_LOW_RISK_MAX, FRAUD_MEDIUM_RISK_MAX, FRAUD_HIGH_RISK_MAX, FRAUD_CRITICAL_RISK_MIN } = cfg;
+  if (
+    typeof FRAUD_LOW_RISK_MAX !== 'number' || isNaN(FRAUD_LOW_RISK_MAX) ||
+    typeof FRAUD_MEDIUM_RISK_MAX !== 'number' || isNaN(FRAUD_MEDIUM_RISK_MAX) ||
+    typeof FRAUD_HIGH_RISK_MAX !== 'number' || isNaN(FRAUD_HIGH_RISK_MAX) ||
+    typeof FRAUD_CRITICAL_RISK_MIN !== 'number' || isNaN(FRAUD_CRITICAL_RISK_MIN)
+  ) {
+    throw new Error('[ConfigValidation] Fraud risk thresholds must be valid numbers.');
+  }
+  if (
+    FRAUD_LOW_RISK_MAX < 0 || FRAUD_LOW_RISK_MAX > 100 ||
+    FRAUD_MEDIUM_RISK_MAX < 0 || FRAUD_MEDIUM_RISK_MAX > 100 ||
+    FRAUD_HIGH_RISK_MAX < 0 || FRAUD_HIGH_RISK_MAX > 100 ||
+    FRAUD_CRITICAL_RISK_MIN < 0 || FRAUD_CRITICAL_RISK_MIN > 100
+  ) {
+    throw new Error('[ConfigValidation] Fraud risk thresholds must be between 0 and 100.');
+  }
+  if (
+    !(FRAUD_LOW_RISK_MAX < FRAUD_MEDIUM_RISK_MAX &&
+      FRAUD_MEDIUM_RISK_MAX < FRAUD_HIGH_RISK_MAX &&
+      FRAUD_HIGH_RISK_MAX < FRAUD_CRITICAL_RISK_MIN)
+  ) {
+    throw new Error('[ConfigValidation] Fraud risk thresholds must be strictly ordered (LOW_MAX < MEDIUM_MAX < HIGH_MAX < CRITICAL_MIN).');
+  }
+};
+
+validateFraudConfig(config);
 
 export default config;

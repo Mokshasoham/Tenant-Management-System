@@ -45,6 +45,11 @@ import {
   submitVideoKycEvaluation,
   getVideoKycStatus,
   unlockVideoKyc,
+  evaluateVerificationFraud,
+  getFraudStatus,
+  confirmFraud,
+  dismissFraud,
+  unlockFraudDetection,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -102,6 +107,13 @@ router.post('/:id/video-kyc/assign', authorize('admin', 'manager'), assignVideoK
 router.post('/:id/video-kyc/evaluate', authorize('admin', 'manager'), submitVideoKycEvaluation);
 router.get('/:id/video-kyc/status', getVideoKycStatus);
 router.post('/:id/video-kyc/unlock', authorize('admin'), unlockVideoKyc);
+
+// ── Phase 3.6.6 Fraud Detection Routes ───────────────────────────
+router.post('/:id/fraud/evaluate', evaluateVerificationFraud);
+router.get('/:id/fraud/status', getFraudStatus);
+router.post('/:id/fraud/confirm', authorize('admin', 'manager'), confirmFraud);
+router.post('/:id/fraud/dismiss', authorize('admin', 'manager'), dismissFraud);
+router.post('/:id/fraud/unlock', authorize('admin'), unlockFraudDetection);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

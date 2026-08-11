@@ -940,3 +940,125 @@ export const unlockVideoKyc = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.6 Fraud Detection Engine Controllers ──────────────────
+
+// 45. POST /api/verifications/:id/fraud/evaluate
+export const evaluateVerificationFraud = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const fraudData = await verificationService.evaluateVerificationFraud(
+    id,
+    requesterId,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Fraud risk evaluation completed',
+    data: fraudData,
+  });
+});
+
+// 46. GET /api/verifications/:id/fraud/status
+export const getFraudStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userRole = req.user.role || 'tenant';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const fraudStatus = await verificationService.getFraudStatus(id, userRole);
+
+  res.status(200).json({
+    success: true,
+    data: fraudStatus,
+  });
+});
+
+// 47. POST /api/verifications/:id/fraud/confirm (Manager / Admin)
+export const confirmFraud = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+  const reviewerId = req.user.userId || req.user._id || req.user.id;
+  const actorRole = req.user.role || 'manager';
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.confirmFraud(
+    id,
+    reviewerId,
+    notes || '',
+    actorRole,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Fraud confirmed by reviewer',
+    data: updated,
+  });
+});
+
+// 48. POST /api/verifications/:id/fraud/dismiss (Manager / Admin)
+export const dismissFraud = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+  const reviewerId = req.user.userId || req.user._id || req.user.id;
+  const actorRole = req.user.role || 'manager';
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.dismissFraud(
+    id,
+    reviewerId,
+    notes || '',
+    actorRole,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Fraud risk dismissed by reviewer',
+    data: updated,
+  });
+});
+
+// 49. POST /api/verifications/:id/fraud/unlock (Admin Only)
+export const unlockFraudDetection = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockFraudDetection(id, adminUserId, note || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Fraud detection unlocked by admin',
+    data: updated,
+  });
+});
+

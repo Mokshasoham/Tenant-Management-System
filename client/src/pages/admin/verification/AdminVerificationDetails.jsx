@@ -449,6 +449,76 @@ export default function AdminVerificationDetails() {
                   </div>
                 </div>
               </VerificationSectionCard>
+
+              {/* Fraud Risk & Threat Intelligence Card (Phase 3.6.6) */}
+              <VerificationSectionCard title="Fraud Risk & Threat Intelligence Engine (Phase 3.6.6)" icon={AlertTriangle}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Composite Risk Level</span>
+                    <p className="text-sm font-bold text-amber-400">
+                      {record.fraudDetection?.riskLevel || 'NOT_EVALUATED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      Score: {record.fraudDetection?.riskScore ?? 0} / 100
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Fraud Decision</span>
+                    <p className="text-sm font-bold text-indigo-300">
+                      {record.fraudDetection?.decision || 'NOT_STARTED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      Review State: {record.fraudDetection?.reviewState || 'NONE'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Engine Provenance</span>
+                    <p className="text-sm font-bold text-slate-300">
+                      {record.fraudDetection?.engineVersion || 'v1.0'} ({record.fraudDetection?.policyVersion || 'v1.0'})
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block truncate">
+                      Scanned: {record.fraudDetection?.scannedAt ? new Date(record.fraudDetection.scannedAt).toLocaleTimeString() : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Detected Risk Signals</span>
+                    <p className="text-sm font-bold text-emerald-400 font-mono">
+                      {record.fraudDetection?.signals?.length || 0} Signals Detected
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Provider: {record.fraudDetection?.provider || 'development'}
+                    </span>
+                  </div>
+                </div>
+
+                {record.fraudDetection?.signals?.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Active Risk Signals</h4>
+                    <div className="space-y-1.5">
+                      {record.fraudDetection.signals.map((sig, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              sig.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                              sig.severity === 'HIGH' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                              'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                            }`}>
+                              {sig.signalCode}
+                            </span>
+                            <span className="text-slate-300 text-xs">{sig.description}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Impact: +{sig.scoreImpact} ({sig.category})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </VerificationSectionCard>
             </div>
           </div>
         )}

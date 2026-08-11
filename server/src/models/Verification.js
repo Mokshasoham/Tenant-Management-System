@@ -351,6 +351,88 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Real Fraud Detection Engine Sub-document (Phase 3.6.6)
+    fraudDetection: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      scanId: { type: String, default: '' },
+      evaluationId: { type: String, default: '' },
+      correlationId: { type: String, default: '' },
+      engineVersion: { type: String, default: 'v1.0' },
+      policyVersion: { type: String, default: 'v1.0' },
+      signalPolicyVersion: { type: String, default: 'v1.0' },
+      riskScore: { type: Number, min: 0, max: 100, default: 0 },
+      riskLevel: {
+        type: String,
+        enum: ['NOT_EVALUATED', 'LOW_RISK', 'MEDIUM_RISK', 'HIGH_RISK', 'CRITICAL_RISK', 'UNAVAILABLE'],
+        default: 'NOT_EVALUATED',
+      },
+      decision: {
+        type: String,
+        enum: ['NOT_STARTED', 'PASSED', 'REVIEW_REQUIRED', 'FRAUD_CONFIRMED', 'FRAUD_DISMISSED', 'UNAVAILABLE'],
+        default: 'NOT_STARTED',
+      },
+      reviewState: {
+        type: String,
+        enum: ['NONE', 'PENDING_REVIEW', 'UNDER_REVIEW', 'FRAUD_CONFIRMED', 'FRAUD_DISMISSED'],
+        default: 'NONE',
+      },
+      scanStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PROCESSING', 'COMPLETED', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      signals: [
+        {
+          signalFingerprint: { type: String, required: true },
+          signalCode: { type: String, required: true },
+          category: { type: String, required: true },
+          severity: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
+          scoreImpact: { type: Number, required: true },
+          confidence: { type: Number, min: 0, max: 100, default: 100 },
+          description: { type: String, required: true },
+          evidenceRef: { type: String, default: '' },
+          detectedAt: { type: Date, default: Date.now },
+        },
+      ],
+      explanations: [
+        {
+          ruleCode: { type: String, required: true },
+          summary: { type: String, required: true },
+          recommendation: { type: String, default: '' },
+        },
+      ],
+      sourcePhaseVersions: {
+        identity: { type: String, default: 'v1.0' },
+        property: { type: String, default: 'v1.0' },
+        digilocker: { type: String, default: 'v1.0' },
+        facial: { type: String, default: 'v1.0' },
+        videoKyc: { type: String, default: 'v1.0' },
+      },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      reviewLockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewLockedUntil: { type: Date, default: null },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewNotes: { type: String, default: '' },
+      scannedAt: { type: Date, default: null },
+      metadataRetentionExpiresAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          scanId: { type: String, default: '' },
+          riskScore: { type: Number, required: true },
+          riskLevel: { type: String, required: true },
+          decision: { type: String, required: true },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
@@ -515,6 +597,12 @@ VerificationSchema.index({ 'videoKycVerification.assignedAgentId': 1, isDeleted:
 VerificationSchema.index({ 'videoKycVerification.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'videoKycConsent.consentStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'videoKycVerification.metadataRetentionExpiresAt': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.decision': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.riskLevel': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.riskScore': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.scanStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'fraudDetection.metadataRetentionExpiresAt': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

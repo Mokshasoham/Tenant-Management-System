@@ -332,6 +332,11 @@ export const verificationService = {
   submitVideoKycEvaluation: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/evaluate`, data),
   getVideoKycStatus: (id) => apiClient.get(`/verifications/${id}/video-kyc/status`),
   unlockVideoKyc: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/unlock`, data),
+  evaluateVerificationFraud: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fraud/evaluate`, data, { headers }),
+  getFraudStatus: (id) => apiClient.get(`/verifications/${id}/fraud/status`),
+  confirmFraud: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fraud/confirm`, data, { headers }),
+  dismissFraud: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fraud/dismiss`, data, { headers }),
+  unlockFraudDetection: (id, data) => apiClient.post(`/verifications/${id}/fraud/unlock`, data),
 };
 
 export default apiClient;

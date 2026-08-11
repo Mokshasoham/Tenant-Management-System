@@ -89,5 +89,17 @@ export const EventTypes = {
     VIDEO_KYC_UNLOCKED: 'video_kyc.verification.unlocked',
     VIDEO_KYC_MEDIA_ACCESSED: 'video_kyc.media.accessed',
     VIDEO_KYC_METADATA_PURGED: 'video_kyc.metadata.purged',
+    FRAUD_SCAN_STARTED: 'fraud.verification.scan_started',
+    FRAUD_SIGNAL_DETECTED: 'fraud.verification.signal_detected',
+    FRAUD_RISK_CALCULATED: 'fraud.verification.risk_calculated',
+    FRAUD_REVIEW_REQUIRED: 'fraud.verification.review_required',
+    FRAUD_CONFIRMED: 'fraud.verification.confirmed',
+    FRAUD_DISMISSED: 'fraud.verification.dismissed',
+    FRAUD_OVERRIDDEN: 'fraud.verification.overridden',
+    FRAUD_UNAVAILABLE: 'fraud.verification.unavailable',
+    FRAUD_LOCKED: 'fraud.verification.locked',
+    FRAUD_UNLOCKED: 'fraud.verification.unlocked',
+    FRAUD_CONFIG_CHANGED: 'fraud.config.changed',
+    FRAUD_METADATA_PURGED: 'fraud.metadata.purged',
   }
 };

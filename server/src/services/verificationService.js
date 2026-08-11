@@ -5,6 +5,7 @@ import propertyVerificationService from './propertyVerificationService.js';
 import digilockerService from './digilockerService.js';
 import facialVerificationService from './facialVerificationService.js';
 import videoKycService from './videoKycService.js';
+import fraudDetectionService from './fraudDetectionService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -823,6 +824,28 @@ export class VerificationService {
     return await videoKycService.unlockVideoKyc(verificationId, adminUserId, note);
   }
 
+  // ── Phase 3.6.6 Fraud Detection Engine Methods ──────────────
+
+  async evaluateVerificationFraud(verificationId, requesterId, options = {}, idempotencyKey = null) {
+    return await fraudDetectionService.evaluateVerificationFraud(verificationId, requesterId, options, idempotencyKey);
+  }
+
+  async confirmFraud(verificationId, reviewerId, notes = '', actorRole = 'manager', idempotencyKey = null) {
+    return await fraudDetectionService.confirmFraud(verificationId, reviewerId, notes, actorRole, idempotencyKey);
+  }
+
+  async dismissFraud(verificationId, reviewerId, notes = '', actorRole = 'manager', idempotencyKey = null) {
+    return await fraudDetectionService.dismissFraud(verificationId, reviewerId, notes, actorRole, idempotencyKey);
+  }
+
+  async getFraudStatus(verificationId, userRole = 'tenant') {
+    return await fraudDetectionService.getFraudStatus(verificationId, userRole);
+  }
+
+  async unlockFraudDetection(verificationId, adminUserId, note = '') {
+    return await fraudDetectionService.unlockFraudDetection(verificationId, adminUserId, note);
+  }
+
   // ── Scheduled Maintenance Sweep ──────────────────────────────
 
   async runVerificationMaintenanceJobs() {
@@ -838,6 +861,7 @@ export class VerificationService {
       const abandonedRes = await videoKycService.reconcileAbandonedSessions();
       const videoKycPurgeRes = await videoKycService.purgeExpiredVideoKYCMetadata();
       const facialPurgeRes = await facialVerificationService.purgeExpiredBiometricMetadata();
+      const fraudPurgeRes = await fraudDetectionService.purgeExpiredFraudMetadata();
 
       logger.info('[VerificationService] Completed verification maintenance sweep safely.');
 
@@ -846,6 +870,7 @@ export class VerificationService {
         abandonedSessionsReconciled: abandonedRes?.modifiedCount || 0,
         videoKycMetadataPurged: videoKycPurgeRes?.modifiedCount || 0,
         facialMetadataPurged: facialPurgeRes?.modifiedCount || 0,
+        fraudMetadataPurged: fraudPurgeRes?.modifiedCount || 0,
       };
     } catch (err) {
       logger.error(`[VerificationService] Maintenance sweep error: ${err.message}`);

@@ -437,6 +437,85 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const evaluateVerificationFraud = useCallback(async (id, payload, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.evaluateVerificationFraud(id, payload, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const confirmFraud = useCallback(async (id, notes, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.confirmFraud(id, { notes }, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const dismissFraud = useCallback(async (id, notes, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.dismissFraud(id, { notes }, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getFraudStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getFraudStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const unlockFraudDetection = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockFraudDetection(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -472,6 +551,11 @@ export const VerificationProvider = ({ children }) => {
     submitVideoKycEvaluation,
     getVideoKycStatus,
     unlockVideoKyc,
+    evaluateVerificationFraud,
+    confirmFraud,
+    dismissFraud,
+    getFraudStatus,
+    unlockFraudDetection,
   };
 
   return (
