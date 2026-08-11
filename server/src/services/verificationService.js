@@ -4,6 +4,7 @@ import identityVerificationService from './identityVerificationService.js';
 import propertyVerificationService from './propertyVerificationService.js';
 import digilockerService from './digilockerService.js';
 import facialVerificationService from './facialVerificationService.js';
+import videoKycService from './videoKycService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -790,6 +791,36 @@ export class VerificationService {
 
   async unlockFacialVerification(verificationId, adminUserId, note) {
     return await facialVerificationService.unlockFacialVerification(verificationId, adminUserId, note);
+  }
+
+  // ── Phase 3.6.5 Video KYC Verification Delegation ────────────
+
+  async grantVideoKycConsent(verificationId, permissions, requesterId, ipAddress) {
+    return await videoKycService.grantConsent(verificationId, permissions, requesterId, ipAddress);
+  }
+
+  async revokeVideoKycConsent(verificationId, requesterId) {
+    return await videoKycService.revokeConsent(verificationId, requesterId);
+  }
+
+  async createVideoKycSession(verificationId, metadata, requesterId, userRole) {
+    return await videoKycService.createSession(verificationId, metadata, requesterId, userRole);
+  }
+
+  async assignVideoKycAgent(verificationId, agentId, agentName, assignedById, actorRole) {
+    return await videoKycService.assignAgent(verificationId, agentId, agentName, assignedById, actorRole);
+  }
+
+  async submitVideoKycEvaluation(verificationId, evaluationData, agentId, agentRole) {
+    return await videoKycService.submitEvaluation(verificationId, evaluationData, agentId, agentRole);
+  }
+
+  async getVideoKycStatus(verificationId, userRole) {
+    return await videoKycService.getStatus(verificationId, userRole);
+  }
+
+  async unlockVideoKyc(verificationId, adminUserId, note) {
+    return await videoKycService.unlockVideoKyc(verificationId, adminUserId, note);
   }
 }
 

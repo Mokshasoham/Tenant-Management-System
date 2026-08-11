@@ -791,3 +791,152 @@ export const unlockFacialVerification = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.5 Video KYC Handlers ────────────────────────────
+
+// 38. POST /api/verifications/:id/video-kyc/consent
+export const grantVideoKycConsent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || '';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.grantVideoKycConsent(id, req.body, requesterId, ipAddress);
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC consent granted successfully',
+    data: updated,
+  });
+});
+
+// 39. POST /api/verifications/:id/video-kyc/revoke-consent
+export const revokeVideoKycConsent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.revokeVideoKycConsent(id, requesterId);
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC consent revoked successfully',
+    data: updated,
+  });
+});
+
+// 40. POST /api/verifications/:id/video-kyc/session
+export const createVideoKycSession = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterId = req.user.userId || req.user._id || req.user.id;
+  const userRole = req.user.role || 'tenant';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const result = await verificationService.createVideoKycSession(id, req.body, requesterId, userRole);
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC WebRTC session created successfully',
+    data: result,
+  });
+});
+
+// 41. POST /api/verifications/:id/video-kyc/assign
+export const assignVideoKycAgent = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { agentId, agentName } = req.body;
+  const assignedById = req.user.userId || req.user._id || req.user.id;
+  const actorRole = req.user.role || 'manager';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  if (!agentId || !agentName) {
+    throw new AppError('agentId and agentName are required for Video KYC assignment', 400);
+  }
+
+  const updated = await verificationService.assignVideoKycAgent(id, agentId, agentName, assignedById, actorRole);
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC agent assigned successfully',
+    data: updated,
+  });
+});
+
+// 42. POST /api/verifications/:id/video-kyc/evaluate
+export const submitVideoKycEvaluation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const agentId = req.user.userId || req.user._id || req.user.id;
+  const agentRole = req.user.role || 'manager';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.submitVideoKycEvaluation(id, req.body, agentId, agentRole);
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC session evaluation submitted successfully',
+    data: updated,
+  });
+});
+
+// 43. GET /api/verifications/:id/video-kyc/status
+export const getVideoKycStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userRole = req.user.role || 'tenant';
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const statusData = await verificationService.getVideoKycStatus(id, userRole);
+
+  res.status(200).json({
+    success: true,
+    data: statusData,
+  });
+});
+
+// 44. POST /api/verifications/:id/video-kyc/unlock (Admin Only)
+export const unlockVideoKyc = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockVideoKyc(id, adminUserId, note || '');
+
+  res.status(200).json({
+    success: true,
+    message: 'Video KYC verification unlocked by admin',
+    data: updated,
+  });
+});
+

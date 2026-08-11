@@ -38,6 +38,13 @@ import {
   getFacialStatus,
   retryFacialVerification,
   unlockFacialVerification,
+  grantVideoKycConsent,
+  revokeVideoKycConsent,
+  createVideoKycSession,
+  assignVideoKycAgent,
+  submitVideoKycEvaluation,
+  getVideoKycStatus,
+  unlockVideoKyc,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -86,6 +93,15 @@ router.post('/:id/facial/verify', verifyFacialBiometrics);
 router.get('/:id/facial/status', getFacialStatus);
 router.post('/:id/facial/retry', retryFacialVerification);
 router.post('/:id/facial/unlock', authorize('admin'), unlockFacialVerification);
+
+// ── Phase 3.6.5 Video KYC Routes ──────────────────────────────────
+router.post('/:id/video-kyc/consent', grantVideoKycConsent);
+router.post('/:id/video-kyc/revoke-consent', revokeVideoKycConsent);
+router.post('/:id/video-kyc/session', createVideoKycSession);
+router.post('/:id/video-kyc/assign', authorize('admin', 'manager'), assignVideoKycAgent);
+router.post('/:id/video-kyc/evaluate', authorize('admin', 'manager'), submitVideoKycEvaluation);
+router.get('/:id/video-kyc/status', getVideoKycStatus);
+router.post('/:id/video-kyc/unlock', authorize('admin'), unlockVideoKyc);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

@@ -326,6 +326,117 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const grantVideoKycConsent = useCallback(async (id, permissions) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.grantVideoKycConsent(id, permissions);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const revokeVideoKycConsent = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.revokeVideoKycConsent(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createVideoKycSession = useCallback(async (id, metadata) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.createVideoKycSession(id, metadata);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const assignVideoKycAgent = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.assignVideoKycAgent(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const submitVideoKycEvaluation = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.submitVideoKycEvaluation(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getVideoKycStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getVideoKycStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const unlockVideoKyc = useCallback(async (id, note) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockVideoKyc(id, { note });
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     templates,
     workflows,
@@ -354,6 +465,13 @@ export const VerificationProvider = ({ children }) => {
     getFacialStatus,
     retryFacialVerification,
     unlockFacialVerification,
+    grantVideoKycConsent,
+    revokeVideoKycConsent,
+    createVideoKycSession,
+    assignVideoKycAgent,
+    submitVideoKycEvaluation,
+    getVideoKycStatus,
+    unlockVideoKyc,
   };
 
   return (

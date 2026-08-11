@@ -325,6 +325,13 @@ export const verificationService = {
   getFacialStatus: (id) => apiClient.get(`/verifications/${id}/facial/status`),
   retryFacialVerification: (id, data) => apiClient.post(`/verifications/${id}/facial/retry`, data),
   unlockFacialVerification: (id, data) => apiClient.post(`/verifications/${id}/facial/unlock`, data),
+  grantVideoKycConsent: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/consent`, data),
+  revokeVideoKycConsent: (id) => apiClient.post(`/verifications/${id}/video-kyc/revoke-consent`),
+  createVideoKycSession: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/session`, data),
+  assignVideoKycAgent: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/assign`, data),
+  submitVideoKycEvaluation: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/evaluate`, data),
+  getVideoKycStatus: (id) => apiClient.get(`/verifications/${id}/video-kyc/status`),
+  unlockVideoKyc: (id, data) => apiClient.post(`/verifications/${id}/video-kyc/unlock`, data),
 };
 
 export default apiClient;

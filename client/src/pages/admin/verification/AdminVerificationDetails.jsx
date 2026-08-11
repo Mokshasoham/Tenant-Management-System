@@ -404,6 +404,51 @@ export default function AdminVerificationDetails() {
                   </div>
                 </div>
               </VerificationSectionCard>
+
+              {/* Video KYC & Agent Assisted Verification Card (Phase 3.6.5) */}
+              <VerificationSectionCard title="Video KYC & Agent Assisted Verification (Phase 3.6.5)" icon={Video}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Verification Status</span>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {record.videoKycVerification?.verificationStatus || 'NOT_STARTED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      Session: {record.videoKycVerification?.sessionStatus || 'NOT_STARTED'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Assigned Agent</span>
+                    <p className="text-sm font-bold text-indigo-300 truncate">
+                      {record.videoKycVerification?.assignedAgentName || 'Unassigned'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      ID: {record.videoKycVerification?.assignedAgentId ? `AGENT-***-${record.videoKycVerification.assignedAgentId.toString().slice(-4)}` : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Checks & Geolocation</span>
+                    <p className="text-sm font-bold text-amber-300">
+                      Liveness: {record.videoKycVerification?.livenessCheckResult || 'NONE'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block truncate">
+                      Geo: {record.videoKycVerification?.geolocation?.city ? `${record.videoKycVerification.geolocation.city}, ${record.videoKycVerification.geolocation.country}` : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Consent & Media Policy</span>
+                    <p className="text-sm font-bold text-indigo-400">
+                      {record.videoKycConsent?.consentStatus || 'NONE'} ({record.videoKycConsent?.consentVersion || 'v1.0'})
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block truncate">
+                      Recording Saved: {record.videoKycVerification?.isRecordingSaved ? 'YES (Encrypted)' : 'NO (Privacy Default)'}
+                    </span>
+                  </div>
+                </div>
+              </VerificationSectionCard>
             </div>
           </div>
         )}

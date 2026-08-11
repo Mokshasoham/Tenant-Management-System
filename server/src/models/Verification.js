@@ -269,6 +269,88 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Video KYC Consent Sub-document (Phase 3.6.5)
+    videoKycConsent: {
+      consentStatus: {
+        type: String,
+        enum: ['NONE', 'GRANTED', 'DENIED', 'REVOKED', 'EXPIRED', 'RECONSENT_REQUIRED'],
+        default: 'NONE',
+      },
+      consentVersion: { type: String, default: 'v1.0' },
+      consentPurpose: { type: String, default: 'Live Agent Video KYC & Geolocation Audit' },
+      videoRecordingConsent: { type: Boolean, default: false },
+      geolocationConsent: { type: Boolean, default: false },
+      audioConsent: { type: Boolean, default: false },
+      grantedAt: { type: Date, default: null },
+      revokedAt: { type: Date, default: null },
+      ipAddress: { type: String, default: '' },
+      retentionExpiresAt: { type: Date, default: null },
+    },
+
+    // Real Video KYC & Agent Assisted Verification Sub-document (Phase 3.6.5)
+    videoKycVerification: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      sessionId: { type: String, default: '' },
+      encryptedSessionToken: { type: String, default: '' },
+      assignedAgentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      assignedAgentName: { type: String, default: '' },
+      sessionStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'WAITING_FOR_AGENT', 'IN_PROGRESS', 'COMPLETED', 'EXPIRED', 'CANCELLED', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      livenessCheckResult: {
+        type: String,
+        enum: ['NONE', 'PASSED', 'FLAGGED_SPOOF', 'FAILED', 'UNAVAILABLE'],
+        default: 'NONE',
+      },
+      documentMatchResult: {
+        type: String,
+        enum: ['NONE', 'MATCH', 'MISMATCH', 'UNCLEAR', 'NOT_PRESENTED'],
+        default: 'NONE',
+      },
+      geolocation: {
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        city: { type: String, default: '' },
+        country: { type: String, default: '' },
+        isIpLocationMatched: { type: Boolean, default: true },
+        retentionExpiresAt: { type: Date, default: null },
+      },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PENDING', 'IN_PROGRESS', 'VERIFIED', 'REVIEW_REQUIRED', 'REJECTED', 'UNAVAILABLE', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: 0 },
+      agentNotes: { type: String, default: '' },
+      recordingUrl: { type: String, default: '' },
+      isRecordingSaved: { type: Boolean, default: false },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      startedAt: { type: Date, default: null },
+      completedAt: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      metadataRetentionExpiresAt: { type: Date, default: null },
+      mediaRetentionExpiresAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          sessionId: { type: String, default: '' },
+          agentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          livenessCheckResult: { type: String, required: true },
+          documentMatchResult: { type: String, required: true },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
@@ -427,6 +509,12 @@ VerificationSchema.index({ 'facialVerification.livenessResult': 1, isDeleted: 1 
 VerificationSchema.index({ 'facialVerification.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'biometricConsent.consentStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'facialVerification.metadataRetentionExpiresAt': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycVerification.sessionStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycVerification.assignedAgentId': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycVerification.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycConsent.consentStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'videoKycVerification.metadataRetentionExpiresAt': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);
