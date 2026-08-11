@@ -208,4 +208,27 @@ describe('Phase 3.6.5 — Video KYC & Agent Assisted Verification Unit Tests', (
       'VIDEO_KYC_VERIFIED'
     );
   });
+
+  test('11. Scheduled Maintenance Sweep: Safely runs reconciliation and retention purging', async () => {
+    jest.spyOn(Verification, 'updateMany').mockResolvedValue({ modifiedCount: 1 });
+
+    const maintRes = await verificationService.runVerificationMaintenanceJobs();
+
+    expect(maintRes.success).toBe(true);
+    expect(maintRes.abandonedSessionsReconciled).toBe(1);
+    expect(maintRes.videoKycMetadataPurged).toBe(1);
+    expect(maintRes.facialMetadataPurged).toBe(1);
+  });
+
+  test('12. Overlapping Maintenance Execution Guard: Prevents concurrent maintenance runs', async () => {
+    jest.spyOn(Verification, 'updateMany').mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ modifiedCount: 0 }), 100)));
+
+    const firstRunPromise = verificationService.runVerificationMaintenanceJobs();
+    const secondRunRes = await verificationService.runVerificationMaintenanceJobs();
+
+    expect(secondRunRes.skipped).toBe(true);
+    expect(secondRunRes.reason).toBe('OVERLAPPING_EXECUTION');
+
+    await firstRunPromise;
+  });
 });

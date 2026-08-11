@@ -66,6 +66,7 @@ import User from '../models/User.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import { sendLateFeeAppliedEmail, sendRentReminderEmail } from '../services/emailService.js';
+import verificationService from '../services/verificationService.js';
 import logger from './logger.js';
 
 
@@ -577,13 +578,26 @@ export const startCronJobs = () => {
                             propertyRecord.currentTenant = null;
                             propertyRecord.status = 'available';
                             propertyRecord.leases = propertyRecord.leases.filter(l => l.toString() !== lease._id.toString());
-                            await propertyRecord.save();
-                        }
                     }
                 }
             }
         } catch (err) {
             logger.error(`[CRON ERROR] Daily lease expiry runner exception: ${err.message}`);
+        }
+    });
+
+    // Run every midnight to perform Verification Retention & Reconciliation Maintenance
+    cron.schedule('0 0 * * *', async () => {
+        logger.info('[CRON] Initializing Daily Verification Maintenance & Retention Purge sweep...');
+        try {
+            const result = await verificationService.runVerificationMaintenanceJobs();
+            if (result.skipped) {
+                logger.warn('[CRON] Verification maintenance sweep skipped due to active overlapping execution.');
+            } else {
+                logger.info(`[CRON] Verification maintenance sweep completed. Reconciled: ${result.abandonedSessionsReconciled}, Video KYC Purged: ${result.videoKycMetadataPurged}, Facial Purged: ${result.facialMetadataPurged}`);
+            }
+        } catch (error) {
+            logger.error(`[CRON ERROR] Verification Maintenance daemon exception: ${error.message}`);
         }
     });
 

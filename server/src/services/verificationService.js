@@ -822,6 +822,38 @@ export class VerificationService {
   async unlockVideoKyc(verificationId, adminUserId, note) {
     return await videoKycService.unlockVideoKyc(verificationId, adminUserId, note);
   }
+
+  // ── Scheduled Maintenance Sweep ──────────────────────────────
+
+  async runVerificationMaintenanceJobs() {
+    if (this._isMaintenanceRunning) {
+      logger.warn('[VerificationService] Scheduled maintenance job is already running, skipping overlapping execution.');
+      return { skipped: true, reason: 'OVERLAPPING_EXECUTION' };
+    }
+
+    this._isMaintenanceRunning = true;
+    try {
+      logger.info('[VerificationService] Starting daily verification maintenance sweep...');
+
+      const abandonedRes = await videoKycService.reconcileAbandonedSessions();
+      const videoKycPurgeRes = await videoKycService.purgeExpiredVideoKYCMetadata();
+      const facialPurgeRes = await facialVerificationService.purgeExpiredBiometricMetadata();
+
+      logger.info('[VerificationService] Completed verification maintenance sweep safely.');
+
+      return {
+        success: true,
+        abandonedSessionsReconciled: abandonedRes?.modifiedCount || 0,
+        videoKycMetadataPurged: videoKycPurgeRes?.modifiedCount || 0,
+        facialMetadataPurged: facialPurgeRes?.modifiedCount || 0,
+      };
+    } catch (err) {
+      logger.error(`[VerificationService] Maintenance sweep error: ${err.message}`);
+      throw err;
+    } finally {
+      this._isMaintenanceRunning = false;
+    }
+  }
 }
 
 export default new VerificationService();
