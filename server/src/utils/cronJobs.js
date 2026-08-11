@@ -578,6 +578,8 @@ export const startCronJobs = () => {
                             propertyRecord.currentTenant = null;
                             propertyRecord.status = 'available';
                             propertyRecord.leases = propertyRecord.leases.filter(l => l.toString() !== lease._id.toString());
+                            await propertyRecord.save();
+                        }
                     }
                 }
             }
