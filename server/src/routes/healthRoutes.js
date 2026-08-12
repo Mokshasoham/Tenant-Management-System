@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import container from '../platform/container.js';
 import schedulerRegistry from '../platform/scheduler/SchedulerRegistry.js';
 import { PLATFORM_VERSION, APPLICATION_VERSION, NODE_VERSION, GIT_COMMIT, BUILD_TIME, ENVIRONMENT } from '../platform/version.js';
+import getVerificationHealthDiagnostics from '../platform/security/verificationHealthDiagnostic.js';
 
 const router = express.Router();
 
@@ -130,6 +131,12 @@ router.get('/health', async (req, res) => {
       schedulers: schedulersHealth
     }
   });
+});
+
+// 5. /verification-health endpoint - Phase 3.6 Production Verification Diagnostics
+router.get('/verification-health', (req, res) => {
+  const diagnostics = getVerificationHealthDiagnostics();
+  res.status(200).json(diagnostics);
 });
 
 // 4. /metrics endpoint - Metrics placeholder (Reserved for Prometheus/Grafana)
