@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { GoogleLogin } from '@react-oauth/google';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import useAuthStore from '../context/authStore';
 import { Mail, Lock, Building2, ArrowRight } from 'lucide-react';
 import { Card, Button, Input } from '../components/PremiumUI';
@@ -185,27 +185,12 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-center">
-                    <GoogleLogin
-                      onSuccess={async (credentialResponse) => {
-                        try {
-                          setIsLoading(true);
-                          await useAuthStore.getState().googleLogin(credentialResponse.credential);
-                          navigate('/dashboard');
-                        } catch (err) {
-                          setError(err.message || 'Google Login failed');
-                          setIsLoading(false);
-                        }
-                      }}
-                      onError={() => {
-                        setError('Google Log In Failed');
-                      }}
-                      useOneTap
-                      theme="outline"
-                      size="large"
-                      text="signin_with"
-                    />
-                  </div>
+                  <GoogleSignInButton
+                    onError={setError}
+                    setIsLoading={setIsLoading}
+                    navigate={navigate}
+                    text="Continue with Google"
+                  />
                 </>
               )}
 
