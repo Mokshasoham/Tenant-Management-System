@@ -5,6 +5,7 @@ import formatVerificationApiError from '../utils/verificationApiErrors';
 const VerificationContext = createContext(null);
 
 export const VerificationProvider = ({ children }) => {
+  const [verifications, setVerifications] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [activeVerification, setActiveVerification] = useState(null);
@@ -52,6 +53,261 @@ export const VerificationProvider = ({ children }) => {
     }
     await fetchCatalogs();
   }, [fetchCatalogs]);
+  const getVerifications = useCallback(async (params) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.getVerifications(params);
+      const data = res?.data || res || [];
+      setVerifications(Array.isArray(data) ? data : data?.verifications || []);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getVerificationById = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.getVerificationById(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const initiateVerification = useCallback(async (payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.initiateVerification(payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateDraft = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.updateDraft(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const submitVerification = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.submitVerification(id);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const resubmitVerification = useCallback(async (id, documents) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.resubmitVerification(id, documents);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const uploadDocument = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.uploadDocument(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const reviewVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.reviewVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const approveVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.approveVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const rejectVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.rejectVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getHistory = useCallback(async (entityType, entityId) => {
+    try {
+      const res = await verificationService.getHistory(entityType, entityId);
+      return res?.data || res;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    }
+  }, []);
+
+  const getWidget = useCallback(async (profile, entityId) => {
+    try {
+      const res = await verificationService.getWidget(profile, entityId);
+      const data = res?.data || res;
+      setWidgetData(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      return null;
+    }
+  }, []);
+
+  const startIdentityVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.startIdentityVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const retryIdentityVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.retryIdentityVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const startPropertyVerification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.startPropertyVerification(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const uploadPropertyDocument = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.uploadPropertyDocument(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getPropertyVerificationStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getPropertyVerificationStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      setError(formatVerificationApiError(err));
+      throw err;
+    }
+  }, []);
 
   const verifyIdentity = useCallback(async (id, payload) => {
     try {
