@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { validateProductionSecurityConfig } from '../security/productionSecurityValidator.js';
 dotenv.config();
 
 /**
@@ -49,4 +50,7 @@ export const validateEnv = () => {
   if (missingOptional.length > 0) {
     console.log(`[WARN] Missing optional configuration parameters: ${missingOptional.join(', ')}`);
   }
+
+  // Production security validation
+  validateProductionSecurityConfig();
 };

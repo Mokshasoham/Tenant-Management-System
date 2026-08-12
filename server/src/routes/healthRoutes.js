@@ -133,11 +133,15 @@ router.get('/health', async (req, res) => {
   });
 });
 
-// 5. /verification-health endpoint - Phase 3.6 Production Verification Diagnostics
-router.get('/verification-health', (req, res) => {
+// 5. Verification Health Endpoint - Phase 3.6.8 Production Readiness
+const handleVerificationHealth = (req, res) => {
   const diagnostics = getVerificationHealthDiagnostics();
-  res.status(200).json(diagnostics);
-});
+  const statusCode = diagnostics.overallReadiness === 'NOT_READY' ? 503 : 200;
+  res.status(statusCode).json(diagnostics);
+};
+
+router.get('/api/health/verification', handleVerificationHealth);
+router.get('/verification-health', handleVerificationHealth);
 
 // 4. /metrics endpoint - Metrics placeholder (Reserved for Prometheus/Grafana)
 router.get('/metrics', (req, res) => {

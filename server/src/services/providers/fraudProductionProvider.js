@@ -66,4 +66,18 @@ export class FraudProductionProvider extends FraudProvider {
   async checkProviderHealth() {
     return { status: this.circuitState === 'OPEN' ? 'DOWN' : 'UP', mode: 'PRODUCTION', circuitState: this.circuitState };
   }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
+  }
+
+  _checkCircuitBreaker() {
+    if (this.circuitState === 'OPEN') {
+      throw new Error('Provider circuit breaker is OPEN');
+    }
+  }
 }

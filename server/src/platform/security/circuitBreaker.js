@@ -1,5 +1,6 @@
 import logger from '../logging/logger.js';
 import productionAlertService, { ALERT_TYPES, ALERT_SEVERITY } from './productionAlertService.js';
+import verificationMetrics from '../logging/verificationMetrics.js';
 
 export const CIRCUIT_STATES = {
   CLOSED: 'CLOSED',
@@ -41,6 +42,10 @@ export class CircuitBreaker {
     return this.state;
   }
 
+  recordFailure(err = new Error('Manual or simulated failure registered')) {
+    this._onFailure(err);
+  }
+
   /**
    * Execute protected async action.
    * @param {Function} asyncFn - Provider call () => Promise<T>
@@ -71,13 +76,20 @@ export class CircuitBreaker {
         }, this.requestTimeoutMs);
       });
 
+      const startTime = Date.now();
       const result = await Promise.race([asyncFn(), timeoutPromise]);
       if (timeoutId) clearTimeout(timeoutId);
+
+      const durationMs = Date.now() - startTime;
+      verificationMetrics.recordProviderCall(this.name, durationMs, true, false);
 
       this._onSuccess();
       return result;
     } catch (err) {
       if (timeoutId) clearTimeout(timeoutId);
+
+      const isTimeout = err.name === 'TimeoutError' || err.isTimeout === true;
+      verificationMetrics.recordProviderCall(this.name, 0, false, isTimeout);
 
       // Determine if error is a business logic failure (e.g. document rejected) vs infra failure (5xx/timeout/network)
       const isBusiness = isBusinessFailure ? isBusinessFailure(err) : this._defaultIsBusinessFailure(err);
@@ -134,6 +146,7 @@ export class CircuitBreaker {
         this.halfOpenTrialCount = 0;
       }
       logger.warn(`[CircuitBreaker:${this.name}] Transitioned state from ${oldState} -> ${newState}`);
+      verificationMetrics.recordCircuitBreakerTransition(this.name, oldState, newState);
 
       if (newState === CIRCUIT_STATES.OPEN) {
         productionAlertService.dispatchAlert({

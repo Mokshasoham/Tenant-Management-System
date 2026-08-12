@@ -2,6 +2,7 @@ import { DigiLockerProvider } from './digilockerProvider.js';
 import { AppError } from '../../utils/errorHandling.js';
 import logger from '../../platform/logging/logger.js';
 import config from '../../config/config.js';
+import { CircuitBreakerRegistry } from '../../platform/security/circuitBreaker.js';
 
 export class DigiLockerProductionProvider extends DigiLockerProvider {
   constructor() {
@@ -14,6 +15,19 @@ export class DigiLockerProductionProvider extends DigiLockerProvider {
     this.authUrl = config.DIGILOCKER_AUTH_URL || 'https://api.digitallocker.gov.in/public/oauth2/1/authorize';
     this.tokenUrl = config.DIGILOCKER_TOKEN_URL || 'https://api.digitallocker.gov.in/public/oauth2/1/token';
     this.timeoutMs = config.DIGILOCKER_TIMEOUT_MS || 10000;
+    this.circuitBreaker = CircuitBreakerRegistry.get('digilockerProduction', {
+      failureThreshold: 5,
+      recoveryWindowMs: 60000,
+      requestTimeoutMs: this.timeoutMs,
+    });
+  }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
   }
 
   validateConfig() {

@@ -1,11 +1,12 @@
 import rateLimit from 'express-rate-limit';
 import logger from '../platform/logging/logger.js';
 import cacheProvider from '../platform/cache/cacheProvider.js';
+import verificationMetrics from '../platform/logging/verificationMetrics.js';
 
 /**
  * Custom Key Generator: Key by authenticated User ID if available, otherwise by IP.
  */
-const keyGenerator = (req) => {
+export const keyGenerator = (req) => {
   if (req.user && (req.user._id || req.user.id)) {
     return `user:${req.user._id || req.user.id}:${req.ip}`;
   }
@@ -16,7 +17,9 @@ const keyGenerator = (req) => {
  * Standardized 429 Handler for Verification Operations.
  */
 const limitReachedHandler = (req, res, next, options) => {
-  logger.warn(`[VerificationRateLimiter] Rate limit exceeded for key=${keyGenerator(req)} on path=${req.originalUrl}`);
+  const key = keyGenerator(req);
+  logger.warn(`[VerificationRateLimiter] Rate limit exceeded for key=${key} on path=${req.originalUrl}`);
+  verificationMetrics.recordRateLimitRejection(key, req.originalUrl);
   
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
   res.setHeader('Retry-After', retryAfterSeconds);

@@ -2,6 +2,7 @@ import { FacialVerificationProvider } from './facialVerificationProvider.js';
 import { AppError } from '../../utils/errorHandling.js';
 import logger from '../../platform/logging/logger.js';
 import config from '../../config/config.js';
+import { CircuitBreakerRegistry } from '../../platform/security/circuitBreaker.js';
 
 export class FacialProductionProvider extends FacialVerificationProvider {
   constructor() {
@@ -11,6 +12,11 @@ export class FacialProductionProvider extends FacialVerificationProvider {
     this.apiSecret = config.FACIAL_PROVIDER_SECRET;
     this.apiEndpoint = config.FACIAL_PROVIDER_URL;
     this.timeoutMs = config.FACIAL_VERIFICATION_TIMEOUT_MS || 10000;
+    this.circuitBreaker = CircuitBreakerRegistry.get('facialProduction', {
+      failureThreshold: 5,
+      recoveryWindowMs: 60000,
+      requestTimeoutMs: this.timeoutMs,
+    });
   }
 
   validateConfig() {
@@ -21,6 +27,14 @@ export class FacialProductionProvider extends FacialVerificationProvider {
         500
       );
     }
+  }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
   }
 
   async verifyLivenessAndMatch(liveCaptureBuffer, referenceImageBuffer, metadata = {}) {

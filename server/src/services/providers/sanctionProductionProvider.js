@@ -69,6 +69,20 @@ export class SanctionProductionProvider extends SanctionProvider {
         throw new AppError('Production Sanctions Screening provider configuration missing', 500);
       }
     }
-    return { status: 'UP', mode: 'PRODUCTION' };
+    return { status: this.circuitState === 'OPEN' ? 'DOWN' : 'UP', mode: 'PRODUCTION', circuitState: this.circuitState };
+  }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
+  }
+
+  _checkCircuitBreaker() {
+    if (this.circuitState === 'OPEN') {
+      throw new Error('Provider circuit breaker is OPEN');
+    }
   }
 }

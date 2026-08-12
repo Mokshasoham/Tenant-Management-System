@@ -2,6 +2,7 @@ import { IdentityVerificationProvider } from './identityVerificationProvider.js'
 import { AppError } from '../../utils/errorHandling.js';
 import logger from '../../platform/logging/logger.js';
 import config from '../../config/config.js';
+import { CircuitBreakerRegistry } from '../../platform/security/circuitBreaker.js';
 
 export class ProductionProvider extends IdentityVerificationProvider {
   constructor() {
@@ -9,6 +10,11 @@ export class ProductionProvider extends IdentityVerificationProvider {
     this.providerName = 'production';
     this.apiKey = process.env.IDENTITY_PROVIDER_API_KEY;
     this.apiEndpoint = process.env.IDENTITY_PROVIDER_URL || 'https://api.identity-provider.com/v1';
+    this.circuitBreaker = CircuitBreakerRegistry.get('identityProduction', {
+      failureThreshold: 5,
+      recoveryWindowMs: 60000,
+      requestTimeoutMs: 10000,
+    });
   }
 
   validateConfig() {
@@ -19,6 +25,14 @@ export class ProductionProvider extends IdentityVerificationProvider {
         500
       );
     }
+  }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
   }
 
   async verifyIdentity(payload) {

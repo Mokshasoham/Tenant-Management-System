@@ -2,6 +2,7 @@ import { PropertyVerificationProvider } from './propertyVerificationProvider.js'
 import { AppError } from '../../utils/errorHandling.js';
 import logger from '../../platform/logging/logger.js';
 import config from '../../config/config.js';
+import { CircuitBreakerRegistry } from '../../platform/security/circuitBreaker.js';
 
 export class PropertyProductionProvider extends PropertyVerificationProvider {
   constructor() {
@@ -9,6 +10,11 @@ export class PropertyProductionProvider extends PropertyVerificationProvider {
     this.providerName = 'production';
     this.apiKey = process.env.PROPERTY_PROVIDER_API_KEY;
     this.apiEndpoint = process.env.PROPERTY_PROVIDER_URL || 'https://api.property-registry-provider.com/v1';
+    this.circuitBreaker = CircuitBreakerRegistry.get('propertyProduction', {
+      failureThreshold: 5,
+      recoveryWindowMs: 60000,
+      requestTimeoutMs: 10000,
+    });
   }
 
   validateConfig() {
@@ -19,6 +25,14 @@ export class PropertyProductionProvider extends PropertyVerificationProvider {
         500
       );
     }
+  }
+
+  get circuitState() {
+    return this.circuitBreaker.getState();
+  }
+
+  _recordFailure(err = new Error('Simulated failure')) {
+    this.circuitBreaker.recordFailure(err);
   }
 
   async verifyProperty(payload) {
