@@ -1196,4 +1196,145 @@ export const unlockSanctionScreening = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.8 Multi-Engine Evidence Fusion Controllers ─────────────────
+
+// 55. POST /api/verifications/:id/fusion/synthesize
+export const synthesizeEvidence = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const resultData = await verificationService.synthesizeEvidence(id, requesterUser, {
+    ...req.body,
+    idempotencyKey,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Multi-engine evidence synthesis completed',
+    data: resultData,
+  });
+});
+
+// 56. GET /api/verifications/:id/fusion/status
+export const getFusionStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'tenant',
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const resultData = await verificationService.getFusionStatus(id, requesterUser);
+
+  res.status(200).json({
+    success: true,
+    message: 'Evidence fusion status retrieved',
+    data: resultData,
+  });
+});
+
+// 57. POST /api/verifications/:id/fusion/confirm
+export const confirmFusionRecommendation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.confirmFusionRecommendation(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Synthesis recommendation confirmed',
+    data: updated,
+  });
+});
+
+// 58. POST /api/verifications/:id/fusion/override
+export const overrideFusionRecommendation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const existing = await verificationService.getVerificationById(id);
+  checkVerificationAccess(existing, req.user);
+
+  const updated = await verificationService.overrideFusionRecommendation(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Synthesis recommendation overridden',
+    data: updated,
+  });
+});
+
+// 59. POST /api/verifications/:id/fusion/unlock
+export const unlockFusion = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey || null;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const updated = await verificationService.unlockFusion(
+    id,
+    requesterUser,
+    req.body,
+    idempotencyKey
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Evidence fusion unlocked by admin',
+    data: updated,
+  });
+});
+
 

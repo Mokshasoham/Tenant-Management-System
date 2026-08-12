@@ -595,23 +595,115 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const synthesizeEvidence = useCallback(async (id, payload, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.synthesizeEvidence(id, payload, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getFusionStatus = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getFusionStatus(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const confirmFusionRecommendation = useCallback(async (id, payload, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.confirmFusionRecommendation(id, payload, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const overrideFusionRecommendation = useCallback(async (id, payload, headers = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.overrideFusionRecommendation(id, payload, headers);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const unlockFusion = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.unlockFusion(id, payload);
+      const data = res?.data || res;
+      setActiveVerification(data);
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
-    templates,
-    workflows,
+    verifications,
     activeVerification,
-    widgetData,
     loading,
     error,
-    setActiveVerification,
-    fetchCatalogs,
-    loadWidget,
-    refresh,
+    getVerifications,
+    getVerificationById,
+    initiateVerification,
+    updateDraft,
+    submitVerification,
+    resubmitVerification,
+    uploadDocument,
+    reviewVerification,
+    approveVerification,
+    rejectVerification,
+    getHistory,
+    getWidget,
+    getTemplates,
+    getWorkflows,
+    startIdentityVerification,
     verifyIdentity,
-    retryIdentity,
+    getIdentityStatus,
+    retryIdentityVerification,
     unlockIdentity,
+    startPropertyVerification,
+    uploadPropertyDocument,
     verifyProperty,
-    retryProperty,
-    unlockProperty,
+    getPropertyVerificationStatus,
+    retryPropertyVerification,
+    unlockPropertyVerification,
     connectDigiLocker,
     getDigiLockerStatus,
     getDigiLockerDocuments,
@@ -640,6 +732,11 @@ export const VerificationProvider = ({ children }) => {
     dismissSanctionMatch,
     getSanctionStatus,
     unlockSanctionScreening,
+    synthesizeEvidence,
+    getFusionStatus,
+    confirmFusionRecommendation,
+    overrideFusionRecommendation,
+    unlockFusion,
   };
 
   return (

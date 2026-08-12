@@ -532,6 +532,85 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Multi-Engine Evidence Fusion & Synthesis Sub-document (Phase 3.6.8)
+    evidenceFusion: {
+      synthesisId: { type: String, default: '' },
+      correlationId: { type: String, default: '' },
+      synthesisFingerprint: { type: String, default: '' },
+      engineVersion: { type: String, default: 'v1.0' },
+      policyVersion: { type: String, default: 'v1.0' },
+      unifiedScore: { type: Number, min: 0, max: 100, default: 0 },
+      synthesisStatus: {
+        type: String,
+        enum: ['NOT_EVALUATED', 'EVALUATED', 'PARTIAL_EVIDENCE', 'CONFLICT_DETECTED', 'UNAVAILABLE', 'FAILED'],
+        default: 'NOT_EVALUATED',
+      },
+      recommendation: {
+        type: String,
+        enum: ['NOT_STARTED', 'AUTO_APPROVE', 'RECOMMEND_APPROVE', 'RECOMMEND_MANUAL_REVIEW', 'RECOMMEND_REJECT', 'CRITICAL_BLOCK'],
+        default: 'NOT_STARTED',
+      },
+      reviewState: {
+        type: String,
+        enum: ['NONE', 'PENDING_REVIEW', 'CONFIRMED', 'OVERRIDDEN'],
+        default: 'NONE',
+      },
+      scanStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'FAILED'],
+        default: 'NOT_STARTED',
+      },
+      engineScores: {
+        identityScore: { type: Number, default: 0 },
+        propertyScore: { type: Number, default: 0 },
+        digilockerScore: { type: Number, default: 0 },
+        facialScore: { type: Number, default: 0 },
+        videoKycScore: { type: Number, default: 0 },
+        fraudPenalty: { type: Number, default: 0 },
+        sanctionPenalty: { type: Number, default: 0 },
+      },
+      conflicts: [
+        {
+          conflictCode: { type: String, required: true },
+          severity: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
+          enginesInvolved: [{ type: String }],
+          description: { type: String, required: true },
+          detectedAt: { type: Date, default: Date.now },
+        },
+      ],
+      sourceSnapshots: {
+        identity: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, status: String, confidenceScore: Number },
+        property: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, status: String, confidenceScore: Number },
+        digilocker: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, status: String },
+        facial: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, status: String, matchScore: Number },
+        videoKyc: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, status: String },
+        fraud: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, riskScore: Number, riskLevel: String },
+        sanctions: { engineVersion: String, policyVersion: String, evaluatedAt: Date, evidenceFingerprint: String, matchStatus: String, highestMatchScore: Number },
+      },
+      reviewHistory: [
+        {
+          decision: { type: String, enum: ['CONFIRMED', 'OVERRIDDEN'], required: true },
+          reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+          reviewedByRole: { type: String, default: '' },
+          reviewedAt: { type: Date, default: Date.now },
+          notes: { type: String, default: '' },
+          evidenceFingerprint: { type: String, required: true },
+        },
+      ],
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedByRole: { type: String, default: '' },
+      reviewedAt: { type: Date, default: null },
+      reviewNotes: { type: String, default: '' },
+      synthesizedAt: { type: Date, default: null },
+      metadataRetentionExpiresAt: { type: Date, default: null },
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
@@ -706,6 +785,11 @@ VerificationSchema.index({ 'sanctionScreening.matchStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'sanctionScreening.scanStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'sanctionScreening.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'sanctionScreening.metadataRetentionExpiresAt': 1, isDeleted: 1 });
+VerificationSchema.index({ 'evidenceFusion.synthesisStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'evidenceFusion.recommendation': 1, isDeleted: 1 });
+VerificationSchema.index({ 'evidenceFusion.unifiedScore': 1, isDeleted: 1 });
+VerificationSchema.index({ 'evidenceFusion.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'evidenceFusion.metadataRetentionExpiresAt': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

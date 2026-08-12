@@ -108,5 +108,15 @@ export const EventTypes = {
     SANCTION_UNAVAILABLE: 'sanction.verification.unavailable',
     SANCTION_UNLOCKED: 'sanction.verification.unlocked',
     SANCTION_METADATA_PURGED: 'sanction.metadata.purged',
+    EVIDENCE_SYNTHESIS_STARTED: 'synthesis.verification.started',
+    EVIDENCE_SYNTHESIS_COMPLETED: 'synthesis.verification.completed',
+    SYNTHESIS_CONFLICT_DETECTED: 'synthesis.verification.conflict_detected',
+    RECOMMENDATION_GENERATED: 'synthesis.verification.recommendation_generated',
+    SYNTHESIS_CONFIRMED: 'synthesis.verification.confirmed',
+    SYNTHESIS_OVERRIDDEN: 'synthesis.verification.overridden',
+    SYNTHESIS_UNLOCKED: 'synthesis.verification.unlocked',
+    SYNTHESIS_METADATA_PURGED: 'synthesis.metadata.purged',
   }
 };
+
+export default EventTypes;

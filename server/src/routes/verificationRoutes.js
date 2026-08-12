@@ -55,6 +55,11 @@ import {
   confirmSanctionMatch,
   dismissSanctionMatch,
   unlockSanctionScreening,
+  synthesizeEvidence,
+  getFusionStatus,
+  confirmFusionRecommendation,
+  overrideFusionRecommendation,
+  unlockFusion,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -126,6 +131,13 @@ router.get('/:id/sanction/status', getSanctionStatus);
 router.post('/:id/sanction/confirm', authorize('admin', 'manager'), confirmSanctionMatch);
 router.post('/:id/sanction/dismiss', authorize('admin', 'manager'), dismissSanctionMatch);
 router.post('/:id/sanction/unlock', authorize('admin'), unlockSanctionScreening);
+
+// ── Phase 3.6.8 Multi-Engine Evidence Fusion Routes ───────────────
+router.post('/:id/fusion/synthesize', authorize('admin', 'manager'), synthesizeEvidence);
+router.get('/:id/fusion/status', getFusionStatus);
+router.post('/:id/fusion/confirm', authorize('admin', 'manager'), confirmFusionRecommendation);
+router.post('/:id/fusion/override', authorize('admin', 'manager'), overrideFusionRecommendation);
+router.post('/:id/fusion/unlock', authorize('admin'), unlockFusion);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

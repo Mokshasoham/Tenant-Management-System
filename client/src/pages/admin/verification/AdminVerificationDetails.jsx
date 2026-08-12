@@ -18,6 +18,7 @@ import {
   Send,
   Eye,
   RefreshCw,
+  Layers,
 } from 'lucide-react';
 import {
   VerificationPageHeader,
@@ -579,6 +580,79 @@ export default function AdminVerificationDetails() {
                           </div>
                           <span className="text-[10px] font-mono text-indigo-400 font-bold">
                             Score: {m.similarityScore}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </VerificationSectionCard>
+
+              {/* Multi-Engine Evidence Fusion & Recommendation Card (Phase 3.6.8) */}
+              <VerificationSectionCard title="Multi-Engine Evidence Fusion & Synthesis Engine (Phase 3.6.8)" icon={Layers}>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Unified Score (UVS)</span>
+                    <p className={`text-xl font-extrabold ${
+                      (record.evidenceFusion?.unifiedScore ?? 0) >= 85 ? 'text-emerald-400' :
+                      (record.evidenceFusion?.unifiedScore ?? 0) >= 70 ? 'text-indigo-400' :
+                      (record.evidenceFusion?.unifiedScore ?? 0) >= 40 ? 'text-amber-400' : 'text-rose-400'
+                    }`}>
+                      {record.evidenceFusion?.unifiedScore ?? 0} / 100
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Status: {record.evidenceFusion?.synthesisStatus || 'NOT_EVALUATED'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Advisory Recommendation</span>
+                    <p className="text-sm font-bold text-indigo-300">
+                      {record.evidenceFusion?.recommendation || 'NOT_STARTED'}
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-medium block truncate">
+                      Review State: {record.evidenceFusion?.reviewState || 'NONE'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Discrepancies & Conflicts</span>
+                    <p className="text-sm font-bold text-amber-400 font-mono">
+                      {record.evidenceFusion?.conflicts?.length || 0} Conflicts Found
+                    </p>
+                    <span className="text-[10px] text-slate-500 font-mono block truncate">
+                      Fingerprint: {record.evidenceFusion?.synthesisFingerprint ? `${record.evidenceFusion.synthesisFingerprint.substring(0, 8)}...` : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+                    <span className="text-slate-400 text-[10px] uppercase font-bold">Engine Breakdown (Scores)</span>
+                    <div className="text-[10px] text-slate-400 font-mono space-y-0.5">
+                      <div>ID: {record.evidenceFusion?.engineScores?.identityScore ?? 0}/25 | Prop: {record.evidenceFusion?.engineScores?.propertyScore ?? 0}/20</div>
+                      <div>Digi: {record.evidenceFusion?.engineScores?.digilockerScore ?? 0}/15 | Face: {record.evidenceFusion?.engineScores?.facialScore ?? 0}/15</div>
+                      <div>VKYC: {record.evidenceFusion?.engineScores?.videoKycScore ?? 0}/10</div>
+                    </div>
+                  </div>
+                </div>
+
+                {record.evidenceFusion?.conflicts?.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Active Cross-Engine Discrepancies</h4>
+                    <div className="space-y-1.5">
+                      {record.evidenceFusion.conflicts.map((c, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-900 border border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              c.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                              c.severity === 'HIGH' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                              'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                            }`}>
+                              {c.conflictCode}
+                            </span>
+                            <span className="text-slate-300 text-xs font-semibold">{c.description}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-rose-400 font-bold">
+                            Penalty: -{c.scoreImpact} pts
                           </span>
                         </div>
                       ))}

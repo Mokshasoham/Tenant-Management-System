@@ -211,6 +211,25 @@ export class FraudSignalService {
       }
     }
 
+    // 7. Phase 3.6.8 Multi-Engine Evidence Fusion Signals
+    if (verification.evidenceFusion) {
+      const fusion = verification.evidenceFusion;
+      if (fusion.conflicts && fusion.conflicts.length > 0) {
+        const fp = this.generateFingerprint('SIG_FUSION_CONFLICT_DETECTED', fusion.synthesisId || 'FUSION_CONFLICT', 'Phase3.6.8');
+        signals.push({
+          signalFingerprint: fp,
+          signalCode: 'SIG_FUSION_CONFLICT_DETECTED',
+          category: 'BEHAVIORAL',
+          severity: fusion.conflicts.some((c) => c.severity === 'CRITICAL') ? 'CRITICAL' : 'HIGH',
+          scoreImpact: 25,
+          confidence: 90,
+          description: `Multi-Engine Evidence Fusion detected ${fusion.conflicts.length} cross-engine discrepancies`,
+          evidenceRef: fusion.synthesisId || 'FUSION_CONFLICT',
+          detectedAt: new Date(),
+        });
+      }
+    }
+
     logger.debug(`[FraudSignalService] Extracted ${signals.length} signals for verification ${verification._id}`);
     return signals;
   }

@@ -342,6 +342,11 @@ export const verificationService = {
   confirmSanctionMatch: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/sanction/confirm`, data, { headers }),
   dismissSanctionMatch: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/sanction/dismiss`, data, { headers }),
   unlockSanctionScreening: (id, data) => apiClient.post(`/verifications/${id}/sanction/unlock`, data),
+  synthesizeEvidence: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fusion/synthesize`, data, { headers }),
+  getFusionStatus: (id) => apiClient.get(`/verifications/${id}/fusion/status`),
+  confirmFusionRecommendation: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fusion/confirm`, data, { headers }),
+  overrideFusionRecommendation: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fusion/override`, data, { headers }),
+  unlockFusion: (id, data) => apiClient.post(`/verifications/${id}/fusion/unlock`, data),
 };
 
 export default apiClient;

@@ -7,6 +7,7 @@ import facialVerificationService from './facialVerificationService.js';
 import videoKycService from './videoKycService.js';
 import fraudDetectionService from './fraudDetectionService.js';
 import sanctionScreeningService from './sanctionScreeningService.js';
+import evidenceFusionService from './evidenceFusionService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -869,6 +870,28 @@ export class VerificationService {
     return await sanctionScreeningService.unlockSanctionScreening(verificationId, requesterUser, payload, idempotencyKey);
   }
 
+  // ── Phase 3.6.8 Multi-Engine Evidence Fusion Services ───────────────────
+
+  async synthesizeEvidence(verificationId, requesterUser = {}, options = {}) {
+    return await evidenceFusionService.synthesizeEvidence(verificationId, requesterUser, options);
+  }
+
+  async getFusionStatus(verificationId, requesterUser = {}) {
+    return await evidenceFusionService.getFusionStatus(verificationId, requesterUser);
+  }
+
+  async confirmFusionRecommendation(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await evidenceFusionService.confirmFusionRecommendation(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
+  async overrideFusionRecommendation(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await evidenceFusionService.overrideFusionRecommendation(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
+  async unlockFusion(verificationId, requesterUser = {}, payload = {}, idempotencyKey = '') {
+    return await evidenceFusionService.unlockFusion(verificationId, requesterUser, payload, idempotencyKey);
+  }
+
   // ── Scheduled Maintenance Sweep ──────────────────────────────
 
   async runVerificationMaintenanceJobs() {
@@ -887,6 +910,7 @@ export class VerificationService {
       const fraudPurgeRes = await fraudDetectionService.purgeExpiredFraudMetadata();
       const sanctionMonitoringRes = await sanctionScreeningService.runContinuousMonitoring();
       const sanctionPurgeRes = await sanctionScreeningService.purgeExpiredSanctionMetadata();
+      const fusionPurgeRes = await evidenceFusionService.purgeExpiredFusionMetadata();
 
       logger.info('[VerificationService] Completed verification maintenance sweep safely.');
 
@@ -898,6 +922,7 @@ export class VerificationService {
         fraudMetadataPurged: fraudPurgeRes?.modifiedCount || 0,
         sanctionMonitoring: sanctionMonitoringRes?.status || 'COMPLETED',
         sanctionMetadataPurged: sanctionPurgeRes?.purgedCount || 0,
+        fusionMetadataPurged: fusionPurgeRes || 0,
       };
     } catch (err) {
       logger.error(`[VerificationService] Maintenance sweep error: ${err.message}`);
