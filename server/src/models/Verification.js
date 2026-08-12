@@ -137,6 +137,23 @@ const VerificationSchema = new mongoose.Schema(
             'EXPIRY_WARNING',
             'EXPIRED',
             'RENEWAL_SUBMITTED',
+            'AADHAAR_INITIATED',
+            'AADHAAR_VERIFIED',
+            'AADHAAR_FAILED',
+            'AADHAAR_UNLOCKED',
+            'PAN_VERIFIED',
+            'PAN_MISMATCH',
+            'PAN_FAILED',
+            'PAN_UNLOCKED',
+            'GST_VERIFIED',
+            'GST_INACTIVE',
+            'GST_FAILED',
+            'GST_UNLOCKED',
+            'FRAUD_RISK_CALCULATED',
+            'FRAUD_CONFIRMED',
+            'FRAUD_DISMISSED',
+            'FRAUD_UNLOCKED',
+            'FRAUD_UNAVAILABLE',
           ],
         },
         performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -743,6 +760,113 @@ const VerificationSchema = new mongoose.Schema(
       ],
     },
 
+    // Real Aadhaar Verification Sub-document (Phase 3.6.4)
+    // ZERO PLAINTEXT AADHAAR NUMBERS STORED
+    aadhaarVerification: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      providerRequestId: { type: String, default: '' },
+      maskedAadhaarNumber: { type: String, default: '' },
+      encryptedAadhaarReference: { type: String, default: '' },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'OTP_SENT', 'VERIFIED', 'FAILED', 'UNAVAILABLE', 'EXPIRED'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: null },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      otpSentAt: { type: Date, default: null },
+      otpExpiresAt: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          providerRequestId: { type: String, default: '' },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
+    // Real PAN Verification Sub-document (Phase 3.6.4)
+    // ZERO PLAINTEXT PAN NUMBERS STORED
+    panVerification: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      providerRequestId: { type: String, default: '' },
+      maskedPanNumber: { type: String, default: '' },
+      encryptedPanReference: { type: String, default: '' },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PENDING', 'VERIFIED', 'MISMATCH', 'FAILED', 'UNAVAILABLE'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: null },
+      matchDetails: {
+        nameMatched: { type: Boolean, default: false },
+        dobMatched: { type: Boolean, default: false },
+        panStatus: { type: String, default: 'VALID' },
+      },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          providerRequestId: { type: String, default: '' },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
+    // Real GST Verification Sub-document (Phase 3.6.4)
+    // ZERO PLAINTEXT GSTIN STORED (gstin field strictly omitted)
+    gstVerification: {
+      provider: { type: String, enum: ['development', 'production'], default: 'development' },
+      providerRequestId: { type: String, default: '' },
+      maskedGstin: { type: String, default: '' },
+      encryptedGstReference: { type: String, default: '' },
+      verificationStatus: {
+        type: String,
+        enum: ['NOT_STARTED', 'PENDING', 'VERIFIED', 'INACTIVE', 'FAILED', 'UNAVAILABLE'],
+        default: 'NOT_STARTED',
+      },
+      confidenceScore: { type: Number, min: 0, max: 100, default: null },
+      businessDetails: {
+        legalName: { type: String, default: '' },
+        tradeName: { type: String, default: '' },
+        gstinStatus: { type: String, default: 'ACTIVE' },
+        taxpayerType: { type: String, default: '' },
+        registrationDate: { type: Date, default: null },
+      },
+      lockStatus: {
+        type: String,
+        enum: ['NONE', 'LOCKED', 'ADMIN_UNLOCKED'],
+        default: 'NONE',
+      },
+      lockedUntil: { type: Date, default: null },
+      verifiedAt: { type: Date, default: null },
+      attempts: [
+        {
+          attemptNumber: { type: Number, required: true },
+          providerRequestId: { type: String, default: '' },
+          status: { type: String, required: true },
+          reason: { type: String, default: '' },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+
     // Verification SLA Tracking
     sla: {
       submittedAt: { type: Date, default: null },
@@ -810,6 +934,12 @@ VerificationSchema.index({ 'evidenceFusion.recommendation': 1, isDeleted: 1 });
 VerificationSchema.index({ 'evidenceFusion.unifiedScore': 1, isDeleted: 1 });
 VerificationSchema.index({ 'evidenceFusion.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ 'evidenceFusion.metadataRetentionExpiresAt': 1, isDeleted: 1 });
+VerificationSchema.index({ 'aadhaarVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'aadhaarVerification.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'panVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'panVerification.lockStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'gstVerification.verificationStatus': 1, isDeleted: 1 });
+VerificationSchema.index({ 'gstVerification.lockStatus': 1, isDeleted: 1 });
 VerificationSchema.index({ isDeleted: 1 });
 
 export default mongoose.model('Verification', VerificationSchema);

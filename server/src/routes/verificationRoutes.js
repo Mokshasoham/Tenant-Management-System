@@ -64,6 +64,16 @@ import {
   verifyLedgerIntegrity,
   triggerRecertification,
   downloadCompliancePackage,
+  initiateAadhaarVerification,
+  verifyAadhaarOtp,
+  getAadhaarStatus,
+  unlockAadhaar,
+  verifyPanDocument,
+  getPanStatus,
+  unlockPan,
+  verifyGstinDocument,
+  getGstStatus,
+  unlockGst,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -148,6 +158,20 @@ router.get('/:id/compliance/ledger', getComplianceLedger);
 router.get('/:id/compliance/verify', authorize('admin'), verifyLedgerIntegrity);
 router.post('/:id/compliance/recertify', authorize('admin', 'manager'), triggerRecertification);
 router.get('/:id/compliance/export', authorize('admin', 'manager'), downloadCompliancePackage);
+
+// ── Phase 3.6.4 Aadhaar, PAN & GST Verification Routes ────────────
+router.post('/:id/aadhaar/initiate', initiateAadhaarVerification);
+router.post('/:id/aadhaar/verify', verifyAadhaarOtp);
+router.get('/:id/aadhaar/status', getAadhaarStatus);
+router.post('/:id/aadhaar/unlock', authorize('admin'), unlockAadhaar);
+
+router.post('/:id/pan/verify', verifyPanDocument);
+router.get('/:id/pan/status', getPanStatus);
+router.post('/:id/pan/unlock', authorize('admin'), unlockPan);
+
+router.post('/:id/gst/verify', verifyGstinDocument);
+router.get('/:id/gst/status', getGstStatus);
+router.post('/:id/gst/unlock', authorize('admin'), unlockGst);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

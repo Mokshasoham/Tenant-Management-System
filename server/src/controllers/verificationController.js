@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 import verificationService from '../services/verificationService.js';
+import aadhaarVerificationService from '../services/aadhaarVerificationService.js';
+import panVerificationService from '../services/panVerificationService.js';
+import gstVerificationService from '../services/gstVerificationService.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 
 const ALLOWED_ENTITY_TYPES = ['TENANT', 'MANAGER', 'PROPERTY', 'TECHNICIAN', 'VENDOR', 'BROKER'];
@@ -1427,6 +1430,145 @@ export const downloadCompliancePackage = asyncHandler(async (req, res) => {
     success: true,
     message: 'Compliance package exported successfully',
     data: exportPackage,
+  });
+});
+
+// ── Phase 3.6.4 Controllers ─────────────────────────────
+
+// 64. POST /api/verifications/:id/aadhaar/initiate
+export const initiateAadhaarVerification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await aadhaarVerificationService.initiateAadhaarOtp(id, req.body, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'Aadhaar OTP dispatched successfully',
+    data: result,
+  });
+});
+
+// 65. POST /api/verifications/:id/aadhaar/verify
+export const verifyAadhaarOtp = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await aadhaarVerificationService.verifyAadhaarOtp(id, req.body, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'Aadhaar verification evaluated successfully',
+    data: result,
+  });
+});
+
+// 66. GET /api/verifications/:id/aadhaar/status
+export const getAadhaarStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await aadhaarVerificationService.getAadhaarStatus(id, req.user);
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+// 67. POST /api/verifications/:id/aadhaar/unlock (Admin Only)
+export const unlockAadhaar = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await aadhaarVerificationService.unlockAadhaarVerification(id, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'Aadhaar verification unlocked successfully',
+    data: result,
+  });
+});
+
+// 68. POST /api/verifications/:id/pan/verify
+export const verifyPanDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await panVerificationService.verifyPan(id, req.body, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'PAN verification evaluated successfully',
+    data: result,
+  });
+});
+
+// 69. GET /api/verifications/:id/pan/status
+export const getPanStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await panVerificationService.getPanStatus(id, req.user);
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+// 70. POST /api/verifications/:id/pan/unlock (Admin Only)
+export const unlockPan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await panVerificationService.unlockPanVerification(id, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'PAN verification unlocked successfully',
+    data: result,
+  });
+});
+
+// 71. POST /api/verifications/:id/gst/verify
+export const verifyGstinDocument = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await gstVerificationService.verifyGstin(id, req.body, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'GSTIN verification evaluated successfully',
+    data: result,
+  });
+});
+
+// 72. GET /api/verifications/:id/gst/status
+export const getGstStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await gstVerificationService.getGstStatus(id, req.user);
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+// 73. POST /api/verifications/:id/gst/unlock (Admin Only)
+export const unlockGst = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+  const result = await gstVerificationService.unlockGstVerification(id, req.user);
+  res.status(200).json({
+    success: true,
+    message: 'GSTIN verification unlocked successfully',
+    data: result,
   });
 });
 

@@ -113,6 +113,29 @@ const config = {
   SANCTION_METADATA_RETENTION_DAYS: parseInt(process.env.SANCTION_METADATA_RETENTION_DAYS || '90', 10),
   SANCTION_AUDIT_RETENTION_DAYS: parseInt(process.env.SANCTION_AUDIT_RETENTION_DAYS || '2555', 10),
 
+  // Phase 3.6.4 Aadhaar / PAN / GST Configuration
+  REAL_AADHAAR_VERIFICATION: process.env.REAL_AADHAAR_VERIFICATION === 'true' || false,
+  AADHAAR_PROVIDER_API_KEY: process.env.AADHAAR_PROVIDER_API_KEY || '',
+  AADHAAR_PROVIDER_URL: process.env.AADHAAR_PROVIDER_URL || '',
+  AADHAAR_TIMEOUT_MS: parseInt(process.env.AADHAAR_TIMEOUT_MS || '10000', 10),
+  AADHAAR_MAX_ATTEMPTS: parseInt(process.env.AADHAAR_MAX_ATTEMPTS || '3', 10),
+  AADHAAR_ATTEMPT_WINDOW_HOURS: parseInt(process.env.AADHAAR_ATTEMPT_WINDOW_HOURS || '24', 10),
+
+  REAL_PAN_VERIFICATION: process.env.REAL_PAN_VERIFICATION === 'true' || false,
+  PAN_PROVIDER_API_KEY: process.env.PAN_PROVIDER_API_KEY || '',
+  PAN_PROVIDER_URL: process.env.PAN_PROVIDER_URL || '',
+  PAN_TIMEOUT_MS: parseInt(process.env.PAN_TIMEOUT_MS || '10000', 10),
+  PAN_MAX_ATTEMPTS: parseInt(process.env.PAN_MAX_ATTEMPTS || '3', 10),
+  PAN_ATTEMPT_WINDOW_HOURS: parseInt(process.env.PAN_ATTEMPT_WINDOW_HOURS || '24', 10),
+
+  REAL_GST_VERIFICATION: process.env.REAL_GST_VERIFICATION === 'true' || false,
+  GST_PROVIDER_API_KEY: process.env.GST_PROVIDER_API_KEY || '',
+  GST_PROVIDER_URL: process.env.GST_PROVIDER_URL || '',
+  GST_TIMEOUT_MS: parseInt(process.env.GST_TIMEOUT_MS || '10000', 10),
+  GST_MAX_ATTEMPTS: parseInt(process.env.GST_MAX_ATTEMPTS || '3', 10),
+  GST_ATTEMPT_WINDOW_HOURS: parseInt(process.env.GST_ATTEMPT_WINDOW_HOURS || '24', 10),
+  GST_ENABLED: process.env.GST_ENABLED === 'true' || false,
+
   ENGINE_VERSION: process.env.ENGINE_VERSION || 'demo-v1',
   VERIFICATION_OTP_MODE: process.env.VERIFICATION_OTP_MODE || 'MOCK',
   IDENTITY_VERIFICATION_MODE: process.env.IDENTITY_VERIFICATION_MODE || 'DEMO',
