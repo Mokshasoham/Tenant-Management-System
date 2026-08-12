@@ -123,7 +123,20 @@ try {
 app.use(helmetConfig);
 app.use(compression());
 app.use(cors({
-  origin: config.CORS_ORIGIN,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowedOrigins = [
+      config.CORS_ORIGIN,
+      'https://main.d1fq6q7ihzuzlq.amplifyapp.com',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+    ].filter(Boolean);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.amplifyapp.com') || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy error: Origin not allowed'), false);
+  },
   credentials: true,
 }));
 
