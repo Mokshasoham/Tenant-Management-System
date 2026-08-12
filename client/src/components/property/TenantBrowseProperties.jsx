@@ -14,8 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { getDisplayStatus } from '../../utils/propertyHelper';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
-// ── Lazy-load the map so Leaflet errors never crash the whole page ──
-const InteractivePropertyMap = lazy(() => import('../PropertyMap'));
+import InteractivePropertyMap from '../PropertyMap';
 
 // ── Error boundary – catches any map rendering crash ──
 class MapErrorBoundary extends React.Component {

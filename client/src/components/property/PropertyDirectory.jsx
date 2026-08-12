@@ -15,8 +15,7 @@ import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
-// ── Lazy-load Leaflet Map ──
-const InteractivePropertyMap = lazy(() => import('../PropertyMap'));
+import InteractivePropertyMap from '../PropertyMap';
 
 // ── Map Error Boundary ──
 class MapErrorBoundary extends React.Component {
