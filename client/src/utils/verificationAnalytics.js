@@ -61,7 +61,7 @@ export const VERIFICATION_EVENTS = {
  */
 export function trackEvent(eventName, metadata = {}) {
   try {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       console.debug(`[Analytics Event] ${eventName}`, metadata);
     }
     // Production integration hook:

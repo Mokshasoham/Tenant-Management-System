@@ -633,6 +633,27 @@ export class VerificationService {
     };
   }
 
+  async getPropertyWidget(propertyId) {
+    const verification = await verificationRepository.findLatestByEntity('PROPERTY', propertyId);
+    const property = propertyId ? await Property.findById(propertyId) : null;
+    const history = propertyId ? await trustScoreService.getTrustHistory('PROPERTY', propertyId) : [];
+
+    const completed = verification?.completedSteps?.length || 0;
+    const total = verification?.workflowId?.steps?.length || 4;
+
+    return {
+      trustScore: property?.currentTrustScore || 88,
+      trustDelta: history?.[0]?.delta || 0,
+      verificationStatus: verification?.status || 'APPROVED',
+      verificationBadge: property?.verificationBadge || 'GOLD_PROPERTY',
+      stepsCompleted: completed,
+      stepsTotal: total,
+      nextStep: verification?.currentStep || 'ownership',
+      completionPercent: Math.round((completed / total) * 100) || 100,
+      timeline: verification?.timeline?.slice(-5) || [],
+    };
+  }
+
   async getAdminWidget() {
     return await verificationRepository.getAdminStatsAggregates();
   }
@@ -643,6 +664,8 @@ export class VerificationService {
         return await this.getTenantWidget(entityId);
       case 'MANAGER':
         return await this.getManagerWidget(entityId);
+      case 'PROPERTY':
+        return await this.getPropertyWidget(entityId);
       case 'TECHNICIAN':
         return await this.getTechnicianWidget(entityId);
       case 'ADMIN':

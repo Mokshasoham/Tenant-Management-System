@@ -296,7 +296,7 @@ export default function OperationsObservabilityTab() {
             </div>
             <div className="flex justify-between py-1 border-b border-border/50">
               <span className="text-muted-foreground font-medium">Node Version</span>
-              <span className="font-bold text-foreground">{versionInfo?.nodeVersion || process.env.NODE_VERSION || 'v20.x'}</span>
+              <span className="font-bold text-foreground">{versionInfo?.nodeVersion || (typeof process !== 'undefined' && process.env?.NODE_VERSION) || 'v20.x'}</span>
             </div>
           </div>
         </div>
