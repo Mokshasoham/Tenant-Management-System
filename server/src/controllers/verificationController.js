@@ -1337,4 +1337,97 @@ export const unlockFusion = asyncHandler(async (req, res) => {
   });
 });
 
+// ── Phase 3.6.9 Compliance Ledger & Audit Route Handlers ───────────────────
+
+// 60. GET /api/verifications/:id/compliance/ledger
+export const getComplianceLedger = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const ledgerData = await verificationService.getComplianceLedger(id, requesterUser);
+
+  res.status(200).json({
+    success: true,
+    data: ledgerData,
+  });
+});
+
+// 61. GET /api/verifications/:id/compliance/verify (Admin Only)
+export const verifyLedgerIntegrity = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const integrityResult = await verificationService.verifyLedgerIntegrity(id);
+
+  res.status(200).json({
+    success: true,
+    data: integrityResult,
+  });
+});
+
+// 62. POST /api/verifications/:id/compliance/recertify (Admin / Manager Only)
+export const triggerRecertification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { decision, notes } = req.body;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const result = await verificationService.triggerRecertification(
+    id,
+    requesterUser,
+    decision || 'APPROVE',
+    notes || ''
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Recertification evaluated successfully',
+    data: result,
+  });
+});
+
+// 63. GET /api/verifications/:id/compliance/export (Admin / Manager Only)
+export const downloadCompliancePackage = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const requesterUser = {
+    id: req.user.userId || req.user._id || req.user.id,
+    role: req.user.role || 'user',
+  };
+  const options = {
+    idempotencyKey: req.headers['idempotency-key'] || req.query.idempotencyKey || null,
+  };
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError('Invalid verification ID format', 400);
+  }
+
+  const exportPackage = await verificationService.downloadCompliancePackage(
+    id,
+    requesterUser,
+    options
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Compliance package exported successfully',
+    data: exportPackage,
+  });
+});
+
 

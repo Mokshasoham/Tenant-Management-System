@@ -60,6 +60,10 @@ import {
   confirmFusionRecommendation,
   overrideFusionRecommendation,
   unlockFusion,
+  getComplianceLedger,
+  verifyLedgerIntegrity,
+  triggerRecertification,
+  downloadCompliancePackage,
 } from '../controllers/verificationController.js';
 
 const router = express.Router();
@@ -138,6 +142,12 @@ router.get('/:id/fusion/status', getFusionStatus);
 router.post('/:id/fusion/confirm', authorize('admin', 'manager'), confirmFusionRecommendation);
 router.post('/:id/fusion/override', authorize('admin', 'manager'), overrideFusionRecommendation);
 router.post('/:id/fusion/unlock', authorize('admin'), unlockFusion);
+
+// ── Phase 3.6.9 Compliance Ledger & Regulatory Audit Routes ───────
+router.get('/:id/compliance/ledger', getComplianceLedger);
+router.get('/:id/compliance/verify', authorize('admin'), verifyLedgerIntegrity);
+router.post('/:id/compliance/recertify', authorize('admin', 'manager'), triggerRecertification);
+router.get('/:id/compliance/export', authorize('admin', 'manager'), downloadCompliancePackage);
 
 // ── Item Action Routes ─────────────────────────────────────────────
 router.get('/:id', getVerificationById);

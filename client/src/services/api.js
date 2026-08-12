@@ -347,6 +347,10 @@ export const verificationService = {
   confirmFusionRecommendation: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fusion/confirm`, data, { headers }),
   overrideFusionRecommendation: (id, data, headers = {}) => apiClient.post(`/verifications/${id}/fusion/override`, data, { headers }),
   unlockFusion: (id, data) => apiClient.post(`/verifications/${id}/fusion/unlock`, data),
+  getComplianceLedger: (id) => apiClient.get(`/verifications/${id}/compliance/ledger`),
+  verifyLedgerIntegrity: (id) => apiClient.get(`/verifications/${id}/compliance/verify`),
+  triggerRecertification: (id, data) => apiClient.post(`/verifications/${id}/compliance/recertify`, data),
+  downloadCompliancePackage: (id, params = {}) => apiClient.get(`/verifications/${id}/compliance/export`, { params }),
 };
 
 export default apiClient;

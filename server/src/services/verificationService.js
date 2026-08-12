@@ -8,6 +8,7 @@ import videoKycService from './videoKycService.js';
 import fraudDetectionService from './fraudDetectionService.js';
 import sanctionScreeningService from './sanctionScreeningService.js';
 import evidenceFusionService from './evidenceFusionService.js';
+import complianceLedgerService from './complianceLedgerService.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
@@ -892,6 +893,24 @@ export class VerificationService {
     return await evidenceFusionService.unlockFusion(verificationId, requesterUser, payload, idempotencyKey);
   }
 
+  // ── Phase 3.6.9 Compliance Ledger & Regulatory Audit Methods ───────────
+
+  async getComplianceLedger(verificationId, requesterUser = {}) {
+    return await complianceLedgerService.getAuditHistory(verificationId, requesterUser);
+  }
+
+  async verifyLedgerIntegrity(verificationId) {
+    return await complianceLedgerService.verifyLedgerIntegrity(verificationId);
+  }
+
+  async triggerRecertification(verificationId, requesterUser = {}, decision = 'APPROVE', notes = '') {
+    return await complianceLedgerService.recertifyVerification(verificationId, decision, requesterUser, notes);
+  }
+
+  async downloadCompliancePackage(verificationId, requesterUser = {}, options = {}) {
+    return await complianceLedgerService.generateCompliancePackage(verificationId, requesterUser, options);
+  }
+
   // ── Scheduled Maintenance Sweep ──────────────────────────────
 
   async runVerificationMaintenanceJobs() {
@@ -911,6 +930,7 @@ export class VerificationService {
       const sanctionMonitoringRes = await sanctionScreeningService.runContinuousMonitoring();
       const sanctionPurgeRes = await sanctionScreeningService.purgeExpiredSanctionMetadata();
       const fusionPurgeRes = await evidenceFusionService.purgeExpiredFusionMetadata();
+      const recertificationRes = await complianceLedgerService.triggerRecertificationSweep();
 
       logger.info('[VerificationService] Completed verification maintenance sweep safely.');
 
@@ -923,6 +943,7 @@ export class VerificationService {
         sanctionMonitoring: sanctionMonitoringRes?.status || 'COMPLETED',
         sanctionMetadataPurged: sanctionPurgeRes?.purgedCount || 0,
         fusionMetadataPurged: fusionPurgeRes || 0,
+        recertificationSweep: recertificationRes || {},
       };
     } catch (err) {
       logger.error(`[VerificationService] Maintenance sweep error: ${err.message}`);

@@ -116,6 +116,13 @@ export const EventTypes = {
     SYNTHESIS_OVERRIDDEN: 'synthesis.verification.overridden',
     SYNTHESIS_UNLOCKED: 'synthesis.verification.unlocked',
     SYNTHESIS_METADATA_PURGED: 'synthesis.metadata.purged',
+    COMPLIANCE_AUDIT_LOGGED: 'compliance.audit.logged',
+    LEDGER_VERIFIED: 'compliance.ledger.verified',
+    LEDGER_TAMPER_DETECTED: 'compliance.ledger.tamper_detected',
+    RECERTIFICATION_TRIGGERED: 'compliance.recertification.triggered',
+    RECERTIFICATION_COMPLETED: 'compliance.recertification.completed',
+    VERIFICATION_EXPIRED: 'compliance.verification.expired',
+    AUDIT_PACKAGE_GENERATED: 'compliance.audit_package.generated',
   }
 };
 

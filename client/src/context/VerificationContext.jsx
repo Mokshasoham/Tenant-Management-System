@@ -674,6 +674,59 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const getComplianceLedger = useCallback(async (id) => {
+    try {
+      const res = await verificationService.getComplianceLedger(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const verifyLedgerIntegrity = useCallback(async (id) => {
+    try {
+      const res = await verificationService.verifyLedgerIntegrity(id);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    }
+  }, []);
+
+  const triggerRecertification = useCallback(async (id, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.triggerRecertification(id, payload);
+      const data = res?.data || res;
+      return data;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const downloadCompliancePackage = useCallback(async (id, params) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await verificationService.downloadCompliancePackage(id, params);
+      return res?.data || res;
+    } catch (err) {
+      const errMsg = formatVerificationApiError(err);
+      setError(errMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     verifications,
     activeVerification,
@@ -737,6 +790,10 @@ export const VerificationProvider = ({ children }) => {
     confirmFusionRecommendation,
     overrideFusionRecommendation,
     unlockFusion,
+    getComplianceLedger,
+    verifyLedgerIntegrity,
+    triggerRecertification,
+    downloadCompliancePackage,
   };
 
   return (

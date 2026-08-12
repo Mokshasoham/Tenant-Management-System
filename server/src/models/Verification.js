@@ -611,6 +611,26 @@ const VerificationSchema = new mongoose.Schema(
       metadataRetentionExpiresAt: { type: Date, default: null },
     },
 
+    // Verification Compliance Ledger, Recertification & Audit Sub-document (Phase 3.6.9)
+    complianceAudit: {
+      ledgerSequenceCount: { type: Number, default: 0 },
+      latestHash: { type: String, default: '0000000000000000000000000000000000000000000000000000000000000000' },
+      recertificationStatus: {
+        type: String,
+        enum: ['CURRENT', 'RECERTIFICATION_DUE', 'EXPIRED'],
+        default: 'CURRENT',
+      },
+      lastRecertifiedAt: { type: Date, default: null },
+      nextRecertificationDueAt: { type: Date, default: null },
+      auditPackageReference: { type: String, default: null },
+      lastAuditExportAt: { type: Date, default: null },
+      syncState: {
+        type: String,
+        enum: ['HEALTHY', 'DEGRADED_PENDING_RETRY'],
+        default: 'HEALTHY',
+      },
+    },
+
     // Verification Outcome
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verificationRemarks: { type: String, default: '' },
