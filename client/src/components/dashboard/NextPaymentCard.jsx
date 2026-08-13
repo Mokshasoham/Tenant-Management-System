@@ -29,9 +29,9 @@ export default function NextPaymentCard({
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 border border-emerald-500/20">
           <CheckCircle2 className="w-6 h-6" />
         </div>
-        <h3 className="text-base font-black text-foreground">{t('dashboard.allCaughtUp') || "You're All Caught Up"}</h3>
+        <h3 className="text-base font-black text-foreground">{t('dashboard.allCaughtUp', "You're All Caught Up")}</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-          {t('dashboard.noPendingPayments') || "No upcoming or pending rent payments at this time."}
+          {t('dashboard.noPendingPayments', "No upcoming or pending rent payments at this time.")}
         </p>
       </div>
     );
@@ -110,7 +110,7 @@ export default function NextPaymentCard({
           </div>
           <div>
             <h3 className="text-xs font-black uppercase tracking-widest text-foreground/90">
-              {t('dashboard.nextPayment') || 'Upcoming Payment'}
+              {t('dashboard.nextPayment', 'Upcoming Payment')}
             </h3>
             {propertyName && (
               <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider truncate max-w-[130px]" title={propertyName}>
@@ -217,7 +217,7 @@ export default function NextPaymentCard({
       <div className="relative z-10 my-3 grid grid-cols-2 gap-2 text-center">
         <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-            {isEstimate ? 'Estimated Due' : t('dashboard.due') || 'Due Date'}
+            {isEstimate ? 'Estimated Due' : t('dashboard.due', 'Due Date')}
           </p>
           <p className="text-xs font-black text-foreground truncate">
             {formattedDueDate}
@@ -225,7 +225,7 @@ export default function NextPaymentCard({
         </div>
         <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-            {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue') || 'Amount'}
+            {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue', 'Amount')}
           </p>
           <p className="text-xs font-black text-emerald-500 dark:text-emerald-400 truncate">
             ₹{(amount || 0).toLocaleString('en-IN')}
@@ -242,7 +242,7 @@ export default function NextPaymentCard({
           className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm tracking-wide shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all duration-300 group/btn border border-white/20 cursor-pointer"
         >
           <CreditCard className="w-4 h-4 text-emerald-100 group-hover/btn:rotate-12 transition-transform duration-300" />
-          <span>{t('dashboard.payRentNow') || 'Pay Rent'}</span>
+          <span>{t('dashboard.payRentNow', 'Pay Rent Now')}</span>
           <ArrowRight className="w-4 h-4 text-emerald-100 group-hover/btn:translate-x-1 transition-transform duration-300" />
         </motion.button>
       </div>
