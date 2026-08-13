@@ -10,6 +10,7 @@ import {
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import { useLanguage } from '../../context/LanguageContext';
+import NextPaymentCard from '../../components/dashboard/NextPaymentCard';
 
 const getStatusStyle = (status) => ({
     active: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -79,63 +80,15 @@ function LeaseProgress({ start, end }) {
     );
 }
 
-function PaymentCountdown({ dueDate, amount, isEstimate, propertyName }) {
-    const { t } = useLanguage();
-    const due = new Date(dueDate);
-    const diff = due - Date.now();
-    const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-    const isOverdue = diff < 0 && !isEstimate;
-
-    const size = 100;
-    const RADIUS = 40;
-    const circumference = 2 * Math.PI * RADIUS;
-    const percentage = Math.max(0, Math.min(100, Math.round((days / 30) * 100)));
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
-    const label = isOverdue ? t('dashboard.overdue') : t('dashboard.daysLeft');
-
+function PaymentCountdown({ dueDate, amount, isEstimate, propertyName, onPayRent }) {
     return (
-        <div className="flex flex-col items-center gap-3 w-full max-w-[240px] mx-auto">
-            <div className="relative w-28 h-28 flex items-center justify-center">
-                {/* SVG Progress Circle */}
-                <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90 absolute">
-                    <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="8" />
-                    <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor"
-                        className={cn('transition-all duration-500', isOverdue ? 'text-rose-500' : 'text-emerald-500')}
-                        strokeWidth="8"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={strokeDashoffset}
-                        strokeLinecap="round"
-                    />
-                </svg>
-                {/* Center text in SVG */}
-                <div className="flex flex-col items-center justify-center z-10">
-                    <p className={cn('text-3xl font-black tabular-nums leading-none', isOverdue ? 'text-rose-500' : 'text-emerald-500')}>
-                        {isOverdue ? '!' : days}
-                    </p>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mt-1 text-center">
-                        {label}
-                    </p>
-                </div>
-            </div>
-
-            <div className="text-center w-full">
-                <p className="text-xs text-muted-foreground/60">
-                    {isEstimate ? 'Estimated Due:' : `${t('dashboard.due')}:`} {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
-                {propertyName && (
-                    <p className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest mt-0.5 truncate px-2" title={propertyName}>
-                        {propertyName}
-                    </p>
-                )}
-            </div>
-
-            <div className="w-full p-3 rounded-2xl bg-muted/40 border border-border text-center">
-                <p className="text-2xl font-black text-foreground">₹{(amount || 0).toLocaleString('en-IN')}</p>
-                <p className="text-[9px] text-muted-foreground/50 font-black uppercase tracking-widest mt-0.5">
-                    {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue')}
-                </p>
-            </div>
-        </div>
+        <NextPaymentCard
+            dueDate={dueDate}
+            amount={amount}
+            isEstimate={isEstimate}
+            propertyName={propertyName}
+            onPayRent={onPayRent}
+        />
     );
 }
 
@@ -702,72 +655,65 @@ export default function TenantDashboard({ user, navigate }) {
 
                 {/* Next Payment Countdown Column (Right 1 column) */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                    className="rounded-2xl border border-border bg-card p-5 flex flex-col h-full min-h-[300px] justify-center">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
-                            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <p className="text-sm font-black text-foreground">{t('dashboard.nextPayment')}</p>
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-center w-full">
-                        {activePaymentsToShow.length > 1 ? (
-                            <div className="flex flex-col items-center w-full">
-                                {/* Staggered Animating Switcher */}
-                                <div className="w-full relative min-h-[220px] flex items-center justify-center">
-                                    <AnimatePresence mode="wait">
-                                        <motion.div
-                                            key={activePaymentIndex}
-                                            initial={{ opacity: 0, x: 25, scale: 0.95 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            exit={{ opacity: 0, x: -25, scale: 0.95 }}
-                                            transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-                                            className="w-full absolute"
-                                        >
-                                            <PaymentCountdown
-                                                dueDate={activePaymentsToShow[activePaymentIndex].dueDate}
-                                                amount={activePaymentsToShow[activePaymentIndex].amount}
-                                                isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
-                                                propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
-                                            />
-                                        </motion.div>
-                                    </AnimatePresence>
-                                </div>
+                    className="flex flex-col h-full">
+                    {activePaymentsToShow.length > 1 ? (
+                        <div className="flex flex-col items-center w-full h-full">
+                            {/* Staggered Animating Switcher */}
+                            <div className="w-full relative flex-1 min-h-[320px] flex items-center justify-center">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={activePaymentIndex}
+                                        initial={{ opacity: 0, x: 25, scale: 0.95 }}
+                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                        exit={{ opacity: 0, x: -25, scale: 0.95 }}
+                                        transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                                        className="w-full h-full"
+                                    >
+                                        <NextPaymentCard
+                                            dueDate={activePaymentsToShow[activePaymentIndex].dueDate}
+                                            amount={activePaymentsToShow[activePaymentIndex].amount}
+                                            isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
+                                            propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
+                                            onPayRent={() => navigate('/pay-now')}
+                                        />
+                                    </motion.div>
+                                </AnimatePresence>
+                            </div>
 
-                                {/* Premium Dot/Pill Selectors */}
-                                <div className="flex flex-wrap items-center justify-center gap-2 mt-4 pt-3 border-t border-border/50 w-full z-25">
-                                    {activePaymentsToShow.map((pmt, idx) => (
-                                        <motion.button
-                                            key={pmt.id}
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => setActivePaymentIndex(idx)}
-                                            className={cn(
-                                                "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 border",
-                                                activePaymentIndex === idx
-                                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-extrabold shadow-sm"
-                                                    : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
-                                            )}
-                                        >
-                                            {pmt.propertyName.split(' ')[0]}
-                                        </motion.button>
-                                    ))}
-                                </div>
+                            {/* Premium Dot/Pill Selectors */}
+                            <div className="flex flex-wrap items-center justify-center gap-2 mt-3 p-2.5 rounded-2xl bg-card/60 border border-border/80 w-full z-25 backdrop-blur-md">
+                                {activePaymentsToShow.map((pmt, idx) => (
+                                    <motion.button
+                                        key={pmt.id}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setActivePaymentIndex(idx)}
+                                        className={cn(
+                                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 border cursor-pointer",
+                                            activePaymentIndex === idx
+                                                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-extrabold shadow-sm"
+                                                : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+                                        )}
+                                    >
+                                        {pmt.propertyName.split(' ')[0]}
+                                    </motion.button>
+                                ))}
                             </div>
-                        ) : activePaymentsToShow.length === 1 ? (
-                            <PaymentCountdown 
-                                dueDate={activePaymentsToShow[0].dueDate} 
-                                amount={activePaymentsToShow[0].amount} 
-                                isEstimate={activePaymentsToShow[0].isEstimate}
-                                propertyName={activePaymentsToShow[0].propertyName}
-                            />
-                        ) : (
-                            <div className="text-center py-6 space-y-2">
-                                <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400 mx-auto" />
-                                <p className="font-bold text-muted-foreground text-sm">{t('dashboard.allCaughtUp')}</p>
-                                <p className="text-xs text-muted-foreground/50">{t('dashboard.noPendingPayments')}</p>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    ) : activePaymentsToShow.length === 1 ? (
+                        <NextPaymentCard 
+                            dueDate={activePaymentsToShow[0].dueDate} 
+                            amount={activePaymentsToShow[0].amount} 
+                            isEstimate={activePaymentsToShow[0].isEstimate}
+                            propertyName={activePaymentsToShow[0].propertyName}
+                            onPayRent={() => navigate('/pay-now')}
+                        />
+                    ) : (
+                        <NextPaymentCard
+                            dueDate={null}
+                            amount={undefined}
+                        />
+                    )}
                 </motion.div>
             </div>
 
