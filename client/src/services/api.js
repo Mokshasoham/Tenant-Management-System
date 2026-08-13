@@ -29,7 +29,7 @@ export const userService = {
   getPeopleMapData: () => apiClient.get('/users/admin/people-map'),
   getPeople: (params) => apiClient.get('/users/admin/people', { params }),
   getAvailableTechnicians: (params) => apiClient.get('/users/technicians/available', { params }),
-  uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData),
 };
 
 export const tenantService = {
@@ -56,7 +56,7 @@ export const propertyService = {
   unsaveProperty: (id) => apiClient.delete(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
   getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
-  uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData),
 };
 
 export const leaseService = {
