@@ -50,7 +50,7 @@ const ALLOWED_MIME_TYPES = {
 const MAX_FILE_SIZE = {
   [FILE_CATEGORIES.CHAT]: 10 * 1024 * 1024,      // 10MB
   [FILE_CATEGORIES.KYC]: 5 * 1024 * 1024,        // 5MB
-  [FILE_CATEGORIES.PROPERTIES]: 25 * 1024 * 1024,// 25MB (Supports HD images & property video clips)
+  [FILE_CATEGORIES.PROPERTIES]: 50 * 1024 * 1024,// 50MB (Supports 4K HD images & property video clips)
   [FILE_CATEGORIES.LEASES]: 10 * 1024 * 1024,    // 10MB
   [FILE_CATEGORIES.INVOICES]: 10 * 1024 * 1024,  // 10MB
   [FILE_CATEGORIES.REVIEWS]: 5 * 1024 * 1024,    // 5MB

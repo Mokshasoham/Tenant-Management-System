@@ -192,6 +192,48 @@ export const downloadFile = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Access file directly by filename (supporting /api/files/access/:filename)
+ */
+export const accessFileByFilename = asyncHandler(async (req, res) => {
+  const { filename } = req.params;
+
+  // 1. Try FileStorage lookup directly
+  const dbFile = await FileStorage.findOne({ filename });
+  if (dbFile) {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', dbFile.mimeType || 'image/webp');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.send(dbFile.data);
+  }
+
+  // 2. Try FileMetadata lookup
+  const meta = await FileMetadata.findOne({
+    $or: [
+      { filename },
+      { key: new RegExp(filename + '$', 'i') },
+      { key: `properties/${filename}` },
+      { key: `chat/${filename}` },
+      { key: `avatars/${filename}` },
+    ]
+  });
+
+  if (meta) {
+    const cleanName = meta.key ? meta.key.split('/').pop() : meta.filename;
+    const fileData = await FileStorage.findOne({ filename: cleanName });
+    if (fileData) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', meta.mimeType || fileData.mimeType || 'image/webp');
+      res.setHeader('Content-Disposition', `inline; filename="${meta.filename || filename}"`);
+      return res.send(fileData.data);
+    }
+  }
+
+  throw new AppError('File not found', 404);
+});
+
+/**
  * Temporary backward-compatible alias resolver.
  * Handles old pathing (/uploads/:category/:filename) internally.
  */

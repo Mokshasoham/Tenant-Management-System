@@ -145,8 +145,14 @@ export default function PropertyModal({ property, onClose, onSave }) {
       'image/*': ['.jpeg', '.jpg', '.png', '.webp'], 
       'video/*': ['.mp4', '.webm', '.mov'] 
     },
-    maxSize: 25 * 1024 * 1024, // 25MB
-    onDrop: acceptedFiles => {
+    maxSize: 50 * 1024 * 1024, // 50MB
+    onDrop: (acceptedFiles, fileRejections) => {
+      if (fileRejections && fileRejections.length > 0) {
+        const rejectionReasons = fileRejections.map(r => `${r.file.name}: ${r.errors.map(e => e.message).join(', ')}`).join('; ');
+        setError(`File rejected: ${rejectionReasons}`);
+      } else {
+        setError('');
+      }
       const newMedia = acceptedFiles.map(file => ({
         file,
         id: Math.random().toString(36).substring(7),
@@ -158,6 +164,23 @@ export default function PropertyModal({ property, onClose, onSave }) {
       setMediaFiles(prev => [...prev, ...newMedia]);
     }
   });
+
+  const getMediaUrl = (rawUrl) => {
+    if (!rawUrl) return '';
+    let u = String(rawUrl).trim();
+    if (u.startsWith('http://localhost') || u.startsWith('http://127.0.0.1')) {
+      u = u.replace(/^https?:\/\/[^\/]+/, '');
+    }
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      return u;
+    }
+    const backendBase = (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname))
+      ? 'https://tenant-management-backend-ohr6.onrender.com'
+      : (import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000');
+    
+    const cleanPath = u.replace(/^\/+/, '');
+    return `${backendBase}/${cleanPath}`;
+  };
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -690,7 +713,7 @@ export default function PropertyModal({ property, onClose, onSave }) {
                 </div>
                 <p className="text-sm font-black text-slate-900 dark:text-slate-100">Drag & drop photos & videos here, or click to browse</p>
                 <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
-                  Supports JPG, PNG, WEBP, MP4, WEBM (Max 25MB per file)
+                  Supports JPG, PNG, WEBP, MP4, WEBM (Max 50MB per file)
                 </p>
               </div>
 
@@ -777,7 +800,15 @@ export default function PropertyModal({ property, onClose, onSave }) {
                             <Video className="w-6 h-6" />
                           </div>
                         ) : (
-                          <img src={m.url} className="w-full h-full object-cover" alt="" />
+                          <img 
+                            src={getMediaUrl(m.url)} 
+                            className="w-full h-full object-cover" 
+                            alt="" 
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
+                            }}
+                          />
                         )}
                       </div>
                     ))}

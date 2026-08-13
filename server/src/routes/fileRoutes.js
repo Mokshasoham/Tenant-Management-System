@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSignedUrlForFile, downloadFile } from '../controllers/fileController.js';
+import { getSignedUrlForFile, downloadFile, accessFileByFilename } from '../controllers/fileController.js';
 import { authenticate } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
 
@@ -18,6 +18,9 @@ const fileLimit = rateLimit({
 });
 
 router.use(fileLimit);
+
+// Direct Access by Filename
+router.get('/access/:filename', accessFileByFilename);
 
 // Secure Signed URL endpoint
 router.get('/signed-url/:fileId', authenticate, getSignedUrlForFile);
