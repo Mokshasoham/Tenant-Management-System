@@ -399,42 +399,42 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
     throw new AppError('No files uploaded', 400);
   }
 
-  const mediaUrls = [];
+  const mediaUrls = await Promise.all(
+    req.files.map(async (file) => {
+      let processedBuffer = file.buffer;
+      let mimeType = file.mimetype;
+      let filename = `property-${id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      let isVideo = file.mimetype.startsWith('video/');
 
-  for (const file of req.files) {
-    let processedBuffer = file.buffer;
-    let mimeType = file.mimetype;
-    let filename = `property-${id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    let isVideo = file.mimetype.startsWith('video/');
+      if (!isVideo) {
+        processedBuffer = await sharp(file.buffer)
+          .resize({ width: 1920, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        mimeType = 'image/webp';
+        filename += '.webp';
+      } else {
+        const ext = file.originalname.split('.').pop();
+        filename += `.${ext}`;
+      }
 
-    if (!isVideo) {
-      processedBuffer = await sharp(file.buffer)
-        .resize({ width: 1920, withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toBuffer();
-      mimeType = 'image/webp';
-      filename += '.webp';
-    } else {
-      const ext = file.originalname.split('.').pop();
-      filename += `.${ext}`;
-    }
+      const uploadResult = await uploadFileBuffer({
+        buffer: processedBuffer,
+        filename,
+        mimeType,
+        category: 'properties',
+        relatedEntityId: property._id,
+        relatedModelName: 'Property'
+      });
 
-    const uploadResult = await uploadFileBuffer({
-      buffer: processedBuffer,
-      filename,
-      mimeType,
-      category: 'properties',
-      relatedEntityId: property._id,
-      relatedModelName: 'Property'
-    });
-    
-    mediaUrls.push({
-      fileId: uploadResult._id,
-      url: uploadResult.url,
-      mediaType: isVideo ? 'video' : 'image',
-      key: uploadResult.key
-    });
-  }
+      return {
+        fileId: uploadResult._id,
+        url: uploadResult.url,
+        mediaType: isVideo ? 'video' : 'image',
+        key: uploadResult.key
+      };
+    })
+  );
 
   property.media = [...(property.media || []), ...mediaUrls];
   

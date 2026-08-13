@@ -132,7 +132,7 @@ export const uploadFileBuffer = async (
 
   let url = '';
 
-  // 3. Upload to S3 if configured
+  // 3. Upload to S3 if configured (with 3.5s timeout race to prevent hanging on cold/unreachable S3)
   if (s3Client && process.env.AWS_S3_BUCKET_NAME) {
     logger.info(`[FileService] Uploading ${filename} to AWS S3 key: ${key}`);
     const params = {
@@ -143,10 +143,12 @@ export const uploadFileBuffer = async (
     };
     try {
       const command = new PutObjectCommand(params);
-      await s3Client.send(command);
+      const s3UploadPromise = s3Client.send(command);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('S3 upload timeout')), 3500));
+      await Promise.race([s3UploadPromise, timeoutPromise]);
       url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
     } catch (err) {
-      logger.error('[FileService S3 Error] Upload failed, falling back to database storage:', err);
+      logger.warn('[FileService S3] S3 upload failed or timed out, falling back to MongoDB FileStorage:', err.message);
       s3Client = null; 
     }
   }

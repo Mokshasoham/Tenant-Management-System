@@ -56,7 +56,7 @@ export const propertyService = {
   unsaveProperty: (id) => apiClient.delete(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
   getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
-  uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData),
+  uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { timeout: 120000 }),
 };
 
 export const leaseService = {
