@@ -9,36 +9,50 @@ const resolvePropertyUrls = (property, req) => {
   const propObj = property.toObject ? property.toObject() : property;
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   const host = req.get('host');
-  
+  const baseUrl = `${protocol}://${host}`;
+
+  const cleanUrl = (rawUrl, fileId = null) => {
+    if (!rawUrl && !fileId) return rawUrl;
+    if (fileId) {
+      return `${baseUrl}/api/files/download/${fileId}`;
+    }
+    let u = String(rawUrl).trim();
+    // Rewrite legacy localhost or 127.0.0.1 URLs to relative paths
+    if (u.includes('localhost:') || u.includes('127.0.0.1:')) {
+      u = u.replace(/^https?:\/\/[^\/]+/, '');
+    }
+    // If it's already a full non-local HTTP/HTTPS URL, return as-is
+    if (u.startsWith('http://') || u.startsWith('https://')) {
+      return u;
+    }
+    // Strip leading slashes to prevent double slashes //
+    const pathWithoutLeadingSlash = u.replace(/^\/+/, '');
+    return `${baseUrl}/${pathWithoutLeadingSlash}`;
+  };
+
   if (propObj.media && propObj.media.length > 0) {
     propObj.media = propObj.media.map(item => {
-      if (item.fileId) {
-        item.url = `${protocol}://${host}/api/files/download/${item.fileId}`;
-      } else if (item.url && !item.url.startsWith('http')) {
-        item.url = `${protocol}://${host}/${item.url.startsWith('/') ? '' : '/'}${item.url}`;
-      }
+      item.url = cleanUrl(item.url, item.fileId);
       return item;
     });
   }
-  
+
   if (propObj.images && propObj.images.length > 0) {
-    propObj.images = propObj.images.map(img => {
-      if (img && !img.startsWith('http')) {
-        return `${protocol}://${host}/${img.startsWith('/') ? '' : '/'}${img}`;
-      }
-      return img;
+    propObj.images = propObj.images.map((img, i) => {
+      const matchingMedia = propObj.media?.[i];
+      const fileId = matchingMedia?.fileId;
+      return cleanUrl(img, fileId);
     });
   }
-  
+
   if (propObj.videos && propObj.videos.length > 0) {
-    propObj.videos = propObj.videos.map(vid => {
-      if (vid && !vid.startsWith('http')) {
-        return `${protocol}://${host}/${vid.startsWith('/') ? '' : '/'}${vid}`;
-      }
-      return vid;
+    propObj.videos = propObj.videos.map((vid, i) => {
+      const matchingMedia = propObj.media?.find(m => m.mediaType === 'video');
+      const fileId = matchingMedia?.fileId;
+      return cleanUrl(vid, fileId);
     });
   }
-  
+
   return propObj;
 };
 

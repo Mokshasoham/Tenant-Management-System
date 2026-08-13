@@ -78,6 +78,7 @@ export default function PropertyDetailsPage() {
     const [similarProperties, setSimilarProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState(0);
+    const [mediaLoadErrors, setMediaLoadErrors] = useState({});
 
     // Save & Info state
     const [isSaved, setIsSaved] = useState(false);
@@ -343,9 +344,18 @@ export default function PropertyDetailsPage() {
                                 const videos = property.videos || allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
                                 const images = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
 
+                                const activeImgUrl = images[activeImage];
+
                                 // Active item check
-                                if (activeImage < images.length && images[activeImage]) {
-                                    return <img src={images[activeImage]} className="w-full h-full object-cover" alt={property.name} />;
+                                if (activeImage < images.length && activeImgUrl && !mediaLoadErrors[activeImgUrl]) {
+                                    return (
+                                        <img 
+                                            src={activeImgUrl} 
+                                            className="w-full h-full object-cover" 
+                                            alt={property.name} 
+                                            onError={() => setMediaLoadErrors(p => ({ ...p, [activeImgUrl]: true }))}
+                                        />
+                                    );
                                 } else if (videos.length > 0) {
                                     const videoUrl = videos[activeImage - images.length] || videos[0];
                                     return (
@@ -356,8 +366,9 @@ export default function PropertyDetailsPage() {
                                     );
                                 } else {
                                     return (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent text-muted-foreground/20">
-                                            <Building2 className="w-20 h-20" />
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 gap-3 p-6">
+                                            <Building2 className="w-16 h-16 text-slate-600" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Media Content Unavailable</span>
                                         </div>
                                     );
                                 }
