@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService } from '../services/api';
-import { X, UploadCloud, MapPin, XCircle, Video, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { 
+  X, UploadCloud, MapPin, XCircle, Video, Image as ImageIcon, Loader2, 
+  CheckCircle2, Navigation, Layers, Compass, Sparkles, MoveLeft, MoveRight, 
+  Eye, Globe, Shield, Star, Info, ArrowRight, Check
+} from 'lucide-react';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../utils/cn';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet Default Icon Assets
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 const COUNTRIES = [
   'India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore',
@@ -22,6 +36,11 @@ const INDIA_STATES = [
   'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
   'Andaman & Nicobar Islands', 'Chandigarh', 'Dadra & Nagar Haveli and Daman & Diu',
   'Delhi', 'Jammu & Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+];
+
+const COMMON_AMENITIES = [
+  'Parking', 'Wifi', 'Pool', 'Gym', 'Laundry', 'AC',
+  'Furnished', 'Maintenance', 'Security', 'Balcony', 'Power Backup', 'Elevator'
 ];
 
 const COORDS_MAP = {
@@ -71,7 +90,7 @@ const EMPTY_FORM = {
   name: '', address: '', city: '', state: '', zipCode: '', country: 'India',
   type: 'apartment', bedrooms: '', bathrooms: '', squareFeet: '',
   rentAmount: '', depositAmount: '', description: '', notes: '',
-  amenities: '', bookingType: 'paid', publishStatus: 'published',
+  amenities: [], bookingType: 'paid', publishStatus: 'published',
   seoTitle: '', seoDescription: '', seoKeywords: '',
   ogTitle: '', ogDescription: '', virtualTourUrl: ''
 };
@@ -79,28 +98,42 @@ const EMPTY_FORM = {
 const libraries = ['places'];
 
 export default function PropertyModal({ property, onClose, onSave }) {
-  const [form, setForm] = useState(property ? {
-    ...property,
-    amenities: (property.amenities || []).join(', '),
-    bedrooms: property.bedrooms ?? '',
-    bathrooms: property.bathrooms ?? '',
-    squareFeet: property.squareFeet ?? '',
-    depositAmount: property.depositAmount ?? '',
-    bookingType: property.bookingType || 'paid',
-    publishStatus: property.publishStatus || 'published',
-    seoTitle: property.seo?.title || '',
-    seoDescription: property.seo?.description || '',
-    seoKeywords: property.seo?.keywords || '',
-    ogTitle: property.openGraph?.title || '',
-    ogDescription: property.openGraph?.description || '',
-    virtualTourUrl: property.virtualTourUrl || '',
-    location: property.location || { lat: 12.9716, lng: 77.5946 }
-  } : { ...EMPTY_FORM, location: { lat: 12.9716, lng: 77.5946 } });
+  const [activeTab, setActiveTab] = useState('basic'); // 'basic' | 'details' | 'location' | 'media' | 'seo'
+  const [form, setForm] = useState(() => {
+    if (property) {
+      return {
+        ...property,
+        amenities: Array.isArray(property.amenities) ? property.amenities : (property.amenities || '').split(',').map(a => a.trim()).filter(Boolean),
+        bedrooms: property.bedrooms ?? '',
+        bathrooms: property.bathrooms ?? '',
+        squareFeet: property.squareFeet ?? '',
+        depositAmount: property.depositAmount ?? '',
+        bookingType: property.bookingType || 'paid',
+        publishStatus: property.publishStatus || 'published',
+        seoTitle: property.seo?.title || '',
+        seoDescription: property.seo?.description || '',
+        seoKeywords: property.seo?.keywords || '',
+        ogTitle: property.openGraph?.title || '',
+        ogDescription: property.openGraph?.description || '',
+        virtualTourUrl: property.virtualTourUrl || '',
+        location: property.location || { lat: 12.9716, lng: 77.5946 }
+      };
+    }
+    return { ...EMPTY_FORM, location: { lat: 12.9716, lng: 77.5946 } };
+  });
 
-  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaFiles, setMediaFiles] = useState([]); // Array of File objects with extra preview metadata
+  const [coverIndex, setCoverIndex] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [autocompleteInstance, setAutocompleteInstance] = useState(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
+
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerInstanceRef = useRef(null);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
@@ -108,11 +141,83 @@ export default function PropertyModal({ property, onClose, onSave }) {
   });
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { 'image/*': [], 'video/*': [] },
-    onDrop: acceptedFiles => setMediaFiles(prev => [...prev, ...acceptedFiles])
+    accept: { 
+      'image/*': ['.jpeg', '.jpg', '.png', '.webp'], 
+      'video/*': ['.mp4', '.webm', '.mov'] 
+    },
+    maxSize: 25 * 1024 * 1024, // 25MB
+    onDrop: acceptedFiles => {
+      const newMedia = acceptedFiles.map(file => ({
+        file,
+        id: Math.random().toString(36).substring(7),
+        preview: URL.createObjectURL(file),
+        isVideo: file.type.startsWith('video/'),
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+      }));
+      setMediaFiles(prev => [...prev, ...newMedia]);
+    }
   });
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // Cleanup preview Object URLs on unmount
+  useEffect(() => {
+    return () => {
+      mediaFiles.forEach(m => {
+        if (m.preview) URL.revokeObjectURL(m.preview);
+      });
+    };
+  }, [mediaFiles]);
+
+  // Sync Leaflet map when Location tab is active
+  useEffect(() => {
+    if (activeTab !== 'location') return;
+
+    const lat = Number(form.location?.lat) || 12.9716;
+    const lng = Number(form.location?.lng) || 77.5946;
+
+    const timer = setTimeout(() => {
+      if (!mapContainerRef.current) return;
+
+      if (!mapInstanceRef.current) {
+        const map = L.map(mapContainerRef.current).setView([lat, lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          setForm(p => ({
+            ...p,
+            location: { lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) }
+          }));
+        });
+
+        map.on('click', (e) => {
+          const { lat: clickLat, lng: clickLng } = e.latlng;
+          marker.setLatLng([clickLat, clickLng]);
+          setForm(p => ({
+            ...p,
+            location: { lat: parseFloat(clickLat.toFixed(6)), lng: parseFloat(clickLng.toFixed(6)) }
+          }));
+        });
+
+        mapInstanceRef.current = map;
+        markerInstanceRef.current = marker;
+      } else {
+        mapInstanceRef.current.invalidateSize();
+        mapInstanceRef.current.setView([lat, lng]);
+        if (markerInstanceRef.current) {
+          markerInstanceRef.current.setLatLng([lat, lng]);
+        }
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [activeTab, form.location?.lat, form.location?.lng]);
 
   const handleStateChange = (stateVal) => {
     setForm(p => {
@@ -136,20 +241,96 @@ export default function PropertyModal({ property, onClose, onSave }) {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGettingLocation(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = parseFloat(pos.coords.latitude.toFixed(6));
+        const lng = parseFloat(pos.coords.longitude.toFixed(6));
+        setForm(p => ({
+          ...p,
+          location: { lat, lng }
+        }));
+        setGettingLocation(false);
+      },
+      (err) => {
+        setError(`Unable to retrieve GPS location: ${err.message}`);
+        setGettingLocation(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  const toggleAmenity = (amenity) => {
+    setForm(p => {
+      const current = Array.isArray(p.amenities) ? p.amenities : [];
+      if (current.includes(amenity)) {
+        return { ...p, amenities: current.filter(a => a !== amenity) };
+      } else {
+        return { ...p, amenities: [...current, amenity] };
+      }
+    });
+  };
+
+  const moveMedia = (fromIndex, toIndex) => {
+    if (toIndex < 0 || toIndex >= mediaFiles.length) return;
+    setMediaFiles(prev => {
+      const updated = [...prev];
+      const [item] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, item);
+      return updated;
+    });
+    if (coverIndex === fromIndex) setCoverIndex(toIndex);
+    else if (coverIndex === toIndex) setCoverIndex(fromIndex);
+  };
+
+  const removeMedia = (index) => {
+    setMediaFiles(prev => prev.filter((_, i) => i !== index));
+    if (coverIndex === index) setCoverIndex(0);
+    else if (coverIndex > index) setCoverIndex(c => c - 1);
+  };
+
+  const handleSubmit = async (e, forcedStatus = null) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
-    
+    setSuccessMessage('');
+    setUploadProgress(10);
+
     try {
+      // Validate Coordinates
+      const latNum = Number(form.location?.lat);
+      const lngNum = Number(form.location?.lng);
+      if (isNaN(latNum) || latNum < -90 || latNum > 90) {
+        throw new Error('Latitude must be a valid number between -90 and +90.');
+      }
+      if (isNaN(lngNum) || lngNum < -180 || lngNum > 180) {
+        throw new Error('Longitude must be a valid number between -180 and +180.');
+      }
+
+      const statusToUse = forcedStatus || form.publishStatus || 'published';
+
       const payload = {
         ...form,
-        amenities: form.amenities ? form.amenities.split(',').map(a => a.trim()).filter(Boolean) : [],
+        publishStatus: statusToUse,
+        rentAmount: Number(form.rentAmount),
+        depositAmount: Number(form.depositAmount) || 0,
+        bedrooms: Number(form.bedrooms) || 0,
+        bathrooms: Number(form.bathrooms) || 0,
+        squareFeet: Number(form.squareFeet) || 0,
+        amenities: Array.isArray(form.amenities) ? form.amenities : [],
+        location: { lat: latNum, lng: lngNum },
         seo: { title: form.seoTitle, description: form.seoDescription, keywords: form.seoKeywords },
-        openGraph: { title: form.ogTitle, description: form.ogDescription, image: form.images?.[0] || '' }
+        openGraph: { title: form.ogTitle, description: form.ogDescription }
       };
 
       let propertyId = property?._id;
+      setUploadProgress(30);
 
       if (property) {
         await propertyService.updateProperty(propertyId, payload);
@@ -158,240 +339,575 @@ export default function PropertyModal({ property, onClose, onSave }) {
         propertyId = res.data._id;
       }
 
-      // Handle Media Upload
+      setUploadProgress(60);
+
+      // Handle Real File Uploads
       if (mediaFiles.length > 0) {
         const formData = new FormData();
-        mediaFiles.forEach(file => formData.append('media', file));
+        
+        // Ensure Cover image is uploaded first so backend assigns it as primary
+        const sortedFiles = [...mediaFiles];
+        if (coverIndex >= 0 && coverIndex < sortedFiles.length) {
+          const [coverItem] = sortedFiles.splice(coverIndex, 1);
+          sortedFiles.unshift(coverItem);
+        }
+
+        sortedFiles.forEach(item => formData.append('media', item.file));
         await propertyService.uploadPropertyMedia(propertyId, formData);
       }
 
-      onSave();
+      setUploadProgress(100);
+      setSuccessMessage(`Property ${property ? 'updated' : 'created & published'} successfully!`);
+      
+      setTimeout(() => {
+        onSave();
+      }, 800);
+
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to save property');
+      setError(err.response?.data?.message || err.message || 'Failed to save property.');
+      setUploadProgress(0);
     } finally {
       setLoading(false);
     }
   };
 
+  const formattedGeoString = `${(Number(form.location?.lat) || 12.9716).toFixed(4)}, ${(Number(form.location?.lng) || 77.5946).toFixed(4)}`;
+
+  const tabs = [
+    { id: 'basic', label: '1. Basic Info', icon: Info },
+    { id: 'details', label: '2. Details & Amenities', icon: Layers },
+    { id: 'location', label: '3. Location & Map', icon: Compass },
+    { id: 'media', label: '4. Media & 3D Tour', icon: ImageIcon },
+    { id: 'seo', label: '5. SEO & Publish', icon: Globe }
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-border bg-card shadow-2xl pb-8"
+        className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-2xl overflow-hidden backdrop-blur-xl"
       >
-        <div className="sticky top-0 flex items-center justify-between px-8 py-5 border-b border-border bg-card/95 backdrop-blur-sm z-10">
-          <h2 className="text-xl font-black text-foreground">{property ? 'Edit Property' : 'Add Property'}</h2>
-          <button onClick={onClose} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-5 h-5" /></button>
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary border border-primary/20">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                {property ? 'Edit Property Workspace' : 'Add New Real Estate Property'}
+              </h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                Enterprise Portfolio Management
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2.5 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="px-8 mt-6 space-y-8">
-          {error && <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm font-bold">{error}</div>}
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-primary uppercase tracking-widest border-b border-border pb-2">Basic Info</h3>
-              <Field label="Property Name" required value={form.name} onChange={v => set('name', v)} />
-              
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Address (Google Maps)*</label>
-                {isLoaded ? (
-                  <Autocomplete
-                    onLoad={setAutocompleteInstance}
-                    onPlaceChanged={() => {
-                      if (autocompleteInstance) {
-                        const place = autocompleteInstance.getPlace();
-                        if (place.geometry) {
-                            setForm(p => ({
-                            ...p,
-                            address: place.formatted_address,
-                            location: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }
-                            }));
-                        }
-                      }
-                    }}
-                  >
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input type="text" value={form.address} onChange={e => set('address', e.target.value)} required
-                        placeholder="Search address..."
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all" />
-                    </div>
-                  </Autocomplete>
-                ) : (
-                  <Field label="Address" required value={form.address} onChange={v => set('address', v)} />
+
+        {/* Tab Selection Header Bar */}
+        <div className="flex items-center gap-1 sm:gap-2 px-6 sm:px-8 py-3 bg-slate-100/60 dark:bg-slate-950/40 border-b border-slate-200/80 dark:border-slate-800 overflow-x-auto scrollbar-none">
+          {tabs.map((tab) => {
+            const TabIcon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 whitespace-nowrap cursor-pointer border",
+                  isActive
+                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-950 border-slate-900 dark:border-white shadow-md"
+                    : "bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white"
                 )}
+              >
+                <TabIcon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Form Body Scroll Area */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+          {error && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs font-black flex items-center gap-3">
+              <XCircle className="w-5 h-5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-black flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          {/* TAB 1: BASIC INFO */}
+          {activeTab === 'basic' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 1 — Basic Information</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Core listing identification, pricing, and category parameters.</p>
               </div>
 
-              {/* Country & State */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Field label="Property Name *" required value={form.name} onChange={v => set('name', v)} placeholder="e.g. Oceanfront Luxury Villa" />
+
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Country *</label>
-                  <select value={form.country} onChange={e => { set('country', e.target.value); set('state', ''); }}
-                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 appearance-none">
-                    <option value="">Select Country</option>
-                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Property Type *</label>
+                  <select value={form.type} onChange={e => set('type', e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
+                    <option value="apartment">Apartment</option>
+                    <option value="house">House</option>
+                    <option value="villa">Villa</option>
+                    <option value="studio">Studio</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="land">Land</option>
+                    <option value="room">Room</option>
                   </select>
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">State *</label>
-                  {form.country === 'India' ? (
-                    <select value={form.state} onChange={e => handleStateChange(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 appearance-none">
-                      <option value="">Select State</option>
-                      {INDIA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  ) : (
-                    <input type="text" value={form.state} onChange={e => handleStateChange(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none" />
-                  )}
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Publish Status</label>
+                  <select value={form.publishStatus} onChange={e => set('publishStatus', e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
+                    <option value="published">Published (Visible in Tenant Directory)</option>
+                    <option value="draft">Draft (Private Portfolio Only)</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Monthly Rent (₹) *" type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} placeholder="e.g. 25000" />
+                  <Field label="Security Deposit (₹)" type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} placeholder="e.g. 50000" />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="City" value={form.city} onChange={v => handleCityChange(v)} />
-                <Field label="ZIP / PIN Code" value={form.zipCode} onChange={v => set('zipCode', v)} />
+
+              <TextAreaField label="Property Description" value={form.description} onChange={v => set('description', v)} placeholder="Highlight key residence features, floor level, view, accessibility..." />
+            </motion.div>
+          )}
+
+          {/* TAB 2: DETAILS & AMENITIES */}
+          {activeTab === 'details' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 2 — Specifications & Amenities</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Physical layout dimensions and included residential facilities.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Field label="Bedrooms" type="number" value={form.bedrooms} onChange={v => set('bedrooms', v)} placeholder="e.g. 3" />
+                <Field label="Bathrooms" type="number" value={form.bathrooms} onChange={v => set('bathrooms', v)} placeholder="e.g. 2" />
+                <Field label="Square Feet" type="number" value={form.squareFeet} onChange={v => set('squareFeet', v)} placeholder="e.g. 1450" />
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Latitude (Map)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.location?.lat ?? 12.9716}
-                    onChange={e => setForm(p => ({ ...p, location: { ...(p.location || {}), lat: parseFloat(e.target.value) || 0 } }))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all"
-                    placeholder="e.g. 12.9716"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Longitude (Map)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.location?.lng ?? 77.5946}
-                    onChange={e => setForm(p => ({ ...p, location: { ...(p.location || {}), lng: parseFloat(e.target.value) || 0 } }))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all"
-                    placeholder="e.g. 77.5946"
-                  />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Furnishing</label>
+                  <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
+                    <option value="unfurnished">Unfurnished</option>
+                    <option value="semi-furnished">Semi-Furnished</option>
+                    <option value="fully-furnished">Fully-Furnished</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <SelectField label="Publish Status" value={form.publishStatus} onChange={v => set('publishStatus', v)} options={['draft', 'published', 'archived']} />
-                <SelectField label="Type" value={form.type} onChange={v => set('type', v)} options={['apartment', 'house', 'commercial', 'land']} />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Bedrooms" type="number" value={form.bedrooms} onChange={v => set('bedrooms', v)} />
-                <Field label="Bathrooms" type="number" value={form.bathrooms} onChange={v => set('bathrooms', v)} />
-                <Field label="Sq. Feet" type="number" value={form.squareFeet} onChange={v => set('squareFeet', v)} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Monthly Rent (₹)" type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} />
-                <Field label="Deposit (₹)" type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} />
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-primary uppercase tracking-widest border-b border-border pb-2">Media & Details</h3>
-              
-              {/* Media Dropzone */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Media Upload (Images & Video)</label>
-                <div {...getRootProps()} className={cn(
-                  "border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
-                  isDragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 bg-muted/50"
-                )}>
-                  <input {...getInputProps()} />
-                  <UploadCloud className="w-8 h-8 text-primary mb-2 opacity-80" />
-                  <p className="text-sm font-bold text-foreground">Drag & drop files here, or click to select</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">High-Res images will be compressed automatically</p>
+              {/* Amenity Badges Selector */}
+              <div className="space-y-3 pt-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Select Amenity Tags</label>
+                <div className="flex flex-wrap gap-2">
+                  {COMMON_AMENITIES.map((item) => {
+                    const isSelected = (form.amenities || []).includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => toggleAmenity(item)}
+                        className={cn(
+                          "px-4 py-2 rounded-2xl text-xs font-black transition-all border flex items-center gap-1.5 cursor-pointer",
+                          isSelected
+                            ? "bg-emerald-500 text-white border-emerald-500 shadow-md"
+                            : "bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white"
+                        )}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                        <span>{item}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                {mediaFiles.length > 0 && (
-                  <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
-                    {mediaFiles.map((file, i) => (
-                      <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0 group bg-muted flex items-center justify-center">
-                        {file.type.startsWith('video') ? <Video className="w-6 h-6 text-muted-foreground" /> : <ImageIcon className="w-6 h-6 text-muted-foreground" />}
-                        <button type="button" onClick={() => setMediaFiles(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 p-0.5 rounded-md bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                          <XCircle className="w-3 h-3" />
-                        </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 3: LOCATION & MAP */}
+          {activeTab === 'location' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 3 — Geolocation & Interactive Map</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Search address or click on the interactive map to position the property pin.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {/* Address Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Address (Search / Text) *</label>
+                    {isLoaded ? (
+                      <Autocomplete
+                        onLoad={setAutocompleteInstance}
+                        onPlaceChanged={() => {
+                          if (autocompleteInstance) {
+                            const place = autocompleteInstance.getPlace();
+                            if (place.geometry) {
+                              setForm(p => ({
+                                ...p,
+                                address: place.formatted_address || p.address,
+                                location: { 
+                                  lat: parseFloat(place.geometry.location.lat().toFixed(6)), 
+                                  lng: parseFloat(place.geometry.location.lng().toFixed(6)) 
+                                }
+                              }));
+                            }
+                          }
+                        }}
+                      >
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input type="text" value={form.address} onChange={e => set('address', e.target.value)} required
+                            placeholder="Search address or enter street..."
+                            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary" />
+                        </div>
+                      </Autocomplete>
+                    ) : (
+                      <Field label="" required value={form.address} onChange={v => set('address', v)} placeholder="e.g. 123 Main Street" />
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Country *</label>
+                      <select value={form.country} onChange={e => { set('country', e.target.value); set('state', ''); }}
+                        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none">
+                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">State *</label>
+                      {form.country === 'India' ? (
+                        <select value={form.state} onChange={e => handleStateChange(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none">
+                          <option value="">Select State</option>
+                          {INDIA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      ) : (
+                        <input type="text" value={form.state} onChange={e => handleStateChange(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="City" value={form.city} onChange={v => handleCityChange(v)} placeholder="e.g. Bengaluru" />
+                    <Field label="ZIP / PIN Code" value={form.zipCode} onChange={v => set('zipCode', v)} placeholder="e.g. 560001" />
+                  </div>
+
+                  {/* Latitude / Longitude & GPS Trigger */}
+                  <div className="p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">GPS Coordinates</span>
+                      <button
+                        type="button"
+                        onClick={handleUseMyLocation}
+                        disabled={gettingLocation}
+                        className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-primary/20 transition-all cursor-pointer"
+                      >
+                        {gettingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
+                        {gettingLocation ? 'Locating...' : 'Use My Location'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Latitude" type="number" step="any" value={form.location?.lat ?? 12.9716}
+                        onChange={v => setForm(p => ({ ...p, location: { ...(p.location || {}), lat: parseFloat(v) || 0 } }))} />
+                      <Field label="Longitude" type="number" step="any" value={form.location?.lng ?? 77.5946}
+                        onChange={v => setForm(p => ({ ...p, location: { ...(p.location || {}), lng: parseFloat(v) || 0 } }))} />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Geo Coordinates:</span>
+                      <span className="font-black text-emerald-500 dark:text-emerald-400">{formattedGeoString}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Leaflet Map Picker Panel */}
+                <div className="flex flex-col h-[340px] sm:h-auto min-h-[320px] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-inner relative">
+                  <div ref={mapContainerRef} className="w-full h-full z-0" />
+                  <div className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/20 text-white text-[10px] font-black uppercase tracking-widest">
+                    📍 Click map to place marker
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 4: MEDIA & 3D TOUR */}
+          {activeTab === 'media' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 4 — Real Photos, Videos & 3D Virtual Tour</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Upload high-resolution property photos, HD video walkthroughs, or Matterport 3D links.</p>
+              </div>
+
+              {/* Drag & Drop Zone */}
+              <div {...getRootProps()} className={cn(
+                "border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all backdrop-blur-sm",
+                isDragActive 
+                  ? "border-primary bg-primary/10 scale-[0.99]" 
+                  : "border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 hover:border-primary/50"
+              )}>
+                <input {...getInputProps()} />
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-3 border border-primary/20">
+                  <UploadCloud className="w-7 h-7" />
+                </div>
+                <p className="text-sm font-black text-slate-900 dark:text-slate-100">Drag & drop photos & videos here, or click to browse</p>
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
+                  Supports JPG, PNG, WEBP, MP4, WEBM (Max 25MB per file)
+                </p>
+              </div>
+
+              {/* Media Preview Grid */}
+              {mediaFiles.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Uploaded Media Staging ({mediaFiles.length} file{mediaFiles.length !== 1 ? 's' : ''})
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
+                      Cover: {mediaFiles[coverIndex]?.name || 'First Photo'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {mediaFiles.map((m, idx) => (
+                      <div key={m.id} className={cn(
+                        "relative group rounded-2xl overflow-hidden border bg-slate-100 dark:bg-slate-800 flex flex-col aspect-square justify-between p-2 shadow-sm transition-all",
+                        coverIndex === idx ? "border-emerald-500 ring-2 ring-emerald-500/30" : "border-slate-200 dark:border-slate-700"
+                      )}>
+                        {m.isVideo ? (
+                          <div className="absolute inset-0 bg-slate-900 flex items-center justify-center">
+                            <Video className="w-8 h-8 text-primary animate-pulse" />
+                          </div>
+                        ) : (
+                          <img src={m.preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+
+                        {/* Top Badges */}
+                        <div className="relative z-10 flex items-center justify-between w-full">
+                          {coverIndex === idx && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest">
+                              COVER
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[8px] font-bold ml-auto backdrop-blur-sm">
+                            {m.isVideo ? 'VIDEO' : 'IMAGE'}
+                          </span>
+                        </div>
+
+                        {/* Action Overlays */}
+                        <div className="relative z-10 flex items-center justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 p-1 rounded-xl backdrop-blur-md">
+                          <button
+                            type="button"
+                            onClick={() => setCoverIndex(idx)}
+                            className="text-[8px] font-black uppercase tracking-widest text-emerald-400 hover:underline px-1"
+                          >
+                            Set Cover
+                          </button>
+                          <div className="flex items-center gap-1">
+                            {idx > 0 && (
+                              <button type="button" onClick={() => moveMedia(idx, idx - 1)} className="text-white p-1 hover:bg-white/20 rounded">
+                                <MoveLeft className="w-3 h-3" />
+                              </button>
+                            )}
+                            {idx < mediaFiles.length - 1 && (
+                              <button type="button" onClick={() => moveMedia(idx, idx + 1)} className="text-white p-1 hover:bg-white/20 rounded">
+                                <MoveRight className="w-3 h-3" />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeMedia(idx)} className="text-rose-400 p-1 hover:bg-rose-500/20 rounded">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                )}
-                {property?.media?.length > 0 && (
-                  <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
-                     {property.media.map((m, i) => (
-                        <img key={i} src={m.url} className="w-16 h-16 rounded-xl object-cover border border-border" alt="" />
-                     ))}
+                </div>
+              )}
+
+              {/* Existing Server Media Preview */}
+              {property?.media?.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Existing Saved Media ({property.media.length})
+                  </span>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {property.media.map((m, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-900">
+                        {m.mediaType === 'video' ? (
+                          <div className="w-full h-full flex items-center justify-center text-primary">
+                            <Video className="w-6 h-6" />
+                          </div>
+                        ) : (
+                          <img src={m.url} className="w-full h-full object-cover" alt="" />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
+
+              {/* 3D Virtual Tour URL Input */}
+              <Field 
+                label="3D Virtual Tour URL (Matterport / Kuula / Polycam)" 
+                value={form.virtualTourUrl} 
+                onChange={v => set('virtualTourUrl', v)} 
+                placeholder="https://my.matterport.com/show/?m=..." 
+              />
+            </motion.div>
+          )}
+
+          {/* TAB 5: SEO & PUBLISH */}
+          {activeTab === 'seo' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 5 — Search Engine Meta & Final Submission</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Optimize search engine visibility and publish property listing.</p>
               </div>
 
-              <Field label="Amenities Tags (comma-separated)" value={form.amenities} onChange={v => set('amenities', v)} placeholder="Parking, Pool, Gym, Laundry..." />
-              <TextAreaField label="Description" value={form.description} onChange={v => set('description', v)} />
-              <Field label="3D Virtual Tour URL" value={form.virtualTourUrl} onChange={v => set('virtualTourUrl', v)} placeholder="https://matterport.com/..." />
-              
-              {/* SEO Configurations */}
-              <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
-                 <h4 className="text-xs font-black text-foreground uppercase tracking-widest">SEO Meta Configurations</h4>
-                 <Field label="SEO Title" value={form.seoTitle} onChange={v => set('seoTitle', v)} placeholder="Luxury 3BHK Apartment..." />
-                 <Field label="SEO Description" value={form.seoDescription} onChange={v => set('seoDescription', v)} placeholder="Brief compelling snippet for Google Search..." />
-                 <Field label="SEO Keywords" value={form.seoKeywords} onChange={v => set('seoKeywords', v)} placeholder="real estate, rent, bangalore..." />
-              </div>
-            </div>
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <Field label="SEO Title" value={form.seoTitle} onChange={v => set('seoTitle', v)} placeholder="Luxury 3BHK Apartment for Rent in Koramangala" />
+                  <TextAreaField label="SEO Meta Description" value={form.seoDescription} onChange={v => set('seoDescription', v)} placeholder="Spacious 3 bedroom residence with modern amenities..." />
+                  <Field label="SEO Keywords" value={form.seoKeywords} onChange={v => set('seoKeywords', v)} placeholder="real estate, rental apartment, bangalore, 3bhk" />
+                </div>
 
-          <div className="flex gap-4 pt-4 border-t border-border">
-            <button type="button" onClick={onClose}
-              className="px-8 py-3.5 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold">Cancel</button>
-            <button type="submit" disabled={loading}
-              className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                {/* Live Preview Summary Card */}
+                <div className="p-6 rounded-3xl bg-slate-100/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Listing Card Preview</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black uppercase">
+                      {form.publishStatus}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-base font-black text-slate-900 dark:text-slate-100">{form.name || 'Untitled Property'}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-primary" /> {form.address || 'Location details pending'}
+                    </p>
+                    <p className="text-xl font-black text-emerald-500">₹{(Number(form.rentAmount) || 0).toLocaleString('en-IN')} <span className="text-xs text-slate-400 font-normal">/ month</span></p>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
+                    <span>📷 {mediaFiles.filter(m => !m.isVideo).length} Photos</span>
+                    <span>•</span>
+                    <span>▶ {mediaFiles.filter(m => m.isVideo).length} Videos</span>
+                    <span>•</span>
+                    <span>📍 {formattedGeoString}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar during submit */}
+              {loading && uploadProgress > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex justify-between text-xs font-black text-slate-500">
+                    <span>Uploading Property Media & Details...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </div>
+
+        {/* Modal Footer Bar */}
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleSubmit(e, 'draft')}
+              className="px-5 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              Save Draft
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleSubmit(e, 'published')}
+              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+            >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? 'Processing & Saving...' : (property ? 'Save Changes' : 'Create & Upload Property')}
+              <span>{loading ? 'Processing Property...' : (property ? 'Save Changes' : 'Create & Publish Property')}</span>
+              {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </div>
-        </form>
+        </div>
       </motion.div>
     </motion.div>
   );
 }
 
-function Field({ label, value, onChange, type = 'text', required, placeholder }) {
+function Field({ label, value, onChange, type = 'text', required, placeholder, step }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{label}{required && ' *'}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} required={required} placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-all" />
+      {label && <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}{required && ' *'}</label>}
+      <input
+        type={type}
+        step={step}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        required={required}
+        placeholder={placeholder}
+        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold placeholder-slate-400 focus:outline-none focus:border-primary transition-all"
+      />
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }) {
+function TextAreaField({ label, value, onChange, placeholder }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all appearance-none uppercase tracking-widest font-bold">
-        {options.map(o => <option key={o} value={o}>{o.replace('-', ' ')}</option>)}
-      </select>
-    </div>
-  );
-}
-
-function TextAreaField({ label, value, onChange }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{label}</label>
-      <textarea value={value} onChange={e => onChange(e.target.value)} rows={3}
-        className="w-full px-3 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none focus:border-primary/50 transition-all resize-none" />
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</label>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold placeholder-slate-400 focus:outline-none focus:border-primary transition-all resize-none"
+      />
     </div>
   );
 }

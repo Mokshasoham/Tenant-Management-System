@@ -17,6 +17,9 @@ import { getDisplayStatus } from '../utils/propertyHelper';
 import RazorpayPayment from '../components/RazorpayPayment';
 
 
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
 const AMENITY_ICONS = {
     'Parking': Car,
     'Wifi': Wifi,
@@ -27,6 +30,43 @@ const AMENITY_ICONS = {
     'Furnished': Home,
     'Maintenance': Hammer
 };
+
+function PropertyDetailMap({ location, name, address, city }) {
+    const mapRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (!location || !location.lat || !location.lng) return;
+        const lat = Number(location.lat);
+        const lng = Number(location.lng);
+
+        const timer = setTimeout(() => {
+            if (!mapRef.current) return;
+            const map = L.map(mapRef.current).setView([lat, lng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup(`<b>${name || 'Property'}</b><br/>${address || ''}, ${city || ''}`);
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [location, name, address, city]);
+
+    if (!location || !location.lat || !location.lng) {
+        return (
+            <div className="p-8 rounded-3xl bg-muted/40 border border-dashed border-border text-center text-xs text-muted-foreground font-bold">
+                📍 Location Map Unavailable
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-64 rounded-3xl overflow-hidden border border-border shadow-inner relative z-0">
+            <div ref={mapRef} className="w-full h-full" />
+        </div>
+    );
+}
 
 export default function PropertyDetailsPage() {
     const { id } = useParams();
@@ -292,60 +332,90 @@ export default function PropertyDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Media & Specs */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Image Gallery */}
+                    {/* Image & Video Gallery */}
                     <div className="space-y-4">
                         <motion.div
                             layoutId="hero-image"
-                            className="aspect-video rounded-[2.5rem] bg-muted border border-border overflow-hidden relative shadow-2xl shadow-primary/5 transition-colors"
+                            className="aspect-video rounded-[2.5rem] bg-slate-950 border border-border overflow-hidden relative shadow-2xl shadow-primary/5 transition-colors"
                         >
-                            {property.images?.[activeImage] ? (
-                                <img src={property.images[activeImage]} className="w-full h-full object-cover" alt={property.name} />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent text-muted-foreground/20">
-                                    <Building2 className="w-20 h-20" />
-                                </div>
-                            )}
+                            {(() => {
+                                const allMedia = property.media || [];
+                                const videos = property.videos || allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
+                                const images = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+
+                                // Active item check
+                                if (activeImage < images.length && images[activeImage]) {
+                                    return <img src={images[activeImage]} className="w-full h-full object-cover" alt={property.name} />;
+                                } else if (videos.length > 0) {
+                                    const videoUrl = videos[activeImage - images.length] || videos[0];
+                                    return (
+                                        <video controls autoPlay className="w-full h-full object-contain bg-black">
+                                            <source src={videoUrl} />
+                                            Your browser does not support html video player.
+                                        </video>
+                                    );
+                                } else {
+                                    return (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent text-muted-foreground/20">
+                                            <Building2 className="w-20 h-20" />
+                                        </div>
+                                    );
+                                }
+                            })()}
                         </motion.div>
 
-                        {property.images?.length > 1 && (
-                            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                                {property.images.map((img, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => setActiveImage(i)}
-                                        className={cn(
-                                            "w-24 h-24 rounded-2xl flex-shrink-0 border-2 transition-all p-1 overflow-hidden",
-                                            activeImage === i ? "border-primary" : "border-border shadow-sm"
-                                        )}
-                                    >
-                                        <img src={img} className="w-full h-full object-cover rounded-xl" alt="" />
-                                    </button>
-                                ))}
-                                {property.virtualTourUrl && (
-                                    <a
-                                        href={property.virtualTourUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="w-24 h-24 rounded-2xl flex-shrink-0 border-2 border-border border-dashed flex flex-col items-center justify-center p-2 text-primary hover:bg-primary/5 transition-colors gap-1 shadow-sm"
-                                    >
-                                        <Video className="w-6 h-6" />
-                                        <span className="text-[9px] font-black uppercase text-center leading-tight">3D Tour</span>
-                                    </a>
-                                )}
-                            </div>
-                        )}
-                        {/* Fallback if only 1 image but tour exists */}
-                        {(!property.images || property.images.length <= 1) && property.virtualTourUrl && (
-                             <a
-                                href={property.virtualTourUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-max px-4 py-2 mt-4 rounded-xl border-2 border-primary/20 bg-primary/5 flex items-center justify-center text-primary font-bold transition-colors gap-2 shadow-sm"
-                            >
-                                <Video className="w-4 h-4" />
-                                <span className="text-xs uppercase tracking-widest">View 3D Tour</span>
-                            </a>
-                        )}
+                        {/* Thumbnails list */}
+                        {(() => {
+                            const allMedia = property.media || [];
+                            const videos = property.videos || allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
+                            const images = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+
+                            return (
+                                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                    {images.map((img, i) => (
+                                        <button
+                                            key={`img-${i}`}
+                                            onClick={() => setActiveImage(i)}
+                                            className={cn(
+                                                "w-20 h-20 rounded-2xl flex-shrink-0 border-2 transition-all p-0.5 overflow-hidden cursor-pointer",
+                                                activeImage === i ? "border-primary shadow-lg" : "border-border/60 shadow-sm opacity-80 hover:opacity-100"
+                                            )}
+                                        >
+                                            <img src={img} className="w-full h-full object-cover rounded-xl" alt="" />
+                                        </button>
+                                    ))}
+
+                                    {videos.map((vid, vIdx) => {
+                                        const idx = images.length + vIdx;
+                                        return (
+                                            <button
+                                                key={`vid-${vIdx}`}
+                                                onClick={() => setActiveImage(idx)}
+                                                className={cn(
+                                                    "w-20 h-20 rounded-2xl flex-shrink-0 border-2 transition-all p-1 flex flex-col items-center justify-center bg-slate-900 text-primary cursor-pointer relative overflow-hidden",
+                                                    activeImage === idx ? "border-primary shadow-lg" : "border-border/60 opacity-80 hover:opacity-100"
+                                                )}
+                                            >
+                                                <Video className="w-6 h-6 animate-pulse" />
+                                                <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-white">Video</span>
+                                            </button>
+                                        );
+                                    })}
+
+                                    {property.virtualTourUrl && (
+                                        <a
+                                            href={property.virtualTourUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-20 h-20 rounded-2xl flex-shrink-0 border-2 border-emerald-500/30 border-dashed flex flex-col items-center justify-center p-2 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors gap-1 shadow-sm"
+                                        >
+                                            <Video className="w-5 h-5" />
+                                            <span className="text-[8px] font-black uppercase text-center leading-tight">3D Tour</span>
+                                        </a>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Property Intel */}
@@ -440,6 +510,17 @@ export default function PropertyDetailsPage() {
                                     );
                                 })}
                             </div>
+                        </div>
+
+                        {/* Property Location & Interactive Map */}
+                        <div className="space-y-4 pt-4 border-t border-border/60">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-black text-foreground flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-rose-500" /> Property Location
+                                </h3>
+                                <span className="text-xs font-bold text-muted-foreground/70">{property.city}, {property.country || 'India'}</span>
+                            </div>
+                            <PropertyDetailMap location={property.location} name={property.name} address={property.address} city={property.city} />
                         </div>
                     </div>
                 </div>

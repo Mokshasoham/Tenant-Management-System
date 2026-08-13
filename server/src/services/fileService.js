@@ -40,7 +40,7 @@ const ALLOWED_MIME_TYPES = {
     'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   ],
   [FILE_CATEGORIES.KYC]: ['image/jpeg', 'image/png', 'application/pdf'],
-  [FILE_CATEGORIES.PROPERTIES]: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'],
+  [FILE_CATEGORIES.PROPERTIES]: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'],
   [FILE_CATEGORIES.LEASES]: ['application/pdf'],
   [FILE_CATEGORIES.INVOICES]: ['application/pdf'],
   [FILE_CATEGORIES.REVIEWS]: ['image/jpeg', 'image/png'],
@@ -50,7 +50,7 @@ const ALLOWED_MIME_TYPES = {
 const MAX_FILE_SIZE = {
   [FILE_CATEGORIES.CHAT]: 10 * 1024 * 1024,      // 10MB
   [FILE_CATEGORIES.KYC]: 5 * 1024 * 1024,        // 5MB
-  [FILE_CATEGORIES.PROPERTIES]: 15 * 1024 * 1024,// 15MB
+  [FILE_CATEGORIES.PROPERTIES]: 25 * 1024 * 1024,// 25MB (Supports HD images & property video clips)
   [FILE_CATEGORIES.LEASES]: 10 * 1024 * 1024,    // 10MB
   [FILE_CATEGORIES.INVOICES]: 10 * 1024 * 1024,  // 10MB
   [FILE_CATEGORIES.REVIEWS]: 5 * 1024 * 1024,    // 5MB

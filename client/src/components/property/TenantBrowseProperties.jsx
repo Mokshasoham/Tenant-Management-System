@@ -82,12 +82,13 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
+    const coverUrl = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
             className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
             <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted relative">
-                {p.images?.[0]
-                    ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                {coverUrl
+                    ? <img src={coverUrl} alt={p.name} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
                 <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
                 {displayStatus && (
@@ -125,6 +126,7 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
+    const coverUrl = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.5) }}
@@ -133,8 +135,8 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
         >
             {/* Image */}
             <div className="relative h-52 overflow-hidden bg-muted transition-colors">
-                {p.images?.[0]
-                    ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                {coverUrl
+                    ? <img src={coverUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
                         <Building2 className="w-12 h-12 opacity-20 text-foreground" />
                     </div>}
@@ -153,6 +155,16 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                                 "bg-rose-500/90 border-rose-400/20 text-white"
                             )}>
                                 {displayStatus}
+                            </span>
+                        )}
+                        {((p.videos?.length || p.media?.filter(m => m.mediaType === 'video').length || 0) > 0) && (
+                            <span className="px-2.5 py-1 bg-black/60 text-emerald-400 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/10">
+                                ▶ Video
+                            </span>
+                        )}
+                        {p.virtualTourUrl && (
+                            <span className="px-2.5 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">
+                                360° Tour
                             </span>
                         )}
                     </div>

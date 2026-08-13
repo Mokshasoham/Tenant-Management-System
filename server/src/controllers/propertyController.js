@@ -232,8 +232,16 @@ export const createProperty = asyncHandler(async (req, res) => {
     name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl
   } = req.body;
 
+  let geo = undefined;
+  if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
+    geo = {
+      type: 'Point',
+      coordinates: [Number(location.lng), Number(location.lat)]
+    };
+  }
+
   const property = await Property.create({
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: req.user.userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, seo, openGraph, virtualTourUrl
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: req.user.userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
   });
 
   logger.info(`New property created: ${property.name}`);
@@ -247,11 +255,18 @@ export const createProperty = asyncHandler(async (req, res) => {
 
 export const updateProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { manager, ...rest } = req.body;
+  const { manager, location, ...rest } = req.body;
 
-  // Use the spread payload but sanitize manager ID
+  // Use the spread payload but sanitize manager ID & sync geo coordinates
   const updateData = { ...rest };
   if (manager) updateData.manager = manager;
+  if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
+    updateData.location = location;
+    updateData.geo = {
+      type: 'Point',
+      coordinates: [Number(location.lng), Number(location.lat)]
+    };
+  }
 
   const property = await Property.findByIdAndUpdate(id, updateData, {
     new: true,
@@ -400,6 +415,7 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
     });
     
     mediaUrls.push({
+      fileId: uploadResult._id,
       url: uploadResult.url,
       mediaType: isVideo ? 'video' : 'image',
       key: uploadResult.key
@@ -407,6 +423,13 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
   }
 
   property.media = [...(property.media || []), ...mediaUrls];
+  
+  // Synchronize legacy images and videos arrays
+  const imageUrls = property.media.filter(m => m.mediaType === 'image').map(m => m.url);
+  const videoUrls = property.media.filter(m => m.mediaType === 'video').map(m => m.url);
+  if (imageUrls.length > 0) property.images = imageUrls;
+  if (videoUrls.length > 0) property.videos = videoUrls;
+
   await property.save();
 
   logger.info(`Property media uploaded for: ${property.name}`);

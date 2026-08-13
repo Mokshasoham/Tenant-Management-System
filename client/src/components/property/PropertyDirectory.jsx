@@ -134,17 +134,23 @@ function PropertyDirectoryCard({ p, index, isSaved, inCompare, onSave, onCompare
     >
       <div className="relative h-52 overflow-hidden bg-slate-950 p-2">
         <div className="w-full h-full rounded-[1.75rem] overflow-hidden relative">
-          {p.images?.[0] ? (
-            <img
-              src={p.images[0]}
-              alt={p.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
-              <Building2 className="w-12 h-12 text-slate-700" />
-            </div>
-          )}
+          {(() => {
+            const cover = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
+            if (cover) {
+              return (
+                <img
+                  src={cover}
+                  alt={p.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                />
+              );
+            }
+            return (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
+                <Building2 className="w-12 h-12 text-slate-700" />
+              </div>
+            );
+          })()}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
           <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap z-10">
@@ -157,6 +163,21 @@ function PropertyDirectoryCard({ p, index, isSaved, inCompare, onSave, onCompare
             <span className={`px-3 py-1 text-[10px] font-black rounded-full border shadow-lg backdrop-blur-md uppercase tracking-widest ${statusBadge.class}`}>
               {statusBadge.label}
             </span>
+            {((p.images?.length || p.media?.filter(m => m.mediaType === 'image').length || 0) > 0) && (
+              <span className="px-2 py-0.5 text-[8px] font-black rounded-full bg-black/60 text-white shadow-md backdrop-blur-md">
+                📷 {p.images?.length || p.media?.filter(m => m.mediaType === 'image').length}
+              </span>
+            )}
+            {((p.videos?.length || p.media?.filter(m => m.mediaType === 'video').length || 0) > 0) && (
+              <span className="px-2 py-0.5 text-[8px] font-black rounded-full bg-black/60 text-emerald-400 shadow-md backdrop-blur-md">
+                ▶ {p.videos?.length || p.media?.filter(m => m.mediaType === 'video').length}
+              </span>
+            )}
+            {p.virtualTourUrl && (
+              <span className="px-2 py-0.5 text-[8px] font-black rounded-full bg-emerald-500/80 text-white shadow-md backdrop-blur-md">
+                360°
+              </span>
+            )}
           </div>
 
           <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
