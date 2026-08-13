@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
+import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
 import InteractivePropertyMap from '../PropertyMap';
@@ -135,13 +136,18 @@ function PropertyDirectoryCard({ p, index, isSaved, inCompare, onSave, onCompare
       <div className="relative h-52 overflow-hidden bg-slate-950 p-2">
         <div className="w-full h-full rounded-[1.75rem] overflow-hidden relative">
           {(() => {
-            const cover = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
+            const rawCover = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
+            const cover = resolveMediaUrl(rawCover);
             if (cover) {
               return (
                 <img
                   src={cover}
                   alt={p.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                  }}
                 />
               );
             }

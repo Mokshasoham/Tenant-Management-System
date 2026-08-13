@@ -9,6 +9,7 @@ import {
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../utils/cn';
+import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -165,22 +166,7 @@ export default function PropertyModal({ property, onClose, onSave }) {
     }
   });
 
-  const getMediaUrl = (rawUrl) => {
-    if (!rawUrl) return '';
-    let u = String(rawUrl).trim();
-    if (u.startsWith('http://localhost') || u.startsWith('http://127.0.0.1')) {
-      u = u.replace(/^https?:\/\/[^\/]+/, '');
-    }
-    if (u.startsWith('http://') || u.startsWith('https://')) {
-      return u;
-    }
-    const backendBase = (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname))
-      ? 'https://tenant-management-backend-ohr6.onrender.com'
-      : (import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000');
-    
-    const cleanPath = u.replace(/^\/+/, '');
-    return `${backendBase}/${cleanPath}`;
-  };
+  const getMediaUrl = (rawUrl) => resolveMediaUrl(rawUrl);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 

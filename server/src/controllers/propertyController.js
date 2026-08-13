@@ -7,7 +7,7 @@ import { uploadFileBuffer } from '../services/fileService.js';
 const resolvePropertyUrls = (property, req) => {
   if (!property) return property;
   const propObj = property.toObject ? property.toObject() : property;
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   const host = req.get('host');
   const baseUrl = `${protocol}://${host}`;
 
@@ -17,14 +17,20 @@ const resolvePropertyUrls = (property, req) => {
       return `${baseUrl}/api/files/download/${fileId}`;
     }
     let u = String(rawUrl).trim();
-    // Rewrite legacy localhost or 127.0.0.1 URLs to relative paths
-    if (u.includes('localhost:') || u.includes('127.0.0.1:')) {
+
+    // Normalize any double slashes in paths (except http:// or https://)
+    u = u.replace(/([^:])\/+/g, '$1/');
+
+    // Rewrite legacy localhost, 127.0.0.1, or onrender domain prefixes to relative paths
+    if (u.includes('localhost:') || u.includes('127.0.0.1:') || u.includes('onrender.com')) {
       u = u.replace(/^https?:\/\/[^\/]+/, '');
     }
-    // If it's already a full non-local HTTP/HTTPS URL, return as-is
+
+    // If it's a 3rd-party external HTTP/HTTPS URL (e.g. S3, Cloudinary), return as-is
     if (u.startsWith('http://') || u.startsWith('https://')) {
       return u;
     }
+
     // Strip leading slashes to prevent double slashes //
     const pathWithoutLeadingSlash = u.replace(/^\/+/, '');
     return `${baseUrl}/${pathWithoutLeadingSlash}`;

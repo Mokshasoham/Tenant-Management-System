@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
-import { getDisplayStatus } from '../../utils/propertyHelper';
+import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
 import InteractivePropertyMap from '../PropertyMap';
@@ -29,9 +29,9 @@ class MapErrorBoundary extends React.Component {
                     <p className="text-muted-foreground text-xs">{this.state.error?.message}</p>
                     <button
                         onClick={() => this.setState({ hasError: false, error: null })}
-                        className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-black hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                        className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-black text-xs shadow-xl transition-all"
                     >
-                        Retry
+                        Reload Map View
                     </button>
                 </div>
             );
@@ -41,14 +41,17 @@ class MapErrorBoundary extends React.Component {
 }
 
 const SORT_OPTIONS = [
-    { value: 'createdAt', label: 'Newest First' },
-    { value: 'price_asc', label: 'Price ↑' },
-    { value: 'price_desc', label: 'Price ↓' },
+    { value: 'newest', label: 'Newest First' },
+    { value: 'price_asc', label: 'Price: Low to High' },
+    { value: 'price_desc', label: 'Price: High to Low' },
     { value: 'rating', label: 'Top Rated' },
 ];
 
 const TYPE_COLORS = {
-    apartment: '#6366f1', house: '#10b981', commercial: '#f59e0b', land: '#8b5cf6',
+    apartment: '#6366f1',
+    house: '#10b981',
+    commercial: '#f59e0b',
+    land: '#8b5cf6',
 };
 
 // ── Skeleton Card ──
@@ -82,13 +85,21 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
-    const coverUrl = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
+    const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
             className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
             <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted relative">
                 {coverUrl
-                    ? <img src={coverUrl} alt={p.name} className="w-full h-full object-cover" />
+                    ? <img 
+                        src={coverUrl} 
+                        alt={p.name} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                        }}
+                    />
                     : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
                 <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
                 {displayStatus && (
@@ -126,7 +137,7 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
-    const coverUrl = p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url;
+    const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.5) }}
@@ -136,7 +147,15 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             {/* Image */}
             <div className="relative h-52 overflow-hidden bg-muted transition-colors">
                 {coverUrl
-                    ? <img src={coverUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    ? <img 
+                        src={coverUrl} 
+                        alt={p.name} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                        }}
+                    />
                     : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
                         <Building2 className="w-12 h-12 opacity-20 text-foreground" />
                     </div>}

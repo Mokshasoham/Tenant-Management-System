@@ -13,7 +13,7 @@ import {
     Loader2, X, ShieldCheck, Check
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { getDisplayStatus } from '../utils/propertyHelper';
+import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import RazorpayPayment from '../components/RazorpayPayment';
 
 
@@ -341,8 +341,11 @@ export default function PropertyDetailsPage() {
                         >
                             {(() => {
                                 const allMedia = property.media || [];
-                                const videos = property.videos || allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
-                                const images = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+                                const rawVideos = property.videos?.length ? property.videos : allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
+                                const rawImages = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+
+                                const videos = rawVideos.map(resolveMediaUrl).filter(Boolean);
+                                const images = rawImages.map(resolveMediaUrl).filter(Boolean);
 
                                 const activeImgUrl = images[activeImage];
 
@@ -378,8 +381,11 @@ export default function PropertyDetailsPage() {
                         {/* Thumbnails list */}
                         {(() => {
                             const allMedia = property.media || [];
-                            const videos = property.videos || allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
-                            const images = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+                            const rawVideos = property.videos?.length ? property.videos : allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
+                            const rawImages = property.images?.length ? property.images : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+
+                            const videos = rawVideos.map(resolveMediaUrl).filter(Boolean);
+                            const images = rawImages.map(resolveMediaUrl).filter(Boolean);
 
                             return (
                                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -392,7 +398,15 @@ export default function PropertyDetailsPage() {
                                                 activeImage === i ? "border-primary shadow-lg" : "border-border/60 shadow-sm opacity-80 hover:opacity-100"
                                             )}
                                         >
-                                            <img src={img} className="w-full h-full object-cover rounded-xl" alt="" />
+                                            <img 
+                                                src={img} 
+                                                className="w-full h-full object-cover rounded-xl" 
+                                                alt="" 
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                                                }}
+                                            />
                                         </button>
                                     ))}
 
