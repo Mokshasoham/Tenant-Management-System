@@ -14,18 +14,19 @@ const API_BASE_URL = (envBase && !envBase.includes('localhost'))
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 30000,
 });
 
-// Add token to requests
+// Add token to requests & handle FormData headers
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Critical: When sending FormData, delete 'Content-Type' so Axios calculates multipart/form-data with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },

@@ -339,21 +339,28 @@ export default function PropertyModal({ property, onClose, onSave }) {
         propertyId = res.data._id;
       }
 
-      setUploadProgress(60);
+      setUploadProgress(50);
 
       // Handle Real File Uploads
       if (mediaFiles.length > 0) {
-        const formData = new FormData();
-        
-        // Ensure Cover image is uploaded first so backend assigns it as primary
-        const sortedFiles = [...mediaFiles];
-        if (coverIndex >= 0 && coverIndex < sortedFiles.length) {
-          const [coverItem] = sortedFiles.splice(coverIndex, 1);
-          sortedFiles.unshift(coverItem);
-        }
+        try {
+          const formData = new FormData();
+          
+          // Ensure Cover image is uploaded first so backend assigns it as primary
+          const sortedFiles = [...mediaFiles];
+          if (coverIndex >= 0 && coverIndex < sortedFiles.length) {
+            const [coverItem] = sortedFiles.splice(coverIndex, 1);
+            sortedFiles.unshift(coverItem);
+          }
 
-        sortedFiles.forEach(item => formData.append('media', item.file));
-        await propertyService.uploadPropertyMedia(propertyId, formData);
+          sortedFiles.forEach(item => formData.append('media', item.file));
+          setUploadProgress(75);
+          await propertyService.uploadPropertyMedia(propertyId, formData);
+        } catch (mediaErr) {
+          console.error('Media upload error:', mediaErr);
+          const mediaMsg = mediaErr?.message || mediaErr?.error || mediaErr?.response?.data?.message || (typeof mediaErr === 'string' ? mediaErr : 'Media upload failed');
+          throw new Error(`Property details saved, but media upload failed: ${mediaMsg}`);
+        }
       }
 
       setUploadProgress(100);
@@ -364,7 +371,9 @@ export default function PropertyModal({ property, onClose, onSave }) {
       }, 800);
 
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to save property.');
+      console.error('Property save error:', err);
+      const errMsg = err?.message || err?.error || err?.response?.data?.message || (typeof err === 'string' ? err : 'Failed to save property.');
+      setError(errMsg);
       setUploadProgress(0);
     } finally {
       setLoading(false);
