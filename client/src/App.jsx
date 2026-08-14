@@ -210,6 +210,7 @@ function App() {
                 <Route path="/my-lease" element={<ProtectedRoute><DashboardLayout><MyLeasePage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/pay-now" element={<ProtectedRoute><DashboardLayout><PayNowPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/browse" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/browse/*" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/properties/:id" element={<ProtectedRoute><DashboardLayout><PropertyDetailsPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPropertiesPage /></DashboardLayout></ProtectedRoute>} />

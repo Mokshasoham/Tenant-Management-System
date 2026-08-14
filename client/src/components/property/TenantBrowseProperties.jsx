@@ -133,77 +133,21 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     );
 }
 
-// ── Pre-computed vibrant ambient color palettes ──
+// ── Curated high-fidelity harmonic ambient palettes for property media cycling ──
 const AMBIENT_PALETTES = [
-    { r: 245, g: 158, b: 11 },   // Warm Amber / Gold
-    { r: 16, g: 185, b: 129 },   // Emerald / Forest Green
-    { r: 99, g: 102, b: 241 },   // Indigo / Sapphire
-    { r: 249, g: 115, b: 22 },   // Sunset Orange / Terracotta
-    { r: 59, g: 130, b: 246 },   // Sky Blue / Ocean
-    { r: 236, g: 72, b: 153 },   // Rose / Coral
-    { r: 139, g: 92, b: 246 },   // Violet / Amethyst
-    { r: 20, g: 184, b: 166 },   // Teal / Mint
+    { r: 245, g: 158, b: 11 },   // Warm Sunset Gold / Amber
+    { r: 16, g: 185, b: 129 },   // Fresh Emerald / Forest Green
+    { r: 99, g: 102, b: 241 },   // Sapphire Indigo / Modern Blue
+    { r: 249, g: 115, b: 22 },   // Terracotta / Warm Orange
+    { r: 59, g: 130, b: 246 },   // Ocean Azure / Sky Blue
+    { r: 236, g: 72, b: 153 },   // Coral Rose / Pink
+    { r: 139, g: 92, b: 246 },   // Amethyst Violet / Purple
+    { r: 20, g: 184, b: 166 },   // Crisp Mint / Teal
 ];
 
-const colorCache = new Map();
-
-function getCachedOrSampledColor(url, index = 0, onResult) {
-    if (!url) {
-        onResult(AMBIENT_PALETTES[index % AMBIENT_PALETTES.length]);
-        return;
-    }
-    if (colorCache.has(url)) {
-        onResult(colorCache.get(url));
-        return;
-    }
-    const fallback = AMBIENT_PALETTES[index % AMBIENT_PALETTES.length];
-    
-    // Canvas-based image color extractor with safe fallback
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-        try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 16;
-            canvas.height = 16;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) {
-                colorCache.set(url, fallback);
-                onResult(fallback);
-                return;
-            }
-            ctx.drawImage(img, 0, 0, 16, 16);
-            const data = ctx.getImageData(0, 0, 16, 16).data;
-            let r = 0, g = 0, b = 0, count = 0;
-            for (let i = 0; i < data.length; i += 16) {
-                const cr = data[i], cg = data[i + 1], cb = data[i + 2], ca = data[i + 3];
-                if (ca > 128) {
-                    r += cr; g += cg; b += cb;
-                    count++;
-                }
-            }
-            if (count > 0) {
-                const sampled = {
-                    r: Math.round(r / count),
-                    g: Math.round(g / count),
-                    b: Math.round(b / count)
-                };
-                colorCache.set(url, sampled);
-                onResult(sampled);
-            } else {
-                colorCache.set(url, fallback);
-                onResult(fallback);
-            }
-        } catch (e) {
-            colorCache.set(url, fallback);
-            onResult(fallback);
-        }
-    };
-    img.onerror = () => {
-        colorCache.set(url, fallback);
-        onResult(fallback);
-    };
-    img.src = url;
+function getMediaAmbientRgb(cardIndex, imgIndex) {
+    const paletteIndex = ((cardIndex || 0) * 3 + (imgIndex || 0)) % AMBIENT_PALETTES.length;
+    return AMBIENT_PALETTES[paletteIndex];
 }
 
 // ── Full grid card ──
@@ -221,16 +165,9 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 
     const [currentImgIndex, setCurrentImgIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
-    const [ambientRgb, setAmbientRgb] = useState(AMBIENT_PALETTES[index % AMBIENT_PALETTES.length]);
     const intervalRef = useRef(null);
 
-    // Update ambient shadow color when active image changes
-    useEffect(() => {
-        const currentUrl = imageUrls[currentImgIndex];
-        getCachedOrSampledColor(currentUrl, currentImgIndex, (rgb) => {
-            setAmbientRgb(rgb);
-        });
-    }, [currentImgIndex, imageUrls]);
+    const ambientRgb = getMediaAmbientRgb(index, currentImgIndex);
 
     // Slideshow interval only active on hovered card
     useEffect(() => {
