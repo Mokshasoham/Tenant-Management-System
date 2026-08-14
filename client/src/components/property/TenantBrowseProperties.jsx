@@ -150,6 +150,8 @@ function getMediaAmbientRgb(cardIndex, imgIndex) {
     return AMBIENT_PALETTES[paletteIndex];
 }
 
+const VIEW_DETAILS_LETTERS = ['V', 'i', 'e', 'w', '\u00A0', 'd', 'e', 't', 'a', 'i', 'l', 's'];
+
 // ── Full grid card ──
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
@@ -360,70 +362,91 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
                             {p.manager?.firstName?.[0] || 'M'}
                         </div>
                         <div className="flex flex-col min-w-0">
                             <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
-                            <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : 'Property Manager'}</span>
+                            <span className="text-xs font-bold text-foreground truncate max-w-[110px] sm:max-w-[130px]">{p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : 'Property Manager'}</span>
                         </div>
                     </div>
 
-                    {/* Premium View Details Button with Independent Hover & Arrow Trail Animation */}
-                    <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={onClick}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-                        onMouseEnter={() => setBtnHovered(true)}
-                        onMouseLeave={() => setBtnHovered(false)}
-                        className="relative min-w-[126px] h-9 px-3.5 rounded-xl flex items-center justify-between gap-2.5 cursor-pointer transition-all duration-300 select-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
-                        style={{
-                            backgroundColor: btnHovered
-                                ? theme === 'light' ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.12)'
-                                : theme === 'light' ? 'rgba(0, 0, 0, 0.045)' : 'rgba(255, 255, 255, 0.06)',
-                            borderColor: btnHovered
-                                ? theme === 'light' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.18)'
-                                : theme === 'light' ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)',
-                            borderWidth: '1px',
-                            borderStyle: 'solid',
-                            boxShadow: btnHovered ? '0 6px 16px rgba(0, 0, 0, 0.12)' : 'none',
-                            transform: btnHovered ? 'translateY(-1px)' : 'translateY(0px)'
-                        }}
-                    >
-                        <span
-                            className="text-xs font-black tracking-wide transition-all duration-300 select-none whitespace-nowrap"
+                    {/* Right-anchored Circular Arrow -> Expanding View Details Action */}
+                    <div className="flex justify-end flex-shrink-0">
+                        <button
+                            type="button"
+                            aria-label={`View details for ${p.name}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onClick();
+                            }}
+                            onMouseEnter={() => setBtnHovered(true)}
+                            onMouseLeave={() => setBtnHovered(false)}
+                            onFocus={() => setBtnHovered(true)}
+                            onBlur={() => setBtnHovered(false)}
+                            className="relative h-9 rounded-full flex items-center justify-end overflow-hidden cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
                             style={{
-                                transform: btnHovered ? 'translateX(-2px)' : 'translateX(0px)',
-                                color: theme === 'light'
-                                    ? (btnHovered ? '#0f172a' : '#334155')
-                                    : (btnHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.85)')
+                                width: btnHovered ? '126px' : '36px',
+                                backgroundColor: btnHovered
+                                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.12)'
+                                    : theme === 'light' ? 'rgba(0, 0, 0, 0.045)' : 'rgba(255, 255, 255, 0.06)',
+                                borderColor: btnHovered
+                                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.18)'
+                                    : theme === 'light' ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)',
+                                borderWidth: '1px',
+                                borderStyle: 'solid',
+                                boxShadow: btnHovered
+                                    ? theme === 'light' ? '0 4px 14px rgba(0, 0, 0, 0.08)' : '0 6px 18px rgba(0, 0, 0, 0.22)'
+                                    : 'none',
+                                transform: btnHovered ? 'translateY(-1px)' : 'translateY(0px)',
+                                transition: 'width 380ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease, transform 300ms ease'
                             }}
                         >
-                            View details
-                        </span>
+                            {/* Sliding Queue Revealed Letters */}
+                            <div
+                                className="overflow-hidden flex items-center whitespace-nowrap pointer-events-none"
+                                style={{
+                                    width: btnHovered ? '82px' : '0px',
+                                    paddingLeft: btnHovered ? '12px' : '0px',
+                                    opacity: btnHovered ? 1 : 0,
+                                    transition: 'width 380ms cubic-bezier(0.22, 1, 0.36, 1), padding-left 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease'
+                                }}
+                            >
+                                <span
+                                    className="text-xs font-black tracking-tight flex items-center select-none"
+                                    style={{
+                                        color: theme === 'light' ? '#0f172a' : '#F5F7FA'
+                                    }}
+                                >
+                                    {VIEW_DETAILS_LETTERS.map((char, i) => (
+                                        <span
+                                            key={i}
+                                            className="inline-block select-none"
+                                            style={{
+                                                transform: btnHovered ? 'translateX(0px)' : 'translateX(-8px)',
+                                                opacity: btnHovered ? 1 : 0,
+                                                transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease',
+                                                transitionDelay: btnHovered ? `${i * 16}ms` : `${(VIEW_DETAILS_LETTERS.length - 1 - i) * 8}ms`
+                                            }}
+                                        >
+                                            {char}
+                                        </span>
+                                    ))}
+                                </span>
+                            </div>
 
-                        <div className="relative w-4 h-4 flex items-center justify-center overflow-visible flex-shrink-0">
-                            {/* Subtle Trailing Ghost Arrow */}
-                            <ArrowRight
-                                className="w-3.5 h-3.5 absolute inset-0 transition-all duration-300 pointer-events-none"
-                                style={{
-                                    transform: btnHovered ? 'translateX(3px)' : 'translateX(-4px)',
-                                    opacity: btnHovered ? 0.35 : 0,
-                                    color: theme === 'light' ? '#334155' : 'rgba(255, 255, 255, 0.7)'
-                                }}
-                            />
-                            {/* Primary Lead Arrow */}
-                            <ArrowRight
-                                className="w-3.5 h-3.5 absolute inset-0 transition-all duration-300 pointer-events-none"
-                                style={{
-                                    transform: btnHovered ? 'translateX(9px)' : 'translateX(0px)',
-                                    opacity: 1,
-                                    color: theme === 'light' ? '#0f172a' : '#ffffff'
-                                }}
-                            />
-                        </div>
+                            {/* Circular Arrow Anchor */}
+                            <div className="w-[34px] h-[34px] flex items-center justify-center flex-shrink-0">
+                                <ArrowRight
+                                    className="w-3.5 h-3.5 transition-transform duration-300 pointer-events-none"
+                                    style={{
+                                        transform: btnHovered ? 'translateX(1px)' : 'translateX(0px)',
+                                        color: theme === 'light' ? '#0f172a' : '#F5F7FA'
+                                    }}
+                                />
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
