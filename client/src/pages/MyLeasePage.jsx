@@ -17,6 +17,7 @@ import {
     LeaseDocuments,
     SecurityDepositCard,
     LeaseRenewalCard,
+    LeasePropertyMediaGallery,
 } from '../components/lease';
 
 const AMENITY_ICON = {
@@ -725,6 +726,14 @@ export default function MyLeasePage() {
                             })}
                         </div>
                     </div>
+
+                    {/* ── Property Media Gallery ── */}
+                    {currentLease?.property && (
+                        <LeasePropertyMediaGallery
+                            property={currentLease.property}
+                            leaseId={currentLease._id}
+                        />
+                    )}
 
                     {/* ── Property Details + Utilities ── */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

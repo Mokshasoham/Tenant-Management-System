@@ -9,6 +9,7 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
+import { resolvePropertyUrls } from './propertyController.js';
 
 export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -20,6 +21,10 @@ export const resolveLeaseUrls = (lease, req) => {
 
   if (leaseObj.fileId) {
     leaseObj.pdfUrl = `${baseUrl}/api/files/download/${leaseObj.fileId}`;
+  }
+
+  if (leaseObj.property && typeof leaseObj.property === 'object') {
+    leaseObj.property = resolvePropertyUrls(leaseObj.property, req);
   }
 
   if (leaseObj.documents && leaseObj.documents.length > 0) {
@@ -75,7 +80,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .populate({
         path: 'property',
-        select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
+        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager',
         populate: { path: 'manager', select: 'firstName lastName email' }
       })
       .populate('tenant', 'firstName lastName email phone'),
@@ -87,7 +92,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .populate({
         path: 'property',
-        select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
+        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager',
         populate: { path: 'manager', select: 'firstName lastName email' }
       })
       .populate('tenant', 'firstName lastName email phone'),

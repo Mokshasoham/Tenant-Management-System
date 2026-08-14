@@ -4,7 +4,7 @@ import logger from '../utils/logger.js';
 import sharp from 'sharp';
 import { uploadFileBuffer } from '../services/fileService.js';
 
-const resolvePropertyUrls = (property, req) => {
+export const resolvePropertyUrls = (property, req) => {
   if (!property) return property;
   const propObj = property.toObject ? property.toObject() : property;
   const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
