@@ -133,31 +133,78 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     );
 }
 
-// ── Helper for dynamic subtle card shadows per image index ──
-const getCardShadow = (theme, isHovered, imgIndex) => {
-    if (!isHovered) {
-        return theme === 'light'
-            ? '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
-            : '0 4px 20px -2px rgba(0, 0, 0, 0.25), 0 2px 6px -1px rgba(0, 0, 0, 0.15)';
+// ── Pre-computed vibrant ambient color palettes ──
+const AMBIENT_PALETTES = [
+    { r: 245, g: 158, b: 11 },   // Warm Amber / Gold
+    { r: 16, g: 185, b: 129 },   // Emerald / Forest Green
+    { r: 99, g: 102, b: 241 },   // Indigo / Sapphire
+    { r: 249, g: 115, b: 22 },   // Sunset Orange / Terracotta
+    { r: 59, g: 130, b: 246 },   // Sky Blue / Ocean
+    { r: 236, g: 72, b: 153 },   // Rose / Coral
+    { r: 139, g: 92, b: 246 },   // Violet / Amethyst
+    { r: 20, g: 184, b: 166 },   // Teal / Mint
+];
+
+const colorCache = new Map();
+
+function getCachedOrSampledColor(url, index = 0, onResult) {
+    if (!url) {
+        onResult(AMBIENT_PALETTES[index % AMBIENT_PALETTES.length]);
+        return;
     }
-    if (theme === 'light') {
-        const lightShadows = [
-            '0 14px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
-            '0 16px 36px -4px rgba(15, 23, 42, 0.10), 0 5px 14px -2px rgba(15, 23, 42, 0.05)',
-            '0 15px 34px -4px rgba(30, 41, 59, 0.09), 0 4px 13px -2px rgba(30, 41, 59, 0.04)',
-            '0 16px 38px -4px rgba(2, 6, 23, 0.11), 0 5px 15px -2px rgba(2, 6, 23, 0.05)'
-        ];
-        return lightShadows[imgIndex % lightShadows.length];
-    } else {
-        const darkShadows = [
-            '0 14px 34px -4px rgba(0, 0, 0, 0.45), 0 6px 14px -2px rgba(0, 0, 0, 0.25)',
-            '0 16px 38px -4px rgba(15, 23, 42, 0.50), 0 7px 16px -2px rgba(15, 23, 42, 0.28)',
-            '0 15px 36px -4px rgba(30, 41, 59, 0.48), 0 6px 15px -2px rgba(30, 41, 59, 0.26)',
-            '0 16px 40px -4px rgba(2, 6, 23, 0.52), 0 7px 17px -2px rgba(2, 6, 23, 0.30)'
-        ];
-        return darkShadows[imgIndex % darkShadows.length];
+    if (colorCache.has(url)) {
+        onResult(colorCache.get(url));
+        return;
     }
-};
+    const fallback = AMBIENT_PALETTES[index % AMBIENT_PALETTES.length];
+    
+    // Canvas-based image color extractor with safe fallback
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) {
+                colorCache.set(url, fallback);
+                onResult(fallback);
+                return;
+            }
+            ctx.drawImage(img, 0, 0, 16, 16);
+            const data = ctx.getImageData(0, 0, 16, 16).data;
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let i = 0; i < data.length; i += 16) {
+                const cr = data[i], cg = data[i + 1], cb = data[i + 2], ca = data[i + 3];
+                if (ca > 128) {
+                    r += cr; g += cg; b += cb;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                const sampled = {
+                    r: Math.round(r / count),
+                    g: Math.round(g / count),
+                    b: Math.round(b / count)
+                };
+                colorCache.set(url, sampled);
+                onResult(sampled);
+            } else {
+                colorCache.set(url, fallback);
+                onResult(fallback);
+            }
+        } catch (e) {
+            colorCache.set(url, fallback);
+            onResult(fallback);
+        }
+    };
+    img.onerror = () => {
+        colorCache.set(url, fallback);
+        onResult(fallback);
+    };
+    img.src = url;
+}
 
 // ── Full grid card ──
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
@@ -174,13 +221,23 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 
     const [currentImgIndex, setCurrentImgIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [ambientRgb, setAmbientRgb] = useState(AMBIENT_PALETTES[index % AMBIENT_PALETTES.length]);
     const intervalRef = useRef(null);
 
+    // Update ambient shadow color when active image changes
+    useEffect(() => {
+        const currentUrl = imageUrls[currentImgIndex];
+        getCachedOrSampledColor(currentUrl, currentImgIndex, (rgb) => {
+            setAmbientRgb(rgb);
+        });
+    }, [currentImgIndex, imageUrls]);
+
+    // Slideshow interval only active on hovered card
     useEffect(() => {
         if (isHovered && imageUrls.length > 1) {
             intervalRef.current = setInterval(() => {
                 setCurrentImgIndex(prev => (prev + 1) % imageUrls.length);
-            }, 3000);
+            }, 3200);
         } else {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
@@ -205,19 +262,39 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             style={{
-                boxShadow: getCardShadow(theme, isHovered, currentImgIndex),
+                boxShadow: isHovered
+                    ? theme === 'light'
+                        ? `0 14px 32px -6px rgba(0, 0, 0, 0.08), 0 24px 54px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.18)`
+                        : `0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 24px 58px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.24)`
+                    : theme === 'light'
+                        ? '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
+                        : '0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.20)',
                 transform: isHovered ? 'translateY(-4px)' : 'translateY(0px)',
-                transition: 'box-shadow 800ms ease, transform 300ms ease, border-color 300ms ease'
+                transition: 'box-shadow 900ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease'
             }}
             className={cn(
-                "rounded-[2rem] overflow-hidden cursor-pointer bg-card border transition-all select-none group",
+                "relative rounded-[2.25rem] cursor-pointer bg-card border transition-all select-none group",
                 isHovered
-                    ? "border-primary/40 ring-1 ring-primary/20"
-                    : "border-border/70"
+                    ? "border-primary/50 dark:border-primary/40 ring-1 ring-primary/20"
+                    : "border-border/80 dark:border-white/10"
             )}
         >
+            {/* Dynamic Ambient Media Shadow Layer radiating OUTSIDE behind the entire card */}
+            <div
+                className="absolute -inset-2.5 sm:-inset-3.5 rounded-[2.75rem] pointer-events-none -z-10"
+                style={{
+                    background: isHovered
+                        ? `radial-gradient(ellipse at 50% 30%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.24 : 0.35}) 0%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.08 : 0.14}) 50%, transparent 80%)`
+                        : 'transparent',
+                    filter: 'blur(30px)',
+                    opacity: isHovered ? 1 : 0,
+                    transform: isHovered ? 'scale(1.05) translateY(-3px)' : 'scale(0.95) translateY(0)',
+                    transition: 'opacity 700ms ease, background 900ms ease, transform 300ms ease'
+                }}
+            />
+
             {/* Media Area */}
-            <div className="relative h-56 overflow-hidden bg-muted transition-colors">
+            <div className="relative h-56 sm:h-60 overflow-hidden bg-muted transition-colors rounded-t-[2.25rem]">
                 {imageUrls.length > 0 ? (
                     <div className="w-full h-full relative overflow-hidden">
                         <AnimatePresence initial={false} mode="wait">
@@ -247,12 +324,12 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                     </div>
                 )}
 
-                {/* Subtle Ambient Dark Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/20 pointer-events-none" />
+                {/* Ambient Dark Gradient Overlays for readable text and badges */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/15 pointer-events-none" />
 
-                {/* Media Progress Dot Indicators (shown when multiple images exist) */}
+                {/* Media Progress Dot Indicators */}
                 {imageUrls.length > 1 && (
-                    <div className="absolute bottom-3 right-4 flex items-center gap-1.5 z-10 pointer-events-none">
+                    <div className="absolute bottom-3.5 right-4 flex items-center gap-1.5 z-10 pointer-events-none">
                         {imageUrls.map((_, i) => (
                             <span
                                 key={i}
@@ -329,16 +406,16 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-5 sm:p-6 space-y-4">
                 <div>
                     <h3 className="text-lg font-black text-foreground truncate group-hover:text-primary transition-colors duration-200">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5 mt-1 truncate">
+                    <p className="text-xs text-muted-foreground/75 font-semibold flex items-center gap-1.5 mt-1 truncate">
                         <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
                         <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
                     </p>
                 </div>
 
-                <div className="flex items-center gap-6 text-xs font-bold pt-1 pb-4 border-b border-border/60 text-muted-foreground">
+                <div className="flex items-center gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground">
                     <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bedrooms || 0} Bed</span>
                     <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
                     {p.squareFeet && <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet} sqft</span>}
@@ -349,13 +426,13 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
                             {p.manager?.firstName?.[0] || 'M'}
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
                             <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : 'Property Manager'}</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs font-black tracking-wide px-3.5 py-2 rounded-xl transition-all duration-200 bg-muted/60 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md text-foreground cursor-pointer">
+                    <div className="flex items-center gap-1.5 text-xs font-black tracking-wide px-3.5 py-2 rounded-xl transition-all duration-200 bg-muted/70 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md text-foreground cursor-pointer">
                         <span>View details</span>
                         <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
                     </div>
