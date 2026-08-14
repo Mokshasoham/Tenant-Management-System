@@ -263,6 +263,7 @@ export default function TenantDashboard({ user, navigate }) {
     };
 
     const activePaymentsToShow = getActivePaymentsToShow();
+    const nextEstimatedPayments = activePaymentsToShow.filter(p => p.isEstimate);
 
     const trulyActiveLeases = activeLeases.filter(l => new Date(l.endDate) > new Date());
     const completedLeases = [
@@ -922,7 +923,7 @@ export default function TenantDashboard({ user, navigate }) {
                                             ₹{(est.amount || 0).toLocaleString('en-IN')}
                                         </p>
                                         <p className="text-[9px] text-muted-foreground mt-0.5">
-                                            Est: {est.dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            Est: {est.dueDate ? new Date(est.dueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
                                         </p>
                                     </div>
                                     <span className="text-[8px] font-black text-muted-foreground/30 uppercase tracking-widest select-none">
