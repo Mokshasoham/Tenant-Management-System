@@ -82,10 +82,15 @@ export default function PropertyDetailsPage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [mediaLoadErrors, setMediaLoadErrors] = useState({});
 
+    const galleryHeroRef = useRef(null);
+    const lightboxHeroRef = useRef(null);
     const thumbnailItemRefs = useRef({});
     const fsThumbnailRefs = useRef({});
     const touchStartX = useRef(null);
     const touchStartY = useRef(null);
+    const wheelDeltaAccumulator = useRef(0);
+    const isWheelCoolingDown = useRef(false);
+    const wheelTimeoutRef = useRef(null);
 
     // Save & Info state
     const [isSaved, setIsSaved] = useState(false);
@@ -343,6 +348,112 @@ export default function PropertyDetailsPage() {
         }
     }, [activeImage]);
 
+    // Trackpad horizontal swipe / wheel gesture on main hero gallery
+    useEffect(() => {
+        const heroEl = galleryHeroRef.current;
+        if (!heroEl) return;
+
+        const handleWheel = (e) => {
+            // Allow vertical scrolling to continue smoothly
+            if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+                return;
+            }
+
+            // Dominant horizontal trackpad gesture
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            if (isWheelCoolingDown.current) return;
+
+            wheelDeltaAccumulator.current += e.deltaX;
+
+            if (wheelTimeoutRef.current) {
+                clearTimeout(wheelTimeoutRef.current);
+            }
+            wheelTimeoutRef.current = setTimeout(() => {
+                wheelDeltaAccumulator.current = 0;
+            }, 150);
+
+            const SWIPE_THRESHOLD = 50;
+
+            if (wheelDeltaAccumulator.current >= SWIPE_THRESHOLD) {
+                // Swipe LEFT -> NEXT
+                wheelDeltaAccumulator.current = 0;
+                isWheelCoolingDown.current = true;
+                handleNextMedia();
+                setTimeout(() => {
+                    isWheelCoolingDown.current = false;
+                }, 400);
+            } else if (wheelDeltaAccumulator.current <= -SWIPE_THRESHOLD) {
+                // Swipe RIGHT -> PREV
+                wheelDeltaAccumulator.current = 0;
+                isWheelCoolingDown.current = true;
+                handlePrevMedia();
+                setTimeout(() => {
+                    isWheelCoolingDown.current = false;
+                }, 400);
+            }
+        };
+
+        heroEl.addEventListener('wheel', handleWheel, { passive: false });
+        return () => {
+            heroEl.removeEventListener('wheel', handleWheel);
+            if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+        };
+    }, [activeImage, totalMediaCount]);
+
+    // Trackpad horizontal swipe on fullscreen lightbox
+    useEffect(() => {
+        if (!isFullscreen) return;
+        const fsEl = lightboxHeroRef.current;
+        if (!fsEl) return;
+
+        const handleWheel = (e) => {
+            if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+                return;
+            }
+
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            if (isWheelCoolingDown.current) return;
+
+            wheelDeltaAccumulator.current += e.deltaX;
+
+            if (wheelTimeoutRef.current) {
+                clearTimeout(wheelTimeoutRef.current);
+            }
+            wheelTimeoutRef.current = setTimeout(() => {
+                wheelDeltaAccumulator.current = 0;
+            }, 150);
+
+            const SWIPE_THRESHOLD = 50;
+
+            if (wheelDeltaAccumulator.current >= SWIPE_THRESHOLD) {
+                wheelDeltaAccumulator.current = 0;
+                isWheelCoolingDown.current = true;
+                handleNextMedia();
+                setTimeout(() => {
+                    isWheelCoolingDown.current = false;
+                }, 400);
+            } else if (wheelDeltaAccumulator.current <= -SWIPE_THRESHOLD) {
+                wheelDeltaAccumulator.current = 0;
+                isWheelCoolingDown.current = true;
+                handlePrevMedia();
+                setTimeout(() => {
+                    isWheelCoolingDown.current = false;
+                }, 400);
+            }
+        };
+
+        fsEl.addEventListener('wheel', handleWheel, { passive: false });
+        return () => {
+            fsEl.removeEventListener('wheel', handleWheel);
+        };
+    }, [isFullscreen, activeImage, totalMediaCount]);
+
     // Keyboard Arrow navigation & Escape listener
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -461,6 +572,7 @@ export default function PropertyDetailsPage() {
                     <div className="space-y-4">
                         {/* Main Hero Container */}
                         <div
+                            ref={galleryHeroRef}
                             className="aspect-video rounded-[2.5rem] bg-slate-950 border border-border overflow-hidden relative shadow-2xl shadow-primary/5 transition-colors group select-none touch-pan-y"
                             onTouchStart={handleTouchStart}
                             onTouchEnd={handleTouchEnd}
@@ -1492,7 +1604,7 @@ export default function PropertyDetailsPage() {
                         </div>
 
                         {/* Lightbox Center Media Stage */}
-                        <div className="flex-1 relative flex items-center justify-center my-4 overflow-hidden">
+                        <div ref={lightboxHeroRef} className="flex-1 relative flex items-center justify-center my-4 overflow-hidden touch-pan-y">
                             <AnimatePresence initial={false} custom={galleryDirection} mode="popLayout">
                                 {activeMediaItem && (
                                     <motion.div
