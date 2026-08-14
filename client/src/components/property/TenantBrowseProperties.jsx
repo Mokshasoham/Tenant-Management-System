@@ -165,6 +165,7 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 
     const [currentImgIndex, setCurrentImgIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [btnHovered, setBtnHovered] = useState(false);
     const intervalRef = useRef(null);
 
     const ambientRgb = getMediaAmbientRgb(index, currentImgIndex);
@@ -201,19 +202,19 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             style={{
                 boxShadow: isHovered
                     ? theme === 'light'
-                        ? `0 14px 32px -6px rgba(0, 0, 0, 0.08), 0 24px 54px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.18)`
-                        : `0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 24px 58px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.24)`
+                        ? `0 12px 28px -6px rgba(0, 0, 0, 0.07), 0 20px 48px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.14)`
+                        : `0 14px 32px -6px rgba(0, 0, 0, 0.50), 0 20px 52px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.18)`
                     : theme === 'light'
-                        ? '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
-                        : '0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.20)',
-                transform: isHovered ? 'translateY(-4px)' : 'translateY(0px)',
-                transition: 'box-shadow 900ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease'
+                        ? '0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
+                        : '0 4px 20px -2px rgba(0, 0, 0, 0.30), 0 2px 6px -1px rgba(0, 0, 0, 0.15)',
+                transform: isHovered ? 'translateY(-3px)' : 'translateY(0px)',
+                borderColor: isHovered
+                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.14)'
+                    : theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+                transition: 'transform 280ms cubic-bezier(.2,.8,.2,1), box-shadow 500ms ease, border-color 300ms ease'
             }}
             className={cn(
-                "relative rounded-[2.25rem] cursor-pointer bg-card border transition-all select-none group",
-                isHovered
-                    ? "border-primary/50 dark:border-primary/40 ring-1 ring-primary/20"
-                    : "border-border/80 dark:border-white/10"
+                "relative rounded-[2.25rem] cursor-pointer bg-card border select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             )}
         >
             {/* Dynamic Ambient Media Shadow Layer radiating OUTSIDE behind the entire card */}
@@ -221,11 +222,11 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                 className="absolute -inset-2.5 sm:-inset-3.5 rounded-[2.75rem] pointer-events-none -z-10"
                 style={{
                     background: isHovered
-                        ? `radial-gradient(ellipse at 50% 30%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.24 : 0.35}) 0%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.08 : 0.14}) 50%, transparent 80%)`
+                        ? `radial-gradient(ellipse at 50% 30%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.22 : 0.30}) 0%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.07 : 0.12}) 50%, transparent 80%)`
                         : 'transparent',
                     filter: 'blur(30px)',
                     opacity: isHovered ? 1 : 0,
-                    transform: isHovered ? 'scale(1.05) translateY(-3px)' : 'scale(0.95) translateY(0)',
+                    transform: isHovered ? 'scale(1.04) translateY(-2px)' : 'scale(0.95) translateY(0)',
                     transition: 'opacity 700ms ease, background 900ms ease, transform 300ms ease'
                 }}
             />
@@ -345,7 +346,7 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             {/* Body */}
             <div className="p-5 sm:p-6 space-y-4">
                 <div>
-                    <h3 className="text-lg font-black text-foreground truncate group-hover:text-primary transition-colors duration-200">{p.name}</h3>
+                    <h3 className="text-lg font-black text-foreground truncate group-hover:text-foreground/95 transition-colors duration-200">{p.name}</h3>
                     <p className="text-xs text-muted-foreground/75 font-semibold flex items-center gap-1.5 mt-1 truncate">
                         <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
                         <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
@@ -369,9 +370,60 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs font-black tracking-wide px-3.5 py-2 rounded-xl transition-all duration-200 bg-muted/70 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md text-foreground cursor-pointer">
-                        <span>View details</span>
-                        <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                    {/* Premium View Details Button with Independent Hover & Arrow Trail Animation */}
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={onClick}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+                        onMouseEnter={() => setBtnHovered(true)}
+                        onMouseLeave={() => setBtnHovered(false)}
+                        className="relative min-w-[126px] h-9 px-3.5 rounded-xl flex items-center justify-between gap-2.5 cursor-pointer transition-all duration-300 select-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
+                        style={{
+                            backgroundColor: btnHovered
+                                ? theme === 'light' ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.12)'
+                                : theme === 'light' ? 'rgba(0, 0, 0, 0.045)' : 'rgba(255, 255, 255, 0.06)',
+                            borderColor: btnHovered
+                                ? theme === 'light' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.18)'
+                                : theme === 'light' ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)',
+                            borderWidth: '1px',
+                            borderStyle: 'solid',
+                            boxShadow: btnHovered ? '0 6px 16px rgba(0, 0, 0, 0.12)' : 'none',
+                            transform: btnHovered ? 'translateY(-1px)' : 'translateY(0px)'
+                        }}
+                    >
+                        <span
+                            className="text-xs font-black tracking-wide transition-all duration-300 select-none whitespace-nowrap"
+                            style={{
+                                transform: btnHovered ? 'translateX(-2px)' : 'translateX(0px)',
+                                color: theme === 'light'
+                                    ? (btnHovered ? '#0f172a' : '#334155')
+                                    : (btnHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.85)')
+                            }}
+                        >
+                            View details
+                        </span>
+
+                        <div className="relative w-4 h-4 flex items-center justify-center overflow-visible flex-shrink-0">
+                            {/* Subtle Trailing Ghost Arrow */}
+                            <ArrowRight
+                                className="w-3.5 h-3.5 absolute inset-0 transition-all duration-300 pointer-events-none"
+                                style={{
+                                    transform: btnHovered ? 'translateX(3px)' : 'translateX(-4px)',
+                                    opacity: btnHovered ? 0.35 : 0,
+                                    color: theme === 'light' ? '#334155' : 'rgba(255, 255, 255, 0.7)'
+                                }}
+                            />
+                            {/* Primary Lead Arrow */}
+                            <ArrowRight
+                                className="w-3.5 h-3.5 absolute inset-0 transition-all duration-300 pointer-events-none"
+                                style={{
+                                    transform: btnHovered ? 'translateX(9px)' : 'translateX(0px)',
+                                    opacity: 1,
+                                    color: theme === 'light' ? '#0f172a' : '#ffffff'
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
