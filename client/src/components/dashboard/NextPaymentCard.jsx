@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, AlertTriangle, CheckCircle2, ArrowRight, ShieldCheck, Sparkles, Building2, Calendar, CreditCard } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle2, ArrowRight, Building2, CreditCard } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -8,6 +8,7 @@ export default function NextPaymentCard({
   dueDate,
   amount,
   isEstimate = false,
+  isConfirmed = false,
   propertyName = '',
   onPayRent,
   theme = 'dark'
@@ -23,25 +24,47 @@ export default function NextPaymentCard({
     return () => clearInterval(timer);
   }, []);
 
-  if (!dueDate && amount === undefined) {
+  // Safe Handling for Missing Data
+  if (!dueDate && (amount === undefined || amount === null)) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center rounded-3xl bg-card/40 border border-dashed border-border/80 backdrop-blur-xl h-full min-h-[300px]">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 border border-emerald-500/20">
-          <CheckCircle2 className="w-6 h-6" />
+      <div className="flex flex-col items-center justify-center p-8 text-center rounded-[2rem] bg-card/60 backdrop-blur-xl border border-border/80 shadow-[0_20px_50px_rgba(0,0,0,0.2)] h-full min-h-[340px]">
+        <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/80">
+          <Building2 className="w-6 h-6" />
         </div>
-        <h3 className="text-base font-black text-foreground">{t('dashboard.allCaughtUp', "You're All Caught Up")}</h3>
+        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">No Active Lease</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-          {t('dashboard.noPendingPayments', "No upcoming or pending rent payments at this time.")}
+          No active lease agreements or upcoming payments scheduled.
         </p>
       </div>
     );
   }
 
-  const dueTime = new Date(dueDate).getTime();
-  const diff = dueTime - now;
+  if (!dueDate) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center rounded-[2rem] bg-card/60 backdrop-blur-xl border border-border/80 shadow-[0_20px_50px_rgba(0,0,0,0.2)] h-full min-h-[340px]">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-3 border border-amber-500/20">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Payment Schedule Unavailable</h3>
+        <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
+          The payment cycle schedule for this lease could not be determined.
+        </p>
+      </div>
+    );
+  }
 
+  const dueObj = new Date(dueDate);
+  // Calculate end-of-day deadline in UTC to prevent timezone drifting
+  const dueDeadline = Date.UTC(
+    dueObj.getUTCFullYear(),
+    dueObj.getUTCMonth(),
+    dueObj.getUTCDate(),
+    23, 59, 59, 999
+  );
+
+  const diff = dueDeadline - now;
   const isOverdue = diff < 0 && !isEstimate;
-  const isDueToday = !isOverdue && diff < 86400000; // Less than 24 hours
+  const isDueToday = !isOverdue && diff >= 0 && diff <= 86400000;
 
   // Time component calculations
   const absoluteDiff = Math.abs(diff);
@@ -49,6 +72,7 @@ export default function NextPaymentCard({
   const hours = Math.floor((absoluteDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((absoluteDiff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((absoluteDiff % (1000 * 60)) / 1000);
+  const overdueDays = Math.floor(absoluteDiff / (1000 * 60 * 60 * 24)) + 1;
 
   // Circular progress math (assuming 30-day billing cycle)
   const RADIUS = 42;
@@ -77,8 +101,10 @@ export default function NextPaymentCard({
         icon: Clock,
       }
     : {
-        badge: isEstimate ? 'ESTIMATED' : 'UPCOMING',
-        badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400',
+        badge: isEstimate ? 'ESTIMATED' : 'CONFIRMED',
+        badgeBg: isEstimate
+          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
+          : 'bg-teal-500/15 border-teal-500/35 text-teal-400 dark:text-teal-300',
         ringColor: 'stroke-emerald-500',
         glowColor: 'from-emerald-500/20 to-teal-500/5',
         accentText: 'text-emerald-500 dark:text-emerald-400',
@@ -87,10 +113,12 @@ export default function NextPaymentCard({
 
   const StatusIcon = statusConfig.icon;
 
+  // Format date consistently in UTC to avoid 1-day shifting in negative timezones
   const formattedDueDate = new Date(dueDate).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'UTC'
   });
 
   return (
@@ -170,6 +198,13 @@ export default function NextPaymentCard({
                   OVERDUE
                 </span>
               </>
+            ) : isDueToday ? (
+              <>
+                <span className="text-3xl font-black text-amber-500 tracking-tight leading-none tabular-nums">0</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 mt-1">
+                  DUE TODAY
+                </span>
+              </>
             ) : (
               <>
                 <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums", statusConfig.accentText)}>
@@ -208,7 +243,7 @@ export default function NextPaymentCard({
         )}
         {isOverdue && (
           <div className="mt-3 px-3.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold text-[10px] tracking-wider uppercase">
-            {days === 0 ? 'DUE TODAY' : `${days} DAY${days !== 1 ? 'S' : ''} OVERDUE`}
+            {overdueDays === 1 ? '1 DAY OVERDUE' : `${overdueDays} DAYS OVERDUE`}
           </div>
         )}
       </div>

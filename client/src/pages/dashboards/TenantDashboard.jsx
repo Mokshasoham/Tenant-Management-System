@@ -11,6 +11,7 @@ import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import { useLanguage } from '../../context/LanguageContext';
 import NextPaymentCard from '../../components/dashboard/NextPaymentCard';
+import { calculateNextPaymentDue } from '../../utils/paymentSchedule';
 
 const getStatusStyle = (status) => ({
     active: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -241,64 +242,23 @@ export default function TenantDashboard({ user, navigate }) {
         }
     };
 
-    const getNextEstimatedPayments = () => {
-        if (activeLeases.length === 0) return [];
-        return activeLeases.map(activeLease => {
-            const activeLeasePayments = payments.filter(p => p.lease?._id === activeLease._id || p.lease === activeLease._id);
-            const paidPayments = activeLeasePayments.filter(p => p.status === 'paid');
-            let nextDueDate = new Date();
-            if (paidPayments.length > 0) {
-                const sortedPaid = [...paidPayments].sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
-                const latestDue = new Date(sortedPaid[0].dueDate);
-                nextDueDate = new Date(latestDue.getFullYear(), latestDue.getMonth() + 1, latestDue.getDate());
-            } else {
-                const leaseStart = new Date(activeLease.startDate);
-                nextDueDate = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), leaseStart.getDate());
-                if (nextDueDate < new Date()) {
-                    nextDueDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
-                }
-            }
-            return {
-                id: activeLease._id,
-                propertyName: activeLease.property?.name || 'TMS Rental',
-                amount: activeLease.rentAmount,
-                dueDate: nextDueDate,
-                type: 'rent',
-                status: 'upcoming'
-            };
-        });
-    };
-
-    const nextEstimatedPayments = getNextEstimatedPayments();
-
     const getActivePaymentsToShow = () => {
+        if (!activeLeases || activeLeases.length === 0) return [];
         return activeLeases.map(activeLease => {
-            const dbPending = payments.find(p => 
-                (p.lease?._id === activeLease._id || p.lease === activeLease._id) && 
-                (['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status))
-            );
-            if (dbPending) {
-                return {
-                    id: dbPending._id,
-                    dueDate: dbPending.dueDate,
-                    amount: dbPending.amountDue !== undefined ? (dbPending.amountDue - dbPending.amountPaid) : dbPending.amount,
-                    propertyName: activeLease.property?.name || 'TMS Rental',
-                    isEstimate: false,
-                    isOverdue: dbPending.status === 'overdue' || new Date(dbPending.dueDate) < new Date()
-                };
-            }
-            const est = nextEstimatedPayments.find(e => e.id === activeLease._id);
-            if (est) {
-                return {
-                    id: est.id,
-                    dueDate: est.dueDate,
-                    amount: est.amount,
-                    propertyName: est.propertyName,
-                    isEstimate: true,
-                    isOverdue: false
-                };
-            }
-            return null;
+            const schedule = calculateNextPaymentDue(activeLease, payments);
+            if (!schedule || !schedule.nextPaymentDueAt) return null;
+            const dueTime = new Date(schedule.nextPaymentDueAt).getTime();
+            const now = Date.now();
+            return {
+                id: schedule.paymentId || activeLease._id,
+                dueDate: schedule.nextPaymentDueAt,
+                amount: schedule.amount ?? activeLease.rentAmount,
+                propertyName: activeLease.property?.name || 'TMS Rental',
+                isEstimate: schedule.isEstimate,
+                isConfirmed: !schedule.isEstimate,
+                isOverdue: schedule.status === 'overdue' || (dueTime < now && !schedule.isEstimate),
+                status: schedule.status
+            };
         }).filter(Boolean);
     };
 

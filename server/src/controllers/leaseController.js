@@ -8,6 +8,7 @@ import Booking from '../models/Booking.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
+import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 
 export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -66,35 +67,59 @@ export const getMyLease = asyncHandler(async (req, res) => {
     }
   }
 
-  const activeLeases = await Lease.find({
-    tenant: tenant._id,
-    status: { $in: ['active', 'pending'] },
-  })
-    .sort({ createdAt: -1 })
-    .populate({
-      path: 'property',
-      select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
-      populate: { path: 'manager', select: 'firstName lastName email' }
+  const [activeLeases, pastLeases, tenantPayments] = await Promise.all([
+    Lease.find({
+      tenant: tenant._id,
+      status: { $in: ['active', 'pending'] },
     })
-    .populate('tenant', 'firstName lastName email phone');
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'property',
+        select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
+        populate: { path: 'manager', select: 'firstName lastName email' }
+      })
+      .populate('tenant', 'firstName lastName email phone'),
 
-  const pastLeases = await Lease.find({
-    tenant: tenant._id,
-    status: { $nin: ['active', 'pending'] },
-  })
-    .sort({ createdAt: -1 })
-    .populate({
-      path: 'property',
-      select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
-      populate: { path: 'manager', select: 'firstName lastName email' }
+    Lease.find({
+      tenant: tenant._id,
+      status: { $nin: ['active', 'pending'] },
     })
-    .populate('tenant', 'firstName lastName email phone');
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'property',
+        select: 'name address type bedrooms bathrooms rentAmount amenities images manager',
+        populate: { path: 'manager', select: 'firstName lastName email' }
+      })
+      .populate('tenant', 'firstName lastName email phone'),
+
+    Payment.find({ tenant: tenant._id }).sort({ dueDate: -1 })
+  ]);
+
+  // Enrich each active lease with authoritative payment schedule derived from lease cycle and DB payments
+  const enrichedActiveLeases = activeLeases.map(lease => {
+    const resolved = resolveLeaseUrls(lease, req);
+    const schedule = calculateNextPaymentDue(lease, tenantPayments);
+    return {
+      ...resolved,
+      nextPaymentDueAt: schedule?.nextPaymentDueAt || null,
+      nextPaymentAmount: schedule?.amount ?? lease.rentAmount,
+      nextPaymentStatus: schedule?.status || 'scheduled',
+      nextPaymentIsEstimate: schedule?.isEstimate ?? true,
+      nextPaymentSchedule: schedule
+    };
+  });
+
+  const primaryActiveLease = enrichedActiveLeases[0] || null;
 
   res.status(200).json({ 
     success: true, 
-    data: activeLeases[0] ? resolveLeaseUrls(activeLeases[0], req) : null, 
-    activeLeases: activeLeases.map(l => resolveLeaseUrls(l, req)), 
-    pastLeases: pastLeases.map(l => resolveLeaseUrls(l, req)) 
+    data: primaryActiveLease, 
+    activeLeases: enrichedActiveLeases, 
+    pastLeases: pastLeases.map(l => resolveLeaseUrls(l, req)),
+    monthlyRent: primaryActiveLease?.rentAmount || null,
+    leaseStartDate: primaryActiveLease?.startDate || null,
+    nextPaymentDueAt: primaryActiveLease?.nextPaymentDueAt || null,
+    paymentFrequency: 'MONTHLY'
   });
 });
 
