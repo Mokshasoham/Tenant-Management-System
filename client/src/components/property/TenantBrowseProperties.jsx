@@ -133,36 +133,142 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     );
 }
 
+// ── Helper for dynamic subtle card shadows per image index ──
+const getCardShadow = (theme, isHovered, imgIndex) => {
+    if (!isHovered) {
+        return theme === 'light'
+            ? '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
+            : '0 4px 20px -2px rgba(0, 0, 0, 0.25), 0 2px 6px -1px rgba(0, 0, 0, 0.15)';
+    }
+    if (theme === 'light') {
+        const lightShadows = [
+            '0 14px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+            '0 16px 36px -4px rgba(15, 23, 42, 0.10), 0 5px 14px -2px rgba(15, 23, 42, 0.05)',
+            '0 15px 34px -4px rgba(30, 41, 59, 0.09), 0 4px 13px -2px rgba(30, 41, 59, 0.04)',
+            '0 16px 38px -4px rgba(2, 6, 23, 0.11), 0 5px 15px -2px rgba(2, 6, 23, 0.05)'
+        ];
+        return lightShadows[imgIndex % lightShadows.length];
+    } else {
+        const darkShadows = [
+            '0 14px 34px -4px rgba(0, 0, 0, 0.45), 0 6px 14px -2px rgba(0, 0, 0, 0.25)',
+            '0 16px 38px -4px rgba(15, 23, 42, 0.50), 0 7px 16px -2px rgba(15, 23, 42, 0.28)',
+            '0 15px 36px -4px rgba(30, 41, 59, 0.48), 0 6px 15px -2px rgba(30, 41, 59, 0.26)',
+            '0 16px 40px -4px rgba(2, 6, 23, 0.52), 0 7px 17px -2px rgba(2, 6, 23, 0.30)'
+        ];
+        return darkShadows[imgIndex % darkShadows.length];
+    }
+};
+
 // ── Full grid card ──
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
+    const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
-    const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
+
+    // Extract real images
+    const allMedia = p.media || [];
+    const rawImages = p.images?.length
+        ? p.images
+        : allMedia.filter(m => m.mediaType === 'image').map(m => m.url);
+    const imageUrls = rawImages.map(resolveMediaUrl).filter(Boolean);
+
+    const [currentImgIndex, setCurrentImgIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const intervalRef = useRef(null);
+
+    useEffect(() => {
+        if (isHovered && imageUrls.length > 1) {
+            intervalRef.current = setInterval(() => {
+                setCurrentImgIndex(prev => (prev + 1) % imageUrls.length);
+            }, 3000);
+        } else {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+            setCurrentImgIndex(0);
+        }
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, [isHovered, imageUrls.length]);
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.5) }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(index * 0.05, 0.5) }}
             onClick={onClick}
-            className="rounded-[2rem] overflow-hidden cursor-pointer bg-card border border-border shadow-xl hover-lift transition-all"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            style={{
+                boxShadow: getCardShadow(theme, isHovered, currentImgIndex),
+                transform: isHovered ? 'translateY(-4px)' : 'translateY(0px)',
+                transition: 'box-shadow 800ms ease, transform 300ms ease, border-color 300ms ease'
+            }}
+            className={cn(
+                "rounded-[2rem] overflow-hidden cursor-pointer bg-card border transition-all select-none group",
+                isHovered
+                    ? "border-primary/40 ring-1 ring-primary/20"
+                    : "border-border/70"
+            )}
         >
-            {/* Image */}
-            <div className="relative h-52 overflow-hidden bg-muted transition-colors">
-                {coverUrl
-                    ? <img 
-                        src={coverUrl} 
-                        alt={p.name} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = DEFAULT_PLACEHOLDER_SVG;
-                        }}
-                    />
-                    : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
+            {/* Media Area */}
+            <div className="relative h-56 overflow-hidden bg-muted transition-colors">
+                {imageUrls.length > 0 ? (
+                    <div className="w-full h-full relative overflow-hidden">
+                        <AnimatePresence initial={false} mode="wait">
+                            <motion.img
+                                key={`prop-img-${currentImgIndex}-${imageUrls[currentImgIndex]}`}
+                                src={imageUrls[currentImgIndex]}
+                                alt={p.name}
+                                loading="lazy"
+                                initial={{ opacity: 0.85, scale: 1.00 }}
+                                animate={{ opacity: 1, scale: isHovered ? 1.025 : 1.00 }}
+                                exit={{ opacity: 0.85, scale: 1.00 }}
+                                transition={{
+                                    opacity: { duration: 0.8, ease: 'easeInOut' },
+                                    scale: { duration: 0.8, ease: 'easeOut' }
+                                }}
+                                className="w-full h-full object-cover select-none pointer-events-none"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                                }}
+                            />
+                        </AnimatePresence>
+                    </div>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
                         <Building2 className="w-12 h-12 opacity-20 text-foreground" />
-                    </div>}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    </div>
+                )}
+
+                {/* Subtle Ambient Dark Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/20 pointer-events-none" />
+
+                {/* Media Progress Dot Indicators (shown when multiple images exist) */}
+                {imageUrls.length > 1 && (
+                    <div className="absolute bottom-3 right-4 flex items-center gap-1.5 z-10 pointer-events-none">
+                        {imageUrls.map((_, i) => (
+                            <span
+                                key={i}
+                                className={cn(
+                                    "rounded-full transition-all duration-500",
+                                    i === currentImgIndex
+                                        ? "w-4 h-1.5 bg-white shadow-sm"
+                                        : "w-1.5 h-1.5 bg-white/40"
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 {/* Top-left badges */}
-                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-10">
+                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-20 pointer-events-none">
                     <div className="flex gap-1.5 flex-wrap">
                         <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
                         {displayStatus && (
@@ -191,31 +297,31 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
                     {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">⚡ Best Value</span>}
                 </div>
 
-                {/* Top-right actions */}
-                <div className="absolute top-4 right-4 flex flex-col gap-2">
+                {/* Top-right actions (Save & Compare untouched) */}
+                <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
                     <button onClick={e => { e.stopPropagation(); onSave(); }}
                         className={cn(
-                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg",
+                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg hover:scale-105 active:scale-95",
                             isSaved ? "bg-rose-500/80" : "bg-black/40 hover:bg-black/60"
                         )}>
                         <Heart className={cn("w-4.5 h-4.5", isSaved && "fill-current")} />
                     </button>
                     <button onClick={e => { e.stopPropagation(); onCompare(); }}
                         className={cn(
-                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg",
+                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg hover:scale-105 active:scale-95",
                             inCompare ? "bg-primary/80" : "bg-black/40 hover:bg-black/60"
                         )}>
                         <Scale className="w-4.5 h-4.5" />
                     </button>
                 </div>
 
-                {/* Price */}
-                <div className="absolute bottom-4 left-4 text-white">
-                    <p className="text-2xl font-black mb-0">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
-                    <p className="text-[10px] font-black opacity-60 uppercase tracking-widest leading-none">per month</p>
+                {/* Price & Rating */}
+                <div className="absolute bottom-3.5 left-4 text-white z-10 pointer-events-none">
+                    <p className="text-2xl font-black mb-0 tracking-tight">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] font-black opacity-70 uppercase tracking-widest leading-none mt-0.5">per month</p>
                 </div>
                 {p.rating > 0 && (
-                    <div className="absolute bottom-4 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+                    <div className="absolute bottom-3.5 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg z-10 pointer-events-none">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                         <span className="text-white text-xs font-black">{p.rating}</span>
                     </div>
@@ -223,27 +329,36 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
             </div>
 
             {/* Body */}
-            <div className="p-6">
-                <h3 className="text-lg font-black text-foreground truncate mb-1">{p.name}</h3>
-                <p className="text-sm text-muted-foreground/60 flex items-center gap-1.5 mb-5">
-                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                    <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
-                </p>
-                <div className="flex items-center gap-8 text-xs font-bold mb-5 pb-5 border-b border-border/60 text-muted-foreground">
+            <div className="p-6 space-y-4">
+                <div>
+                    <h3 className="text-lg font-black text-foreground truncate group-hover:text-primary transition-colors duration-200">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5 mt-1 truncate">
+                        <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                        <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-6 text-xs font-bold pt-1 pb-4 border-b border-border/60 text-muted-foreground">
                     <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bedrooms || 0} Bed</span>
                     <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
                     {p.squareFeet && <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet} sqft</span>}
                 </div>
-                <div className="flex items-center justify-between">
+
+                <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
                             {p.manager?.firstName?.[0] || 'M'}
                         </div>
-                        <span className="text-[11px] font-black text-muted-foreground/60 tracking-wider uppercase">{p.manager?.firstName || 'Manager'}</span>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
+                            <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : 'Property Manager'}</span>
+                        </div>
                     </div>
-                    <span className="text-sm font-black flex items-center gap-1.5 transition-colors group-hover:bg-primary group-hover:text-white px-3 py-1.5 rounded-xl" style={{ color }}>
-                        View <ArrowRight className="w-4 h-4" />
-                    </span>
+
+                    <div className="flex items-center gap-1.5 text-xs font-black tracking-wide px-3.5 py-2 rounded-xl transition-all duration-200 bg-muted/60 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md text-foreground cursor-pointer">
+                        <span>View details</span>
+                        <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                    </div>
                 </div>
             </div>
         </motion.div>
