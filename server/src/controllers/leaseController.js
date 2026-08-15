@@ -72,6 +72,11 @@ export const getMyLease = asyncHandler(async (req, res) => {
       await lease.save();
     } else {
       seenProperties.add(propId);
+      // If a lease has not been digitally signed by the tenant, ensure it remains in pending status
+      if ((!lease.signature || !lease.signedBy || !lease.signedAt) && lease.status === 'active') {
+        lease.status = 'pending';
+        await lease.save();
+      }
     }
   }
 

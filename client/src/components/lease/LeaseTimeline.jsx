@@ -14,10 +14,11 @@ export const LeaseTimeline = React.memo(({ lease }) => {
   const steps = useMemo(() => {
     if (!lease) return [];
 
-    const isPending = lease.status === 'pending';
-    const isActive = lease.status === 'active';
+    const isSignedByTenant = Boolean(lease.signature && lease.signedBy && lease.signedAt);
+    const isManagerSigned = Boolean(lease.managerSignature || lease.managerSignedAt);
+    const isActive = lease.status === 'active' && isSignedByTenant;
+    const isPending = !isActive && (lease.status === 'pending' || !isSignedByTenant);
     const isCompleted = lease.status === 'expired' || lease.status === 'terminated';
-    const isSignedByTenant = Boolean(lease.signature || lease.signedAt);
     
     // Calculate days remaining to check renewal availability
     let daysRemaining = 365;
@@ -48,21 +49,21 @@ export const LeaseTimeline = React.memo(({ lease }) => {
         label: 'Tenant Signed',
         description: lease.signedAt ? `Signed on ${new Date(lease.signedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'Pending tenant e-signature',
         icon: FileSignature,
-        status: isSignedByTenant ? 'completed' : (isPending ? 'current' : 'upcoming'),
+        status: isSignedByTenant ? 'completed' : 'current',
       },
       {
         id: 'manager_signed',
         label: 'Manager Counter-Signed',
-        description: 'Verified & system counter-signed',
+        description: isManagerSigned ? 'Verified & system counter-signed' : 'Pending manager counter-signature',
         icon: ShieldCheck,
-        status: isSignedByTenant ? 'completed' : 'upcoming',
+        status: isManagerSigned ? 'completed' : (isSignedByTenant ? 'current' : 'upcoming'),
       },
       {
         id: 'lease_activated',
         label: 'Lease Activated',
         description: 'Official tenancy activated in registry',
         icon: CheckCircle2,
-        status: isActive || isCompleted ? 'completed' : (isPending && isSignedByTenant ? 'current' : 'upcoming'),
+        status: isActive || isCompleted ? 'completed' : (isSignedByTenant && isManagerSigned ? 'current' : 'upcoming'),
       },
       {
         id: 'lease_active',
@@ -82,8 +83,7 @@ export const LeaseTimeline = React.memo(({ lease }) => {
         id: 'lease_completed',
         label: 'Lease Completed',
         description: isCompleted ? 'Term finished / settled' : 'Final lease closure',
-        icon: CheckCircle2,
-        status: isCompleted ? 'completed' : 'upcoming',
+        icon: isCompleted ? 'completed' : 'upcoming',
       },
     ];
   }, [lease]);

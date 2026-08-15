@@ -132,9 +132,13 @@ export default function MyLeasePage() {
                 setActiveLeases(activeLeasesData);
                 setPastLeases(resVal.pastLeases || []);
 
-                const targetLeaseId = location.state?.leaseId;
-                if (targetLeaseId) {
-                    const idx = activeLeasesData.findIndex(l => l._id === targetLeaseId);
+                const targetLeaseId = location.state?.leaseId || new URLSearchParams(location.search).get('leaseId');
+                const targetPropId = location.state?.propertyId || new URLSearchParams(location.search).get('propertyId');
+                if (targetLeaseId || targetPropId) {
+                    const idx = activeLeasesData.findIndex(l => 
+                        (targetLeaseId && String(l._id) === String(targetLeaseId)) ||
+                        (targetPropId && (String(l.property?._id) === String(targetPropId) || String(l.property) === String(targetPropId)))
+                    );
                     if (idx !== -1) {
                         setSelectedLeaseIndex(idx);
                     }
@@ -352,7 +356,8 @@ export default function MyLeasePage() {
     };
 
     const currentLease = activeLeases[selectedLeaseIndex] || lease || null;
-    const statusCfg = STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending;
+    const isUnsigned = Boolean(currentLease && (!currentLease.signature || !currentLease.signedBy || !currentLease.signedAt));
+    const statusCfg = isUnsigned ? STATUS_CONFIG.pending : (STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending);
     const currentLeasePayments = currentLease ? payments.filter(p => {
         const pLeaseId = String(p.lease?._id || p.lease || '');
         const cLeaseId = String(currentLease._id || '');
@@ -419,7 +424,7 @@ export default function MyLeasePage() {
             {!loading && activeLeases.length > 0 && (
                 <>
                     {/* ── Pending Signature Warning Banner ── */}
-                    {currentLease.status === 'pending' && !currentLease.signature && (
+                    {isUnsigned && (
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                             className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm">
                             <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -446,7 +451,7 @@ export default function MyLeasePage() {
                     )}
 
                     {/* ── Pre-Lease Requirements Checklist ── */}
-                    {currentLease.status === 'pending' && !currentLease.signature && (
+                    {isUnsigned && (
                         <motion.div
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -970,7 +975,7 @@ export default function MyLeasePage() {
                     <LeaseRenewalCard lease={currentLease} onRenew={() => navigate('/lease-renewal')} />
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
-                    {currentLease.status === 'pending' && !currentLease.signature && (
+                    {isUnsigned && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                             className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-xl space-y-6">
                             

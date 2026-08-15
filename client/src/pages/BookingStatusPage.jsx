@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import RazorpayPayment from '../components/RazorpayPayment';
+import apiClient from '../services/apiClient';
+import { openSecureFile } from '../utils/fileAccess';
 
 export default function BookingStatusPage() {
     const { id } = useParams();
@@ -48,7 +50,17 @@ export default function BookingStatusPage() {
             const res = await bookingService.getBookingReceipt(booking._id);
             const data = res?.data || res;
             if (data?.url) {
-                window.open(data.url, '_blank');
+                let fullUrl = data.url;
+                if (!fullUrl.startsWith('http')) {
+                    const baseURL = apiClient.defaults.baseURL || '';
+                    const serverOrigin = baseURL.endsWith('/api') ? baseURL.slice(0, -4) : baseURL;
+                    const cleanServer = (serverOrigin || window.location.origin).replace(/\/$/, '');
+                    const cleanPath = fullUrl.startsWith('/') ? fullUrl : '/' + fullUrl;
+                    fullUrl = `${cleanServer}${cleanPath}`;
+                }
+                window.open(fullUrl, '_blank');
+            } else if (data?.fileId) {
+                await openSecureFile(data.fileId);
             } else {
                 alert(`Receipt #${data?.receiptNumber || 'REC-' + booking._id.slice(-8).toUpperCase()} downloaded successfully.`);
             }
@@ -204,7 +216,7 @@ export default function BookingStatusPage() {
                             <motion.button
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                onClick={() => navigate('/my-lease')}
+                                onClick={() => navigate('/my-lease', { state: { propertyId: booking.property?._id || booking.property, bookingId: booking._id } })}
                                 className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/30 hover:shadow-xl transition-all w-full cursor-pointer"
                             >
                                 <CheckCircle2 className="w-4 h-4" /> SIGN LEASE AGREEMENT

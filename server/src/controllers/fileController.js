@@ -93,10 +93,12 @@ export const getSignedUrlForFile = asyncHandler(async (req, res) => {
 
   // Local fallback signed URL with a temporary short-lived token
   const tempToken = generateLocalOneTimeToken(resolvedFileId.toString(), req.user.userId);
-  const localSignedUrl = `/api/files/download/${resolvedFileId}?token=${tempToken}`;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  const localSignedUrl = `${protocol}://${host}/api/files/download/${resolvedFileId}?token=${tempToken}`;
 
   logger.info(`[FileController] Local fallback signed URL generated for fileId: ${resolvedFileId}`);
-  res.status(200).json({ success: true, url: localSignedUrl });
+  res.status(200).json({ success: true, url: localSignedUrl, fileId: resolvedFileId });
 });
 
 /**
