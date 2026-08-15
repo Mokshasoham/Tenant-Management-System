@@ -252,6 +252,35 @@ export default function PropertyDetailsPage() {
         });
     };
 
+    const handleBooking = async () => {
+        if (!user) {
+            navigate('/login', { state: { from: `/properties/${id}` } });
+            return;
+        }
+
+        setBookingLoading(true);
+        setBookingError('');
+        try {
+            const res = await bookingService.requestBooking({
+                propertyId: id,
+                startDate,
+                endDate,
+                totalAmount: property.rentAmount || 0
+            });
+            setBookingSuccess(true);
+            setExistingBooking(res.data);
+            if (property.bookingType !== 'free') {
+                setShowRazorpay(true);
+            }
+            fetchProperty();
+        } catch (err) {
+            console.error('Booking request error:', err);
+            setBookingError(err.response?.data?.message || 'Failed to submit booking request. Please try again.');
+        } finally {
+            setBookingLoading(false);
+        }
+    };
+
     // Gallery media extraction
     const allMedia = property?.media || [];
     const rawVideos = property?.videos?.length ? property.videos : allMedia.filter(m => m.mediaType === 'video').map(m => m.url);
@@ -1918,6 +1947,20 @@ export default function PropertyDetailsPage() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* ══ RAZORPAY PAYMENT MODAL FOR TENANTS ══ */}
+            {showRazorpay && existingBooking && (
+                <RazorpayPayment
+                    bookingId={existingBooking._id}
+                    property={property}
+                    onClose={() => setShowRazorpay(false)}
+                    onSuccess={() => {
+                        setShowRazorpay(false);
+                        fetchProperty();
+                        navigate('/dashboard');
+                    }}
+                />
+            )}
         </div>
     );
 }
