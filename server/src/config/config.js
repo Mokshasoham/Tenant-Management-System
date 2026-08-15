@@ -39,7 +39,7 @@ const config = {
   LOG_LEVEL: process.env.LOG_LEVEL || 'debug',
   
   // Verification & Demo Configuration
-  DEMO_MODE: process.env.DEMO_MODE === 'true' || true,
+  DEMO_MODE: process.env.DEMO_MODE === 'true',
   REAL_IDENTITY_VERIFICATION: process.env.REAL_IDENTITY_VERIFICATION === 'true' || false,
   IDENTITY_VERIFICATION_MAX_ATTEMPTS: parseInt(process.env.IDENTITY_VERIFICATION_MAX_ATTEMPTS || '3', 10),
   IDENTITY_VERIFICATION_ATTEMPT_WINDOW_HOURS: parseInt(process.env.IDENTITY_VERIFICATION_ATTEMPT_WINDOW_HOURS || '24', 10),

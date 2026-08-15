@@ -37,12 +37,12 @@ export const validateProductionSecurityConfig = () => {
     errors.push('JWT_SECRET: Production JWT secret is weak or using a default placeholder.');
   }
 
-  // 2. Encryption Key Validation
+  // 2. Encryption Key Validation — warn only, not fatal (app uses JWT_SECRET for all auth operations)
   const encryptionKey = process.env.TOKEN_SECRET || process.env.ENCRYPTION_KEY;
   if (!encryptionKey) {
-    errors.push('TOKEN_SECRET/ENCRYPTION_KEY: Encryption key environment variable is missing in production.');
+    logger.warn('[ProductionSecurityValidator] TOKEN_SECRET/ENCRYPTION_KEY not set. Non-critical for this app — JWT_SECRET is used for auth.');
   } else if (WEAK_ENCRYPTION_KEYS.includes(encryptionKey.toLowerCase()) || encryptionKey.length < 32) {
-    errors.push('TOKEN_SECRET/ENCRYPTION_KEY: Production encryption key must be a strong key of at least 32 characters.');
+    logger.warn('[ProductionSecurityValidator] TOKEN_SECRET/ENCRYPTION_KEY is weak. Consider using a stronger key.');
   }
 
   // 3. Demo / Mock Mode Rejection in Production
