@@ -1,3 +1,5 @@
+import apiClient from '../services/apiClient';
+
 /**
  * Centralized client-side utility to securely open or download files.
  * Handles fetching temporary signed S3/Local URLs from the backend and opening them in a new tab.
@@ -5,58 +7,45 @@
 export const openSecureFile = async (docUrl) => {
   if (!docUrl) return;
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-  const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
-  const token = localStorage.getItem('authToken');
-
-  // Normalize legacy URLs containing /uploads/ by replacing the origin with the configured serverUrl
-  let normalizedUrl = docUrl;
-  if (docUrl.startsWith('http') && docUrl.includes('/uploads/')) {
-    try {
-      const parsed = new URL(docUrl);
-      normalizedUrl = `${serverUrl.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
-    } catch (_) {}
-  }
-
   try {
-    // 1. Extract fileId from download path /api/files/download/:fileId (must be a 24-char hex ObjectId)
     let fileId = '';
-    const downloadMatch = normalizedUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
+    const downloadMatch = docUrl.match(/\/api\/files\/download\/([a-f\d]{24})/i);
     if (downloadMatch) {
       fileId = downloadMatch[1];
+    } else if (/^[a-f\d]{24}$/i.test(docUrl)) {
+      fileId = docUrl;
     }
 
     let url = '';
-    console.log("docUrl =", normalizedUrl);
-    console.log("resolved fileId =", fileId);
 
-    // Only fetch signed URL if we have a valid 24-character ObjectId
     if (fileId && /^[a-f\d]{24}$/i.test(fileId)) {
-      console.log("request =", `${apiBase}/files/signed-url/${fileId}`);
-      const res = await fetch(`${apiBase}/files/signed-url/${fileId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.url) {
-          url = data.url;
-        }
+      const res = await apiClient.get(`/files/signed-url/${fileId}`);
+      const data = res?.data || res;
+      if (data?.success && data?.url) {
+        url = data.url;
       }
+    } else if (docUrl.startsWith('http://') || docUrl.startsWith('https://')) {
+      url = docUrl;
     }
 
-    const cleanServerUrl = serverUrl.replace(/\/$/, '');
-
     if (url) {
-      const cleanUrl = url.startsWith('/') ? url : '/' + url;
-      const fullUrl = url.startsWith('http') ? url : `${cleanServerUrl}${cleanUrl}`;
-      console.log("Opening secure URL:", fullUrl);
-      window.open(fullUrl, '_blank');
+      // If it's a relative API download URL, prepend backend base URL
+      if (!url.startsWith('http')) {
+        const baseURL = apiClient.defaults.baseURL || '';
+        const serverOrigin = baseURL.endsWith('/api') ? baseURL.slice(0, -4) : baseURL;
+        const cleanServer = (serverOrigin || window.location.origin).replace(/\/$/, '');
+        const cleanPath = url.startsWith('/') ? url : '/' + url;
+        url = `${cleanServer}${cleanPath}`;
+      }
+      window.open(url, '_blank');
     } else {
-      console.error('[openSecureFile] Authorization failed: No secure URL generated.');
+      console.error('[openSecureFile] Failed to resolve secure URL for:', docUrl);
       alert('Access Denied: You do not have permission to view this document.');
     }
   } catch (err) {
     console.error('[openSecureFile] Failed to resolve secure URL:', err);
-    alert('Access Denied: You do not have permission to view this document.');
+    const msg = err?.message || err?.error?.message || err?.response?.data?.message || 'Access Denied: You do not have permission to view this document.';
+    alert(msg);
   }
 };
+

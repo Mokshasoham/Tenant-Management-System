@@ -783,7 +783,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                         <div className="flex flex-col">
                                                             <span className="text-[7.5px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">Security Deposit</span>
                                                             <span className="text-xs font-black text-indigo-400 leading-none">
-                                                                ₹{(b.depositAmount || (b.property?.rentAmount * 2) || 0).toLocaleString('en-IN')}
+                                                                ₹{(b.depositAmount || b.totalAmount || b.property?.depositAmount || (b.property?.rentAmount ? b.property.rentAmount * 2 : 0) || 0).toLocaleString('en-IN')}
                                                             </span>
                                                         </div>
                                                         {statusDisplay.isPayable ? (

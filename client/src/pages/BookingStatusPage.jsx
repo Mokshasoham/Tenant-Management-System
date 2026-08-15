@@ -23,13 +23,14 @@ export default function BookingStatusPage() {
     const [cancelReason, setCancelReason] = useState('');
     const [cancelFeedback, setCancelFeedback] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
+    const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
     const fetchBooking = async () => {
         try {
             const res = await bookingService.getBookingById(id);
             setBooking(res.data?.data || res.data || res);
         } catch (e) {
-            console.error(e);
+            console.error('[BookingStatusPage] Error fetching booking:', e);
         } finally {
             setLoading(false);
         }
@@ -39,6 +40,25 @@ export default function BookingStatusPage() {
         console.log('[BookingStatusPage] Destination page loaded', { bookingId: id });
         fetchBooking();
     }, [id]);
+
+    const handleDownloadReceipt = async () => {
+        if (!booking?._id) return;
+        setDownloadingReceipt(true);
+        try {
+            const res = await bookingService.getBookingReceipt(booking._id);
+            const data = res?.data || res;
+            if (data?.url) {
+                window.open(data.url, '_blank');
+            } else {
+                alert(`Receipt #${data?.receiptNumber || 'REC-' + booking._id.slice(-8).toUpperCase()} downloaded successfully.`);
+            }
+        } catch (err) {
+            console.error('Failed to download receipt:', err);
+            alert(err?.message || err?.error?.message || 'Receipt is being processed. Please try again.');
+        } finally {
+            setDownloadingReceipt(false);
+        }
+    };
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -58,13 +78,13 @@ export default function BookingStatusPage() {
             <div className="flex gap-3 justify-center pt-2">
                 <button
                     onClick={() => navigate('/dashboard')}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
                     Dashboard
                 </button>
                 <button
                     onClick={() => navigate('/dashboard', { state: { activeTab: 'messages' } })}
-                    className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs font-black uppercase tracking-wider transition-all hover:bg-white/10"
+                    className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs font-black uppercase tracking-wider transition-all hover:bg-white/10 cursor-pointer"
                 >
                     My Messages
                 </button>
@@ -98,7 +118,7 @@ export default function BookingStatusPage() {
             bg: 'bg-rose-400/10',
             border: 'border-rose-400/20',
             title: 'Request Declined',
-            desc: booking.rejectionReason || 'The property manager has declined your booking request.'
+            desc: booking?.rejectionReason || 'The property manager has declined your booking request.'
         },
         cancelled: {
             icon: XCircle,
@@ -114,29 +134,9 @@ export default function BookingStatusPage() {
         }
     };
 
-    const displayStatus = (booking.status === 'active' || booking.status === 'completed') ? 'approved' : booking.status;
+    const displayStatus = (booking?.status === 'active' || booking?.status === 'completed') ? 'approved' : (booking?.status || 'pending');
     const config = statusConfig[displayStatus] || statusConfig.pending;
-    const Icon = config.icon;
-
-    const [downloadingReceipt, setDownloadingReceipt] = useState(false);
-
-    const handleDownloadReceipt = async () => {
-        setDownloadingReceipt(true);
-        try {
-            const res = await bookingService.getBookingReceipt(booking._id);
-            const data = res?.data || res;
-            if (data?.url) {
-                window.open(data.url, '_blank');
-            } else {
-                alert(`Receipt #${data?.receiptNumber || 'REC-' + booking._id.slice(-8).toUpperCase()} downloaded successfully.`);
-            }
-        } catch (err) {
-            console.error('Failed to download receipt:', err);
-            alert(err?.message || err?.error?.message || 'Receipt is being processed. Please try again.');
-        } finally {
-            setDownloadingReceipt(false);
-        }
-    };
+    const Icon = config.icon || Clock;
 
     const handleChat = () => {
         navigate('/messages', {

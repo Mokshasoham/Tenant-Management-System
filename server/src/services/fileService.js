@@ -269,8 +269,9 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
   const currentUserRecord = await User.findById(currentUserId).select('email role');
   if (!currentUserRecord) return false;
 
-  // Resolve corresponding Tenant profile (if exists)
-  const tenantRecord = await Tenant.findOne({ email: currentUserRecord.email });
+  // Resolve all corresponding Tenant profiles for this user email
+  const tenants = await Tenant.find({ email: currentUserRecord.email });
+  const tenantIds = tenants.map(t => t._id.toString());
 
   if (category === 'chat') {
     const Message = mongoose.model('Message');
@@ -295,12 +296,23 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
 
   if (category === 'leases') {
     const Lease = mongoose.model('Lease');
-    const lease = await Lease.findById(relatedEntity);
+    let lease = null;
+    if (relatedEntity && mongoose.Types.ObjectId.isValid(relatedEntity)) {
+      lease = await Lease.findById(relatedEntity);
+    }
+    if (!lease && fileRecord._id) {
+      lease = await Lease.findOne({
+        $or: [
+          { 'documents.fileId': fileRecord._id },
+          { 'documents.url': { $regex: fileRecord._id.toString() } }
+        ]
+      });
+    }
     if (!lease) return false;
 
     // Tenant Check (compares Tenant IDs or email)
     const leaseTenantId = (lease.tenant?._id || lease.tenant)?.toString();
-    if (tenantRecord && leaseTenantId === tenantRecord._id.toString()) {
+    if (leaseTenantId && (tenantIds.includes(leaseTenantId) || (lease.tenant?.email === currentUserRecord.email))) {
       return true;
     }
 
@@ -324,26 +336,78 @@ export const verifyFileAccessPermission = async (user, fileRecord) => {
     return false;
   }
 
-  if (category === 'invoices') {
+  if (category === 'invoices' || category === 'receipts') {
     const Payment = mongoose.model('Payment');
-    const payment = await Payment.findById(relatedEntity);
-    if (!payment) return false;
+    const Bill = mongoose.model('Bill');
+    const Booking = mongoose.model('Booking');
 
-    // Tenant Check (compares Tenant IDs)
-    if (tenantRecord && payment.tenant.toString() === tenantRecord._id.toString()) {
-      return true;
+    // 1. Check Payment linkage
+    let payment = null;
+    if (relatedEntity && mongoose.Types.ObjectId.isValid(relatedEntity)) {
+      payment = await Payment.findById(relatedEntity);
+    }
+    if (!payment && fileRecord._id) {
+      payment = await Payment.findOne({
+        $or: [
+          { fileId: fileRecord._id },
+          { invoiceUrl: { $regex: fileRecord._id.toString() } }
+        ]
+      });
     }
 
-    // Manager/Owner Check
-    if (currentUserRecord.role === 'manager') {
-      if (payment.createdBy?.toString() === currentUserId.toString()) return true;
-
-      const Property = mongoose.model('Property');
-      const property = await Property.findById(payment.property);
-      if (property && (property.manager?.toString() === currentUserId.toString() || property.owner?.toString() === currentUserId.toString())) {
+    if (payment) {
+      const payTenantId = (payment.tenant?._id || payment.tenant)?.toString();
+      if (payTenantId && tenantIds.includes(payTenantId)) {
         return true;
       }
+      if (currentUserRecord.role === 'manager') {
+        if (payment.createdBy?.toString() === currentUserId.toString()) return true;
+        const Property = mongoose.model('Property');
+        const property = await Property.findById(payment.property);
+        if (property && (property.manager?.toString() === currentUserId.toString() || property.owner?.toString() === currentUserId.toString())) {
+          return true;
+        }
+      }
     }
+
+    // 2. Check Bill linkage
+    let bill = null;
+    if (relatedEntity && mongoose.Types.ObjectId.isValid(relatedEntity)) {
+      bill = await Bill.findById(relatedEntity);
+    }
+    if (!bill && fileRecord._id) {
+      bill = await Bill.findOne({
+        $or: [
+          { fileId: fileRecord._id },
+          { invoiceUrl: { $regex: fileRecord._id.toString() } }
+        ]
+      });
+    }
+
+    if (bill) {
+      const billTenantId = (bill.tenant?._id || bill.tenant)?.toString();
+      if (billTenantId && tenantIds.includes(billTenantId)) {
+        return true;
+      }
+      if (currentUserRecord.role === 'manager') {
+        const Property = mongoose.model('Property');
+        const property = await Property.findById(bill.property);
+        if (property && (property.manager?.toString() === currentUserId.toString() || property.owner?.toString() === currentUserId.toString())) {
+          return true;
+        }
+      }
+    }
+
+    // 3. Check Booking linkage
+    let booking = null;
+    if (relatedEntity && mongoose.Types.ObjectId.isValid(relatedEntity)) {
+      booking = await Booking.findById(relatedEntity);
+    }
+    if (booking) {
+      if (booking.user?.toString() === currentUserId.toString()) return true;
+      if (booking.manager?.toString() === currentUserId.toString()) return true;
+    }
+
     return false;
   }
 

@@ -886,7 +886,8 @@ export const requestBooking = asyncHandler(async (req, res) => {
         manager: property.manager || property.owner,
         startDate,
         endDate,
-        totalAmount: isFree ? 0 : (property.rentAmount || totalAmount || 0),
+        totalAmount: isFree ? 0 : (property.depositAmount || property.rentAmount || totalAmount || 0),
+        depositAmount: isFree ? 0 : (property.depositAmount || property.rentAmount || totalAmount || 0),
         paymentStatus: isFree ? 'paid' : 'pending',
         paymentReference: isFree ? 'FREE-BOOKING' : 'PENDING',
         status: 'pending',
@@ -938,7 +939,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
 // GET /api/bookings/my
 export const getMyBookings = asyncHandler(async (req, res) => {
     const bookings = await Booking.find({ user: req.user.userId })
-        .populate('property', 'name address images city rating')
+        .populate('property', 'name address images city rating rentAmount depositAmount price')
         .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: bookings });
 });

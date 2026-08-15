@@ -172,10 +172,14 @@ export default function BillsPage() {
       const res = await paymentService.getPaymentInvoice(paymentId);
       const data = res.data || res;
       if (data.success && data.url) {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-        const serverUrl = import.meta.env.VITE_API_URL || (apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase) || 'http://localhost:5000';
-        const cleanServerUrl = serverUrl.replace(/\/$/, '');
-        const fullUrl = data.url.startsWith('http') ? data.url : `${cleanServerUrl}${data.url.startsWith('/') ? '' : '/'}${data.url}`;
+        let fullUrl = data.url;
+        if (!fullUrl.startsWith('http')) {
+          const baseURL = apiClient.defaults.baseURL || '';
+          const serverOrigin = baseURL.endsWith('/api') ? baseURL.slice(0, -4) : baseURL;
+          const cleanServer = (serverOrigin || window.location.origin).replace(/\/$/, '');
+          const cleanPath = fullUrl.startsWith('/') ? fullUrl : '/' + fullUrl;
+          fullUrl = `${cleanServer}${cleanPath}`;
+        }
         window.open(fullUrl, '_blank');
       } else {
         alert('Failed to resolve secure download URL.');
@@ -183,7 +187,7 @@ export default function BillsPage() {
       await refreshData();
     } catch (err) {
       console.error('Failed to resolve legacy invoice:', err);
-      alert('Error fetching invoice. Please try again.');
+      alert(err?.message || err?.error?.message || 'Error fetching invoice. Please try again.');
     } finally {
       setGeneratingInvoiceIds(prev => ({ ...prev, [paymentId]: false }));
     }
