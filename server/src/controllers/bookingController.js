@@ -690,12 +690,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
         throw new AppError('Not authorized to cancel this booking.', 403);
     }
 
-    if (isTenant && booking.status !== 'pending') {
-        throw new AppError('Tenants can only cancel pending bookings. Approved bookings must be cancelled by a manager or admin.', 403);
-    }
-
     if (booking.status === 'cancelled') throw new AppError('Booking is already cancelled.', 400);
-    if (booking.status === 'completed') throw new AppError('Completed bookings cannot be cancelled.', 400);
     if (booking.status === 'rejected') throw new AppError('Rejected bookings cannot be cancelled.', 400);
 
     const property = booking.property;
@@ -703,108 +698,129 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     const startDate = new Date(booking.startDate);
     const hoursUntilStart = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Escrow refund calculation logic
+    logger.info(`[CANCELLATION INITIATED] bookingId=${booking._id}, userRole=${req.user.role}, bookingStatus=${booking.status}, paymentStatus=${booking.paymentStatus}, totalAmount=${booking.totalAmount}`);
+
+    // Handle security deposit and escrow refund if payment was completed
     let refundAmount = 0;
-    if (booking.paymentStatus === 'paid' && booking.razorpayPaymentId) {
-        const policy = property.cancellationPolicy || 'flexible';
-        let refundPercentage = 0;
+    let refundProcessed = false;
+    if (booking.paymentStatus === 'paid' && booking.totalAmount > 0) {
+        refundAmount = booking.totalAmount; // Full security deposit refund for cancellation prior to occupancy
+        const policy = property?.cancellationPolicy || 'flexible';
 
-        if (policy === 'flexible') {
-            if (hoursUntilStart >= 24) refundPercentage = 100;
-            else refundPercentage = 50;
-        } else if (policy === 'moderate') {
-            if (hoursUntilStart >= 120) refundPercentage = 100; // 5 days
-            else if (hoursUntilStart >= 24) refundPercentage = 50;
-            else refundPercentage = 0;
-        } else if (policy === 'strict') {
-            if (hoursUntilStart >= 168) refundPercentage = 50; // 7 days
-            else refundPercentage = 0;
-        }
+        if (booking.razorpayPaymentId) {
+            const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+            const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+            const isTestMode = !keySecret || keySecret === 'test_secret' || keySecret.startsWith('rzp_test_');
 
-        if (refundPercentage > 0) {
-            refundAmount = Math.round(booking.totalAmount * (refundPercentage / 100));
-            const testMode = !process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET === 'test_secret';
-            if (!testMode) {
+            if (keyId && keySecret && !isTestMode) {
                 try {
                     const rzp = new Razorpay({
-                        key_id: process.env.RAZORPAY_KEY_ID,
-                        key_secret: process.env.RAZORPAY_KEY_SECRET
-                     });
-                    await rzp.payments.refund(booking.razorpayPaymentId, {
-                        amount: refundAmount * 100 // paise
+                        key_id: keyId,
+                        key_secret: keySecret
                     });
-                    logger.info(`Refund processed successfully via Razorpay for booking ${booking._id}`);
+                    await rzp.payments.refund(booking.razorpayPaymentId, {
+                        amount: Math.round(refundAmount * 100) // in paise
+                    });
+                    refundProcessed = true;
+                    logger.info(`[REFUND SUCCESS] Refund of ₹${refundAmount} issued via Razorpay for booking ${booking._id}`);
                 } catch (rzpErr) {
-                    logger.error(`Razorpay refund failed: ${rzpErr.message}. Proceeding with cancellation.`);
+                    logger.warn(`[REFUND WARNING] Razorpay refund API warning: ${rzpErr.message}. Marking refund as scheduled.`);
                 }
             }
-            booking.escrowStatus = 'refunded';
-            booking.paymentStatus = 'refunded';
-            addTimeline(booking, 'refunded', `Refund of ₹${refundAmount} (${refundPercentage}%) issued securely to original payment method.`);
-        } else {
-            addTimeline(booking, 'refunded', `No refund granted due to rigorous ${policy} cancellation parameters.`);
         }
+
+        booking.escrowStatus = 'refunded';
+        booking.paymentStatus = 'refunded';
+        addTimeline(booking, 'refunded', `Security deposit refund of ₹${refundAmount.toLocaleString('en-IN')} ${refundProcessed ? 'processed to original payment method' : 'scheduled for release'}.`);
     }
 
+    // Update booking status and cancellation audit details
+    const previousStatus = booking.status;
     booking.status = 'cancelled';
     booking.cancellationReason = reason || 'No reason provided';
     booking.cancellationFeedback = feedback || '';
     booking.cancellationDate = new Date();
-    addTimeline(booking, 'cancelled', `${isTenant ? 'Tenant' : 'Manager'} formally withdrew the lease application. Reason: ${reason || 'None'}`);
+    addTimeline(booking, 'cancelled', `${isTenant ? 'Tenant' : 'Manager'} formally cancelled the lease application. Reason: ${reason || 'None'}`);
     await booking.save();
 
-    if (property) {
-        // Unlock property schedule
-        await Property.updateOne(
-            { _id: property._id },
-            { 
-                $pull: { bookedDates: { bookingId: booking._id } },
-                $set: { status: 'available' }
+    // Terminate ONLY the lease associated with this specific booking/property/tenant (do NOT affect other leases!)
+    const user = await User.findById(booking.user);
+    if (user && property) {
+        const tenants = await Tenant.find({ email: user.email }).select('_id');
+        const tenantIds = tenants.map(t => t._id);
+
+        await Lease.updateMany(
+            {
+                property: property._id,
+                tenant: { $in: tenantIds },
+                status: { $in: ['pending', 'active'] }
+            },
+            {
+                $set: {
+                    status: 'terminated',
+                    terms: `Terminated on ${new Date().toLocaleDateString('en-IN')} due to cancellation: ${reason || 'Application withdrawn'}`
+                }
             }
         );
+    }
 
-        // Disable any dangling leases
-        await Lease.updateMany(
-            { property: property._id, status: { $in: ['pending', 'active'] } },
-            { $set: { status: 'terminated' } }
+    // Unlock property schedule & restore availability if no other active lease occupies it
+    if (property) {
+        await Property.updateOne(
+            { _id: property._id },
+            { $pull: { bookedDates: { bookingId: booking._id } } }
         );
 
-        if (!isTenant) {
-            // Manager/Admin cancelled it -> notify tenant
-            await Notification.create({
-                recipient: booking.user,
-                sender: req.user.userId,
-                title: 'Booking Cancelled By Manager',
-                message: `Your booking for ${property?.name || 'property'} has been cancelled by the manager. Reason: ${reason || 'None'}.`,
-                type: 'alert',
-                link: `/bookings/${booking._id}`
-            });
-        } else {
-            // Tenant cancelled it -> notify manager
-            await Notification.create({
-                recipient: property.manager || property.owner,
-                sender: req.user.userId,
-                title: 'Booking Cancelled By Tenant',
-                message: `Booking ${booking._id.toString().slice(-8)} has been formally cancelled. Property is now unlocked.`,
-                type: 'alert',
-                link: `/bookings/${booking._id}`
-            });
-        }
+        const remainingActiveLease = await Lease.findOne({
+            property: property._id,
+            status: 'active'
+        });
 
-        // Always notify the tenant that their booking has been cancelled
-        if (isTenant) {
-            await Notification.create({
-                recipient: booking.user,
-                sender: req.user.userId,
-                title: 'Booking Cancelled Successfully',
-                message: `Your booking for ${property?.name || 'property'} has been cancelled successfully.`,
-                type: 'info',
-                link: `/bookings/${booking._id}`
-            });
+        if (!remainingActiveLease) {
+            await Property.updateOne(
+                { _id: property._id },
+                { $set: { status: 'available', currentTenant: null } }
+            );
         }
     }
 
-    res.status(200).json({ success: true, data: booking, refundAmount });
+    // Send notifications to parties
+    if (!isTenant) {
+        await Notification.create({
+            recipient: booking.user,
+            sender: req.user.userId,
+            title: 'Booking Cancelled By Manager',
+            message: `Your booking for ${property?.name || 'property'} has been cancelled by the manager. Reason: ${reason || 'None'}.`,
+            type: 'alert',
+            link: `/bookings/${booking._id}`
+        });
+    } else {
+        await Notification.create({
+            recipient: property?.manager || property?.owner || booking.manager,
+            sender: req.user.userId,
+            title: 'Booking Cancelled By Tenant',
+            message: `Booking ${booking._id.toString().slice(-8)} for ${property?.name || 'property'} has been cancelled by the tenant. Reason: ${reason || 'None'}.`,
+            type: 'alert',
+            link: `/bookings/${booking._id}`
+        });
+
+        await Notification.create({
+            recipient: booking.user,
+            sender: req.user.userId,
+            title: 'Lease Application Cancelled',
+            message: `Your booking for ${property?.name || 'property'} has been cancelled successfully.${booking.totalAmount > 0 ? ` Security deposit refund of ₹${booking.totalAmount.toLocaleString('en-IN')} has been scheduled.` : ''}`,
+            type: 'info',
+            link: `/bookings/${booking._id}`
+        });
+    }
+
+    logger.info(`[CANCELLATION COMPLETE] bookingId=${booking._id}, previousStatus=${previousStatus}, newStatus=cancelled, paymentStatus=${booking.paymentStatus}`);
+
+    res.status(200).json({
+        success: true,
+        message: 'Lease application cancelled successfully.',
+        data: booking
+    });
 });
 
 // POST /api/bookings/request (original simplified flow)

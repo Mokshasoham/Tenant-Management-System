@@ -105,7 +105,9 @@ export default function BookingStatusPage() {
             bg: 'bg-rose-500/10',
             border: 'border-rose-500/20',
             title: 'Application Cancelled',
-            desc: booking.cancellationReason ? `Cancelled: ${booking.cancellationReason}` : 'You have formally withdrawn this lease application.',
+            desc: booking?.cancellationReason
+                ? `Cancelled: ${booking.cancellationReason}.${(booking?.paymentStatus === 'refunded' && booking?.totalAmount > 0) ? ` Security deposit refund of ₹${booking.totalAmount?.toLocaleString('en-IN')} is recorded.` : ''}`
+                : 'You have formally cancelled this lease application.',
             showButton: false,
             showPayButton: false
         }
@@ -238,8 +240,13 @@ export default function BookingStatusPage() {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Payment Status</p>
-                            <p className="text-amber-600 dark:text-amber-400 font-black uppercase text-[10px] tracking-widest px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/10 inline-block font-mono">
-                                {booking.paymentReference === 'FREE-BOOKING' ? 'EXEMPT' : booking.paymentStatus}
+                            <p className={cn(
+                                "font-black uppercase text-[10px] tracking-widest px-2 py-0.5 rounded-lg inline-block font-mono border",
+                                booking.paymentStatus === 'refunded' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-500 dark:text-cyan-400" :
+                                booking.paymentStatus === 'paid' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:text-emerald-400" :
+                                "bg-amber-500/10 border-amber-500/10 text-amber-600 dark:text-amber-400"
+                            )}>
+                                {booking.paymentReference === 'FREE-BOOKING' ? 'EXEMPT' : booking.paymentStatus === 'refunded' ? 'REFUND PROCESSED / SCHEDULED' : booking.paymentStatus}
                             </p>
                         </div>
                     </div>
@@ -375,20 +382,24 @@ export default function BookingStatusPage() {
                                     onClick={async () => {
                                         setIsCancelling(true);
                                         try {
-                                            await bookingService.cancelBooking(booking._id, {
+                                            const res = await bookingService.cancelBooking(booking._id, {
                                                 reason: cancelReason,
                                                 feedback: cancelFeedback
                                             });
                                             setShowCancelModal(false);
                                             // Optimistically update status to trigger re-render
-                                            setBooking(prev => ({ 
-                                                ...prev, 
+                                            const updatedBooking = res?.data || {
+                                                ...booking,
                                                 status: 'cancelled',
                                                 cancellationReason: cancelReason,
-                                                cancellationFeedback: cancelFeedback 
-                                            }));
+                                                cancellationFeedback: cancelFeedback,
+                                                paymentStatus: booking.paymentStatus === 'paid' ? 'refunded' : booking.paymentStatus
+                                            };
+                                            setBooking(updatedBooking);
+                                            fetchBooking();
                                         } catch (e) {
-                                            alert(e.response?.data?.message || 'Failed to cancel the booking.');
+                                            const errMsg = e?.message || e?.error?.message || e?.response?.data?.message || 'Failed to cancel the booking.';
+                                            alert(errMsg);
                                         } finally {
                                             setIsCancelling(false);
                                         }
