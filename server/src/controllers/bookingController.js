@@ -82,21 +82,31 @@ const addTimeline = (booking, event, note = '') => {
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
     const { bookingId, signature } = req.body;
 
+    if (!bookingId) {
+        throw new AppError('bookingId is required to create a payment order', 400);
+    }
+
     const booking = await Booking.findById(bookingId).populate('property');
     if (!booking) throw new AppError('Booking not found', 404);
-    if (booking.status !== 'approved') throw new AppError('Booking is not approved', 400);
+    if (booking.status === 'cancelled' || booking.status === 'rejected') {
+        throw new AppError(`Cannot create payment order for ${booking.status} booking`, 400);
+    }
+    if (booking.paymentStatus === 'paid') {
+        throw new AppError('This booking has already been paid and processed.', 400);
+    }
 
     const property = booking.property;
+    if (!property) throw new AppError('Associated property not found', 404);
     
     // Use the exact security deposit amount selected for the booking or property
-    const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2);
+    const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2) || booking.totalAmount || 1000;
 
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-    logger.info(`Initializing Razorpay order creation with key: ${keyId}`);
+    logger.info(`Initializing Razorpay order creation for booking ${bookingId} with key: ${keyId}`);
 
-    let amountInPaise = securityDeposit * 100;
+    let amountInPaise = Math.round(Number(securityDeposit) * 100);
     const isTestMode = keyId.startsWith('rzp_test_');
 
     if (isTestMode && amountInPaise > 10000000) {
@@ -114,7 +124,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         const rzpOrder = await rzp.orders.create({
             amount: amountInPaise, 
             currency: 'INR',
-            receipt: `receipt_booking_${booking._id}`
+            receipt: `rcpt_${booking._id.toString().slice(-10)}`
         });
         
         razorpayOrderId = rzpOrder.id;

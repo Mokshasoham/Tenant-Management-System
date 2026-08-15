@@ -35,25 +35,59 @@ const AMENITY_ICONS = {
 
 function PropertyDetailMap({ location, name, address, city }) {
     const mapRef = React.useRef(null);
+    const mapInstanceRef = React.useRef(null);
 
     React.useEffect(() => {
         if (!location || !location.lat || !location.lng) return;
         const lat = Number(location.lat);
         const lng = Number(location.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
 
-        const timer = setTimeout(() => {
-            if (!mapRef.current) return;
-            const map = L.map(mapRef.current).setView([lat, lng], 14);
+        // Clean up previous instance if exists
+        if (mapInstanceRef.current) {
+            try {
+                mapInstanceRef.current.remove();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+            mapInstanceRef.current = null;
+        }
+
+        if (!mapRef.current) return;
+
+        // Reset Leaflet internal container tracking ID
+        if (mapRef.current._leaflet_id) {
+            delete mapRef.current._leaflet_id;
+        }
+
+        try {
+            const map = L.map(mapRef.current, {
+                scrollWheelZoom: false
+            }).setView([lat, lng], 14);
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
             L.marker([lat, lng]).addTo(map)
                 .bindPopup(`<b>${name || 'Property'}</b><br/>${address || ''}, ${city || ''}`);
-        }, 100);
 
-        return () => clearTimeout(timer);
-    }, [location, name, address, city]);
+            mapInstanceRef.current = map;
+        } catch (err) {
+            console.warn('Map initialization skipped:', err);
+        }
+
+        return () => {
+            if (mapInstanceRef.current) {
+                try {
+                    mapInstanceRef.current.remove();
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+                mapInstanceRef.current = null;
+            }
+        };
+    }, [location?.lat, location?.lng, name, address, city]);
 
     if (!location || !location.lat || !location.lng) {
         return (
@@ -267,8 +301,9 @@ export default function PropertyDetailsPage() {
                 endDate,
                 totalAmount: property.rentAmount || 0
             });
+            const createdBooking = res.data?.data || res.data;
             setBookingSuccess(true);
-            setExistingBooking(res.data);
+            setExistingBooking(createdBooking);
             if (property.bookingType !== 'free') {
                 setShowRazorpay(true);
             }
@@ -1951,7 +1986,7 @@ export default function PropertyDetailsPage() {
             {/* ══ RAZORPAY PAYMENT MODAL FOR TENANTS ══ */}
             {showRazorpay && existingBooking && (
                 <RazorpayPayment
-                    bookingId={existingBooking._id}
+                    bookingId={existingBooking._id || existingBooking.id}
                     property={property}
                     onClose={() => setShowRazorpay(false)}
                     onSuccess={() => {
