@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Bill from '../models/Bill.js';
 import Payment from '../models/Payment.js';
+import Booking from '../models/Booking.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import Property from '../models/Property.js';
@@ -12,6 +13,33 @@ import logger from '../utils/logger.js';
 import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { syncPaymentToBill } from '../services/billSyncService.js';
 import { getSignedUrlForFile } from './fileController.js';
+
+const resolveBillUrl = (bill, req) => {
+  if (!bill) return bill;
+  const billObj = bill.toObject ? bill.toObject() : bill;
+  if (billObj.fileId) {
+    billObj.invoiceUrl = `/api/files/download/${billObj.fileId}`;
+  }
+  if (billObj.invoiceUrl) {
+    if (billObj.invoiceUrl.startsWith('https://') || (billObj.invoiceUrl.startsWith('http://') && !billObj.invoiceUrl.includes('/api/files/download/'))) {
+      return billObj;
+    }
+    let relativePath = billObj.invoiceUrl;
+    try {
+      if (relativePath.startsWith('http')) {
+        const parsed = new URL(relativePath);
+        relativePath = parsed.pathname + parsed.search;
+      }
+    } catch (_) {}
+    if (!relativePath.startsWith('/')) {
+      relativePath = '/' + relativePath;
+    }
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    billObj.invoiceUrl = `${protocol}://${host}${relativePath}`;
+  }
+  return billObj;
+};
 
 // Helper: Atomic counter sequence generator for bill numbers
 const generateBillNumber = async (type) => {
@@ -50,9 +78,11 @@ export const getAllBills = asyncHandler(async (req, res) => {
 
   const total = await Bill.countDocuments(filter);
 
+  const resolvedBills = bills.map(b => resolveBillUrl(b, req));
+
   res.status(200).json({
     success: true,
-    data: bills,
+    data: resolvedBills,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -75,12 +105,103 @@ export const getMyBills = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: [] });
   }
 
+  // Self-heal: ensure paid bookings with deposits have corresponding Bill records
+  try {
+    const paidBookings = await Booking.find({
+      user: req.user.userId,
+      paymentStatus: 'paid',
+      totalAmount: { $gt: 0 }
+    }).populate('property');
+
+    for (const b of paidBookings) {
+      if (!b.razorpayPaymentId && !b.paymentReference) continue;
+      const ref = b.razorpayPaymentId || b.paymentReference;
+      const existingPay = await Payment.findOne({
+        $or: [{ reference: ref }, { razorpayPaymentId: ref }]
+      });
+      const existingBill = await Bill.findOne({
+        $or: [
+          { payment: existingPay?._id },
+          { property: b.property?._id, type: 'security_deposit' }
+        ]
+      });
+
+      if (!existingBill && b.property) {
+        const primaryTenant = tenants[0];
+        const lease = await Lease.findOne({
+          property: b.property._id,
+          tenant: { $in: tenantIds }
+        });
+
+        const billNumber = `BILL-DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newBill = await Bill.create({
+          billNumber,
+          type: 'security_deposit',
+          lease: lease?._id,
+          tenant: primaryTenant._id,
+          property: b.property._id,
+          status: 'paid',
+          dueDate: b.startDate || new Date(),
+          billingPeriodStart: b.startDate || new Date(),
+          billingPeriodEnd: b.startDate || new Date(),
+          breakdown: [{ label: 'Security Deposit & Escrow', amount: b.totalAmount }],
+          amountDue: b.totalAmount,
+          amountPaid: b.totalAmount,
+          timeline: [
+            { status: 'generated', note: 'Security deposit invoice generated automatically.' },
+            { status: 'paid', note: 'Security deposit paid successfully via Razorpay.' }
+          ]
+        });
+
+        let payRecord = existingPay;
+        if (!payRecord) {
+          payRecord = await Payment.create({
+            type: 'security_deposit',
+            tenant: primaryTenant._id,
+            property: b.property._id,
+            lease: lease?._id,
+            amount: b.totalAmount,
+            amountPaid: b.totalAmount,
+            paymentDate: b.paymentDate || b.updatedAt || new Date(),
+            dueDate: b.startDate || new Date(),
+            status: 'paid',
+            paymentMethod: 'card',
+            reference: ref,
+            razorpayPaymentId: b.razorpayPaymentId,
+            description: `Security deposit for ${b.property.name || 'Property'}`,
+            bill: newBill._id
+          });
+        }
+
+        newBill.payment = payRecord._id;
+        await newBill.save();
+
+        try {
+          const viewModel = buildInvoiceViewModel(newBill, payRecord);
+          generateInvoicePDF(viewModel).then(async (pdfResult) => {
+            if (pdfResult?.fileId) {
+              newBill.fileId = pdfResult.fileId;
+              newBill.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+              await newBill.save();
+              payRecord.fileId = pdfResult.fileId;
+              payRecord.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+              await payRecord.save();
+            }
+          }).catch(() => {});
+        } catch (_) {}
+      }
+    }
+  } catch (healErr) {
+    logger.warn(`[getMyBills] Self-heal non-fatal warning: ${healErr.message}`);
+  }
+
   const bills = await Bill.find({ tenant: { $in: tenantIds } })
-    .sort({ dueDate: -1 })
+    .sort({ createdAt: -1, dueDate: -1 })
     .populate('lease', 'leaseNumber')
     .populate('property', 'name address');
 
-  res.status(200).json({ success: true, data: bills });
+  const resolvedBills = bills.map(b => resolveBillUrl(b, req));
+  res.status(200).json({ success: true, data: resolvedBills });
 });
 
 // GET /api/bills/:id (View details - checks ownership)

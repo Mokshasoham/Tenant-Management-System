@@ -353,7 +353,13 @@ export default function MyLeasePage() {
 
     const currentLease = activeLeases[selectedLeaseIndex] || lease || null;
     const statusCfg = STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending;
-    const currentLeasePayments = currentLease ? payments.filter(p => p.lease?._id === currentLease._id || p.lease === currentLease._id) : [];
+    const currentLeasePayments = currentLease ? payments.filter(p => {
+        const pLeaseId = String(p.lease?._id || p.lease || '');
+        const cLeaseId = String(currentLease._id || '');
+        const pPropId = String(p.property?._id || p.property || '');
+        const cPropId = String(currentLease.property?._id || currentLease.property || '');
+        return (pLeaseId && pLeaseId === cLeaseId) || (pPropId && pPropId === cPropId);
+    }) : [];
     const paidPayments = currentLeasePayments.filter(p => p.status === 'paid');
     const pendingPay = currentLeasePayments.find(p => ['pending', 'overdue'].includes(p.status));
     const totalPaid = paidPayments.reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
@@ -906,7 +912,9 @@ export default function MyLeasePage() {
                                                     className="grid grid-cols-12 gap-4 items-center px-6 py-4.5 hover:bg-muted/30 transition-colors group">
                                                     <div className="col-span-4">
                                                         <p className="text-sm font-black text-foreground">
-                                                            {new Date(p.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                                            {p.type === 'security_deposit' 
+                                                                ? 'Security Deposit & Escrow' 
+                                                                : (p.dueDate ? new Date(p.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Rent Payment')}
                                                         </p>
                                                         {p.paymentDate && (
                                                             <p className="text-[10px] font-black text-emerald-600/50 dark:text-emerald-400/50 uppercase tracking-widest mt-0.5">Paid {new Date(p.paymentDate).toLocaleDateString()}</p>
@@ -920,7 +928,7 @@ export default function MyLeasePage() {
                                                     </div>
                                                     <div className="col-span-3">
                                                         <p className="text-[11px] font-black text-muted-foreground/40 uppercase tracking-widest">
-                                                            {new Date(p.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            {p.dueDate ? new Date(p.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—')}
                                                         </p>
                                                     </div>
                                                     <div className="col-span-2">

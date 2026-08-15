@@ -217,6 +217,8 @@ export const bookingService = {
   // Manager approval
   approveBooking: (id, note) => apiClient.put(`/bookings/${id}/approve`, { note }),
   rejectBooking: (id, note) => apiClient.put(`/bookings/${id}/reject`, { note }),
+  // Receipt download
+  getBookingReceipt: (id) => apiClient.get(`/bookings/${id}/receipt`),
   // Mock Demo flow
   processMockPayment: (data) => apiClient.post('/bookings/process-mock-payment', data),
 };

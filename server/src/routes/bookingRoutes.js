@@ -12,6 +12,7 @@ import {
     rejectBooking,
     cancelBooking,
     processMockPayment,
+    getBookingReceipt,
 } from '../controllers/bookingController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -27,6 +28,7 @@ router.post('/request', requestBooking);
 router.get('/my', getMyBookings);
 router.get('/manager', authorize('manager', 'admin'), getManagerBookings);
 router.get('/:id', getBookingById);
+router.get('/:id/receipt', getBookingReceipt);
 router.put('/:id/status', authorize('manager', 'admin'), updateBookingStatus);
 
 // Razorpay payment flow

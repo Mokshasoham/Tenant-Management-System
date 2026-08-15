@@ -67,12 +67,14 @@ import User from '../models/User.js';
 import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';
 import Payment from '../models/Payment.js';
+import Bill from '../models/Bill.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
-import { generateAndUploadLeasePDF } from '../services/pdfService.js';
+import { generateAndUploadLeasePDF, generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
+import { getSignedUrlForFile } from './fileController.js';
 
 // Helper: add timeline event
 const addTimeline = (booking, event, note = '') => {
@@ -296,7 +298,7 @@ const verifyAndProcessPaymentInternal = async ({
             tenantIds.push(tenant._id);
         }
 
-        // Find existing lease created during approval or create a new active lease
+        // Find existing lease created during approval or create a new pending lease (awaiting signatures)
         let lease = await Lease.findOne({
             tenant: { $in: tenantIds },
             property: booking.property._id,
@@ -312,8 +314,8 @@ const verifyAndProcessPaymentInternal = async ({
                 startDate: booking.startDate,
                 endDate: booking.endDate,
                 rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
-                depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || 0,
-                status: 'active',
+                depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || booking.totalAmount || 0,
+                status: 'pending', // Pending tenant and manager e-signatures
                 createdBy: managerId,
                 terms: 'Generated from booking approval and verified payment',
                 utilities: {
@@ -325,16 +327,23 @@ const verifyAndProcessPaymentInternal = async ({
                 await tenant.save();
             }
         } else {
-            // Activate the lease upon successful deposit payment
-            lease.status = 'active';
+            // Keep lease pending signature unless already signed
+            if (!lease.signature || !lease.signedAt) {
+                lease.status = 'pending';
+            }
             await lease.save();
         }
 
-        // Record Payment history entry idempotently so it appears on dashboards & receipts
+        // Record Payment and Bill history entry idempotently so it appears on /payments, /bills, and My Lease schedule
         try {
-            let payment = await Payment.findOne({ reference: razorpayPaymentId });
+            let payment = await Payment.findOne({ 
+                $or: [
+                    { reference: razorpayPaymentId },
+                    { razorpayPaymentId: razorpayPaymentId }
+                ]
+            });
+
             if (!payment) {
-                const Bill = mongoose.model('Bill');
                 const billNumber = `BILL-DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
                 const bill = await Bill.create({
                     billNumber,
@@ -343,11 +352,11 @@ const verifyAndProcessPaymentInternal = async ({
                     tenant: tenant._id,
                     property: booking.property._id,
                     status: 'paid',
-                    dueDate: new Date(),
-                    billingPeriodStart: booking.startDate,
-                    billingPeriodEnd: booking.startDate,
+                    dueDate: booking.startDate || new Date(),
+                    billingPeriodStart: booking.startDate || new Date(),
+                    billingPeriodEnd: booking.startDate || new Date(),
                     breakdown: [
-                        { label: 'Security Deposit & Initial Payment', amount: booking.totalAmount }
+                        { label: 'Security Deposit & Escrow', amount: booking.totalAmount }
                     ],
                     amountDue: booking.totalAmount,
                     amountPaid: booking.totalAmount,
@@ -358,22 +367,42 @@ const verifyAndProcessPaymentInternal = async ({
                 });
 
                 payment = await Payment.create({
+                    type: 'security_deposit',
                     tenant: tenant._id,
                     property: booking.property._id,
                     lease: lease?._id,
                     amount: booking.totalAmount,
                     amountPaid: booking.totalAmount,
                     paymentDate: new Date(),
+                    dueDate: booking.startDate || new Date(),
                     status: 'paid',
                     paymentMethod: 'card',
                     reference: razorpayPaymentId,
                     razorpayPaymentId: razorpayPaymentId,
-                    description: `Security deposit and initial payment for ${booking.property?.name || 'Property'}`,
+                    description: `Security deposit for ${booking.property?.name || 'Property'}`,
                     bill: bill._id
                 });
 
                 bill.payment = payment._id;
                 await bill.save();
+
+                // Generate & upload invoice PDF asynchronously
+                try {
+                    const viewModel = buildInvoiceViewModel(bill, payment);
+                    generateInvoicePDF(viewModel).then(async (pdfResult) => {
+                        if (pdfResult?.fileId) {
+                            bill.fileId = pdfResult.fileId;
+                            bill.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+                            await bill.save();
+                            payment.fileId = pdfResult.fileId;
+                            payment.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+                            await payment.save();
+                            logger.info(`[BILL/INVOICE PDF GENERATED] fileId=${pdfResult.fileId}`);
+                        }
+                    }).catch(err => logger.warn(`[BILL PDF ERROR] ${err.message}`));
+                } catch (pdfBuildErr) {
+                    logger.warn(`[BILL PDF VIEWMODEL ERROR] ${pdfBuildErr.message}`);
+                }
                 
                 // Run post-payment automation asynchronously in the background
                 processPostPayment(payment).catch(err => {
@@ -391,42 +420,18 @@ const verifyAndProcessPaymentInternal = async ({
                 lease.signatureType = 'draw';
                 lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
                 lease.signedAt = new Date();
+                if (!isFuture) {
+                    lease.status = 'active';
+                }
                 await lease.save();
             }
 
-            generateAndUploadLeasePDF(lease, tenant, booking.property, signatureToUse)
-                .then(async (uploadResult) => {
-                    if (uploadResult && uploadResult.fileId) {
-                        lease.documents.push({
-                            fileId: uploadResult.fileId,
-                            name: 'Signed Lease Agreement',
-                            url: `/api/files/download/${uploadResult.fileId}`,
-                            uploadedAt: new Date()
-                        });
-                        await lease.save();
-                        logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location || uploadResult.fileId}`);
-                    }
-                })
-                .catch(pdfErr => {
-                    logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
-                });
-
-            if (isFuture) {
-                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} signed and scheduled to activate on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`);
-            } else {
-                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
-            }
+            addTimeline(booking, 'payment_done', `Security deposit of ₹${booking.totalAmount.toLocaleString('en-IN')} secured in escrow. Lease #${lease.leaseNumber} generated awaiting signatures.`);
             await booking.save();
         }
 
-        // Set Property status: occupied if start date has arrived
-        const propertyUpdate = {
-            $pull: { bookedDates: { bookingId: booking._id } }
-        };
-        if (!isFuture) {
-            propertyUpdate.$set = { status: 'occupied', currentTenant: tenant._id };
-        }
-        await Property.findByIdAndUpdate(booking.property._id, propertyUpdate);
+        logger.info(`[PAYMENT SUCCESS] bookingId=${booking._id}, paymentId=${razorpayPaymentId}, paymentStatus=paid`);
+        logger.info(`[LEASE GENERATED] bookingId=${booking._id}, tenantId=${tenant._id}, propertyId=${booking.property._id}, leaseId=${lease?._id}, leaseStatus=${lease?.status}`);
 
         logger.info(`[PAYMENT SUCCESS] bookingId=${booking._id}, paymentId=${razorpayPaymentId}, paymentStatus=paid`);
         logger.info(`[LEASE ACTIVATION] bookingId=${booking._id}, tenantId=${tenant._id}, propertyId=${booking.property._id}, leaseId=${lease?._id}, leaseStatus=${lease?.status}`);
@@ -1202,3 +1207,90 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         next(error);
     }
 });
+
+// GET /api/bookings/:id/receipt
+export const getBookingReceipt = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('property').populate('user');
+    if (!booking) throw new AppError('Booking not found', 404);
+
+    const bookingUserId = booking.user?._id ? booking.user._id.toString() : booking.user.toString();
+    const isTenant = bookingUserId === req.user.userId;
+    const isManager = booking.manager?.toString() === req.user.userId;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isTenant && !isManager && !isAdmin) {
+        throw new AppError('Not authorized to access receipt for this booking', 403);
+    }
+
+    if (booking.paymentStatus !== 'paid' && booking.status !== 'completed' && booking.status !== 'active') {
+        throw new AppError('Receipt is only available for confirmed/paid bookings', 400);
+    }
+
+    // Look for associated payment record
+    let payment = await Payment.findOne({
+        $or: [
+            { reference: booking.razorpayPaymentId },
+            { razorpayPaymentId: booking.razorpayPaymentId },
+            { property: booking.property?._id, type: 'security_deposit' }
+        ]
+    });
+
+    let bill = null;
+    if (payment?.bill) {
+        bill = await Bill.findById(payment.bill);
+    } else {
+        bill = await Bill.findOne({
+            property: booking.property?._id,
+            type: 'security_deposit'
+        });
+    }
+
+    // If PDF metadata exists, redirect or return signed URL
+    if (payment?.fileId || bill?.fileId) {
+        const fileId = payment?.fileId || bill?.fileId;
+        req.params.fileId = fileId.toString();
+        return getSignedUrlForFile(req, res);
+    }
+
+    // If no PDF generated yet but payment and bill exist, generate on the fly
+    if (payment && bill) {
+        try {
+            const viewModel = buildInvoiceViewModel(bill, payment);
+            const pdfResult = await generateInvoicePDF(viewModel);
+            if (pdfResult?.fileId) {
+                bill.fileId = pdfResult.fileId;
+                bill.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+                await bill.save();
+                payment.fileId = pdfResult.fileId;
+                payment.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+                await payment.save();
+                req.params.fileId = pdfResult.fileId.toString();
+                return getSignedUrlForFile(req, res);
+            }
+        } catch (genErr) {
+            logger.warn(`Failed on-demand invoice PDF generation: ${genErr.message}`);
+        }
+    }
+
+    // Return receipt metadata JSON if direct binary download is unavailable
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const invoiceUrl = payment?.invoiceUrl ? (payment.invoiceUrl.startsWith('http') ? payment.invoiceUrl : `${protocol}://${host}${payment.invoiceUrl.startsWith('/') ? '' : '/'}${payment.invoiceUrl}`) : null;
+
+    res.status(200).json({
+        success: true,
+        data: {
+            receiptNumber: `REC-BK-${booking._id.toString().slice(-8).toUpperCase()}`,
+            bookingId: booking._id,
+            amount: booking.totalAmount,
+            paymentDate: booking.paymentDate || booking.updatedAt,
+            paymentMethod: 'Card / NetBanking (Razorpay)',
+            transactionId: booking.razorpayPaymentId || booking.paymentReference,
+            property: booking.property?.name,
+            status: 'Paid & Secured in Escrow',
+            url: invoiceUrl
+        }
+    });
+});
+

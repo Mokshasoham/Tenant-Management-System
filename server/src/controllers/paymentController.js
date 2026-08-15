@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import Payment from '../models/Payment.js';
+import Bill from '../models/Bill.js';
+import Booking from '../models/Booking.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import User from '../models/User.js';
@@ -7,7 +9,7 @@ import Property from '../models/Property.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
-import { generateInvoicePDF } from '../services/pdfService.js';
+import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { getSignedUrlForFile } from './fileController.js';
 
 const resolveInvoiceUrl = (payment, req) => {
@@ -48,6 +50,86 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   const tenantIds = tenants.map(t => t._id);
   if (tenantIds.length === 0) return res.status(200).json({ success: true, data: [] });
 
+  // Self-heal: ensure paid bookings with deposits have Payment and Bill records
+  try {
+    const paidBookings = await Booking.find({
+      user: req.user.userId,
+      paymentStatus: 'paid',
+      totalAmount: { $gt: 0 }
+    }).populate('property');
+
+    for (const b of paidBookings) {
+      if (!b.razorpayPaymentId && !b.paymentReference) continue;
+      const ref = b.razorpayPaymentId || b.paymentReference;
+      const existingPay = await Payment.findOne({
+        $or: [{ reference: ref }, { razorpayPaymentId: ref }]
+      });
+      if (!existingPay && b.property) {
+        const primaryTenant = tenants[0];
+        const lease = await Lease.findOne({
+          property: b.property._id,
+          tenant: { $in: tenantIds }
+        });
+
+        const billNumber = `BILL-DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const bill = await Bill.create({
+          billNumber,
+          type: 'security_deposit',
+          lease: lease?._id,
+          tenant: primaryTenant._id,
+          property: b.property._id,
+          status: 'paid',
+          dueDate: b.startDate || new Date(),
+          billingPeriodStart: b.startDate || new Date(),
+          billingPeriodEnd: b.startDate || new Date(),
+          breakdown: [{ label: 'Security Deposit & Escrow', amount: b.totalAmount }],
+          amountDue: b.totalAmount,
+          amountPaid: b.totalAmount,
+          timeline: [
+            { status: 'generated', note: 'Security deposit invoice generated automatically.' },
+            { status: 'paid', note: 'Security deposit paid successfully via Razorpay.' }
+          ]
+        });
+
+        const newPay = await Payment.create({
+          type: 'security_deposit',
+          tenant: primaryTenant._id,
+          property: b.property._id,
+          lease: lease?._id,
+          amount: b.totalAmount,
+          amountPaid: b.totalAmount,
+          paymentDate: b.paymentDate || b.updatedAt || new Date(),
+          dueDate: b.startDate || new Date(),
+          status: 'paid',
+          paymentMethod: 'card',
+          reference: ref,
+          razorpayPaymentId: b.razorpayPaymentId,
+          description: `Security deposit for ${b.property.name || 'Property'}`,
+          bill: bill._id
+        });
+
+        bill.payment = newPay._id;
+        await bill.save();
+
+        try {
+          const viewModel = buildInvoiceViewModel(bill, newPay);
+          generateInvoicePDF(viewModel).then(async (pdfResult) => {
+            if (pdfResult?.fileId) {
+              bill.fileId = pdfResult.fileId;
+              bill.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+              await bill.save();
+              newPay.fileId = pdfResult.fileId;
+              newPay.invoiceUrl = `/api/files/download/${pdfResult.fileId}`;
+              await newPay.save();
+            }
+          }).catch(() => {});
+        } catch (_) {}
+      }
+    }
+  } catch (healErr) {
+    logger.warn(`[getMyPayments] Self-heal check non-fatal warning: ${healErr.message}`);
+  }
+
   const filter = { tenant: { $in: tenantIds } };
   if (req.query.bill === 'null') {
     filter.$or = [
@@ -57,7 +139,7 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   }
 
   const payments = await Payment.find(filter)
-    .sort({ dueDate: -1 })
+    .sort({ paymentDate: -1, dueDate: -1, createdAt: -1 })
     .limit(100)
     .populate('lease', 'leaseNumber rentAmount')
     .populate('tenant', 'firstName lastName email')

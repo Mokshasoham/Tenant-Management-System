@@ -442,7 +442,12 @@ export default function PaymentsPage() {
                     {/* Tenant / Property Name */}
                     <div className="col-span-3">
                       {isTenant ? (
-                        <p className="text-sm font-bold text-foreground/80 truncate">{payment.property?.name || 'N/A'}</p>
+                        <div>
+                          <p className="text-sm font-bold text-foreground/80 truncate">{payment.property?.name || 'N/A'}</p>
+                          <p className="text-[10px] text-muted-foreground/50 uppercase font-black tracking-wider">
+                            {payment.type === 'security_deposit' ? 'Security Deposit' : 'Monthly Rent'}
+                          </p>
+                        </div>
                       ) : (
                         <div>
                           <p className="text-sm font-bold text-foreground/80 truncate">{payment.tenant?.firstName} {payment.tenant?.lastName}</p>
@@ -464,7 +469,7 @@ export default function PaymentsPage() {
 
                     <div className="col-span-2 hidden md:block">
                       <p className="text-xs text-muted-foreground/60">
-                        {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : '—'}
+                        {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : (payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '—')}
                       </p>
                     </div>
 
@@ -473,6 +478,19 @@ export default function PaymentsPage() {
                         <span className={cn('w-1.5 h-1.5 rounded-full', statusStyle.dot)} />
                         {statusStyle.label}
                       </span>
+
+                      {/* Download invoice button for paid records */}
+                      {payment.invoiceUrl && (
+                        <a
+                          href={payment.invoiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Download Invoice"
+                          className="p-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
 
                       {/* Tenant: Pay button for pending */}
                       {isTenant && owed > 0 && payment.status !== 'paid' && (

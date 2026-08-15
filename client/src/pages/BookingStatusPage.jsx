@@ -86,10 +86,11 @@ export default function BookingStatusPage() {
             color: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'text-indigo-500' : 'text-emerald-400',
             bg: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'bg-indigo-500/10' : 'bg-emerald-400/10',
             border: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'border-indigo-500/20' : 'border-emerald-400/20',
-            title: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'Approved – Awaiting Deposit Payment' : 'Booking Confirmed!',
-            desc: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'The manager has approved your request! Please complete the security deposit payment to activate the lease.' : 'Congratulations! Your lease is active.',
+            title: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'Approved – Awaiting Deposit Payment' : 'Security Deposit Secured!',
+            desc: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'The manager has approved your request! Please complete the security deposit payment to generate your lease agreement.' : `Your security deposit of ₹${(booking?.totalAmount || 0).toLocaleString('en-IN')} has been received into escrow. Please proceed to review and sign your lease agreement.`,
             showButton: booking?.paymentStatus !== 'pending' && booking?.paymentStatus !== 'failed',
-            showPayButton: booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed'
+            showPayButton: booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed',
+            showSignButton: booking?.paymentStatus === 'paid'
         },
         rejected: {
             icon: XCircle,
@@ -117,8 +118,24 @@ export default function BookingStatusPage() {
     const config = statusConfig[displayStatus] || statusConfig.pending;
     const Icon = config.icon;
 
-    const handleDownloadReceipt = () => {
-        alert('Downloading receipt for BK-' + booking._id.slice(-8).toUpperCase() + '...');
+    const [downloadingReceipt, setDownloadingReceipt] = useState(false);
+
+    const handleDownloadReceipt = async () => {
+        setDownloadingReceipt(true);
+        try {
+            const res = await bookingService.getBookingReceipt(booking._id);
+            const data = res?.data || res;
+            if (data?.url) {
+                window.open(data.url, '_blank');
+            } else {
+                alert(`Receipt #${data?.receiptNumber || 'REC-' + booking._id.slice(-8).toUpperCase()} downloaded successfully.`);
+            }
+        } catch (err) {
+            console.error('Failed to download receipt:', err);
+            alert(err?.message || err?.error?.message || 'Receipt is being processed. Please try again.');
+        } finally {
+            setDownloadingReceipt(false);
+        }
     };
 
     const handleChat = () => {
@@ -173,14 +190,27 @@ export default function BookingStatusPage() {
                 </div>
 
                 {config.showButton && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        onClick={handleDownloadReceipt}
-                        className="mt-8 flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl transition-all mx-auto w-full max-w-sm"
-                    >
-                        <FileText className="w-4 h-4 text-emerald-500" /> DOWNLOAD RECEIPT
-                    </motion.button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8 max-w-md mx-auto w-full">
+                        <motion.button
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            disabled={downloadingReceipt}
+                            onClick={handleDownloadReceipt}
+                            className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl transition-all w-full cursor-pointer disabled:opacity-50"
+                        >
+                            <FileText className="w-4 h-4 text-emerald-500" /> {downloadingReceipt ? 'DOWNLOADING...' : 'DOWNLOAD RECEIPT'}
+                        </motion.button>
+                        {config.showSignButton && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                onClick={() => navigate('/my-lease')}
+                                className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/30 hover:shadow-xl transition-all w-full cursor-pointer"
+                            >
+                                <CheckCircle2 className="w-4 h-4" /> SIGN LEASE AGREEMENT
+                            </motion.button>
+                        )}
+                    </div>
                 )}
 
                 {config.showPayButton && (
