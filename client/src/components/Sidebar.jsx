@@ -154,23 +154,30 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       {/* Sidebar Panel */}
       <div
         className={cn(
-          // Position
-          'fixed top-0 left-0 z-50 lg:relative lg:z-auto',
+          // Position & Floating Geometry
+          'fixed z-50 lg:relative lg:z-auto',
+          'top-3 bottom-3 left-3 lg:top-0 lg:bottom-0 lg:left-0',
+          'my-3 ml-3',
+          // Floating Height
+          'h-[calc(100vh-1.5rem)]',
+          // Rounded corners on all 4 corners
+          'rounded-[24px]',
+          // Full perimeter border and glass floating shadow
+          'border shadow-2xl shadow-black/40 backdrop-blur-xl',
           // Layout
           'flex flex-col overflow-hidden',
           // Mobile/Desktop hide/show and width transition
           'transition-all duration-300 ease-in-out',
           isOpen 
-            ? 'translate-x-0 w-72 border-r' 
-            : '-translate-x-full lg:translate-x-0 w-0 lg:w-20 border-r',
-          // Size
-          'h-screen',
+            ? 'translate-x-0 w-72' 
+            : '-translate-x-[calc(100%+24px)] lg:translate-x-0 w-0 lg:w-20',
           // Theme
           'transition-colors duration-300'
         )}
         style={{
           backgroundColor: 'var(--bg-sidebar)',
           borderColor: 'var(--glass-border)',
+          borderRadius: '24px',
         }}
       >
         {/* Decorative orbs — absolute, do NOT affect flex flow */}
