@@ -74,7 +74,6 @@ import {
   verifyGstinDocument,
   getGstStatus,
   unlockGst,
-  getVerificationHealthDiagnostics,
 } from '../controllers/verificationController.js';
 
 import {

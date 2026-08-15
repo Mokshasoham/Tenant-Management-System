@@ -104,7 +104,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-    logger.info(`Initializing Razorpay order creation for booking ${bookingId} with key: ${keyId}`);
+    logger.info(`[CREATE ORDER] authenticatedUser: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${bookingId}, bookingStatus: ${booking.status}, startDate: ${booking.startDate}, endDate: ${booking.endDate}, calculatedAmount: ${securityDeposit}, currency: INR`);
 
     let amountInPaise = Math.round(Number(securityDeposit) * 100);
     const isTestMode = keyId.startsWith('rzp_test_');
@@ -113,6 +113,8 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         logger.warn(`Test mode transaction amount ${amountInPaise} paise exceeds ₹1,00,000. Capping Razorpay order to 100,000 paise (₹1,000).`);
         amountInPaise = 100000;
     }
+
+    logger.info(`[RAZORPAY] creating order - amount: ${amountInPaise} paise, currency: INR`);
 
     let razorpayOrderId;
     try {
@@ -128,6 +130,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         });
         
         razorpayOrderId = rzpOrder.id;
+        logger.info(`[RAZORPAY] order created - orderId: ${razorpayOrderId}`);
     } catch (rzpErr) {
         const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
         logger.error(`Razorpay API Order Creation Failed: ${errMsg}`);
@@ -163,8 +166,6 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
             }
         }
     }
-
-    logger.info(`Razorpay order generated: ${razorpayOrderId} for existing booking ${booking._id}`);
 
     res.status(201).json({
         success: true,

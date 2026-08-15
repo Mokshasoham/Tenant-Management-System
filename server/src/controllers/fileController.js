@@ -6,7 +6,7 @@ import {
   generateLocalOneTimeToken, 
   verifyLocalOneTimeToken 
 } from '../services/fileService.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken } from '../utils/jwt.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import mongoose from 'mongoose';

@@ -1,6 +1,8 @@
 import { verifyToken } from '../utils/jwt.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 
+export { verifyToken };
+
 export const authenticate = asyncHandler(async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
 
