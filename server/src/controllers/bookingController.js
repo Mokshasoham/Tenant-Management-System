@@ -1,5 +1,9 @@
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
+import Lease from '../models/Lease.js';
+import Tenant from '../models/Tenant.js';
+import Payment from '../models/Payment.js';
+import User from '../models/User.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 
@@ -63,10 +67,6 @@ const Notification = {
     countDocuments: (...args) => NotificationModel.countDocuments(...args),
     findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
 };
-import User from '../models/User.js';
-import Tenant from '../models/Tenant.js';
-import Lease from '../models/Lease.js';
-import Payment from '../models/Payment.js';
 import Bill from '../models/Bill.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
@@ -979,18 +979,13 @@ export const getBookingById = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id)
         .populate('property')
         .populate('user', 'firstName lastName email phone avatar')
-        .populate('manager', 'firstName lastName email phone')
-        .populate('offer');
+        .populate('manager', 'firstName lastName email phone');
 
     if (!booking) throw new AppError('Booking not found', 404);
 
     const bookingObj = booking.toObject ? booking.toObject() : { ...booking };
 
     // Attach linked Lease (if exists)
-    const Lease = mongoose.model('Lease');
-    const Tenant = mongoose.model('Tenant');
-    const Payment = mongoose.model('Payment');
-
     let tenantDoc = null;
     if (booking.user?.email) {
         tenantDoc = await Tenant.findOne({ email: booking.user.email });
