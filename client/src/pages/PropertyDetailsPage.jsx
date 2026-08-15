@@ -311,12 +311,10 @@ export default function PropertyDetailsPage() {
             });
             // res = { success: true, data: booking }
             const createdBooking = res.data;
-            console.log('[handleBooking] New booking created:', createdBooking?._id, 'status:', createdBooking?.status);
+            console.log('[handleBooking] New booking request created:', createdBooking?._id, 'status:', createdBooking?.status);
             setBookingSuccess(true);
             setExistingBooking(createdBooking);
-            if (property.bookingType !== 'free') {
-                setShowRazorpay(true);
-            }
+            // Free/demo bookings activate immediately; standard bookings require manager approval before payment
             fetchProperty();
         } catch (err) {
             // err from apiClient is already response.data (the backend error object)
@@ -324,7 +322,7 @@ export default function PropertyDetailsPage() {
             const errMsg = err?.message || err?.error?.message || '';
             console.error('[handleBooking] error:', statusCode, errMsg);
 
-            // 409 = existing pending/approved booking exists — find it and offer payment
+            // 409 = existing pending/approved booking exists — find it and display state
             if (statusCode === 409 || errMsg.includes('already booked') || errMsg.includes('pending request')) {
                 try {
                     const myBookings = await bookingService.getMyBookings();
@@ -335,11 +333,8 @@ export default function PropertyDetailsPage() {
                         return matchesProp && isEligible;
                     });
                     if (existing) {
-                        console.log('[handleBooking] Found existing unpaid booking:', existing._id);
+                        console.log('[handleBooking] Found existing booking:', existing._id, 'status:', existing.status);
                         setExistingBooking(existing);
-                        if (property.bookingType !== 'free') {
-                            setShowRazorpay(true);
-                        }
                         return;
                     }
                 } catch (fetchErr) {
@@ -1273,22 +1268,57 @@ export default function PropertyDetailsPage() {
                                             {bookingSuccess ? (
                                                 <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-2">
                                                     <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                                                    <p className="text-sm font-black text-white">Booking Confirmed!</p>
-                                                    <p className="text-xs text-white/70">Check your dashboard for lease details.</p>
-                                                </div>
-                                            ) : existingBooking ? (
-                                                <div className="p-4 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-center space-y-2">
-                                                    <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
-                                                    <p className="text-sm font-black text-white">Booking Pending Payment</p>
-                                                    <p className="text-xs text-white/70">You have a booking awaiting payment confirmation.</p>
+                                                    <p className="text-sm font-black text-white">Booking Request Submitted!</p>
+                                                    <p className="text-xs text-white/70">Your request has been sent to the property manager. You will be notified once approved.</p>
                                                     <button
                                                         type="button"
-                                                        onClick={() => setShowRazorpay(true)}
-                                                        className="w-full py-3 rounded-xl font-black bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all text-xs uppercase tracking-wider"
+                                                        onClick={() => navigate('/dashboard')}
+                                                        className="w-full mt-2 py-2.5 rounded-xl font-black bg-white/20 hover:bg-white/30 text-white transition-all text-xs uppercase tracking-wider"
                                                     >
-                                                        Pay ₹{existingBooking.totalAmount?.toLocaleString('en-IN')} Now
+                                                        View in Dashboard
                                                     </button>
                                                 </div>
+                                            ) : existingBooking ? (
+                                                existingBooking.status === 'approved' && existingBooking.paymentStatus !== 'paid' ? (
+                                                    <div className="p-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-center space-y-2">
+                                                        <CheckCircle2 className="w-8 h-8 text-indigo-400 mx-auto" />
+                                                        <p className="text-sm font-black text-white">Booking Approved!</p>
+                                                        <p className="text-xs text-white/70">Manager approved your request. Complete deposit payment to activate your lease.</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowRazorpay(true)}
+                                                            className="w-full py-3 rounded-xl font-black bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all text-xs uppercase tracking-wider"
+                                                        >
+                                                            Pay ₹{(existingBooking.depositAmount || existingBooking.totalAmount)?.toLocaleString('en-IN')} Deposit Now
+                                                        </button>
+                                                    </div>
+                                                ) : existingBooking.paymentStatus === 'paid' ? (
+                                                    <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-2">
+                                                        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                                                        <p className="text-sm font-black text-white">Lease Active & Confirmed</p>
+                                                        <p className="text-xs text-white/70">Your lease agreement is active for this property.</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate('/my-lease')}
+                                                            className="w-full py-3 rounded-xl font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-all text-xs uppercase tracking-wider"
+                                                        >
+                                                            View My Lease Agreement
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-center space-y-2">
+                                                        <Clock className="w-8 h-8 text-amber-400 mx-auto" />
+                                                        <p className="text-sm font-black text-white">Pending Manager Approval</p>
+                                                        <p className="text-xs text-white/70">Your booking request is being reviewed by the property manager. Payment will be enabled once approved.</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/bookings/${existingBooking._id}`)}
+                                                            className="w-full py-2.5 rounded-xl font-black bg-white/20 hover:bg-white/30 text-white transition-all text-xs uppercase tracking-wider"
+                                                        >
+                                                            View Request Status
+                                                        </button>
+                                                    </div>
+                                                )
                                             ) : (
                                                 <button
                                                     type="button"

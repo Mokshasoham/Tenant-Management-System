@@ -44,10 +44,11 @@ export const getMyPayments = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId).select('email');
   if (!user) return res.status(200).json({ success: true, data: [] });
 
-  const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant) return res.status(200).json({ success: true, data: [] });
+  const tenants = await Tenant.find({ email: user.email });
+  const tenantIds = tenants.map(t => t._id);
+  if (tenantIds.length === 0) return res.status(200).json({ success: true, data: [] });
 
-  const filter = { tenant: tenant._id };
+  const filter = { tenant: { $in: tenantIds } };
   if (req.query.bill === 'null') {
     filter.$or = [
       { bill: null },
@@ -129,8 +130,9 @@ export const getPaymentInvoice = asyncHandler(async (req, res) => {
   // Authenticate ownership: tenants can only see their own payments
   if (req.user.role === 'tenant') {
     const user = await User.findById(req.user.userId).select('email');
-    const tenant = await Tenant.findOne({ email: user.email });
-    if (!tenant || payment.tenant.toString() !== tenant._id.toString()) {
+    const tenants = await Tenant.find({ email: user.email });
+    const tenantIds = tenants.map(t => t._id.toString());
+    if (!tenantIds.includes(payment.tenant.toString())) {
       throw new AppError('Forbidden: Access denied', 403);
     }
   }

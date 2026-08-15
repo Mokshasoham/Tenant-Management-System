@@ -51,12 +51,15 @@ export const getMyLease = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId).select('email');
   if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
-  const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
+  const tenants = await Tenant.find({ email: user.email });
+  const tenantIds = tenants.map(t => t._id);
+  if (tenantIds.length === 0) {
+    return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
+  }
 
   // Self-healing: if there are multiple active/pending leases for the same property, keep only the newest one active, mark others as terminated
   const activeLeasesRaw = await Lease.find({
-    tenant: tenant._id,
+    tenant: { $in: tenantIds },
     status: { $in: ['active', 'pending'] },
   }).sort({ createdAt: -1 });
 
@@ -74,7 +77,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
 
   const [activeLeases, pastLeases, tenantPayments] = await Promise.all([
     Lease.find({
-      tenant: tenant._id,
+      tenant: { $in: tenantIds },
       status: { $in: ['active', 'pending'] },
     })
       .sort({ createdAt: -1 })
@@ -86,7 +89,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .populate('tenant', 'firstName lastName email phone'),
 
     Lease.find({
-      tenant: tenant._id,
+      tenant: { $in: tenantIds },
       status: { $nin: ['active', 'pending'] },
     })
       .sort({ createdAt: -1 })
@@ -97,7 +100,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
       })
       .populate('tenant', 'firstName lastName email phone'),
 
-    Payment.find({ tenant: tenant._id }).sort({ dueDate: -1 })
+    Payment.find({ tenant: { $in: tenantIds } }).sort({ dueDate: -1 })
   ]);
 
   // Enrich each active lease with authoritative payment schedule derived from lease cycle and DB payments
@@ -115,6 +118,8 @@ export const getMyLease = asyncHandler(async (req, res) => {
   });
 
   const primaryActiveLease = enrichedActiveLeases[0] || null;
+
+  logger.info(`[MY LEASES] tenantUserId=${req.user.userId}, tenantCount=${tenantIds.length}, activeLeaseCount=${enrichedActiveLeases.length}, pastLeaseCount=${pastLeases.length}`);
 
   res.status(200).json({ 
     success: true, 
@@ -366,8 +371,9 @@ export const signLease = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant || lease.tenant.toString() !== tenant._id.toString()) {
+  const tenants = await Tenant.find({ email: user.email });
+  const tenantIds = tenants.map(t => t._id.toString());
+  if (!tenantIds.includes(lease.tenant.toString())) {
     throw new AppError('You are not authorized to sign this lease', 403);
   }
 
@@ -526,8 +532,9 @@ export const getLeaseChecklist = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId).select('firstName lastName phone kycDocuments email');
   if (!user) throw new AppError('User not found', 404);
 
-  const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant || lease.tenant.toString() !== tenant._id.toString()) {
+  const tenants = await Tenant.find({ email: user.email });
+  const tenantIds = tenants.map(t => t._id.toString());
+  if (!tenantIds.includes(lease.tenant.toString())) {
     throw new AppError('You are not authorized to view this checklist', 403);
   }
 

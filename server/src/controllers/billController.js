@@ -69,12 +69,13 @@ export const getMyBills = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: [] });
   }
 
-  const tenant = await Tenant.findOne({ email: user.email });
-  if (!tenant) {
+  const tenants = await Tenant.find({ email: user.email });
+  const tenantIds = tenants.map(t => t._id);
+  if (tenantIds.length === 0) {
     return res.status(200).json({ success: true, data: [] });
   }
 
-  const bills = await Bill.find({ tenant: tenant._id })
+  const bills = await Bill.find({ tenant: { $in: tenantIds } })
     .sort({ dueDate: -1 })
     .populate('lease', 'leaseNumber')
     .populate('property', 'name address');
@@ -96,8 +97,10 @@ export const getBillById = asyncHandler(async (req, res) => {
   // Tenant-specific ownership validation
   if (req.user.role === 'tenant') {
     const user = await User.findById(req.user.userId).select('email');
-    const tenant = await Tenant.findOne({ email: user.email });
-    if (!tenant || bill.tenant._id.toString() !== tenant._id.toString()) {
+    const tenants = await Tenant.find({ email: user.email });
+    const tenantIds = tenants.map(t => t._id.toString());
+    const billTenantId = bill.tenant?._id ? bill.tenant._id.toString() : bill.tenant.toString();
+    if (!tenantIds.includes(billTenantId)) {
       throw new AppError('Forbidden: Access denied to this bill record', 403);
     }
   }
@@ -303,8 +306,10 @@ export const getBillDownload = asyncHandler(async (req, res) => {
   // Authenticate ownership
   if (req.user.role === 'tenant') {
     const user = await User.findById(req.user.userId).select('email');
-    const tenant = await Tenant.findOne({ email: user.email });
-    if (!tenant || bill.tenant.toString() !== tenant._id.toString()) {
+    const tenants = await Tenant.find({ email: user.email });
+    const tenantIds = tenants.map(t => t._id.toString());
+    const billTenantId = bill.tenant?._id ? bill.tenant._id.toString() : bill.tenant.toString();
+    if (!tenantIds.includes(billTenantId)) {
       throw new AppError('Forbidden: Access denied', 403);
     }
   }

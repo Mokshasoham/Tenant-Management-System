@@ -164,21 +164,21 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     if (signature) {
         const user = await User.findById(booking.user);
         if (user) {
-            const tenant = await Tenant.findOne({ email: user.email });
-            if (tenant) {
-                const lease = await Lease.findOne({
-                    tenant: tenant._id,
-                    property: booking.property._id,
-                    status: 'pending'
-                });
-                if (lease) {
-                    lease.signature = signature;
-                    lease.signatureType = 'draw';
-                    lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
-                    lease.signedAt = new Date();
-                    await lease.save();
-                    logger.info(`Saved signature to lease ${lease._id} during order creation.`);
-                }
+            const tenants = await Tenant.find({ email: user.email });
+            const tenantIds = tenants.map(t => t._id);
+            const lease = await Lease.findOne({
+                tenant: { $in: tenantIds },
+                property: booking.property._id,
+                status: { $in: ['pending', 'active'] }
+            });
+            if (lease) {
+                const matchedTenant = tenants.find(t => t._id.toString() === lease.tenant.toString()) || tenants[0];
+                lease.signature = signature;
+                lease.signatureType = 'draw';
+                lease.signedBy = `${matchedTenant.firstName} ${matchedTenant.lastName}`;
+                lease.signedAt = new Date();
+                await lease.save();
+                logger.info(`Saved signature to lease ${lease._id} during order creation.`);
             }
         }
     }
@@ -269,17 +269,71 @@ const verifyAndProcessPaymentInternal = async ({
     // 1. Fetch user to get matching Tenant
     const user = await User.findById(booking.user);
     if (user) {
-        const tenant = await Tenant.findOne({ email: user.email });
-        if (tenant) {
-            const now = new Date();
-            const isFuture = new Date(booking.startDate) > now;
+        const managerId = booking.manager || (booking.property ? (booking.property.manager || booking.property.owner) : null);
+        let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId });
+        if (!tenant) {
+            tenant = await Tenant.findOne({ email: user.email });
+        }
+        if (!tenant) {
+            tenant = await Tenant.create({
+                firstName: user.firstName || 'Tenant',
+                lastName: user.lastName || 'User',
+                email: user.email,
+                phone: user.phone || 'N/A',
+                address: 'Update Address',
+                managedBy: managerId,
+                status: 'active',
+            });
+        }
 
-            const lease = await Lease.findOne(
-                { tenant: tenant._id, property: booking.property._id, status: 'pending' }
-            );
+        const now = new Date();
+        const isFuture = new Date(booking.startDate) > now;
 
-            // Record Payment history entry so it appears on dashboards & receipts
-            try {
+        // Fetch all tenant IDs for this user
+        const allTenantsForUser = await Tenant.find({ email: user.email }).select('_id');
+        const tenantIds = allTenantsForUser.map(t => t._id);
+        if (!tenantIds.some(tId => tId.toString() === tenant._id.toString())) {
+            tenantIds.push(tenant._id);
+        }
+
+        // Find existing lease created during approval or create a new active lease
+        let lease = await Lease.findOne({
+            tenant: { $in: tenantIds },
+            property: booking.property._id,
+            status: { $in: ['pending', 'active'] }
+        });
+
+        if (!lease) {
+            const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+            lease = await Lease.create({
+                leaseNumber,
+                property: booking.property._id,
+                tenant: tenant._id,
+                startDate: booking.startDate,
+                endDate: booking.endDate,
+                rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
+                depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || 0,
+                status: 'active',
+                createdBy: managerId,
+                terms: 'Generated from booking approval and verified payment',
+                utilities: {
+                    water: true, electricity: true, gas: false, internet: false
+                }
+            });
+            if (!tenant.leases.includes(lease._id)) {
+                tenant.leases.push(lease._id);
+                await tenant.save();
+            }
+        } else {
+            // Activate the lease upon successful deposit payment
+            lease.status = 'active';
+            await lease.save();
+        }
+
+        // Record Payment history entry idempotently so it appears on dashboards & receipts
+        try {
+            let payment = await Payment.findOne({ reference: razorpayPaymentId });
+            if (!payment) {
                 const Bill = mongoose.model('Bill');
                 const billNumber = `BILL-DEP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
                 const bill = await Bill.create({
@@ -303,7 +357,7 @@ const verifyAndProcessPaymentInternal = async ({
                     ]
                 });
 
-                const payment = await Payment.create({
+                payment = await Payment.create({
                     tenant: tenant._id,
                     property: booking.property._id,
                     lease: lease?._id,
@@ -314,7 +368,7 @@ const verifyAndProcessPaymentInternal = async ({
                     paymentMethod: 'card',
                     reference: razorpayPaymentId,
                     razorpayPaymentId: razorpayPaymentId,
-                    description: `Security deposit and initial payment for ${booking.property.name}`,
+                    description: `Security deposit and initial payment for ${booking.property?.name || 'Property'}`,
                     bill: bill._id
                 });
 
@@ -325,50 +379,57 @@ const verifyAndProcessPaymentInternal = async ({
                 processPostPayment(payment).catch(err => {
                     logger.error(`Post-payment processing failed: ${err.message}`);
                 });
-            } catch (payErr) {
-                logger.error(`Failed to record Payment and Bill entry: ${payErr.message}`);
+            }
+        } catch (payErr) {
+            logger.error(`Failed to record Payment and Bill entry: ${payErr.message}`);
+        }
+
+        if (lease) {
+            const signatureToUse = signature || lease.signature;
+            if (signatureToUse) {
+                lease.signature = signatureToUse;
+                lease.signatureType = 'draw';
+                lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
+                lease.signedAt = new Date();
+                await lease.save();
             }
 
-            if (lease) {
-                // Generate and upload lease PDF in the background to prevent blocking
-                const signatureToUse = signature || lease.signature;
-                generateAndUploadLeasePDF(lease, tenant, booking.property, signatureToUse)
-                    .then(async (uploadResult) => {
+            generateAndUploadLeasePDF(lease, tenant, booking.property, signatureToUse)
+                .then(async (uploadResult) => {
+                    if (uploadResult && uploadResult.fileId) {
                         lease.documents.push({
                             fileId: uploadResult.fileId,
                             name: 'Signed Lease Agreement',
                             url: `/api/files/download/${uploadResult.fileId}`,
                             uploadedAt: new Date()
                         });
-                        // Store signature details on the lease
-                        lease.signature = signatureToUse;
-                        lease.signatureType = 'draw';
-                        lease.signedBy = `${tenant.firstName} ${tenant.lastName}`;
-                        lease.signedAt = new Date();
                         await lease.save();
-                        logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location}`);
-                    })
-                    .catch(pdfErr => {
-                        logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
-                    });
+                        logger.info(`Lease PDF generated and stored at S3: ${uploadResult.Location || uploadResult.fileId}`);
+                    }
+                })
+                .catch(pdfErr => {
+                    logger.error(`Failed to generate automated Lease PDF: ${pdfErr.message}`);
+                });
 
-                if (isFuture) {
-                    addTimeline(booking, 'active', `Lease #${lease.leaseNumber} signed and scheduled to activate on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`);
-                } else {
-                    addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
-                }
-                await booking.save();
+            if (isFuture) {
+                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} signed and scheduled to activate on ${new Date(booking.startDate).toLocaleDateString('en-IN')}.`);
+            } else {
+                addTimeline(booking, 'active', `Lease #${lease.leaseNumber} fully activated & signed.`);
             }
-
-            // Set Property status: only occupied if start date has arrived
-            const propertyUpdate = {
-                $pull: { bookedDates: { bookingId: booking._id } }
-            };
-            if (!isFuture) {
-                propertyUpdate.$set = { status: 'occupied', currentTenant: tenant._id };
-            }
-            await Property.findByIdAndUpdate(booking.property._id, propertyUpdate);
+            await booking.save();
         }
+
+        // Set Property status: occupied if start date has arrived
+        const propertyUpdate = {
+            $pull: { bookedDates: { bookingId: booking._id } }
+        };
+        if (!isFuture) {
+            propertyUpdate.$set = { status: 'occupied', currentTenant: tenant._id };
+        }
+        await Property.findByIdAndUpdate(booking.property._id, propertyUpdate);
+
+        logger.info(`[PAYMENT SUCCESS] bookingId=${booking._id}, paymentId=${razorpayPaymentId}, paymentStatus=paid`);
+        logger.info(`[LEASE ACTIVATION] bookingId=${booking._id}, tenantId=${tenant._id}, propertyId=${booking.property._id}, leaseId=${lease?._id}, leaseStatus=${lease?.status}`);
     }
 
     // Notify manager
@@ -504,31 +565,37 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
             console.log(`[Approve] Found existing tenant ${tenant._id}`);
         }
 
-        // 2. Create Lease
-        console.log(`[Approve] Creating lease for property ${booking.property._id}`);
-        // Generate lease number explicitly to avoid validation errors
-        const leaseNumber = `LEASE-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-        const lease = await Lease.create({
-            leaseNumber,
+        // 2. Check/Create Lease (Idempotent per property + tenant)
+        console.log(`[Approve] Checking/Creating lease for property ${booking.property._id}`);
+        let lease = await Lease.findOne({
             property: booking.property._id,
             tenant: tenant._id,
-            startDate: booking.startDate,
-            endDate: booking.endDate,
-            rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
-            depositAmount: booking.depositAmount || 0,
-            status: 'pending', // NEW FLOW: Lease awaits Razorpay payment
-            createdBy: managerId,
-            terms: 'Generated from booking approval',
-            utilities: {
-                water: true, electricity: true, gas: false, internet: false
-            }
+            status: { $in: ['pending', 'active'] }
         });
 
-        // 3. Link Lease to Tenant & Property
-        console.log(`[Approve] Linking lease ${lease._id} to tenant`);
-        tenant.leases.push(lease._id);
-        await tenant.save();
+        if (!lease) {
+            const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+            lease = await Lease.create({
+                leaseNumber,
+                property: booking.property._id,
+                tenant: tenant._id,
+                startDate: booking.startDate,
+                endDate: booking.endDate,
+                rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
+                depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || 0,
+                status: 'pending', // Lease awaits Razorpay security deposit payment
+                createdBy: managerId,
+                terms: 'Generated from booking approval',
+                utilities: {
+                    water: true, electricity: true, gas: false, internet: false
+                }
+            });
+
+            if (!tenant.leases.includes(lease._id)) {
+                tenant.leases.push(lease._id);
+                await tenant.save();
+            }
+        }
 
         booking.status = 'approved';
         booking.paymentStatus = 'pending';
@@ -843,7 +910,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
         link: `/bookings/${booking._id}`,
     });
 
-    logger.info(`New booking request: ${booking._id} by user ${req.user.userId}`);
+    logger.info(`[BOOKING FLOW] bookingId=${booking._id}, tenantId=${req.user.userId}, propertyId=${propertyId}, managerId=${booking.manager}, status=pending`);
     res.status(201).json({ success: true, data: booking });
 });
 
