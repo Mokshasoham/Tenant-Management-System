@@ -21,6 +21,7 @@ router.put('/:id', managerOrAdmin, leaseController.updateLease);
 router.post('/:id/terminate', managerOrAdmin, leaseController.terminateLease);
 router.post('/:id/documents', managerOrAdmin, leaseController.uploadLeaseDocument);
 router.post('/:id/generate-pdf', leaseController.generateLeasePDF);
+router.post('/:id/manager-sign', managerOrAdmin, leaseController.managerSignLease);
 
 export default router;
 

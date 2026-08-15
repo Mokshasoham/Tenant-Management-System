@@ -13,6 +13,7 @@ import { cn } from '../utils/cn';
 import RazorpayPayment from '../components/RazorpayPayment';
 import apiClient from '../services/apiClient';
 import { openSecureFile } from '../utils/fileAccess';
+import ManagerBookingDetailsPage from './ManagerBookingDetailsPage';
 
 export default function BookingStatusPage() {
     const { id } = useParams();
@@ -103,6 +104,11 @@ export default function BookingStatusPage() {
             </div>
         </div>
     );
+
+    // Manager / Admin specific view delegation
+    if (user?.role === 'manager' || user?.role === 'admin') {
+        return <ManagerBookingDetailsPage booking={booking} onRefresh={fetchBooking} />;
+    }
 
     const statusConfig = {
         pending: {

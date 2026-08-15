@@ -978,12 +978,60 @@ export const updateBookingStatus = asyncHandler(async (req, res, next) => {
 export const getBookingById = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id)
         .populate('property')
-        .populate('user', 'firstName lastName email phone')
-        .populate('manager', 'firstName lastName email')
+        .populate('user', 'firstName lastName email phone avatar')
+        .populate('manager', 'firstName lastName email phone')
         .populate('offer');
 
     if (!booking) throw new AppError('Booking not found', 404);
-    res.status(200).json({ success: true, data: booking });
+
+    const bookingObj = booking.toObject ? booking.toObject() : { ...booking };
+
+    // Attach linked Lease (if exists)
+    const Lease = mongoose.model('Lease');
+    const Tenant = mongoose.model('Tenant');
+    const Payment = mongoose.model('Payment');
+
+    let tenantDoc = null;
+    if (booking.user?.email) {
+        tenantDoc = await Tenant.findOne({ email: booking.user.email });
+    }
+
+    let leaseDoc = null;
+    if (tenantDoc && booking.property?._id) {
+        leaseDoc = await Lease.findOne({
+            property: booking.property._id,
+            tenant: tenantDoc._id,
+            status: { $in: ['active', 'pending'] }
+        }).sort({ createdAt: -1 });
+    }
+    if (!leaseDoc && booking.property?._id) {
+        leaseDoc = await Lease.findOne({
+            property: booking.property._id,
+            status: { $in: ['active', 'pending'] }
+        }).sort({ createdAt: -1 });
+    }
+
+    // Attach linked Payment (if exists)
+    let paymentDoc = null;
+    if (booking.razorpayPaymentId) {
+        paymentDoc = await Payment.findOne({
+            $or: [
+                { reference: booking.razorpayPaymentId },
+                { razorpayPaymentId: booking.razorpayPaymentId }
+            ]
+        });
+    }
+    if (!paymentDoc && booking.property?._id) {
+        paymentDoc = await Payment.findOne({
+            property: booking.property._id,
+            type: 'security_deposit'
+        }).sort({ createdAt: -1 });
+    }
+
+    bookingObj.linkedLease = leaseDoc ? (leaseDoc.toObject ? leaseDoc.toObject() : leaseDoc) : null;
+    bookingObj.linkedPayment = paymentDoc ? (paymentDoc.toObject ? paymentDoc.toObject() : paymentDoc) : null;
+
+    res.status(200).json({ success: true, data: bookingObj });
 });
 
 // Simulated Mock Payment (for demo/UI testing)
