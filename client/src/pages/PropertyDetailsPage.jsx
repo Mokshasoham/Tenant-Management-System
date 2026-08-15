@@ -10,11 +10,13 @@ import {
     Calendar, User, Home, Building2, Zap,
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
-    Loader2, X, ShieldCheck, Check, Maximize2, Minimize2
+    Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
+    Edit2, Trash2, Users, Wrench
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import RazorpayPayment from '../components/RazorpayPayment';
+import PropertyModal from '../components/PropertyModal';
 
 
 import L from 'leaflet';
@@ -73,6 +75,8 @@ export default function PropertyDetailsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const user = useAuthStore((state) => state.user);
+    const isManager = ['manager', 'admin'].includes(user?.role);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     const [property, setProperty] = useState(null);
     const [similarProperties, setSimilarProperties] = useState([]);
@@ -154,64 +158,65 @@ export default function PropertyDetailsPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    useEffect(() => {
-        const fetchProperty = async () => {
-            try {
-                const res = await propertyService.getPropertyById(id);
-                const prop = res.data;
-                setProperty(prop);
+    const fetchProperty = React.useCallback(async () => {
+        try {
+            const res = await propertyService.getPropertyById(id);
+            const prop = res.data;
+            setProperty(prop);
 
-                // Initial saved state from MongoDB
-                const activeUser = useAuthStore.getState().user;
-                if (prop && activeUser) {
-                    const userId = activeUser._id || activeUser.id;
-                    const saved = Array.isArray(prop.savedBy) && prop.savedBy.some(sId => String(sId._id || sId) === String(userId));
-                    setIsSaved(saved);
-                }
-
-                const activeLease = prop?.leases?.find(l => l && l.status === 'active');
-                if (activeLease && new Date(activeLease.endDate) > new Date()) {
-                    let nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
-                    const sevenDaysOut = new Date();
-                    sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
-                    if (nextAvail < sevenDaysOut) {
-                        nextAvail = sevenDaysOut;
-                    }
-                    setStartDate(getLocalFormattedDate(nextAvail));
-                    const end = new Date(nextAvail);
-                    end.setMonth(end.getMonth() + 1);
-                    setEndDate(getLocalFormattedDate(end));
-                }
-
-                // Fetch similar properties
-                const similarRes = await propertyService.getSimilarProperties(id);
-                setSimilarProperties(similarRes.data);
-
-                // Check for existing booking
-                try {
-                    const myBookings = await bookingService.getMyBookings();
-                    const current = myBookings.data.find(b => b.property?._id === id && b.status === 'pending');
-                    setExistingBooking(current);
-                } catch (err) {
-                    console.log('User not logged in or failed to fetch bookings');
-                }
-
-                // Check for existing visit request
-                try {
-                    const myVisitsRes = await visitService.getMyVisits();
-                    const currentVisit = myVisitsRes.data.find(v => v.property?._id === id);
-                    setExistingVisit(currentVisit);
-                } catch (err) {
-                    console.log('User not logged in or failed to fetch visits');
-                }
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
+            // Initial saved state from MongoDB
+            const activeUser = useAuthStore.getState().user;
+            if (prop && activeUser) {
+                const userId = activeUser._id || activeUser.id;
+                const saved = Array.isArray(prop.savedBy) && prop.savedBy.some(sId => String(sId._id || sId) === String(userId));
+                setIsSaved(saved);
             }
-        };
-        fetchProperty();
+
+            const activeLease = prop?.leases?.find(l => l && l.status === 'active');
+            if (activeLease && new Date(activeLease.endDate) > new Date()) {
+                let nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
+                const sevenDaysOut = new Date();
+                sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+                if (nextAvail < sevenDaysOut) {
+                    nextAvail = sevenDaysOut;
+                }
+                setStartDate(getLocalFormattedDate(nextAvail));
+                const end = new Date(nextAvail);
+                end.setMonth(end.getMonth() + 1);
+                setEndDate(getLocalFormattedDate(end));
+            }
+
+            // Fetch similar properties
+            const similarRes = await propertyService.getSimilarProperties(id);
+            setSimilarProperties(similarRes.data);
+
+            // Check for existing booking
+            try {
+                const myBookings = await bookingService.getMyBookings();
+                const current = myBookings.data.find(b => b.property?._id === id && b.status === 'pending');
+                setExistingBooking(current);
+            } catch (err) {
+                console.log('User not logged in or failed to fetch bookings');
+            }
+
+            // Check for existing visit request
+            try {
+                const myVisitsRes = await visitService.getMyVisits();
+                const currentVisit = myVisitsRes.data.find(v => v.property?._id === id);
+                setExistingVisit(currentVisit);
+            } catch (err) {
+                console.log('User not logged in or failed to fetch visits');
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
     }, [id]);
+
+    useEffect(() => {
+        fetchProperty();
+    }, [fetchProperty]);
 
     const handleToggleSave = async () => {
         if (savingState) return;
@@ -528,33 +533,70 @@ export default function PropertyDetailsPage() {
             </Helmet>
 
             {/* Nav & Back */}
-            <div className="flex items-center justify-between">
-                <button
-                    onClick={() => navigate('/browse')}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground transition-all font-bold shadow-sm"
-                >
-                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    Back to listings
-                </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={handleToggleSave}
-                        disabled={savingState}
-                        className={cn(
-                            "p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer active:scale-95",
-                            savingState && "opacity-70 cursor-wait",
-                            isSaved
-                                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 shadow-amber-500/10"
-                                : "bg-muted border-border text-muted-foreground hover:text-foreground hover:border-amber-500/40"
-                        )}
-                        title={isSaved ? "Remove from saved properties" : "Save property"}
+                        onClick={() => navigate(isManager ? '/properties' : '/browse')}
+                        className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground transition-all font-bold shadow-sm cursor-pointer"
                     >
-                        {savingState ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
-                        ) : (
-                            <Star className={cn("w-5 h-5 transition-transform hover:scale-110", isSaved && "fill-amber-400 text-amber-400")} />
-                        )}
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        {isManager ? '← Back to Properties' : 'Back to listings'}
                     </button>
+                    {isManager && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Property Operations
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {isManager ? (
+                        <>
+                            <button
+                                onClick={() => setShowEditModal(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+                            >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                Edit Property
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!window.confirm('Are you sure you want to delete this property? This action cannot be undone.')) return;
+                                    try {
+                                        await propertyService.deleteProperty(id);
+                                        navigate('/properties');
+                                    } catch (err) {
+                                        console.error('Delete error:', err);
+                                        alert('Failed to delete property');
+                                    }
+                                }}
+                                className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all text-xs font-bold active:scale-95 cursor-pointer"
+                                title="Delete Property"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={handleToggleSave}
+                            disabled={savingState}
+                            className={cn(
+                                "p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer active:scale-95",
+                                savingState && "opacity-70 cursor-wait",
+                                isSaved
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 shadow-amber-500/10"
+                                    : "bg-muted border-border text-muted-foreground hover:text-foreground hover:border-amber-500/40"
+                            )}
+                            title={isSaved ? "Remove from saved properties" : "Save property"}
+                        >
+                            {savingState ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
+                            ) : (
+                                <Star className={cn("w-5 h-5 transition-transform hover:scale-110", isSaved && "fill-amber-400 text-amber-400")} />
+                            )}
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowInfoDrawer(true)}
                         className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/40 transition-all shadow-sm cursor-pointer active:scale-95"
@@ -838,468 +880,620 @@ export default function PropertyDetailsPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Manager & Booking */}
-                <div className="space-y-8">
-                    {/* Booking Card */}
-                    <div className="sticky top-8 p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6">
-                        <div>
-                            <h3 className="text-2xl font-black text-white">
-                                {property.bookingType === 'free' ? 'Request Demo Booking' : 'Book this place'}
-                            </h3>
-                            <p className="text-white/60 text-[10px] font-black uppercase tracking-wider">
-                                {property.bookingType === 'free' ? 'No payment required • Instant request' : 'Fast approval • Secure payments'}
-                            </p>
-                        </div>
+                {/* Right Column: Manager Operations vs Tenant Booking */}
+                {isManager ? (
+                    /* ═══════════════════════════════════════════════════════════
+                       MANAGER PROPERTY OPERATIONS PANEL (NO TENANT BOOKING CTA)
+                       ═══════════════════════════════════════════════════════════ */
+                    <div className="space-y-6">
+                        {/* Card 1: Property Management & Unit Operations */}
+                        <div className="p-7 rounded-[2.25rem] bg-card border border-border shadow-xl space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500 flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        Property Management
+                                    </span>
+                                    <h3 className="text-xl font-black text-foreground">Unit Operations</h3>
+                                </div>
+                                <span className={cn(
+                                    "px-3 py-1 text-xs font-black rounded-full border uppercase tracking-wider shadow-sm",
+                                    displayStatus === 'Available' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" :
+                                    displayStatus?.startsWith('Available from') ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500" :
+                                    displayStatus === 'Under Maintenance' ? "bg-amber-500/10 border-amber-500/30 text-amber-500" :
+                                    "bg-amber-600/10 border-amber-500/30 text-amber-500"
+                                )}>
+                                    {displayStatus}
+                                </span>
+                            </div>
 
-                        {/* Option Tab Selector */}
-                        <div className="grid grid-cols-2 p-1 bg-white/5 rounded-xl border border-white/10">
-                            <button
-                                type="button"
-                                onClick={() => setActiveBookingTab('book')}
-                                className={cn(
-                                    "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
-                                    activeBookingTab === 'book' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
-                                )}
-                            >
-                                Proceed to Book
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveBookingTab('visit')}
-                                className={cn(
-                                    "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
-                                    activeBookingTab === 'visit' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
-                                )}
-                            >
-                                Request Visit
-                            </button>
-                        </div>
-
-                        {activeBookingTab === 'book' ? (
-                            <>
-                                {property.bookingType === 'free' ? (
-                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                        <p className="text-sm font-black text-white text-center">
-                                            Available for <br />
-                                            <span className="text-emerald-300 text-lg uppercase tracking-widest">Free Demo Booking</span>
-                                        </p>
+                                    {/* Financial Highlights */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
+                                            <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Monthly Rent</p>
+                                            <p className="text-xl font-black text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}<span className="text-xs font-normal text-muted-foreground/50">/mo</span></p>
+                                        </div>
+                                        <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
+                                            <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Security Deposit</p>
+                                            <p className="text-xl font-black text-foreground">₹{(property.depositAmount || 0).toLocaleString('en-IN')}</p>
+                                        </div>
                                     </div>
-                                ) : (
+
+                                    {/* Property Details Meta Box */}
+                                    <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/50 space-y-2 text-xs">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground/70 font-semibold">Property ID</span>
+                                            <span className="font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded-lg border border-border/60 text-[11px]">
+                                                {property._id}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground/70 font-semibold">Property Type</span>
+                                            <span className="font-bold text-foreground capitalize">{property.type || 'Apartment'}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground/70 font-semibold">Managed By</span>
+                                            <span className="font-bold text-foreground">{property.manager?.firstName ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim() : 'The Manager'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-border/60 my-2" />
+
+                                    {/* Current Tenancy Section */}
                                     <div className="space-y-3">
-                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Monthly Cost</p>
-                                            <div className="flex items-baseline justify-between">
-                                                <p className="text-2xl font-black text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
-                                                <p className="text-xs text-white/60 font-medium">+ utilities</p>
-                                            </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Current Tenancy</p>
+                                            {activeLease ? (
+                                                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black uppercase">
+                                                    Active Lease
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border text-[9px] font-black uppercase">
+                                                    Vacant / Ready
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
-                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Deposit</p>
-                                            <p className="text-xl font-black text-white">₹{property.depositAmount?.toLocaleString('en-IN')}</p>
-                                        </div>
-                                    </div>
-                                )}
 
-                                {/* Booking Schedule Selector */}
-                                <div className="flex gap-4">
-                                    <div className="flex-1 space-y-1">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            min={minAvailableDate}
-                                            disabled={isNotBookable}
-                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                            style={{ colorScheme: 'dark' }}
-                                        />
+                                        {activeLease ? (
+                                            <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 font-black flex items-center justify-center text-sm">
+                                                        {activeLease.tenant?.firstName?.[0] || 'T'}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-black text-sm text-foreground truncate">
+                                                            {activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant?.lastName || ''}`.trim() : 'Active Tenant'}
+                                                        </p>
+                                                        <p className="text-[11px] text-muted-foreground font-medium truncate">
+                                                            {activeLease.tenant?.email || 'tenant@tms.com'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                                                    <div>
+                                                        <span className="text-muted-foreground/70 block font-semibold">Lease Start</span>
+                                                        <span className="font-bold text-foreground">{new Date(activeLease.startDate).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground/70 block font-semibold">Lease End</span>
+                                                        <span className="font-bold text-foreground">{new Date(activeLease.endDate).toLocaleDateString()}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/leases')}
+                                                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                                >
+                                                    View Lease Agreement →
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 text-center space-y-2">
+                                                <p className="text-xs font-bold text-foreground">No Active Tenant</p>
+                                                <p className="text-[11px] text-muted-foreground max-w-xs mx-auto">
+                                                    This property is currently available on the resident portal.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/tenants')}
+                                                    className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground hover:text-emerald-500 text-xs font-bold transition-colors cursor-pointer"
+                                                >
+                                                    View Prospective Tenants →
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex-1 space-y-1">
-                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            min={startDate || minAvailableDate}
-                                            disabled={isNotBookable}
-                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                            style={{ colorScheme: 'dark' }}
-                                        />
+
+                                    <div className="h-px bg-border/60 my-2" />
+
+                                    {/* Manager Quick Actions */}
+                                    <div className="space-y-2.5">
+                                        <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Manager Actions</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEditModal(true)}
+                                            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                            Edit Property Details
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/leases')}
+                                            className="w-full py-3 rounded-2xl bg-muted border border-border hover:border-emerald-500/30 text-foreground font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <Users className="w-4 h-4 text-emerald-500" />
+                                            Manage Leases & Tenancies
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/maintenance')}
+                                            className="w-full py-3 rounded-2xl bg-muted border border-border hover:border-amber-500/30 text-foreground font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <Wrench className="w-4 h-4 text-amber-500" />
+                                            View Maintenance Work Orders
+                                        </button>
                                     </div>
                                 </div>
 
-                                {bookingSuccess && (
-                                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold space-y-1">
-                                        <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Request Sent!
-                                        </p>
-                                        <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium">
-                                            Booking request has been sent to the manager. Please wait for approval.
-                                        </p>
+                                {/* Card 2: Financial & Yield Overview */}
+                                <div className="p-6 rounded-[2.25rem] bg-card border border-border shadow-sm space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+                                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />
+                                            Financial Overview
+                                        </span>
+                                        <span className="text-[10px] font-black text-emerald-500 uppercase">Annual Yield</span>
                                     </div>
-                                )}
-
-                                {bookingError && (
-                                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold space-y-1">
-                                        <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                            <XCircle className="w-4 h-4 text-rose-400" /> Request Failed
-                                        </p>
-                                        <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium">
-                                            {bookingError}
-                                        </p>
-                                    </div>
-                                )}
-
-                                <button
-                                    disabled={!!existingBooking || bookingLoading || isNotBookable}
-                                    onClick={async () => {
-                                        setBookingLoading(true);
-                                        setBookingSuccess(false);
-                                        setBookingError('');
-                                        try {
-                                            const res = await bookingService.requestBooking({
-                                                propertyId: id,
-                                                startDate: new Date(startDate).toISOString(),
-                                                endDate: new Date(endDate).toISOString(),
-                                                totalAmount: property.rentAmount,
-                                                paymentReference: property.bookingType === 'free' ? 'FREE-BOOKING' : 'PENDING'
-                                            });
-                                            setBookingSuccess(true);
-                                            // Update the existing booking state on the page immediately with the returned booking details
-                                            setExistingBooking(res.data?.booking || res.data || { status: 'pending' });
-                                        } catch (err) {
-                                            setBookingError(err.response?.data?.message || 'Failed to request booking. Please try again.');
-                                        } finally {
-                                            setBookingLoading(false);
-                                        }
-                                    }}
-                                    className={cn(
-                                        "w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all shadow-xl shadow-black/10",
-                                        (existingBooking || isNotBookable || bookingLoading) ? "bg-white/20 text-white/40 cursor-not-allowed" : "bg-white text-primary hover:scale-[1.02] active:scale-[0.98]"
-                                    )}
-                                >
-                                    <Wallet className="w-5 h-5" />
-                                    {bookingLoading ? 'Sending request to manager...' : 
-                                     isSoldOut ? 'Sold Out' : 
-                                     isUnderMaintenance ? 'Under Maintenance' :
-                                     existingBooking ? 'Request Pending' : 
-                                     (property.bookingType === 'free' ? 'Request for Free' : 'Proceed to Book')}
-                                </button>
-                            </>
-                        ) : (
-                            /* Request Visit tab */
-                            <div className="space-y-4 text-white">
-                                {!existingVisit ? (
-                                    <>
-                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-3">
-                                            <p className="text-xs font-bold text-white/80">Schedule an Inspection Visit</p>
-                                            
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-black uppercase tracking-wider text-white/40">Select Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={visitDate}
-                                                    onChange={(e) => setVisitDate(e.target.value)}
-                                                    min={new Date().toISOString().split('T')[0]}
-                                                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs"
-                                                    style={{ colorScheme: 'dark' }}
-                                                />
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-black uppercase tracking-wider text-white/40">Select Time Slot</label>
-                                                <select
-                                                    value={visitSlot}
-                                                    onChange={(e) => setVisitSlot(e.target.value)}
-                                                    className="w-full px-3 py-2 rounded-xl bg-black border border-white/10 text-white font-bold text-xs"
-                                                >
-                                                    {['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:00 PM - 04:00 PM', '04:00 PM - 05:00 PM'].map(slot => (
-                                                        <option key={slot} value={slot}>{slot}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-muted-foreground font-semibold">Monthly Rent Roll</span>
+                                            <span className="font-bold text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}</span>
                                         </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-muted-foreground font-semibold">Security Deposit Escrow</span>
+                                            <span className="font-bold text-foreground">₹{(property.depositAmount || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-muted-foreground font-semibold">Projected Annual Revenue</span>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₹{((property.rentAmount || 0) * 12).toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* ═══════════════════════════════════════════════════════════
+                               TENANT BOOKING & RESERVATION EXPERIENCE (PRESERVED)
+                               ═══════════════════════════════════════════════════════════ */
+                            <div className="space-y-8">
+                                {/* Booking Card */}
+                                <div className="sticky top-8 p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-white">
+                                            {property.bookingType === 'free' ? 'Request Demo Booking' : 'Book this place'}
+                                        </h3>
+                                        <p className="text-white/60 text-[10px] font-black uppercase tracking-wider">
+                                            {property.bookingType === 'free' ? 'No payment required • Instant request' : 'Fast approval • Secure payments'}
+                                        </p>
+                                    </div>
 
-                                        {visitSuccess && (
-                                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold">
-                                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Visit Requested!
-                                                </p>
-                                                <p className="text-[10px] text-emerald-300/80 leading-relaxed font-medium mt-1">
-                                                    Visit request has been sent to the manager. Please wait for approval.
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {visitError && (
-                                            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-bold">
-                                                <p className="flex items-center gap-1.5 font-black uppercase tracking-wider">
-                                                    <XCircle className="w-4 h-4 text-rose-400" /> Visit Request Failed
-                                                </p>
-                                                <p className="text-[10px] text-rose-300/80 leading-relaxed font-medium mt-1">
-                                                    {visitError}
-                                                </p>
-                                            </div>
-                                        )}
-
+                                    {/* Option Tab Selector */}
+                                    <div className="grid grid-cols-2 p-1 bg-white/5 rounded-xl border border-white/10">
                                         <button
                                             type="button"
-                                            disabled={visitLoading}
-                                            onClick={async () => {
-                                                setVisitLoading(true);
-                                                setVisitSuccess(false);
-                                                setVisitError('');
-                                                try {
-                                                    const res = await visitService.requestVisit({
-                                                        propertyId: id,
-                                                        visitDate,
-                                                        timeSlot: visitSlot
-                                                    });
-                                                    setVisitSuccess(true);
-                                                    setExistingVisit(res.data);
-                                                } catch (err) {
-                                                    setVisitError(err.response?.data?.message || 'Failed to submit visit request. Please try again.');
-                                                } finally {
-                                                    setVisitLoading(false);
-                                                }
-                                            }}
-                                            className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                                            onClick={() => setActiveBookingTab('book')}
+                                            className={cn(
+                                                "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
+                                                activeBookingTab === 'book' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
+                                            )}
                                         >
-                                            <Calendar className="w-5 h-5 text-primary" />
-                                            {visitLoading ? 'Sending request to manager...' : 'Request Property Visit'}
+                                            Proceed to Book
                                         </button>
-                                    </>
-                                ) : (
-                                    /* Handle existing visit statuses */
-                                    <div className="space-y-4">
-                                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2">
-                                            <div className="flex justify-between items-center">
-                                                <p className="text-xs font-black uppercase tracking-wider text-white/80">Visit Request Details</p>
-                                                <span className={cn(
-                                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
-                                                    existingVisit.status === 'approved' && "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
-                                                    existingVisit.status === 'pending' && "bg-amber-500/20 text-amber-300 border border-amber-500/30",
-                                                    existingVisit.status === 'completed' && "bg-blue-500/20 text-blue-300 border border-blue-500/30",
-                                                    existingVisit.status === 'rejected' && "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                                                )}>
-                                                    {existingVisit.status}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-white/70">
-                                                Scheduled Date: <span className="font-bold text-white">{new Date(existingVisit.visitDate).toLocaleDateString()}</span>
-                                            </p>
-                                            <p className="text-xs text-white/70">
-                                                Time Slot: <span className="font-bold text-white">{existingVisit.timeSlot}</span>
-                                            </p>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveBookingTab('visit')}
+                                            className={cn(
+                                                "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
+                                                activeBookingTab === 'visit' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
+                                            )}
+                                        >
+                                            Request Visit
+                                        </button>
+                                    </div>
 
-                                        {existingVisit.status === 'pending' && (
-                                            <p className="text-[10px] text-center text-white/60 italic">
-                                                Visit is pending manager review. You will be notified once approved or rescheduled.
-                                            </p>
-                                        )}
-
-                                        {existingVisit.status === 'approved' && (
-                                            <p className="text-[10px] text-center text-white/60 italic">
-                                                Visit is scheduled! You can meet the manager at the property on the scheduled slot.
-                                            </p>
-                                        )}
-
-                                        {existingVisit.status === 'completed' && (
-                                            /* Review is mandatory to complete visit workflow */
-                                            (!existingVisit.feedback || !existingVisit.feedback.submittedAt) ? (
-                                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-4 text-xs">
-                                                    <div className="border-b border-white/10 pb-2">
-                                                        <p className="font-black text-indigo-300 uppercase tracking-wider text-[10px]">Mandatory Visit Review</p>
-                                                        <p className="text-[9px] text-white/60">Please share your experience to complete the visit request.</p>
-                                                    </div>
-
-                                                    {/* Star ratings selector block */}
-                                                    <div className="space-y-3">
-                                                        {[
-                                                            { label: 'Overall Experience', val: feedbackRating, setVal: setFeedbackRating },
-                                                            { label: 'Property Condition', val: feedbackCondition, setVal: setFeedbackCondition },
-                                                            { label: 'Manager Experience', val: feedbackManager, setVal: setFeedbackManager },
-                                                            { label: 'Cleanliness', val: feedbackCleanliness, setVal: setFeedbackCleanliness },
-                                                            { label: 'Location Satisfaction', val: feedbackLocation, setVal: setFeedbackLocation }
-                                                        ].map(item => (
-                                                            <div key={item.label} className="flex justify-between items-center">
-                                                                <span className="text-[10px] font-bold text-white/80">{item.label}</span>
-                                                                <div className="flex gap-1">
-                                                                    {[1, 2, 3, 4, 5].map(star => (
-                                                                        <button
-                                                                            type="button"
-                                                                            key={star}
-                                                                            onClick={() => item.setVal(star)}
-                                                                            className="focus:outline-none"
-                                                                        >
-                                                                            <Star className={cn(
-                                                                                "w-3.5 h-3.5 transition-colors",
-                                                                                star <= item.val ? "text-amber-400 fill-amber-400" : "text-white/20"
-                                                                            )} />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="space-y-1">
-                                                        <label className="text-[9px] font-black uppercase text-white/40">Comments & Suggestions</label>
-                                                        <textarea
-                                                            rows={3}
-                                                            value={feedbackComments}
-                                                            onChange={(e) => setFeedbackComments(e.target.value)}
-                                                            placeholder="Describe the visit experience..."
-                                                            className="w-full p-2.5 rounded-xl bg-black border border-white/10 text-white text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
-                                                        <span className="text-[10px] font-bold text-white/80">Would you recommend this property?</span>
-                                                        <div className="flex gap-1.5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setFeedbackRecommend(true)}
-                                                                className={cn(
-                                                                    "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
-                                                                    feedbackRecommend ? "bg-emerald-500 text-white" : "bg-white/5 text-white/60"
-                                                                )}
-                                                            >
-                                                                Yes
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setFeedbackRecommend(false)}
-                                                                className={cn(
-                                                                    "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
-                                                                    !feedbackRecommend ? "bg-rose-500 text-white" : "bg-white/5 text-white/60"
-                                                                )}
-                                                            >
-                                                                No
-                                                            </button>
+                                    {activeBookingTab === 'book' ? (
+                                        <>
+                                            {property.bookingType === 'free' ? (
+                                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                                    <p className="text-sm font-black text-white text-center">
+                                                        Available for <br />
+                                                        <span className="text-emerald-300 text-lg uppercase tracking-widest">Free Demo Booking</span>
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Monthly Cost</p>
+                                                        <div className="flex items-baseline justify-between">
+                                                            <p className="text-2xl font-black text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
+                                                            <p className="text-xs text-white/60 font-medium">+ utilities</p>
                                                         </div>
                                                     </div>
+                                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Total Deposit</p>
+                                                        <p className="text-xl font-black text-white">₹{property.depositAmount?.toLocaleString('en-IN')}</p>
+                                                    </div>
+                                                </div>
+                                            )}
 
+                                            {/* Booking Schedule Selector */}
+                                            <div className="flex gap-4">
+                                                <div className="flex-1 space-y-1">
+                                                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={startDate}
+                                                        onChange={(e) => setStartDate(e.target.value)}
+                                                        min={minAvailableDate}
+                                                        disabled={isNotBookable}
+                                                        className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        style={{ colorScheme: 'dark' }}
+                                                    />
+                                                </div>
+                                                <div className="flex-1 space-y-1">
+                                                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={endDate}
+                                                        onChange={(e) => setEndDate(e.target.value)}
+                                                        min={startDate}
+                                                        disabled={isNotBookable}
+                                                        className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        style={{ colorScheme: 'dark' }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Warnings and messages */}
+                                            {isNotBookable && (
+                                                <div className="p-3 bg-white/10 border border-white/10 rounded-xl flex items-center gap-2 text-white">
+                                                    <AlertTriangle className="w-4 h-4 text-amber-300" />
+                                                    <span className="text-xs font-bold">{displayStatus} - currently not accepting new bookings.</span>
+                                                </div>
+                                            )}
+
+                                            {bookingError && (
+                                                <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl flex items-center gap-2 text-white text-xs">
+                                                    <XCircle className="w-4 h-4 text-rose-300 flex-shrink-0" />
+                                                    <span>{bookingError}</span>
+                                                </div>
+                                            )}
+
+                                            {bookingSuccess ? (
+                                                <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-2">
+                                                    <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                                                    <p className="text-sm font-black text-white">Booking Confirmed!</p>
+                                                    <p className="text-xs text-white/70">Check your dashboard for lease details.</p>
+                                                </div>
+                                            ) : existingBooking ? (
+                                                <div className="p-4 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-center space-y-2">
+                                                    <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+                                                    <p className="text-sm font-black text-white">Booking Pending Payment</p>
+                                                    <p className="text-xs text-white/70">You have a booking awaiting payment confirmation.</p>
                                                     <button
                                                         type="button"
-                                                        disabled={feedbackSubmitting}
-                                                        onClick={async () => {
-                                                            setFeedbackSubmitting(true);
-                                                            try {
-                                                                const res = await visitService.submitFeedback(existingVisit._id, {
-                                                                    rating: feedbackRating,
-                                                                    propertyCondition: feedbackCondition,
-                                                                    managerExperience: feedbackManager,
-                                                                    cleanliness: feedbackCleanliness,
-                                                                    locationSatisfaction: feedbackLocation,
-                                                                    comments: feedbackComments,
-                                                                    recommend: feedbackRecommend
-                                                                });
-                                                                setExistingVisit(res.data);
-                                                            } catch (err) {
-                                                                alert('Failed to submit feedback. Please try again.');
-                                                            } finally {
-                                                                setFeedbackSubmitting(false);
-                                                            }
-                                                        }}
-                                                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                        onClick={() => setShowRazorpay(true)}
+                                                        className="w-full py-3 rounded-xl font-black bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all text-xs uppercase tracking-wider"
                                                     >
-                                                        {feedbackSubmitting ? 'Submitting Review...' : 'Submit Review & Complete Visit'}
+                                                        Pay ₹{existingBooking.totalAmount?.toLocaleString('en-IN')} Now
                                                     </button>
                                                 </div>
                                             ) : (
-                                                /* Feedback is submitted */
-                                                existingVisit.notInterested ? (
-                                                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1">
-                                                        <p className="text-xs font-bold text-white/80">Workflow Closed</p>
-                                                        <p className="text-[10px] text-white/50">You have marked this property as not interested. Thank you for your feedback!</p>
+                                                <button
+                                                    type="button"
+                                                    disabled={bookingLoading || isNotBookable}
+                                                    onClick={handleBooking}
+                                                    className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                >
+                                                    <Wallet className="w-5 h-5 text-primary" />
+                                                    {bookingLoading ? 'Processing Booking...' : (property.bookingType === 'free' ? 'Submit Free Booking' : 'Proceed to Book')}
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        /* Visit Request Form */
+                                        <div className="space-y-4">
+                                            {!existingVisit ? (
+                                                <>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Preferred Visit Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={visitDate}
+                                                            onChange={(e) => setVisitDate(e.target.value)}
+                                                            min={new Date().toISOString().split('T')[0]}
+                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                                            style={{ colorScheme: 'dark' }}
+                                                        />
                                                     </div>
-                                                ) : (
-                                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-3">
-                                                        <p className="text-xs font-bold text-center text-indigo-300">Visit Review Submitted!</p>
-                                                        <p className="text-[10px] text-center text-white/60">Are you interested in proceeding to book this property?</p>
-                                                        
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setActiveBookingTab('book')}
-                                                                className="flex-1 py-2.5 rounded-xl bg-white text-primary text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                                            >
-                                                                Proceed to Book
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        const res = await visitService.setNotInterested(existingVisit._id);
-                                                                        setExistingVisit(res.data);
-                                                                    } catch (err) {
-                                                                        alert('Failed to update status. Please try again.');
-                                                                    }
-                                                                }}
-                                                                className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                                            >
-                                                                Not Interested
-                                                            </button>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Preferred Time Slot</label>
+                                                        <select
+                                                            value={visitSlot}
+                                                            onChange={(e) => setVisitSlot(e.target.value)}
+                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm appearance-none cursor-pointer"
+                                                            style={{ colorScheme: 'dark' }}
+                                                        >
+                                                            {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM', '05:00 PM - 06:00 PM'].map(slot => (
+                                                                <option key={slot} value={slot} className="bg-slate-900 text-white font-bold">{slot}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    {visitError && (
+                                                        <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl flex items-center gap-2 text-white text-xs">
+                                                            <XCircle className="w-4 h-4 text-rose-300 flex-shrink-0" />
+                                                            <span>{visitError}</span>
                                                         </div>
+                                                    )}
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={visitLoading}
+                                                        onClick={async () => {
+                                                            setVisitLoading(true);
+                                                            setVisitSuccess(false);
+                                                            setVisitError('');
+                                                            try {
+                                                                const res = await visitService.requestVisit({
+                                                                    propertyId: id,
+                                                                    visitDate,
+                                                                    timeSlot: visitSlot
+                                                                });
+                                                                setVisitSuccess(true);
+                                                                setExistingVisit(res.data);
+                                                            } catch (err) {
+                                                                setVisitError(err.response?.data?.message || 'Failed to submit visit request. Please try again.');
+                                                            } finally {
+                                                                setVisitLoading(false);
+                                                            }
+                                                        }}
+                                                        className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50 cursor-pointer"
+                                                    >
+                                                        <Calendar className="w-5 h-5 text-primary" />
+                                                        {visitLoading ? 'Sending request to manager...' : 'Request Property Visit'}
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                /* Handle existing visit statuses */
+                                                <div className="space-y-4">
+                                                    <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2">
+                                                        <div className="flex justify-between items-center">
+                                                            <p className="text-xs font-black uppercase tracking-wider text-white/80">Visit Request Details</p>
+                                                            <span className={cn(
+                                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                                                                existingVisit.status === 'approved' && "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                                                                existingVisit.status === 'pending' && "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                                                                existingVisit.status === 'completed' && "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+                                                                existingVisit.status === 'rejected' && "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                                            )}>
+                                                                {existingVisit.status}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-white/70">
+                                                            Scheduled Date: <span className="font-bold text-white">{new Date(existingVisit.visitDate).toLocaleDateString()}</span>
+                                                        </p>
+                                                        <p className="text-xs text-white/70">
+                                                            Time Slot: <span className="font-bold text-white">{existingVisit.timeSlot}</span>
+                                                        </p>
                                                     </div>
-                                                )
-                                            )
-                                        )}
+
+                                                    {existingVisit.status === 'pending' && (
+                                                        <p className="text-[10px] text-center text-white/60 italic">
+                                                            Visit is pending manager review. You will be notified once approved or rescheduled.
+                                                        </p>
+                                                    )}
+
+                                                    {existingVisit.status === 'approved' && (
+                                                        <p className="text-[10px] text-center text-white/60 italic">
+                                                            Visit is scheduled! You can meet the manager at the property on the scheduled slot.
+                                                        </p>
+                                                    )}
+
+                                                    {existingVisit.status === 'completed' && (
+                                                        (!existingVisit.feedback || !existingVisit.feedback.submittedAt) ? (
+                                                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-4 text-xs">
+                                                                <div className="border-b border-white/10 pb-2">
+                                                                    <p className="font-black text-indigo-300 uppercase tracking-wider text-[10px]">Mandatory Visit Review</p>
+                                                                    <p className="text-[9px] text-white/60">Please share your experience to complete the visit request.</p>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                    {[
+                                                                        { label: 'Overall Experience', val: feedbackRating, setVal: setFeedbackRating },
+                                                                        { label: 'Property Condition', val: feedbackCondition, setVal: setFeedbackCondition },
+                                                                        { label: 'Manager Experience', val: feedbackManager, setVal: setFeedbackManager },
+                                                                        { label: 'Cleanliness', val: feedbackCleanliness, setVal: setFeedbackCleanliness },
+                                                                        { label: 'Location Satisfaction', val: feedbackLocation, setVal: setFeedbackLocation }
+                                                                    ].map(item => (
+                                                                        <div key={item.label} className="flex justify-between items-center">
+                                                                            <span className="text-[10px] font-bold text-white/80">{item.label}</span>
+                                                                            <div className="flex gap-1">
+                                                                                {[1, 2, 3, 4, 5].map(star => (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        key={star}
+                                                                                        onClick={() => item.setVal(star)}
+                                                                                        className="focus:outline-none"
+                                                                                    >
+                                                                                        <Star className={cn(
+                                                                                            "w-3.5 h-3.5 transition-colors",
+                                                                                            star <= item.val ? "text-amber-400 fill-amber-400" : "text-white/20"
+                                                                                        )} />
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                <div className="space-y-1">
+                                                                    <label className="text-[9px] font-black uppercase text-white/40">Comments & Suggestions</label>
+                                                                    <textarea
+                                                                        rows={3}
+                                                                        value={feedbackComments}
+                                                                        onChange={(e) => setFeedbackComments(e.target.value)}
+                                                                        placeholder="Describe the visit experience..."
+                                                                        className="w-full p-2.5 rounded-xl bg-black border border-white/10 text-white text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                                    />
+                                                                </div>
+
+                                                                <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                                                                    <span className="text-[10px] font-bold text-white/80">Would you recommend this property?</span>
+                                                                    <div className="flex gap-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setFeedbackRecommend(true)}
+                                                                            className={cn(
+                                                                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                                                                feedbackRecommend ? "bg-emerald-500 text-white" : "bg-white/5 text-white/60"
+                                                                            )}
+                                                                        >
+                                                                            Yes
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setFeedbackRecommend(false)}
+                                                                            className={cn(
+                                                                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                                                                !feedbackRecommend ? "bg-rose-500 text-white" : "bg-white/5 text-white/60"
+                                                                            )}
+                                                                        >
+                                                                            No
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={feedbackSubmitting}
+                                                                    onClick={async () => {
+                                                                        setFeedbackSubmitting(true);
+                                                                        try {
+                                                                            const res = await visitService.submitFeedback(existingVisit._id, {
+                                                                                rating: feedbackRating,
+                                                                                propertyCondition: feedbackCondition,
+                                                                                managerExperience: feedbackManager,
+                                                                                cleanliness: feedbackCleanliness,
+                                                                                locationSatisfaction: feedbackLocation,
+                                                                                comments: feedbackComments,
+                                                                                recommend: feedbackRecommend
+                                                                            });
+                                                                            setExistingVisit(res.data);
+                                                                        } catch (err) {
+                                                                            alert('Failed to submit feedback. Please try again.');
+                                                                        } finally {
+                                                                            setFeedbackSubmitting(false);
+                                                                        }
+                                                                    }}
+                                                                    className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                                >
+                                                                    {feedbackSubmitting ? 'Submitting Review...' : 'Submit Review & Complete Visit'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            existingVisit.notInterested ? (
+                                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1">
+                                                                    <p className="text-xs font-bold text-white/80">Workflow Closed</p>
+                                                                    <p className="text-[10px] text-white/50">You have marked this property as not interested. Thank you for your feedback!</p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-3">
+                                                                    <p className="text-xs font-bold text-center text-indigo-300">Visit Review Submitted!</p>
+                                                                    <p className="text-[10px] text-center text-white/60">Are you interested in proceeding to book this property?</p>
+                                                                    
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setActiveBookingTab('book')}
+                                                                            className="flex-1 py-2.5 rounded-xl bg-white text-primary text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                                        >
+                                                                            Proceed to Book
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={async () => {
+                                                                                try {
+                                                                                    const res = await visitService.setNotInterested(existingVisit._id);
+                                                                                    setExistingVisit(res.data);
+                                                                                } catch (err) {
+                                                                                    alert('Failed to update status. Please try again.');
+                                                                                }
+                                                                            }}
+                                                                            className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-black uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                                        >
+                                                                            Not Interested
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <p className="text-center text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">
+                                        {property.bookingType === 'free' ? 'No Credit Card Needed' : '100% Secure Transaction'}
+                                    </p>
+                                </div>
+
+                        {/* Manager Profile */}
+                        <div className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center text-2xl font-black text-white shadow-lg">
+                                    {property.manager?.firstName?.[0] || 'A'}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-foreground">{property.manager?.firstName} {property.manager?.lastName}</h3>
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
+                                        <Shield className="w-3 h-3" /> VERIFIED MANAGER
                                     </div>
-                                )}
-                            </div>
-                        )}
-
-                        <p className="text-center text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">
-                            {property.bookingType === 'free' ? 'No Credit Card Needed' : '100% Secure Transaction'}
-                        </p>
-                    </div>
-
-                    {/* Manager Profile */}
-                    <div className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center text-2xl font-black text-white shadow-lg">
-                                {property.manager?.firstName?.[0] || 'A'}
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-foreground">{property.manager?.firstName} {property.manager?.lastName}</h3>
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
-                                    <Shield className="w-3 h-3" /> VERIFIED MANAGER
                                 </div>
                             </div>
+
+                            <button
+                                onClick={handleChat}
+                                className="w-full py-3.5 rounded-2xl bg-muted border border-border text-foreground font-black hover:bg-muted/80 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <MessageSquare className="w-4 h-4 text-primary" /> Chat with Manager
+                            </button>
                         </div>
 
-                        <button
-                            onClick={handleChat}
-                            className="w-full py-3.5 rounded-2xl bg-muted border border-border text-foreground font-black hover:bg-muted/80 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-                        >
-                            <MessageSquare className="w-4 h-4 text-primary" /> Chat with Manager
-                        </button>
-                    </div>
-
-                    {/* Social Proof */}
-                    <div className="p-6 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex -space-x-2">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">
-                                        {['JD', 'SK', 'AL'][i - 1]}
-                                    </div>
-                                ))}
+                        {/* Social Proof */}
+                        <div className="p-6 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex -space-x-2">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">
+                                            {['JD', 'SK', 'AL'][i - 1]}
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs font-black text-muted-foreground/60 uppercase tracking-widest">
+                                    <span className="text-primary">12 others</span> viewed today
+                                </p>
                             </div>
-                            <p className="text-xs font-black text-muted-foreground/60 uppercase tracking-widest">
-                                <span className="text-primary">12 others</span> viewed today
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                            <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                                <Zap className="w-3 h-3" /> High Demand Property
-                            </p>
+                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                                <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <Zap className="w-3 h-3" /> High Demand Property
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Similar Properties */}
@@ -1708,6 +1902,20 @@ export default function PropertyDetailsPage() {
                             ))}
                         </div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ══ ADD / EDIT PROPERTY MODAL FOR MANAGERS ══ */}
+            <AnimatePresence>
+                {showEditModal && (
+                    <PropertyModal
+                        property={property}
+                        onClose={() => setShowEditModal(false)}
+                        onSave={() => {
+                            setShowEditModal(false);
+                            fetchProperty();
+                        }}
+                    />
                 )}
             </AnimatePresence>
         </div>
