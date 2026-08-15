@@ -224,13 +224,20 @@ export default function PropertyDetailsPage() {
             const similarRes = await propertyService.getSimilarProperties(id);
             setSimilarProperties(similarRes.data);
 
-            // Check for existing booking
+            // Check for existing booking — compare as strings to handle both ObjectId and plain string forms
             try {
                 const myBookings = await bookingService.getMyBookings();
-                const current = myBookings.data.find(b => b.property?._id === id && b.status === 'pending');
-                setExistingBooking(current);
+                const current = myBookings.data.find(b => {
+                    const propId = String(b.property?._id || b.property || '');
+                    const matchesProp = propId === String(id);
+                    // Match pending or approved bookings that haven't been paid yet
+                    const isEligible = (b.status === 'pending' || b.status === 'approved') && b.paymentStatus !== 'paid';
+                    return matchesProp && isEligible;
+                });
+                console.log('[PropertyDetails] existingBooking lookup result:', current ? { _id: current._id, status: current.status, paymentStatus: current.paymentStatus } : 'none');
+                setExistingBooking(current || null);
             } catch (err) {
-                console.log('User not logged in or failed to fetch bookings');
+                console.log('User not logged in or failed to fetch bookings:', err?.message || err);
             }
 
             // Check for existing visit request
@@ -295,13 +302,16 @@ export default function PropertyDetailsPage() {
         setBookingLoading(true);
         setBookingError('');
         try {
+            // apiClient already unwraps response.data, so res is the backend JSON body directly
             const res = await bookingService.requestBooking({
                 propertyId: id,
                 startDate,
                 endDate,
                 totalAmount: property.rentAmount || 0
             });
-            const createdBooking = res.data?.data || res.data;
+            // res = { success: true, data: booking }
+            const createdBooking = res.data;
+            console.log('[handleBooking] New booking created:', createdBooking?._id, 'status:', createdBooking?.status);
             setBookingSuccess(true);
             setExistingBooking(createdBooking);
             if (property.bookingType !== 'free') {
@@ -309,8 +319,35 @@ export default function PropertyDetailsPage() {
             }
             fetchProperty();
         } catch (err) {
-            console.error('Booking request error:', err);
-            setBookingError(err.response?.data?.message || 'Failed to submit booking request. Please try again.');
+            // err from apiClient is already response.data (the backend error object)
+            const statusCode = err?.statusCode || err?.error?.statusCode;
+            const errMsg = err?.message || err?.error?.message || '';
+            console.error('[handleBooking] error:', statusCode, errMsg);
+
+            // 409 = existing pending/approved booking exists — find it and offer payment
+            if (statusCode === 409 || errMsg.includes('already booked') || errMsg.includes('pending request')) {
+                try {
+                    const myBookings = await bookingService.getMyBookings();
+                    const existing = myBookings.data.find(b => {
+                        const propId = String(b.property?._id || b.property || '');
+                        const matchesProp = propId === String(id);
+                        const isEligible = (b.status === 'pending' || b.status === 'approved') && b.paymentStatus !== 'paid';
+                        return matchesProp && isEligible;
+                    });
+                    if (existing) {
+                        console.log('[handleBooking] Found existing unpaid booking:', existing._id);
+                        setExistingBooking(existing);
+                        if (property.bookingType !== 'free') {
+                            setShowRazorpay(true);
+                        }
+                        return;
+                    }
+                } catch (fetchErr) {
+                    console.error('[handleBooking] Failed to re-fetch bookings:', fetchErr);
+                }
+            }
+
+            setBookingError(errMsg || 'Failed to submit booking request. Please try again.');
         } finally {
             setBookingLoading(false);
         }
