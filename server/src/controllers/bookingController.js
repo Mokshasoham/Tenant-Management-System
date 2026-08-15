@@ -80,14 +80,30 @@ const addTimeline = (booking, event, note = '') => {
 };
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
-    const { bookingId, signature } = req.body;
+    let { bookingId, propertyId, signature } = req.body;
 
-    if (!bookingId) {
-        throw new AppError('bookingId is required to create a payment order', 400);
+    logger.info(`[RAZORPAY CREATE ORDER DEBUG] Request received - userId: ${req.user?.userId || 'anonymous'}, bookingId: ${bookingId}, propertyId: ${propertyId}`);
+
+    let booking;
+    if (bookingId) {
+        booking = await Booking.findById(bookingId).populate('property');
+    }
+    
+    // Fallback: If booking not found by ID or propertyId provided, lookup active pending/approved booking
+    if (!booking && (propertyId || bookingId)) {
+        const propId = propertyId || bookingId;
+        booking = await Booking.findOne({
+            user: req.user?.userId,
+            property: propId,
+            status: { $in: ['pending', 'approved'] },
+            paymentStatus: { $ne: 'paid' }
+        }).populate('property');
     }
 
-    const booking = await Booking.findById(bookingId).populate('property');
-    if (!booking) throw new AppError('Booking not found', 404);
+    if (!booking) {
+        throw new AppError('Booking not found for payment processing', 404);
+    }
+
     if (booking.status === 'cancelled' || booking.status === 'rejected') {
         throw new AppError(`Cannot create payment order for ${booking.status} booking`, 400);
     }
@@ -104,7 +120,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-    logger.info(`[CREATE ORDER] authenticatedUser: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${bookingId}, bookingStatus: ${booking.status}, startDate: ${booking.startDate}, endDate: ${booking.endDate}, calculatedAmount: ${securityDeposit}, currency: INR`);
+    logger.info(`[RAZORPAY CREATE ORDER DEBUG] authenticatedUserId: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${booking._id}, bookingStatus: ${booking.status}, securityDeposit: ${securityDeposit}, monthlyRent: ${property.rentAmount}`);
 
     let amountInPaise = Math.round(Number(securityDeposit) * 100);
     const isTestMode = keyId.startsWith('rzp_test_');
@@ -379,9 +395,18 @@ const verifyAndProcessPaymentInternal = async ({
 };
 
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
-    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature, signature } = req.body;
+    let { bookingId, propertyId, razorpayOrderId, razorpayPaymentId, razorpaySignature, signature } = req.body;
+    let targetBookingId = bookingId;
+    if (!targetBookingId && propertyId && req.user?.userId) {
+        const foundBooking = await Booking.findOne({
+            user: req.user.userId,
+            property: propertyId,
+            status: { $in: ['pending', 'approved'] }
+        });
+        if (foundBooking) targetBookingId = foundBooking._id;
+    }
     const booking = await verifyAndProcessPaymentInternal({
-        bookingId,
+        bookingId: targetBookingId,
         razorpayOrderId,
         razorpayPaymentId,
         razorpaySignature,
