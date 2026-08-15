@@ -36,15 +36,21 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
 
     const handlePayNow = async () => {
         setStep('paying');
-        console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', bookingId);
+        const validBookingId = (typeof bookingId === 'object' && bookingId !== null) ? (bookingId._id || bookingId.id) : bookingId;
+        console.log('[RazorpayPayment] handlePayNow initiated with bookingId:', validBookingId);
         try {
-            // 1) Create Razorpay order on backend for specific approved booking
+            // 1) Create Razorpay order on backend for booking
             console.log('[RazorpayPayment] Calling createRazorpayOrder...');
-            const res = await bookingService.createRazorpayOrder({ bookingId });
+            const res = await bookingService.createRazorpayOrder({ bookingId: validBookingId });
             console.log('[RazorpayPayment] createRazorpayOrder response:', res);
 
-            const { razorpayOrderId, amount, keyId, bookingId: bid } = res.data?.data || res.data || res;
-            console.log('[RazorpayPayment] Parsed order details:', { razorpayOrderId, amount, keyId, bid });
+            const { razorpayOrderId, amount, keyId, bookingId: resBid } = res.data?.data || res.data || res;
+            const targetBookingId = resBid || validBookingId;
+            console.log('[RazorpayPayment] Parsed order details:', { razorpayOrderId, amount, keyId, targetBookingId });
+
+            if (!razorpayOrderId) {
+                throw new Error('Razorpay order ID was not returned by the server.');
+            }
 
             console.log('[RazorpayPayment] Instantiating Razorpay checkout...');
             const loaded = await loadRazorpayScript();
@@ -55,15 +61,13 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 return;
             }
 
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-
             const rzp = new window.Razorpay({
-                key: keyId,
+                key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1',
                 amount,
                 currency: 'INR',
                 order_id: razorpayOrderId,
                 name: 'TMS Platform',
-                description: `Booking for ${property.name}`,
+                description: `Security deposit for ${property.name}`,
                 theme: { color: '#6366f1' },
                 handler: async (response) => {
                     console.log('[RazorpayPayment] Razorpay handler success callback:', response);
@@ -73,15 +77,15 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                             razorpayOrderId: response.razorpay_order_id,
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
-                            bookingId: bid
+                            bookingId: targetBookingId
                         });
                         console.log('[RazorpayPayment] Real verification response:', verifyRes);
                         setStep('success');
-                        if (onSuccess) onSuccess(bid);
+                        if (onSuccess) onSuccess(targetBookingId);
                     } catch (err) {
                         console.error('[RazorpayPayment] Real verification error:', err);
-                        const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-                        setErrorMsg(errMsg || 'Payment verification failed. Please contact support.');
+                        const errMsg = err?.response?.data?.message || err?.message || 'Payment verification failed. Please contact support.';
+                        setErrorMsg(errMsg);
                         setStep('error');
                     }
                 },
@@ -96,8 +100,8 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
             rzp.open();
         } catch (err) {
             console.error('[RazorpayPayment] handlePayNow parent catch error:', err);
-            const errMsg = err?.message || err?.response?.data?.message || JSON.stringify(err);
-            setErrorMsg(errMsg || 'Failed to create payment order. Please try again.');
+            const errMsg = err?.response?.data?.message || err?.message || 'Failed to create payment order. Please try again.';
+            setErrorMsg(errMsg);
             setStep('error');
         }
     };

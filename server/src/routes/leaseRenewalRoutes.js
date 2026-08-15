@@ -32,8 +32,13 @@ router.post('/renewals/:id/respond', authenticate, respondToOffer);
 router.post('/lease/moveout', authenticate, submitMoveOutNotice);
 router.post('/feedback/exit', authenticate, submitExitFeedback);
 
-// Manager Endpoints
-router.get('/renewals', authenticate, managerOrAdmin, getManagerRequests);
+// Manager / Tenant Endpoints
+router.get('/renewals', authenticate, (req, res, next) => {
+  if (['manager', 'admin', 'super_admin'].includes(req.user.role)) {
+    return getManagerRequests(req, res, next);
+  }
+  return getHistory(req, res, next);
+});
 // Tenant-accessible: returns only their own renewals/offers
 router.get('/renewals/my', authenticate, getHistory);
 router.post('/renewals/offer', authenticate, managerOrAdmin, sendRenewalOffer);
