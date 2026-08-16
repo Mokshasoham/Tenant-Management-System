@@ -100,30 +100,19 @@ export default function MyLeasePage() {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
-    const scrollActiveLeases = (direction) => {
-        if (scrollRef.current) {
-            const { scrollLeft, clientWidth } = scrollRef.current;
-            const scrollTo = direction === 'left' 
-                ? scrollLeft - (clientWidth + 24) 
-                : scrollLeft + (clientWidth + 24);
-            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-        }
-    };
-
-    const handleScroll = (e) => {
-        const { scrollLeft, clientWidth } = e.target;
-        if (clientWidth > 0 && activeLeases.length > 0) {
-            const index = Math.round(scrollLeft / (clientWidth + 24));
-            if (index !== selectedLeaseIndex && index >= 0 && index < activeLeases.length) {
-                setSelectedLeaseIndex(index);
-                const currentL = activeLeases[index];
-                if (currentL?._id) {
-                    const params = new URLSearchParams(location.search);
-                    if (params.get('leaseId') !== String(currentL._id)) {
-                        params.set('leaseId', currentL._id);
-                        navigate(`/my-lease?${params.toString()}`, { replace: true, state: { ...location.state, leaseId: currentL._id } });
-                    }
-                }
+    const handleSelectLeaseIndex = (idx) => {
+        if (idx < 0 || idx >= activeLeases.length) return;
+        setSelectedLeaseIndex(idx);
+        setSelectedPastLease(null);
+        const targetL = activeLeases[idx];
+        if (targetL?._id) {
+            const params = new URLSearchParams(location.search);
+            if (params.get('leaseId') !== String(targetL._id)) {
+                params.set('leaseId', targetL._id);
+                navigate(`/my-lease?${params.toString()}`, {
+                    replace: true,
+                    state: { ...location.state, leaseId: targetL._id, propertyId: targetL.property?._id }
+                });
             }
         }
     };
@@ -202,23 +191,6 @@ export default function MyLeasePage() {
             applyTargetLeaseSelection(activeLeases, pastLeases);
         }
     }, [location.search, location.state]);
-
-    // Keep horizontal scroll position aligned with selectedLeaseIndex
-    useEffect(() => {
-        if (scrollRef.current && activeLeases.length > 0 && selectedLeaseIndex >= 0) {
-            const container = scrollRef.current;
-            const cardWidth = container.clientWidth;
-            if (cardWidth > 0) {
-                const targetScrollLeft = selectedLeaseIndex * (cardWidth + 24);
-                if (Math.abs(container.scrollLeft - targetScrollLeft) > 10) {
-                    container.scrollTo({
-                        left: targetScrollLeft,
-                        behavior: 'smooth'
-                    });
-                }
-            }
-        }
-    }, [selectedLeaseIndex, activeLeases.length]);
 
     // Fetch checklist dynamically for the currently selected lease
     useEffect(() => {
@@ -490,33 +462,36 @@ export default function MyLeasePage() {
             </motion.div>
 
             {/* Multi-Lease Selection Switcher Tabs */}
+            {/* Multi-Lease Selection Switcher Tabs */}
             {activeLeases.length > 1 && (
-                <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-card/60 backdrop-blur-md border border-border w-fit shadow-sm">
-                    {activeLeases.map((actL, i) => (
-                        <button
-                            key={actL._id}
-                            onClick={() => {
-                                setSelectedLeaseIndex(i);
-                                setSelectedPastLease(null);
-                                navigate(`/my-lease?leaseId=${actL._id}`, { replace: true, state: { leaseId: actL._id, propertyId: actL.property?._id } });
-                            }}
-                            className={cn(
-                                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2",
-                                selectedLeaseIndex === i && !selectedPastLease
-                                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                            )}
-                        >
-                            <span className={cn(
-                                "w-2 h-2 rounded-full",
-                                (actL.status === 'pending' && actL.signature) ? "bg-indigo-400" : (actL.status === 'active' ? "bg-emerald-300" : "bg-amber-400")
-                            )} />
-                            <span>{actL.property?.name || `Lease #${actL.leaseNumber || i + 1}`}</span>
-                            <span className="text-[10px] opacity-75 font-bold">
-                                {(actL.status === 'pending' && actL.signature) ? '(Upcoming)' : (actL.status === 'active' ? '(Active)' : '(Pending)')}
-                            </span>
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-card/60 backdrop-blur-md border border-border w-fit shadow-sm">
+                    {activeLeases.map((actL, i) => {
+                        const isSelected = selectedLeaseIndex === i && !selectedPastLease;
+                        const isUpcoming = actL.status === 'pending' && actL.signature;
+                        const isPending = actL.status === 'pending' && !actL.signature;
+                        const statusBadgeText = isUpcoming ? '(Upcoming)' : (isPending ? '(Pending)' : '(Active)');
+                        return (
+                            <button
+                                key={actL._id}
+                                onClick={() => handleSelectLeaseIndex(i)}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 select-none",
+                                    isSelected
+                                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.02]"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                )}
+                            >
+                                <span className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isUpcoming ? "bg-indigo-300" : (isPending ? "bg-amber-300" : "bg-emerald-300")
+                                )} />
+                                <span>{actL.property?.name || `Lease #${actL.leaseNumber || i + 1}`}</span>
+                                <span className="text-[10px] opacity-75 font-bold">
+                                    {statusBadgeText}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
@@ -547,319 +522,317 @@ export default function MyLeasePage() {
 
             {!loading && activeLeases.length > 0 && (
                 <>
-                    {/* ── Pending Signature Warning Banner ── */}
-                    {isUnsigned && (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                            className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm">
-                            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <h4 className="text-sm font-black uppercase tracking-wider">Lease Pending Signature</h4>
-                                <p className="text-xs opacity-80 mt-1 leading-relaxed">
-                                    Please review all the terms and conditions of this lease. Once you are satisfied, draw, type, or upload your signature at the bottom of the page to activate your tenancy.
-                                </p>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {currentLease.status === 'pending' && currentLease.signature && (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                            className="p-4.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-start gap-3.5 shadow-sm">
-                            <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <h4 className="text-sm font-black uppercase tracking-wider">Lease Signed – Upcoming Tenancy</h4>
-                                <p className="text-xs opacity-80 mt-1 leading-relaxed">
-                                    This lease agreement has been successfully signed and verified. It is scheduled to automatically activate on {new Date(currentLease.startDate).toLocaleDateString('en-IN')}.
-                                </p>
-                            </div>
-                        </motion.div>
-                    )}
+                    {/* ── Pending Signature Warning Banner / Upcoming Banner ── */}
+                    <AnimatePresence mode="wait">
+                        {isUnsigned ? (
+                            <motion.div
+                                key={`unsigned-banner-${currentLease._id}`}
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                className="p-4.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-start gap-3.5 shadow-sm"
+                            >
+                                <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <h4 className="text-sm font-black uppercase tracking-wider">Lease Pending Signature</h4>
+                                    <p className="text-xs opacity-80 mt-1 leading-relaxed">
+                                        Please review all the terms and conditions of this lease. Once you are satisfied, draw, type, or upload your signature at the bottom of the page to activate your tenancy.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ) : (currentLease.status === 'pending' && currentLease.signature) ? (
+                            <motion.div
+                                key={`upcoming-banner-${currentLease._id}`}
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                className="p-4.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-start gap-3.5 shadow-sm"
+                            >
+                                <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <h4 className="text-sm font-black uppercase tracking-wider">Lease Signed – Upcoming Tenancy</h4>
+                                    <p className="text-xs opacity-80 mt-1 leading-relaxed">
+                                        This lease agreement has been successfully signed and verified. It is scheduled to automatically activate on {new Date(currentLease.startDate).toLocaleDateString('en-IN')}.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ) : null}
+                    </AnimatePresence>
 
                     {/* ── Pre-Lease Requirements Checklist ── */}
-                    {isUnsigned && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden shadow-sm"
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-muted/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
-                                        <CheckSquare className="w-4 h-4 text-indigo-500" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-black text-foreground">Pre-Lease Requirements</h3>
-                                        <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-widest mt-0.5">
-                                            {checklist ? (
-                                                checklist.allComplete
-                                                    ? 'All requirements met — you may now sign'
-                                                    : `${Object.values(checklist.items || {}).filter(Boolean).length}/4 completed`
-                                            ) : 'Complete all steps before signing'}
-                                        </p>
-                                    </div>
-                                </div>
-                                {checklistLoading ? (
-                                    <Loader2 className="w-4 h-4 text-muted-foreground/40 animate-spin" />
-                                ) : (
-                                    <button
-                                        onClick={() => fetchChecklist(currentLease._id)}
-                                        className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-colors flex items-center gap-1"
-                                    >
-                                        <RefreshCw className="w-3 h-3" /> Refresh
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Checklist Items */}
-                            <div className="divide-y divide-border/40">
-                                {[
-                                    {
-                                        key: 'profileComplete',
-                                        icon: User,
-                                        label: 'Complete Profile',
-                                        desc: 'First name, last name, and phone number',
-                                        action: { label: 'Go to Profile', link: '/profile' },
-                                    },
-                                    {
-                                        key: 'kycComplete',
-                                        icon: IdCard,
-                                        label: 'Upload Identity Document',
-                                        desc: 'Government-issued ID or proof of identity (KYC)',
-                                        action: { label: 'Upload Now', link: '/profile' },
-                                    },
-                                    {
-                                        key: 'depositPaid',
-                                        icon: CreditCardIcon,
-                                        label: 'Pay Security Deposit',
-                                        desc: checklist?.meta?.depositAmount
-                                            ? `₹${Number(checklist.meta.depositAmount).toLocaleString('en-IN')} security deposit`
-                                            : 'Security deposit payment',
-                                        action: checklist?.meta?.bookingId
-                                            ? { label: 'Pay Now', link: `/bookings/${checklist.meta.bookingId}` }
-                                            : { label: 'View Bookings', link: '/dashboard' },
-                                    },
-                                    {
-                                        key: 'leaseSigned',
-                                        icon: FileSignature,
-                                        label: 'Sign Lease Agreement',
-                                        desc: 'E-sign the lease agreement below',
-                                        action: null, // handled inline on this page
-                                    },
-                                ].map((item, i) => {
-                                    const done = checklist?.items?.[item.key] ?? false;
-                                    const Icon = item.icon;
-                                    return (
-                                        <div key={item.key} className={cn(
-                                            'flex items-center gap-4 px-5 py-3.5 transition-colors',
-                                            done ? 'bg-emerald-500/5' : 'hover:bg-muted/40'
-                                        )}>
-                                            {/* Step Number / Check */}
-                                            <div className={cn(
-                                                'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black transition-all',
-                                                done
-                                                    ? 'bg-emerald-500/15 text-emerald-500'
-                                                    : 'bg-muted border border-border text-muted-foreground/40'
-                                            )}>
-                                                {done ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-                                            </div>
-
-                                            {/* Label */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className={cn(
-                                                    'text-xs font-black leading-none mb-0.5',
-                                                    done ? 'text-emerald-600 dark:text-emerald-400 line-through opacity-70' : 'text-foreground'
-                                                )}>{item.label}</p>
-                                                <p className="text-[9px] text-muted-foreground/50 truncate">{item.desc}</p>
-                                            </div>
-
-                                            {/* Status / Action */}
-                                            <div className="flex-shrink-0">
-                                                {done ? (
-                                                    <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
-                                                        ✓ Done
-                                                    </span>
-                                                ) : item.action ? (
-                                                    <button
-                                                        onClick={() => navigate(item.action.link)}
-                                                        className="text-[8px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
-                                                    >
-                                                        {item.action.label} <ExternalLink className="w-2.5 h-2.5" />
-                                                    </button>
-                                                ) : (
-                                                    <span className="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
-                                                        Below ↓
-                                                    </span>
-                                                )}
-                                            </div>
+                    <AnimatePresence mode="wait">
+                        {isUnsigned && (
+                            <motion.div
+                                key={`checklist-${currentLease._id}`}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2 }}
+                                className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm overflow-hidden shadow-sm"
+                            >
+                                {/* Header */}
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-muted/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                                            <CheckSquare className="w-4 h-4 text-indigo-500" />
                                         </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Footer progress bar */}
-                            {checklist && (
-                                <div className="px-5 py-3 bg-muted/20 border-t border-border/40">
-                                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1.5">
-                                        <span>Progress</span>
-                                        <span>{Object.values(checklist.items || {}).filter(Boolean).length} / 4</span>
+                                        <div>
+                                            <h3 className="text-sm font-black text-foreground">Pre-Lease Requirements</h3>
+                                            <p className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-widest mt-0.5">
+                                                {checklist ? (
+                                                    checklist.allComplete
+                                                        ? 'All requirements met — you may now sign'
+                                                        : `${Object.values(checklist.items || {}).filter(Boolean).length}/4 completed`
+                                                ) : 'Complete all steps before signing'}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                        <motion.div
-                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${(Object.values(checklist.items || {}).filter(Boolean).length / 4) * 100}%` }}
-                                            transition={{ duration: 0.6, ease: 'easeOut' }}
-                                        />
-                                    </div>
+                                    {checklistLoading ? (
+                                        <Loader2 className="w-4 h-4 text-muted-foreground/40 animate-spin" />
+                                    ) : (
+                                        <button
+                                            onClick={() => fetchChecklist(currentLease._id)}
+                                            className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 hover:text-primary transition-colors flex items-center gap-1"
+                                        >
+                                            <RefreshCw className="w-3 h-3" /> Refresh
+                                        </button>
+                                    )}
                                 </div>
-                            )}
-                        </motion.div>
-                    )}
 
-                    {/* ── Active Leases Horizontal Carousel Row ── */}
-                    <div className="relative group/scroll w-full">
-                        {/* Left Arrow Button */}
-                        {activeLeases.length > 1 && (
-                            <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => scrollActiveLeases('left')}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
-                            >
-                                <ChevronLeft className="w-6 h-6 text-muted-foreground" />
-                            </motion.button>
-                        )}
-
-                        {/* Right Arrow Button */}
-                        {activeLeases.length > 1 && (
-                            <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => scrollActiveLeases('right')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-lg flex items-center justify-center text-foreground backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity duration-300"
-                            >
-                                <ChevronRight className="w-6 h-6 text-muted-foreground" />
-                            </motion.button>
-                        )}
-
-                        {/* Horizontal Scroll Container */}
-                        <div
-                            ref={scrollRef}
-                            onScroll={handleScroll}
-                            className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-4"
-                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                        >
-                            {activeLeases.map((actLease, idx) => {
-                                const actStatusCfg = (actLease.status === 'pending' && actLease.signature) ? {
-                                    label: 'Upcoming',
-                                    color: 'text-indigo-200 border-indigo-500/30',
-                                    bg: 'bg-indigo-500/20',
-                                    dot: 'bg-indigo-400'
-                                } : (STATUS_CONFIG[actLease.status] || STATUS_CONFIG.pending);
-                                return (
-                                    <motion.div
-                                        key={actLease._id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={cn(
-                                            "snap-start shrink-0 w-full relative overflow-hidden rounded-[2.5rem] border p-6 md:p-10 shadow-2xl transition-all duration-300",
-                                            selectedLeaseIndex === idx ? "border-emerald-500/40" : "border-emerald-500/10 opacity-70"
-                                        )}
-                                        style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}
-                                    >
-                                        {/* Orbs */}
-                                        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
-                                        <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
-
-                                        <div className="relative z-10">
-                                            {/* Top row */}
-                                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-4">
-                                                        <span className={cn('flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest backdrop-blur-md', actStatusCfg.bg, actStatusCfg.color)}>
-                                                            <span className={cn('w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]', actStatusCfg.dot)} />
-                                                            {actStatusCfg.label}
-                                                        </span>
-                                                        {actLease.leaseNumber && (
-                                                            <span className="flex items-center gap-1 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] bg-white/5 px-3 py-1.5 rounded-full">
-                                                                <Hash className="w-3 h-3" />{actLease.leaseNumber}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{actLease.property?.name || 'Your Property'}</h2>
-                                                    <p className="flex items-center gap-2 text-emerald-100/60 text-sm mt-3 font-medium">
-                                                        <span className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></span> {actLease.property?.address || '—'}
-                                                    </p>
+                                {/* Checklist Items */}
+                                <div className="divide-y divide-border/40">
+                                    {[
+                                        {
+                                            key: 'profileComplete',
+                                            icon: User,
+                                            label: 'Complete Profile',
+                                            desc: 'First name, last name, and phone number',
+                                            action: { label: 'Go to Profile', link: '/profile' },
+                                        },
+                                        {
+                                            key: 'kycComplete',
+                                            icon: IdCard,
+                                            label: 'Upload Identity Document',
+                                            desc: 'Government-issued ID or proof of identity (KYC)',
+                                            action: { label: 'Upload Now', link: '/profile' },
+                                        },
+                                        {
+                                            key: 'depositPaid',
+                                            icon: CreditCardIcon,
+                                            label: 'Pay Security Deposit',
+                                            desc: checklist?.meta?.depositAmount
+                                                ? `₹${Number(checklist.meta.depositAmount).toLocaleString('en-IN')} security deposit`
+                                                : 'Security deposit payment',
+                                            action: checklist?.meta?.bookingId
+                                                ? { label: 'Pay Now', link: `/bookings/${checklist.meta.bookingId}` }
+                                                : { label: 'View Bookings', link: '/dashboard' },
+                                        },
+                                        {
+                                            key: 'leaseSigned',
+                                            icon: FileSignature,
+                                            label: 'Sign Lease Agreement',
+                                            desc: 'E-sign the lease agreement below',
+                                            action: null,
+                                        },
+                                    ].map((item, i) => {
+                                        const done = checklist?.items?.[item.key] ?? false;
+                                        const Icon = item.icon;
+                                        return (
+                                            <div key={item.key} className={cn(
+                                                'flex items-center gap-4 px-5 py-3.5 transition-colors',
+                                                done ? 'bg-emerald-500/5' : 'hover:bg-muted/40'
+                                            )}>
+                                                {/* Step Number / Check */}
+                                                <div className={cn(
+                                                    'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black transition-all',
+                                                    done
+                                                        ? 'bg-emerald-500/15 text-emerald-500'
+                                                        : 'bg-muted border border-border text-muted-foreground/40'
+                                                )}>
+                                                    {done ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                                                 </div>
-                                                <div className="text-right flex-shrink-0 flex flex-col items-end">
-                                                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Monthly Rent</p>
-                                                    <p className="text-6xl font-black text-white drop-shadow-2xl">₹{(actLease.rentAmount || 0).toLocaleString('en-IN')}</p>
-                                                    {actLease.depositAmount > 0 && (
-                                                        <div className="mt-3 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                                                            <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Deposit: ₹{actLease.depositAmount.toLocaleString('en-IN')}</p>
-                                                        </div>
+
+                                                {/* Label */}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={cn(
+                                                        'text-xs font-black leading-none mb-0.5',
+                                                        done ? 'text-emerald-600 dark:text-emerald-400 line-through opacity-70' : 'text-foreground'
+                                                    )}>{item.label}</p>
+                                                    <p className="text-[9px] text-muted-foreground/50 truncate">{item.desc}</p>
+                                                </div>
+
+                                                {/* Status / Action */}
+                                                <div className="flex-shrink-0">
+                                                    {done ? (
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">
+                                                            ✓ Done
+                                                        </span>
+                                                    ) : item.action ? (
+                                                        <button
+                                                            onClick={() => navigate(item.action.link)}
+                                                            className="text-[8px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                                                        >
+                                                            {item.action.label} <ExternalLink className="w-2.5 h-2.5" />
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                                                            Below ↓
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                </div>
 
-                                            {/* Progress */}
-                                            <div className="mb-6">
-                                                <LeaseProgressBar startDate={actLease.startDate} endDate={actLease.endDate} />
-                                            </div>
-
-                                            {(() => {
-                                                const end = new Date(actLease.endDate).getTime();
-                                                const now = new Date().getTime();
-                                                const diff = end - now;
-                                                const daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                                if (daysRemaining <= 30) {
-                                                    return (
-                                                        <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                                            <div>
-                                                                <p className="text-sm font-black text-amber-500">Attention: Lease Expiry Approaching</p>
-                                                                <p className="text-xs text-muted-foreground mt-1">
-                                                                    Your lease expires in {daysRemaining} days. Please select your renewal preference before expiration.
-                                                                </p>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => navigate('/lease-decision')}
-                                                                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-all w-full md:w-auto"
-                                                            >
-                                                                Renew or Move Out
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
-
-                                            {/* Key dates grid */}
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                {[
-                                                    { label: 'Start Date', value: new Date(actLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
-                                                    { label: 'End Date', value: new Date(actLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
-                                                    { label: 'Frequency', value: 'Monthly', icon: RefreshCw },
-                                                    { label: 'Protection', value: 'Lease Guard', icon: Shield },
-                                                ].map((item) => {
-                                                    return (
-                                                        <div key={item.label} className="p-4 rounded-2xl bg-muted border border-border hover:bg-muted/80 transition-all group">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transform group-hover:scale-110 transition-transform">
-                                                                    <item.icon className="w-3.5 h-3.5" />
-                                                                </div>
-                                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40">{item.label}</p>
-                                                            </div>
-                                                            <p className="text-sm font-black text-foreground">{item.value}</p>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
+                                {/* Footer progress bar */}
+                                {checklist && (
+                                    <div className="px-5 py-3 bg-muted/20 border-t border-border/40">
+                                        <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-1.5">
+                                            <span>Progress</span>
+                                            <span>{Object.values(checklist.items || {}).filter(Boolean).length} / 4</span>
                                         </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
+                                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                            <motion.div
+                                                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${(Object.values(checklist.items || {}).filter(Boolean).length / 4) * 100}%` }}
+                                                transition={{ duration: 0.6, ease: 'easeOut' }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* ── Active Lease Hero Card with Smooth Cross-Fade Transition ── */}
+                    <div className="relative group w-full">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentLease._id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                className="w-full relative overflow-hidden rounded-[2.5rem] border border-emerald-500/30 p-6 md:p-10 shadow-2xl transition-colors duration-300"
+                                style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}
+                            >
+                                {/* Left/Right Cycle Buttons if Multiple Active Leases */}
+                                {activeLeases.length > 1 && (
+                                    <>
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handleSelectLeaseIndex((selectedLeaseIndex - 1 + activeLeases.length) % activeLeases.length)}
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-white/20 shadow-lg flex items-center justify-center text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                            title="Previous lease"
+                                        >
+                                            <ChevronLeft className="w-6 h-6 text-white" />
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handleSelectLeaseIndex((selectedLeaseIndex + 1) % activeLeases.length)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-white/20 shadow-lg flex items-center justify-center text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                            title="Next lease"
+                                        >
+                                            <ChevronRight className="w-6 h-6 text-white" />
+                                        </motion.button>
+                                    </>
+                                )}
+
+                                {/* Ambient Orbs */}
+                                <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+                                <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-teal-400/10 blur-3xl pointer-events-none" />
+
+                                <div className="relative z-10">
+                                    {/* Top row */}
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <span className={cn('flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest backdrop-blur-md', statusCfg.bg, statusCfg.color)}>
+                                                    <span className={cn('w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]', statusCfg.dot)} />
+                                                    {statusCfg.label}
+                                                </span>
+                                                {currentLease.leaseNumber && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] bg-white/5 px-3 py-1.5 rounded-full">
+                                                        <Hash className="w-3 h-3" />{currentLease.leaseNumber}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h2 className="text-4xl font-black text-white tracking-tight leading-tight">{currentLease.property?.name || 'Your Property'}</h2>
+                                            <p className="flex items-center gap-2 text-emerald-100/60 text-sm mt-3 font-medium">
+                                                <span className="p-1.5 rounded-lg bg-white/10"><MapPin className="w-3.5 h-3.5" /></span> {currentLease.property?.address || '—'}
+                                            </p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0 flex flex-col items-end">
+                                            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Monthly Rent</p>
+                                            <p className="text-6xl font-black text-white drop-shadow-2xl">₹{(currentLease.rentAmount || 0).toLocaleString('en-IN')}</p>
+                                            {currentLease.depositAmount > 0 && (
+                                                <div className="mt-3 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+                                                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Deposit: ₹{currentLease.depositAmount.toLocaleString('en-IN')}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Progress */}
+                                    <div className="mb-6">
+                                        <LeaseProgressBar startDate={currentLease.startDate} endDate={currentLease.endDate} />
+                                    </div>
+
+                                    {/* Expiry Warning */}
+                                    {(() => {
+                                        const end = new Date(currentLease.endDate).getTime();
+                                        const now = new Date().getTime();
+                                        const diff = end - now;
+                                        const daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                        if (daysRemaining <= 30) {
+                                            return (
+                                                <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                                    <div>
+                                                        <p className="text-sm font-black text-amber-500">Attention: Lease Expiry Approaching</p>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Your lease expires in {daysRemaining} days. Please select your renewal preference before expiration.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => navigate('/lease-decision')}
+                                                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-all w-full md:w-auto"
+                                                    >
+                                                        Renew or Move Out
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    {/* Key dates grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        {[
+                                            { label: 'Start Date', value: new Date(currentLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
+                                            { label: 'End Date', value: new Date(currentLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), icon: Calendar },
+                                            { label: 'Frequency', value: 'Monthly', icon: RefreshCw },
+                                            { label: 'Protection', value: 'Lease Guard', icon: Shield },
+                                        ].map((item) => (
+                                            <div key={item.label} className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-sm">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
+                                                        <item.icon className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <p className="text-[9px] font-black uppercase tracking-[0.15em] text-white/50">{item.label}</p>
+                                                </div>
+                                                <p className="text-sm font-black text-white">{item.value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
 
                     {/* ── Property Media Gallery ── */}
