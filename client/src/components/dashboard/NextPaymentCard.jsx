@@ -15,6 +15,8 @@ export default function NextPaymentCard({
 }) {
   const { t } = useLanguage();
   const [now, setNow] = useState(Date.now());
+  const [isRingHovered, setIsRingHovered] = useState(false);
+  const [hoverKey, setHoverKey] = useState(0);
 
   // Real-time second interval timer with automatic cleanup on unmount
   useEffect(() => {
@@ -171,7 +173,16 @@ export default function NextPaymentCard({
 
       {/* Centerpiece: Premium Animated Progress Ring with Interactive Hover Effect */}
       <div className="relative z-10 flex flex-col items-center justify-center my-2">
-        <div className="group/ring relative w-36 h-36 flex items-center justify-center cursor-pointer select-none transition-transform duration-300 ease-out hover:scale-[1.045]">
+        <div
+          onMouseEnter={() => {
+            setIsRingHovered(true);
+            setHoverKey(prev => prev + 1);
+          }}
+          onMouseLeave={() => {
+            setIsRingHovered(false);
+          }}
+          className="group/ring relative w-36 h-36 flex items-center justify-center cursor-pointer select-none transition-transform duration-300 ease-out hover:scale-[1.045]"
+        >
           {/* Subtle Outer Radiating Ambient Aura Ring */}
           <div
             className={cn(
@@ -206,20 +217,30 @@ export default function NextPaymentCard({
               className="text-muted-foreground/10 group-hover/ring:text-muted-foreground/20 transition-colors duration-300"
               strokeWidth="7"
             />
-            {/* Active Animated Progress Stroke */}
-            <circle
+            {/* Active Animated Progress Stroke with Hover Draw Effect */}
+            <motion.circle
+              key={`progress-stroke-${hoverKey}`}
               cx="50"
               cy="50"
               r={RADIUS}
               fill="none"
               className={cn(
-                "transition-all duration-700 ease-out group-hover/ring:brightness-125",
+                "group-hover/ring:brightness-125",
                 statusConfig.ringColor
               )}
               strokeWidth="7"
               strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={strokeOffset}
               strokeLinecap="round"
+              initial={{
+                strokeDashoffset: isRingHovered ? CIRCUMFERENCE : strokeOffset
+              }}
+              animate={{
+                strokeDashoffset: strokeOffset
+              }}
+              transition={{
+                duration: isRingHovered ? 1.35 : 0.6,
+                ease: [0.22, 1, 0.36, 1]
+              }}
             />
           </svg>
 
