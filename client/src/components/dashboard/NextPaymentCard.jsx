@@ -89,6 +89,10 @@ export default function NextPaymentCard({
         ringColor: 'stroke-rose-500',
         glowColor: 'from-rose-500/20 to-rose-600/5',
         accentText: 'text-rose-500',
+        hoverDropShadow: 'group-hover/ring:drop-shadow-[0_0_12px_rgba(244,63,94,0.55)]',
+        auraBg: 'group-hover/ring:bg-rose-500/10 group-hover/ring:border-rose-500/30',
+        textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(244,63,94,0.45)]',
+        backplateHover: 'group-hover/ring:border-rose-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(244,63,94,0.15)]',
         icon: AlertTriangle,
       }
     : isDueToday
@@ -98,6 +102,10 @@ export default function NextPaymentCard({
         ringColor: 'stroke-amber-500',
         glowColor: 'from-amber-500/20 to-amber-600/5',
         accentText: 'text-amber-500',
+        hoverDropShadow: 'group-hover/ring:drop-shadow-[0_0_12px_rgba(245,158,11,0.55)]',
+        auraBg: 'group-hover/ring:bg-amber-500/10 group-hover/ring:border-amber-500/30',
+        textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(245,158,11,0.45)]',
+        backplateHover: 'group-hover/ring:border-amber-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(245,158,11,0.15)]',
         icon: Clock,
       }
     : {
@@ -108,6 +116,10 @@ export default function NextPaymentCard({
         ringColor: 'stroke-emerald-500',
         glowColor: 'from-emerald-500/20 to-teal-500/5',
         accentText: 'text-emerald-500 dark:text-emerald-400',
+        hoverDropShadow: 'group-hover/ring:drop-shadow-[0_0_12px_rgba(16,185,129,0.55)]',
+        auraBg: 'group-hover/ring:bg-emerald-500/10 group-hover/ring:border-emerald-500/30',
+        textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]',
+        backplateHover: 'group-hover/ring:border-emerald-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
         icon: Clock,
       };
 
@@ -157,14 +169,33 @@ export default function NextPaymentCard({
         </span>
       </div>
 
-      {/* Centerpiece: Premium Animated Progress Ring */}
+      {/* Centerpiece: Premium Animated Progress Ring with Interactive Hover Effect */}
       <div className="relative z-10 flex flex-col items-center justify-center my-2">
-        <div className="relative w-36 h-36 flex items-center justify-center">
+        <div className="group/ring relative w-36 h-36 flex items-center justify-center cursor-pointer select-none transition-transform duration-300 ease-out hover:scale-[1.045]">
+          {/* Subtle Outer Radiating Ambient Aura Ring */}
+          <div
+            className={cn(
+              "absolute -inset-2.5 rounded-full border border-transparent opacity-0 group-hover/ring:opacity-100 blur-sm scale-95 group-hover/ring:scale-105 transition-all duration-500 ease-out pointer-events-none",
+              statusConfig.auraBg
+            )}
+          />
+
           {/* Inner Glossy Glass Backplate */}
-          <div className="absolute inset-2 rounded-full bg-card/40 border border-border/40 backdrop-blur-md shadow-inner" />
+          <div
+            className={cn(
+              "absolute inset-2 rounded-full bg-card/40 border border-border/40 backdrop-blur-md shadow-inner transition-all duration-300 ease-out",
+              statusConfig.backplateHover
+            )}
+          />
 
           {/* SVG Countdown Ring */}
-          <svg className="w-full h-full -rotate-90 transform drop-shadow-md" viewBox="0 0 100 100">
+          <svg
+            className={cn(
+              "w-full h-full -rotate-90 transform drop-shadow-md transition-all duration-300 ease-out",
+              statusConfig.hoverDropShadow
+            )}
+            viewBox="0 0 100 100"
+          >
             {/* Background Track */}
             <circle
               cx="50"
@@ -172,7 +203,7 @@ export default function NextPaymentCard({
               r={RADIUS}
               fill="none"
               stroke="currentColor"
-              className="text-muted-foreground/10"
+              className="text-muted-foreground/10 group-hover/ring:text-muted-foreground/20 transition-colors duration-300"
               strokeWidth="7"
             />
             {/* Active Animated Progress Stroke */}
@@ -181,7 +212,10 @@ export default function NextPaymentCard({
               cy="50"
               r={RADIUS}
               fill="none"
-              className={cn("transition-all duration-700 ease-out", statusConfig.ringColor)}
+              className={cn(
+                "transition-all duration-700 ease-out group-hover/ring:brightness-125",
+                statusConfig.ringColor
+              )}
               strokeWidth="7"
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={strokeOffset}
@@ -193,24 +227,24 @@ export default function NextPaymentCard({
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 z-20">
             {isOverdue ? (
               <>
-                <span className="text-3xl font-black text-rose-500 tracking-tight leading-none">!</span>
+                <span className={cn("text-3xl font-black tracking-tight leading-none transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>!</span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 mt-1">
                   OVERDUE
                 </span>
               </>
             ) : isDueToday ? (
               <>
-                <span className="text-3xl font-black text-amber-500 tracking-tight leading-none tabular-nums">0</span>
+                <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>0</span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 mt-1">
                   DUE TODAY
                 </span>
               </>
             ) : (
               <>
-                <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums", statusConfig.accentText)}>
+                <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>
                   {days}
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mt-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 group-hover/ring:text-foreground/90 transition-colors duration-300 mt-1">
                   {days === 1 ? 'DAY LEFT' : 'DAYS LEFT'}
                 </span>
               </>
