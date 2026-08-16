@@ -74,6 +74,8 @@ export default function MyLeasePage() {
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);
     const [selectedLeaseIndex, setSelectedLeaseIndex] = useState(0);
+    const [selectedPastLease, setSelectedPastLease] = useState(null);
+    const [invalidLeaseRequested, setInvalidLeaseRequested] = useState(false);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAllPayments, setShowAllPayments] = useState(false);
@@ -83,26 +85,6 @@ export default function MyLeasePage() {
     // Pre-lease Checklist State
     const [checklist, setChecklist] = useState(null);
     const [checklistLoading, setChecklistLoading] = useState(false);
-
-    const scrollActiveLeases = (direction) => {
-        if (scrollRef.current) {
-            const { scrollLeft, clientWidth } = scrollRef.current;
-            const scrollTo = direction === 'left' 
-                ? scrollLeft - clientWidth 
-                : scrollLeft + clientWidth;
-            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-        }
-    };
-
-    const handleScroll = (e) => {
-        const { scrollLeft, clientWidth } = e.target;
-        if (clientWidth > 0) {
-            const index = Math.round(scrollLeft / clientWidth);
-            if (index !== selectedLeaseIndex && index >= 0 && index < activeLeases.length) {
-                setSelectedLeaseIndex(index);
-            }
-        }
-    };
 
     // E-Signature States
     const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -118,6 +100,76 @@ export default function MyLeasePage() {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
+    const scrollActiveLeases = (direction) => {
+        if (scrollRef.current) {
+            const { scrollLeft, clientWidth } = scrollRef.current;
+            const scrollTo = direction === 'left' 
+                ? scrollLeft - (clientWidth + 24) 
+                : scrollLeft + (clientWidth + 24);
+            scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
+    };
+
+    const handleScroll = (e) => {
+        const { scrollLeft, clientWidth } = e.target;
+        if (clientWidth > 0 && activeLeases.length > 0) {
+            const index = Math.round(scrollLeft / (clientWidth + 24));
+            if (index !== selectedLeaseIndex && index >= 0 && index < activeLeases.length) {
+                setSelectedLeaseIndex(index);
+                const currentL = activeLeases[index];
+                if (currentL?._id) {
+                    const params = new URLSearchParams(location.search);
+                    if (params.get('leaseId') !== String(currentL._id)) {
+                        params.set('leaseId', currentL._id);
+                        navigate(`/my-lease?${params.toString()}`, { replace: true, state: { ...location.state, leaseId: currentL._id } });
+                    }
+                }
+            }
+        }
+    };
+
+    const applyTargetLeaseSelection = (activeList = [], pastList = []) => {
+        const searchParams = new URLSearchParams(location.search);
+        const targetLeaseId = location.state?.leaseId || searchParams.get('leaseId');
+        const targetPropId = location.state?.propertyId || searchParams.get('propertyId');
+
+        if (!targetLeaseId && !targetPropId) {
+            setInvalidLeaseRequested(false);
+            setSelectedPastLease(null);
+            return;
+        }
+
+        // Check active leases first
+        const activeIdx = activeList.findIndex(l => 
+            (targetLeaseId && (String(l._id) === String(targetLeaseId) || String(l.leaseNumber) === String(targetLeaseId))) ||
+            (targetPropId && (String(l.property?._id) === String(targetPropId) || String(l.property) === String(targetPropId)))
+        );
+
+        if (activeIdx !== -1) {
+            setSelectedLeaseIndex(activeIdx);
+            setSelectedPastLease(null);
+            setInvalidLeaseRequested(false);
+            return;
+        }
+
+        // Check past / completed leases
+        const pastMatch = pastList.find(l => 
+            (targetLeaseId && (String(l._id) === String(targetLeaseId) || String(l.leaseNumber) === String(targetLeaseId))) ||
+            (targetPropId && (String(l.property?._id) === String(targetPropId) || String(l.property) === String(targetPropId)))
+        );
+
+        if (pastMatch) {
+            setSelectedPastLease(pastMatch);
+            setInvalidLeaseRequested(false);
+            return;
+        }
+
+        // If a specific targetLeaseId was supplied but not found in user's leases
+        if (targetLeaseId) {
+            setInvalidLeaseRequested(true);
+        }
+    };
+
     const fetchLeaseData = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
         try {
@@ -125,24 +177,16 @@ export default function MyLeasePage() {
                 leaseService.getMyLease(),
                 paymentService.getMyPayments(),
             ]);
+            let activeList = [];
+            let pastList = [];
             if (leaseRes.status === 'fulfilled') {
                 const resVal = leaseRes.value || {};
-                const activeLeasesData = resVal.activeLeases || (resVal.data ? [resVal.data] : []);
+                activeList = resVal.activeLeases || (resVal.data ? [resVal.data] : []);
+                pastList = resVal.pastLeases || [];
                 setLease(resVal.data || null);
-                setActiveLeases(activeLeasesData);
-                setPastLeases(resVal.pastLeases || []);
-
-                const targetLeaseId = location.state?.leaseId || new URLSearchParams(location.search).get('leaseId');
-                const targetPropId = location.state?.propertyId || new URLSearchParams(location.search).get('propertyId');
-                if (targetLeaseId || targetPropId) {
-                    const idx = activeLeasesData.findIndex(l => 
-                        (targetLeaseId && String(l._id) === String(targetLeaseId)) ||
-                        (targetPropId && (String(l.property?._id) === String(targetPropId) || String(l.property) === String(targetPropId)))
-                    );
-                    if (idx !== -1) {
-                        setSelectedLeaseIndex(idx);
-                    }
-                }
+                setActiveLeases(activeList);
+                setPastLeases(pastList);
+                applyTargetLeaseSelection(activeList, pastList);
             }
             if (payRes.status === 'fulfilled') {
                 const payVal = payRes.value || {};
@@ -152,24 +196,45 @@ export default function MyLeasePage() {
         if (!isSilent) setLoading(false);
     };
 
+    // Re-apply target selection if route query params or state change
+    useEffect(() => {
+        if (activeLeases.length > 0 || pastLeases.length > 0) {
+            applyTargetLeaseSelection(activeLeases, pastLeases);
+        }
+    }, [location.search, location.state]);
+
+    // Keep horizontal scroll position aligned with selectedLeaseIndex
+    useEffect(() => {
+        if (scrollRef.current && activeLeases.length > 0 && selectedLeaseIndex >= 0) {
+            const container = scrollRef.current;
+            const cardWidth = container.clientWidth;
+            if (cardWidth > 0) {
+                const targetScrollLeft = selectedLeaseIndex * (cardWidth + 24);
+                if (Math.abs(container.scrollLeft - targetScrollLeft) > 10) {
+                    container.scrollTo({
+                        left: targetScrollLeft,
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+    }, [selectedLeaseIndex, activeLeases.length]);
+
     // Fetch checklist dynamically for the currently selected lease
     useEffect(() => {
-        const currentLease = activeLeases[selectedLeaseIndex];
+        const currentLease = selectedPastLease || activeLeases[selectedLeaseIndex];
         if (currentLease && currentLease.status === 'pending' && !currentLease.signature) {
             fetchChecklist(currentLease._id);
         } else {
             setChecklist(null);
         }
-    }, [selectedLeaseIndex, activeLeases]);
+    }, [selectedLeaseIndex, selectedPastLease, activeLeases]);
 
     const fetchChecklist = async (leaseId) => {
         if (!leaseId) return;
         setChecklistLoading(true);
         try {
-            // apiClient interceptor already unwraps axios response to response.data
-            // so `res` here is the server's JSON body: { success, data: { allComplete, items, meta } }
             const res = await leaseService.getLeaseChecklist(leaseId);
-            // Store the nested `data` object directly so widget can access items/meta/allComplete flatly
             setChecklist(res?.data || null);
         } catch (e) {
             console.error('Error fetching checklist:', e);
@@ -183,8 +248,6 @@ export default function MyLeasePage() {
         console.log('[MyLeasePage] Destination page loaded');
         fetchLeaseData();
 
-        // Re-fetch whenever the user returns to this page/tab (e.g. after uploading KYC)
-        // Throttled to at most once every 30 seconds to avoid hammering the server on every alt-tab
         let lastFetchTime = Date.now();
 
         const maybeRefresh = () => {
@@ -355,7 +418,7 @@ export default function MyLeasePage() {
         }
     };
 
-    const currentLease = activeLeases[selectedLeaseIndex] || lease || null;
+    const currentLease = selectedPastLease || activeLeases[selectedLeaseIndex] || lease || pastLeases[0] || null;
     const isUnsigned = Boolean(currentLease && (!currentLease.signature || !currentLease.signedBy || !currentLease.signedAt));
     const statusCfg = isUnsigned ? STATUS_CONFIG.pending : (STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending);
     const currentLeasePayments = currentLease ? payments.filter(p => {
@@ -369,6 +432,36 @@ export default function MyLeasePage() {
     const pendingPay = currentLeasePayments.find(p => ['pending', 'overdue'].includes(p.status));
     const totalPaid = paidPayments.reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
     const visiblePay = showAllPayments ? currentLeasePayments : currentLeasePayments.slice(0, 6);
+
+    if (!loading && invalidLeaseRequested) {
+        return (
+            <div className="space-y-6 pb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-wider transition-all"
+                    >
+                        <ChevronLeft className="w-4 h-4" /> Back to Dashboard
+                    </button>
+                </div>
+                <div className="max-w-md mx-auto my-16 p-8 rounded-[2.5rem] bg-card/60 backdrop-blur-md border border-border/80 text-center space-y-4 shadow-2xl">
+                    <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto text-rose-400">
+                        <AlertTriangle className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-xl font-black text-foreground">This record is no longer available</h2>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        The lease agreement or record you are trying to view does not exist or has been removed.
+                    </p>
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg"
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-5 pb-10">
@@ -395,6 +488,37 @@ export default function MyLeasePage() {
                     </motion.button>
                 )}
             </motion.div>
+
+            {/* Multi-Lease Selection Switcher Tabs */}
+            {activeLeases.length > 1 && (
+                <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-card/60 backdrop-blur-md border border-border w-fit shadow-sm">
+                    {activeLeases.map((actL, i) => (
+                        <button
+                            key={actL._id}
+                            onClick={() => {
+                                setSelectedLeaseIndex(i);
+                                setSelectedPastLease(null);
+                                navigate(`/my-lease?leaseId=${actL._id}`, { replace: true, state: { leaseId: actL._id, propertyId: actL.property?._id } });
+                            }}
+                            className={cn(
+                                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2",
+                                selectedLeaseIndex === i && !selectedPastLease
+                                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                            )}
+                        >
+                            <span className={cn(
+                                "w-2 h-2 rounded-full",
+                                (actL.status === 'pending' && actL.signature) ? "bg-indigo-400" : (actL.status === 'active' ? "bg-emerald-300" : "bg-amber-400")
+                            )} />
+                            <span>{actL.property?.name || `Lease #${actL.leaseNumber || i + 1}`}</span>
+                            <span className="text-[10px] opacity-75 font-bold">
+                                {(actL.status === 'pending' && actL.signature) ? '(Upcoming)' : (actL.status === 'active' ? '(Active)' : '(Pending)')}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Loading */}
             {loading && (

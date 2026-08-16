@@ -430,7 +430,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
                                                     <h2 
-                                                        onClick={() => navigate('/my-lease', { state: { leaseId: activeLease._id } })}
+                                                        onClick={() => navigate(`/my-lease?leaseId=${activeLease._id}`, { state: { leaseId: activeLease._id, propertyId: activeLease.property?._id } })}
                                                         className="text-xl font-black text-foreground hover:text-emerald-500 cursor-pointer transition-colors"
                                                     >
                                                         {activeLease?.property?.name || 'Not Assigned'}
@@ -478,7 +478,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                 <div className="mt-4 pt-3 border-t border-border/60">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {activeLease.property.amenities.slice(0, 4).map(a => (
-                                                            <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
+                                                             <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
                                                         ))}
                                                         {activeLease.property.amenities.length > 4 && (
                                                             <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} more</span>
@@ -491,7 +491,7 @@ export default function TenantDashboard({ user, navigate }) {
                                         <div className="flex gap-2.5 mt-5 pt-3 border-t border-border/60">
                                             {activeLease.status === 'pending' && !activeLease.signature ? (
                                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                    onClick={() => navigate('/my-lease')}
+                                                    onClick={() => navigate(`/my-lease?leaseId=${activeLease._id}`, { state: { leaseId: activeLease._id, propertyId: activeLease.property?._id } })}
                                                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs shadow-md hover:opacity-90 transition-all uppercase tracking-wider">
                                                     <FileSignature className="w-3.5 h-3.5" /> Sign Lease
                                                 </motion.button>
@@ -586,7 +586,11 @@ export default function TenantDashboard({ user, navigate }) {
                                     >
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1">
                                             {uniqueCompletedLeases.map((pastLease) => (
-                                                <div key={pastLease._id} className="p-4 rounded-xl border border-border bg-muted/20 flex items-center justify-between gap-4">
+                                                <div
+                                                    key={pastLease._id}
+                                                    onClick={() => navigate(`/my-lease?leaseId=${pastLease._id}`, { state: { leaseId: pastLease._id, propertyId: pastLease.property?._id } })}
+                                                    className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 hover:border-border/80 cursor-pointer transition-all flex items-center justify-between gap-4"
+                                                >
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-1.5 mb-1">
                                                             <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500">
