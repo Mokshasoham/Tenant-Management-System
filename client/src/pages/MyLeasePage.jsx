@@ -100,6 +100,10 @@ export default function MyLeasePage() {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
+    // Two-Finger Trackpad & Touch Swipe Gesture Navigation
+    const swipeAccumulator = useRef({ x: 0, y: 0, lastTime: 0, isLocked: false });
+    const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
+
     const handleSelectLeaseIndex = (idx) => {
         if (idx < 0 || idx >= activeLeases.length) return;
         setSelectedLeaseIndex(idx);
@@ -113,6 +117,87 @@ export default function MyLeasePage() {
                     replace: true,
                     state: { ...location.state, leaseId: targetL._id, propertyId: targetL.property?._id }
                 });
+            }
+        }
+    };
+
+    const handleWheelGesture = (e) => {
+        if (activeLeases.length <= 1) return;
+
+        const now = Date.now();
+        // Reset accumulation if user paused for > 250ms
+        if (now - swipeAccumulator.current.lastTime > 250) {
+            swipeAccumulator.current.x = 0;
+            swipeAccumulator.current.y = 0;
+            swipeAccumulator.current.isLocked = false;
+        }
+        swipeAccumulator.current.lastTime = now;
+
+        if (swipeAccumulator.current.isLocked) return;
+
+        swipeAccumulator.current.x += e.deltaX;
+        swipeAccumulator.current.y += e.deltaY;
+
+        const absX = Math.abs(swipeAccumulator.current.x);
+        const absY = Math.abs(swipeAccumulator.current.y);
+
+        // Only trigger if horizontal movement is clearly dominant over vertical scrolling
+        const SWIPE_THRESHOLD = 60;
+        if (absX >= SWIPE_THRESHOLD && absX > absY * 1.5) {
+            if (swipeAccumulator.current.x > 0) {
+                // Swipe Left -> next lease
+                if (selectedLeaseIndex < activeLeases.length - 1) {
+                    handleSelectLeaseIndex(selectedLeaseIndex + 1);
+                    swipeAccumulator.current.isLocked = true;
+                    setTimeout(() => {
+                        swipeAccumulator.current.isLocked = false;
+                        swipeAccumulator.current.x = 0;
+                        swipeAccumulator.current.y = 0;
+                    }, 400);
+                }
+            } else if (swipeAccumulator.current.x < 0) {
+                // Swipe Right -> previous lease
+                if (selectedLeaseIndex > 0) {
+                    handleSelectLeaseIndex(selectedLeaseIndex - 1);
+                    swipeAccumulator.current.isLocked = true;
+                    setTimeout(() => {
+                        swipeAccumulator.current.isLocked = false;
+                        swipeAccumulator.current.x = 0;
+                        swipeAccumulator.current.y = 0;
+                    }, 400);
+                }
+            }
+        }
+    };
+
+    const handleTouchStart = (e) => {
+        if (e.touches && e.touches.length > 0) {
+            touchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+                time: Date.now()
+            };
+        }
+    };
+
+    const handleTouchEnd = (e) => {
+        if (!e.changedTouches || e.changedTouches.length === 0 || activeLeases.length <= 1) return;
+        const diffX = touchStartRef.current.x - e.changedTouches[0].clientX;
+        const diffY = touchStartRef.current.y - e.changedTouches[0].clientY;
+        const absX = Math.abs(diffX);
+        const absY = Math.abs(diffY);
+
+        if (absX >= 50 && absX > absY * 1.5) {
+            if (diffX > 0) {
+                // Swiped Left -> next lease
+                if (selectedLeaseIndex < activeLeases.length - 1) {
+                    handleSelectLeaseIndex(selectedLeaseIndex + 1);
+                }
+            } else if (diffX < 0) {
+                // Swiped Right -> previous lease
+                if (selectedLeaseIndex > 0) {
+                    handleSelectLeaseIndex(selectedLeaseIndex - 1);
+                }
             }
         }
     };
@@ -708,8 +793,13 @@ export default function MyLeasePage() {
                         )}
                     </AnimatePresence>
 
-                    {/* ── Active Lease Hero Card with Smooth Cross-Fade Transition ── */}
-                    <div className="relative group w-full">
+                    {/* ── Active Lease Hero Card with Smooth Cross-Fade Transition & Two-Finger Swipe Gesture ── */}
+                    <div
+                        className="relative group w-full touch-pan-y"
+                        onWheel={handleWheelGesture}
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                    >
                         <AnimatePresence mode="wait">
                             <motion.div
                                 key={currentLease._id}
