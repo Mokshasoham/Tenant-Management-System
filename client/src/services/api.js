@@ -93,6 +93,14 @@ export const paymentService = {
   }
 };
 
+export const autoPayService = {
+  getStatus: (leaseId) => apiClient.get(`/autopay/status/${leaseId}`),
+  getMyAutoPays: () => apiClient.get('/autopay/my-autopays'),
+  createSetupIntent: (data) => apiClient.post('/autopay/setup-intent', data),
+  verifyAndEnable: (data) => apiClient.post('/autopay/verify-and-enable', data),
+  disable: (data) => apiClient.post('/autopay/disable', data),
+};
+
 export const billService = {
   getAllBills: (params) => apiClient.get('/bills', { params }),
   getMyBills: () => apiClient.get('/bills/my-bills'),

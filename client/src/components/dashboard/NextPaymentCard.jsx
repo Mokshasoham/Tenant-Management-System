@@ -10,6 +10,7 @@ export default function NextPaymentCard({
   isEstimate = false,
   isConfirmed = false,
   propertyName = '',
+  isAutoPayActive = false,
   onPayRent,
   theme = 'dark'
 }) {
@@ -162,13 +163,25 @@ export default function NextPaymentCard({
           </div>
         </div>
 
-        <span className={cn(
-          "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-md flex items-center gap-1",
-          statusConfig.badgeBg
-        )}>
-          <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
-          {statusConfig.badge}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={cn(
+            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-md flex items-center gap-1",
+            statusConfig.badgeBg
+          )}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+            {statusConfig.badge}
+          </span>
+          {isAutoPayActive ? (
+            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+              Auto-Pay Active
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-muted/40 border border-border text-muted-foreground/50">
+              Auto-Pay Off
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Centerpiece: Premium Animated Progress Ring with Interactive Hover Effect */}

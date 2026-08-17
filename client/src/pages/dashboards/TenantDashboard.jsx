@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService, billService } from '../../services/api';
+import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService, billService, autoPayService } from '../../services/api';
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
@@ -108,6 +108,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [unread, setUnread] = useState(0);
     const [expandedNotifs, setExpandedNotifs] = useState({});
     const [bookings, setBookings] = useState([]);
+    const [autoPays, setAutoPays] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -187,13 +188,14 @@ export default function TenantDashboard({ user, navigate }) {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const [leaseRes, payRes, maintRes, notifRes, unreadRes, bookingRes] = await Promise.allSettled([
+                const [leaseRes, payRes, maintRes, notifRes, unreadRes, bookingRes, autoPayRes] = await Promise.allSettled([
                     leaseService.getMyLease(),
                     billService.getMyBills(),
                     maintenanceService.getAllRequests({ limit: 5 }),
                     notificationService.getMyNotifications({ limit: 100 }),
                     notificationService.getUnreadCount(),
                     bookingService.getMyBookings(),
+                    autoPayService.getMyAutoPays(),
                 ]);
 
                 if (leaseRes.status === 'fulfilled') {
@@ -207,6 +209,7 @@ export default function TenantDashboard({ user, navigate }) {
                 if (notifRes.status === 'fulfilled') setNotifications(notifRes.value?.data?.data || notifRes.value?.data || []);
                 if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value?.data?.count || 0);
                 if (bookingRes.status === 'fulfilled') setBookings(bookingRes.value?.data || []);
+                if (autoPayRes.status === 'fulfilled') setAutoPays(autoPayRes.value?.data?.data || autoPayRes.value?.data || []);
             } catch (e) { setError('Failed to load dashboard'); }
             finally { setLoading(false); }
         };
@@ -244,19 +247,28 @@ export default function TenantDashboard({ user, navigate }) {
 
     const getActivePaymentsToShow = () => {
         if (!activeLeases || activeLeases.length === 0) return [];
+        const activeAutoPayMap = new Set(
+            (autoPays || [])
+                .filter(ap => ap.status === 'active')
+                .map(ap => ap.lease?._id ? ap.lease._id.toString() : (ap.lease ? ap.lease.toString() : ''))
+        );
+
         return activeLeases.map(activeLease => {
             const schedule = calculateNextPaymentDue(activeLease, payments);
             if (!schedule || !schedule.nextPaymentDueAt) return null;
             const dueTime = new Date(schedule.nextPaymentDueAt).getTime();
             const now = Date.now();
+            const leaseIdStr = activeLease._id ? activeLease._id.toString() : '';
             return {
                 id: schedule.paymentId || activeLease._id,
+                leaseId: activeLease._id,
                 dueDate: schedule.nextPaymentDueAt,
                 amount: schedule.amount ?? activeLease.rentAmount,
                 propertyName: activeLease.property?.name || 'TMS Rental',
                 isEstimate: schedule.isEstimate,
                 isConfirmed: !schedule.isEstimate,
                 isOverdue: schedule.status === 'overdue' || (dueTime < now && !schedule.isEstimate),
+                isAutoPayActive: activeAutoPayMap.has(leaseIdStr),
                 status: schedule.status
             };
         }).filter(Boolean);
@@ -747,6 +759,7 @@ export default function TenantDashboard({ user, navigate }) {
                                             amount={activePaymentsToShow[activePaymentIndex].amount}
                                             isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
                                             propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
+                                            isAutoPayActive={activePaymentsToShow[activePaymentIndex].isAutoPayActive}
                                             onPayRent={() => navigate('/pay-now')}
                                         />
                                     </motion.div>
@@ -762,7 +775,7 @@ export default function TenantDashboard({ user, navigate }) {
                                         whileTap={{ scale: 0.95 }}
                                         onClick={() => setActivePaymentIndex(idx)}
                                         className={cn(
-                                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 border cursor-pointer",
+                                             "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 border cursor-pointer",
                                             activePaymentIndex === idx
                                                 ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-extrabold shadow-sm"
                                                 : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
@@ -779,6 +792,7 @@ export default function TenantDashboard({ user, navigate }) {
                             amount={activePaymentsToShow[0].amount} 
                             isEstimate={activePaymentsToShow[0].isEstimate}
                             propertyName={activePaymentsToShow[0].propertyName}
+                            isAutoPayActive={activePaymentsToShow[0].isAutoPayActive}
                             onPayRent={() => navigate('/pay-now')}
                         />
                     ) : (

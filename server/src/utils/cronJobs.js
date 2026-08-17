@@ -603,4 +603,14 @@ export const startCronJobs = () => {
         }
     });
 
+    // Run every midnight to execute scheduled Auto-Pay rent payments
+    cron.schedule('0 0 * * *', async () => {
+        try {
+            const { processDueAutoPayments } = await import('../controllers/autoPayController.js');
+            await processDueAutoPayments();
+        } catch (error) {
+            logger.error(`[CRON ERROR] Auto-Pay execution daemon exception: ${error.message}`);
+        }
+    });
+
 };

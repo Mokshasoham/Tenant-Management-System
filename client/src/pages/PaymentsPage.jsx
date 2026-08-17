@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { paymentService } from '../services/api';
+import { paymentService, leaseService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import AutoPayCard from '../components/dashboard/AutoPayCard';
 import {
   CreditCard, TrendingUp, IndianRupee, Clock, CheckCircle2, AlertCircle,
   Search, Filter, ArrowUpDown, X, Wallet, Receipt, ChevronDown, Check,
@@ -213,6 +214,7 @@ export default function PaymentsPage() {
   const user = useAuthStore((state) => state.user);
   
   const [payments, setPayments] = useState([]);
+  const [activeLeases, setActiveLeases] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -231,8 +233,19 @@ export default function PaymentsPage() {
     setLoading(true);
     try {
       if (isTenant) {
-        const payRes = await paymentService.getMyPayments();
-        setPayments(payRes.data?.data || payRes.data || []);
+        const [payRes, leaseRes] = await Promise.allSettled([
+          paymentService.getMyPayments(),
+          leaseService.getMyLease(),
+        ]);
+        if (payRes.status === 'fulfilled') {
+          setPayments(payRes.value.data?.data || payRes.value.data || []);
+        }
+        if (leaseRes.status === 'fulfilled') {
+          const lData = leaseRes.value.data?.data || leaseRes.value.data;
+          const leases = lData?.leases || (Array.isArray(lData) ? lData : (lData ? [lData] : []));
+          const validLeases = leases.filter(l => ['active', 'pending', 'upcoming'].includes(l.status));
+          setActiveLeases(validLeases);
+        }
       } else {
         const payRes = await paymentService.getAllPayments({ limit: 50 });
         setPayments(payRes.data?.data || payRes.data || []);
@@ -306,6 +319,14 @@ export default function PaymentsPage() {
           </motion.button>
         )}
       </motion.div>
+
+      {/* Tenant Auto-Pay Section */}
+      {isTenant && activeLeases.length > 0 && (
+        <AutoPayCard
+          activeLeases={activeLeases}
+          onAutoPayUpdated={fetchPayments}
+        />
+      )}
 
       {/* Stats */}
       {isManagerOrAdmin && (

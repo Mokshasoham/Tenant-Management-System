@@ -6,7 +6,7 @@ import useAuthStore from '../context/authStore';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
     ChevronRight, Lock, RefreshCw, ArrowLeft, IndianRupee,
-    Shield, Eye, EyeOff, Info, Coins
+    Shield, Eye, EyeOff, Info, Coins, Zap
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -575,6 +575,27 @@ export default function PayNowPage() {
                                 </div>
                             )}
                         </motion.div>
+
+                        {/* Auto-Pay Info / Setup Link for Rent */}
+                        {!isBooking && (
+                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                                <div className="flex items-center gap-2.5">
+                                    <Zap className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-foreground">Want Hassle-Free Rent Payments?</p>
+                                        <p className="text-[10px] text-muted-foreground">Manage automatic monthly payments on the Payments page.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/payments')}
+                                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
+                                >
+                                    View Auto-Pay
+                                </button>
+                            </motion.div>
+                        )}
 
                         {/* Method Selector */}
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
