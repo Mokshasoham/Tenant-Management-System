@@ -265,6 +265,109 @@ export default function TenantDashboard({ user, navigate }) {
     const activePaymentsToShow = getActivePaymentsToShow();
     const nextEstimatedPayments = activePaymentsToShow.filter(p => p.isEstimate);
 
+    // Two-Finger Trackpad & Touch Swipe Handler Scoped Strictly to Next Payment Card
+    const nextPaymentSwipeLockRef = useRef(false);
+    const nextPaymentSwipeDeltaRef = useRef({ x: 0, y: 0, lastTime: 0 });
+    const nextPaymentTouchStartRef = useRef({ x: 0, y: 0, time: 0 });
+
+    const switchPaymentIndex = (direction) => {
+        if (nextPaymentSwipeLockRef.current) return;
+        if (!activePaymentsToShow || activePaymentsToShow.length <= 1) return;
+
+        if (direction === 'next') {
+            // Swipe Left -> Next Payment
+            if (activePaymentIndex < activePaymentsToShow.length - 1) {
+                nextPaymentSwipeLockRef.current = true;
+                nextPaymentSwipeDeltaRef.current = { x: 0, y: 0, lastTime: 0 };
+                setActivePaymentIndex((prev) => prev + 1);
+                setTimeout(() => {
+                    nextPaymentSwipeLockRef.current = false;
+                }, 450);
+            }
+        } else if (direction === 'prev') {
+            // Swipe Right -> Previous Payment
+            if (activePaymentIndex > 0) {
+                nextPaymentSwipeLockRef.current = true;
+                nextPaymentSwipeDeltaRef.current = { x: 0, y: 0, lastTime: 0 };
+                setActivePaymentIndex((prev) => prev - 1);
+                setTimeout(() => {
+                    nextPaymentSwipeLockRef.current = false;
+                }, 450);
+            }
+        }
+    };
+
+    const handleNextPaymentWheel = (e) => {
+        if (nextPaymentSwipeLockRef.current) return;
+        if (!activePaymentsToShow || activePaymentsToShow.length <= 1) return;
+
+        const absX = Math.abs(e.deltaX);
+        const absY = Math.abs(e.deltaY);
+
+        // Protect vertical scrolling: if vertical is dominant or horizontal is negligible, return
+        if (absY >= absX || absX < 3 || absX < absY * 1.3) {
+            return;
+        }
+
+        const now = Date.now();
+        // Reset if user paused for > 250ms
+        if (now - nextPaymentSwipeDeltaRef.current.lastTime > 250) {
+            nextPaymentSwipeDeltaRef.current.x = 0;
+            nextPaymentSwipeDeltaRef.current.y = 0;
+        }
+        nextPaymentSwipeDeltaRef.current.lastTime = now;
+        nextPaymentSwipeDeltaRef.current.x += e.deltaX;
+        nextPaymentSwipeDeltaRef.current.y += e.deltaY;
+
+        // FAST SWIPE (FLICK)
+        // Moving fingers Left -> deltaX >= 28 -> Next Payment
+        if (e.deltaX >= 28) {
+            switchPaymentIndex('next');
+            return;
+        }
+        // Moving fingers Right -> deltaX <= -28 -> Prev Payment
+        if (e.deltaX <= -28) {
+            switchPaymentIndex('prev');
+            return;
+        }
+
+        // SLOW SWIPE (ACCUMULATED THRESHOLD)
+        const SWIPE_THRESHOLD = 45;
+        if (nextPaymentSwipeDeltaRef.current.x >= SWIPE_THRESHOLD) {
+            switchPaymentIndex('next');
+        } else if (-nextPaymentSwipeDeltaRef.current.x >= SWIPE_THRESHOLD) {
+            switchPaymentIndex('prev');
+        }
+    };
+
+    const handleNextPaymentTouchStart = (e) => {
+        if (e.touches && e.touches.length > 0) {
+            nextPaymentTouchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+                time: Date.now()
+            };
+        }
+    };
+
+    const handleNextPaymentTouchEnd = (e) => {
+        if (nextPaymentSwipeLockRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
+        if (!activePaymentsToShow || activePaymentsToShow.length <= 1) return;
+
+        const diffX = nextPaymentTouchStartRef.current.x - e.changedTouches[0].clientX; // positive = swipe left
+        const diffY = nextPaymentTouchStartRef.current.y - e.changedTouches[0].clientY;
+        const absX = Math.abs(diffX);
+        const absY = Math.abs(diffY);
+
+        if (absY >= absX || absX < 35 || absX < absY * 1.3) return;
+
+        if (diffX > 0) {
+            switchPaymentIndex('next');
+        } else if (diffX < 0) {
+            switchPaymentIndex('prev');
+        }
+    };
+
     const trulyActiveLeases = activeLeases.filter(l => new Date(l.endDate) > new Date());
     const completedLeases = [
         ...pastLeases,
@@ -622,7 +725,12 @@ export default function TenantDashboard({ user, navigate }) {
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                     className="flex flex-col h-full">
                     {activePaymentsToShow.length > 1 ? (
-                        <div className="flex flex-col items-center w-full h-full">
+                        <div
+                            className="flex flex-col items-center w-full h-full touch-pan-y"
+                            onWheel={handleNextPaymentWheel}
+                            onTouchStart={handleNextPaymentTouchStart}
+                            onTouchEnd={handleNextPaymentTouchEnd}
+                        >
                             {/* Staggered Animating Switcher */}
                             <div className="w-full relative flex-1 min-h-[320px] flex items-center justify-center">
                                 <AnimatePresence mode="wait">
