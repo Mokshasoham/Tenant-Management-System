@@ -111,13 +111,103 @@ const ALL_NAV_ITEMS = [
 ];
 
 
-export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestureActive = false }) {
+export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { theme: colorTheme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const [showLangPicker, setShowLangPicker] = React.useState(false);
+
+  // Local Two-Finger Trackpad & Touch Swipe Gesture Handlers (Scoped Strictly to Sidebar Element)
+  const swipeLockRef = React.useRef(false);
+  const swipeDeltaRef = React.useRef({ x: 0, y: 0, lastTime: 0 });
+  const touchStartRef = React.useRef({ x: 0, y: 0, time: 0 });
+
+  const triggerSidebarToggle = (newState) => {
+    swipeLockRef.current = true;
+    swipeDeltaRef.current = { x: 0, y: 0, lastTime: 0 };
+    setIsOpen(newState);
+    setTimeout(() => {
+      swipeLockRef.current = false;
+    }, 450);
+  };
+
+  const handleSidebarWheel = (e) => {
+    if (swipeLockRef.current) return;
+
+    const absX = Math.abs(e.deltaX);
+    const absY = Math.abs(e.deltaY);
+
+    // If vertical movement is dominant or horizontal is negligible, allow normal vertical scrolling inside sidebar
+    if (absY >= absX || absX < 3 || absX < absY * 1.3) {
+      return;
+    }
+
+    const now = Date.now();
+    // Reset accumulation if user paused for > 250ms
+    if (now - swipeDeltaRef.current.lastTime > 250) {
+      swipeDeltaRef.current.x = 0;
+      swipeDeltaRef.current.y = 0;
+    }
+    swipeDeltaRef.current.lastTime = now;
+    swipeDeltaRef.current.x += e.deltaX;
+    swipeDeltaRef.current.y += e.deltaY;
+
+    // FAST SWIPE (FLICK)
+    if (isOpen && e.deltaX >= 28) {
+      triggerSidebarToggle(false);
+      return;
+    }
+    if (!isOpen && e.deltaX <= -28) {
+      triggerSidebarToggle(true);
+      return;
+    }
+
+    // BOUNDARIES
+    if (isOpen && swipeDeltaRef.current.x < 0) {
+      return; // Already open, swipe right does nothing
+    }
+    if (!isOpen && swipeDeltaRef.current.x > 0) {
+      return; // Already closed, swipe left does nothing
+    }
+
+    // SLOW SWIPE (ACCUMULATED THRESHOLD)
+    const SWIPE_THRESHOLD = 50;
+    if (isOpen && swipeDeltaRef.current.x >= SWIPE_THRESHOLD) {
+      triggerSidebarToggle(false);
+    } else if (!isOpen && -swipeDeltaRef.current.x >= SWIPE_THRESHOLD) {
+      triggerSidebarToggle(true);
+    }
+  };
+
+  const handleSidebarTouchStart = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now()
+      };
+    }
+  };
+
+  const handleSidebarTouchEnd = (e) => {
+    if (swipeLockRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
+    const diffX = touchStartRef.current.x - e.changedTouches[0].clientX; // positive = swipe left
+    const diffY = touchStartRef.current.y - e.changedTouches[0].clientY;
+    const absX = Math.abs(diffX);
+    const absY = Math.abs(diffY);
+
+    if (absY >= absX || absX < 40 || absX < absY * 1.3) return;
+
+    if (isOpen && diffX > 0) {
+      // Swiped Left -> Close
+      triggerSidebarToggle(false);
+    } else if (!isOpen && diffX < 0) {
+      // Swiped Right -> Open
+      triggerSidebarToggle(true);
+    }
+  };
 
   const handleLinkClick = () => {
     if (window.innerWidth < 1024) {
@@ -140,10 +230,10 @@ export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestur
     <>
       {/* Mobile Backdrop */}
       <AnimatePresence>
-        {(isOpen || isGestureActive) && (
+        {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: isGestureActive ? Math.max(0, Math.min(1, 1 - Math.abs(gestureOffset) / 288)) : 1 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setIsOpen(false)}
@@ -153,6 +243,9 @@ export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestur
 
       {/* Sidebar Panel */}
       <div
+        onWheel={handleSidebarWheel}
+        onTouchStart={handleSidebarTouchStart}
+        onTouchEnd={handleSidebarTouchEnd}
         className={cn(
           // Position & Floating Geometry
           'fixed z-50 lg:relative lg:z-auto',
@@ -167,12 +260,10 @@ export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestur
           // Layout
           'flex flex-col overflow-hidden',
           // Mobile/Desktop hide/show and width transition
-          !isGestureActive && 'transition-all duration-300 ease-in-out',
-          isGestureActive
-            ? 'w-72'
-            : isOpen 
-              ? 'translate-x-0 w-72' 
-              : '-translate-x-[calc(100%+24px)] lg:translate-x-0 w-0 lg:w-20',
+          'transition-all duration-300 ease-in-out',
+          isOpen 
+            ? 'translate-x-0 w-72' 
+            : '-translate-x-[calc(100%+24px)] lg:translate-x-0 w-0 lg:w-20',
           // Theme
           'transition-colors duration-300'
         )}
@@ -180,11 +271,6 @@ export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestur
           backgroundColor: 'var(--bg-sidebar)',
           borderColor: 'var(--glass-border)',
           borderRadius: '24px',
-          ...(isGestureActive ? {
-            transform: `translateX(${gestureOffset}px)`,
-            transition: 'none',
-            willChange: 'transform',
-          } : {}),
         }}
       >
         {/* Decorative orbs — absolute, do NOT affect flex flow */}
