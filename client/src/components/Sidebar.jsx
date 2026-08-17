@@ -111,7 +111,7 @@ const ALL_NAV_ITEMS = [
 ];
 
 
-export default function Sidebar({ isOpen, setIsOpen }) {
+export default function Sidebar({ isOpen, setIsOpen, gestureOffset = 0, isGestureActive = false }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
@@ -140,10 +140,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     <>
       {/* Mobile Backdrop */}
       <AnimatePresence>
-        {isOpen && (
+        {(isOpen || isGestureActive) && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: isGestureActive ? Math.max(0, Math.min(1, 1 - Math.abs(gestureOffset) / 288)) : 1 }}
             exit={{ opacity: 0 }}
             className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setIsOpen(false)}
@@ -167,10 +167,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           // Layout
           'flex flex-col overflow-hidden',
           // Mobile/Desktop hide/show and width transition
-          'transition-all duration-300 ease-in-out',
-          isOpen 
-            ? 'translate-x-0 w-72' 
-            : '-translate-x-[calc(100%+24px)] lg:translate-x-0 w-0 lg:w-20',
+          !isGestureActive && 'transition-all duration-300 ease-in-out',
+          isGestureActive
+            ? 'w-72'
+            : isOpen 
+              ? 'translate-x-0 w-72' 
+              : '-translate-x-[calc(100%+24px)] lg:translate-x-0 w-0 lg:w-20',
           // Theme
           'transition-colors duration-300'
         )}
@@ -178,6 +180,11 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           backgroundColor: 'var(--bg-sidebar)',
           borderColor: 'var(--glass-border)',
           borderRadius: '24px',
+          ...(isGestureActive ? {
+            transform: `translateX(${gestureOffset}px)`,
+            transition: 'none',
+            willChange: 'transform',
+          } : {}),
         }}
       >
         {/* Decorative orbs — absolute, do NOT affect flex flow */}

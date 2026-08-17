@@ -796,6 +796,7 @@ export default function MyLeasePage() {
                     {/* ── Active Lease Hero Card with Smooth Cross-Fade Transition & Two-Finger Swipe Gesture ── */}
                     <div
                         className="relative group w-full touch-pan-y"
+                        data-no-sidebar-swipe="true"
                         onWheel={handleWheelGesture}
                         onTouchStart={handleTouchStart}
                         onTouchEnd={handleTouchEnd}

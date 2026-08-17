@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import useAuthStore from '../context/authStore';
+import { useSidebarGesture } from '../hooks/useSidebarGesture';
 import { cn } from '../utils/cn';
 
 const ROLE_BG = {
@@ -34,6 +35,8 @@ export default function DashboardLayout({ children }) {
     localStorage.setItem('sidebarOpen', sidebarOpen);
   }, [sidebarOpen]);
 
+  const { gestureOffset, isGestureActive } = useSidebarGesture(sidebarOpen, setSidebarOpen);
+
   const user = useAuthStore((state) => state.user);
   const role = user?.role || 'tenant';
   const roleBg = ROLE_BG[role] || ROLE_BG.tenant;
@@ -57,7 +60,12 @@ export default function DashboardLayout({ children }) {
       <div className={cn('fixed w-[400px] h-[400px] -bottom-32 -left-32 rounded-full blur-[100px] pointer-events-none opacity-50 dark:opacity-100', roleBg.orb2)} />
 
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
+        gestureOffset={gestureOffset}
+        isGestureActive={isGestureActive}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
