@@ -6,12 +6,12 @@ import {
   verifyAndEnableAutoPay,
   disableAutoPay,
 } from '../controllers/autoPayController.js';
-import { protect } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // All AutoPay endpoints are strictly protected by authenticated JWT
-router.use(protect);
+router.use(authenticate);
 
 router.get('/status/:leaseId', getAutoPayStatus);
 router.get('/my-autopays', getMyAutoPays);

@@ -142,11 +142,9 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
     setLoadError('');
     try {
       const res = await autoPayService.getStatus(targetId);
-      // apiClient returns response.data
-      const statusObj = res?.data || res;
-      if (res?.success || statusObj?.status !== undefined) {
-        setStatusData(statusObj);
-      }
+      const payload = res?.data || res || {};
+      setStatusData(payload);
+      setLoadError('');
     } catch (err) {
       console.warn('[AutoPayCard] Failed to fetch Auto-Pay status:', err);
       setLoadError('Unable to load Auto-Pay status.');
@@ -193,7 +191,11 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
       const intentData = intentRes?.data || intentRes;
       if (!intentData || (!intentRes?.success && !intentData?.orderId)) {
         const serverMsg = intentRes?.message || intentData?.message;
-        if (serverMsg?.includes('recurring payment configuration')) {
+        if (
+          serverMsg?.includes('recurring payment configuration') ||
+          intentRes?.code === 'RAZORPAY_RECURRING_NOT_CONFIGURED' ||
+          intentData?.code === 'RAZORPAY_RECURRING_NOT_CONFIGURED'
+        ) {
           throw new Error('Auto-Pay requires Razorpay recurring payment configuration.');
         }
         throw new Error(serverMsg || 'Unable to start Auto-Pay authorization. Please try again.');
@@ -275,8 +277,10 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
       console.error('[AutoPayCard] Setup error:', err);
       if (
         err?.response?.status === 503 ||
+        err?.code === 'RAZORPAY_RECURRING_NOT_CONFIGURED' ||
         err?.message?.includes('recurring payment configuration') ||
-        err?.response?.data?.message?.includes('recurring payment configuration')
+        err?.response?.data?.message?.includes('recurring payment configuration') ||
+        err?.response?.data?.code === 'RAZORPAY_RECURRING_NOT_CONFIGURED'
       ) {
         setErrorMsg('Auto-Pay requires Razorpay recurring payment configuration.');
       } else {

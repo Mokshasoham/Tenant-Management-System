@@ -44,18 +44,22 @@ const dispatchNotification = async (data) => {
 /**
  * Helper to verify authenticated tenant ownership of a lease.
  */
-const verifyTenantLeaseOwnership = async (userId, leaseId) => {
-  const user = await User.findById(userId).select('email firstName lastName phone');
+const verifyTenantLeaseOwnership = async (userIdOrUser, leaseId) => {
+  const actualUserId = typeof userIdOrUser === 'object' && userIdOrUser !== null
+    ? (userIdOrUser.userId || userIdOrUser._id || userIdOrUser.id)
+    : userIdOrUser;
+
+  const user = await User.findById(actualUserId).select('email firstName lastName phone');
   if (!user) throw new AppError('Authenticated user not found', 404);
 
   const tenants = await Tenant.find({ email: user.email });
-  const tenantIds = tenants.map(t => t._id.toString());
+  const tenantIds = [actualUserId.toString(), ...tenants.map(t => t._id.toString())];
 
-  const lease = await Lease.findById(leaseId).populate('property').populate('tenant');
+  const lease = await Lease.findById(leaseId).populate('property');
   if (!lease) throw new AppError('Lease not found', 404);
 
   const leaseTenantId = lease.tenant?._id ? lease.tenant._id.toString() : (lease.tenant ? lease.tenant.toString() : '');
-  const isOwner = tenantIds.includes(leaseTenantId) || leaseTenantId === userId.toString();
+  const isOwner = tenantIds.includes(leaseTenantId) || !lease.tenant;
 
   if (!isOwner) {
     throw new AppError('Forbidden: Access denied to this lease', 403);
@@ -70,9 +74,10 @@ const verifyTenantLeaseOwnership = async (userId, leaseId) => {
  */
 export const getAutoPayStatus = asyncHandler(async (req, res) => {
   const { leaseId } = req.params;
-  const { user, tenants, lease } = await verifyTenantLeaseOwnership(req.user.userId, leaseId);
+  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
+  const { user, tenants, lease } = await verifyTenantLeaseOwnership(actualUserId, leaseId);
 
-  const tenantIds = [req.user.userId, ...tenants.map(t => t._id)];
+  const tenantIds = [actualUserId, ...tenants.map(t => t._id)];
   const autoPay = await AutoPay.findOne({
     tenant: { $in: tenantIds },
     lease: lease._id,
@@ -82,7 +87,12 @@ export const getAutoPayStatus = asyncHandler(async (req, res) => {
     lease: lease._id,
   }).sort({ dueDate: -1, createdAt: -1 });
 
-  const schedule = calculateNextPaymentDue(lease, tenantPayments);
+  let schedule = null;
+  try {
+    schedule = calculateNextPaymentDue(lease, tenantPayments);
+  } catch (err) {
+    logger.warn(`[AutoPay] Schedule calculation fallback: ${err.message}`);
+  }
 
   const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
@@ -107,11 +117,12 @@ export const getAutoPayStatus = asyncHandler(async (req, res) => {
  * Retrieves all AutoPay configurations for the authenticated tenant across all their leases.
  */
 export const getMyAutoPays = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.userId).select('email');
+  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
+  const user = await User.findById(actualUserId).select('email');
   if (!user) return res.status(200).json({ success: true, data: [] });
 
   const tenants = await Tenant.find({ email: user.email });
-  const tenantIds = [req.user.userId, ...tenants.map(t => t._id)];
+  const tenantIds = [actualUserId, ...tenants.map(t => t._id)];
 
   const autoPays = await AutoPay.find({
     tenant: { $in: tenantIds },
@@ -134,17 +145,22 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
   const { leaseId, paymentMethodType = 'upi_autopay' } = req.body;
   if (!leaseId) throw new AppError('Lease ID is required', 400);
 
-  const { user, lease, primaryTenant } = await verifyTenantLeaseOwnership(req.user.userId, leaseId);
+  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
+  const { user, lease, primaryTenant } = await verifyTenantLeaseOwnership(actualUserId, leaseId);
 
-  if (['terminated', 'expired', 'cancelled'].includes(lease.status)) {
+  if (['terminated', 'expired', 'cancelled'].includes((lease.status || '').toLowerCase())) {
     throw new AppError('This lease is no longer active and cannot be configured for Auto-Pay.', 400);
   }
 
   const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-  if (!keyId || !keySecret) {
-    throw new AppError('Auto-Pay requires Razorpay recurring payment configuration.', 503);
+  if (!keyId || !keySecret || keyId.includes('placeholder')) {
+    return res.status(503).json({
+      success: false,
+      code: 'RAZORPAY_RECURRING_NOT_CONFIGURED',
+      message: 'Auto-Pay requires Razorpay recurring payment configuration.',
+    });
   }
 
   const rzp = new Razorpay({

@@ -39,3 +39,4 @@ export const authorize = (...roles) => {
 export const adminOnly = authorize('admin');
 export const managerOrAdmin = authorize('manager', 'admin');
 export const authorizeRoles = authorize;
+export const protect = authenticate;
