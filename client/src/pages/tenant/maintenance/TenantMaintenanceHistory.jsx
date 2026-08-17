@@ -59,6 +59,7 @@ export default function TenantMaintenanceHistory({ requests = [], onSelectTicket
                   </div>
 
                   <p className="text-xs text-muted-foreground pl-6">
+                    {r.property?.name ? <span>🏠 <strong className="text-foreground">{r.property.name}</strong> · </span> : null}
                     Category: <span className="capitalize font-bold text-foreground">{r.category || 'General'}</span> · Resolved on {dt}
                   </p>
 

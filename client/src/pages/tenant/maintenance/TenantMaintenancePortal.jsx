@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { maintenanceService } from '../../../services/api';
+import { maintenanceService, leaseService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
 import TenantMaintenanceHeader from './TenantMaintenanceHeader';
@@ -13,26 +13,38 @@ import TenantMaintenanceRequests from './TenantMaintenanceRequests';
 import TenantMaintenanceHistory from './TenantMaintenanceHistory';
 import TenantMaintenanceRequestForm from './TenantMaintenanceRequestForm';
 import TenantMaintenanceDetails from './TenantMaintenanceDetails';
+import TenantLeaseSelectModal from './TenantLeaseSelectModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [leases, setLeases] = useState([]);
 
+  const [showLeaseSelectModal, setShowLeaseSelectModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [selectedLease, setSelectedLease] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const fetchTenantData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch authenticated tenant requests (data isolation enforced by controller)
-      const res = await maintenanceService.getAllRequests({ limit: 100 });
-      const list = res.data?.data || res.data || (Array.isArray(res) ? res : []);
+      // Fetch authenticated tenant requests and leases concurrently
+      const [maintRes, leaseRes] = await Promise.all([
+        maintenanceService.getAllRequests({ limit: 100 }),
+        leaseService.getMyLease().catch(() => null)
+      ]);
+
+      const list = maintRes?.data?.data || maintRes?.data || (Array.isArray(maintRes) ? maintRes : []);
       setRequests(list);
+
+      const allActive = leaseRes?.activeLeases || (leaseRes?.data ? [leaseRes.data] : []);
+      const eligible = Array.isArray(allActive) ? allActive.filter(l => ['active', 'pending'].includes(l.status)) : [];
+      setLeases(eligible);
     } catch (err) {
-      console.error('Error fetching tenant maintenance requests:', err);
+      console.error('Error fetching tenant maintenance data:', err);
       setError('Unable to load your maintenance records. Please check your connection.');
     } finally {
       setLoading(false);
@@ -43,6 +55,26 @@ export default function TenantMaintenancePortal() {
     fetchTenantData();
   }, [fetchTenantData]);
 
+  const handleOpenSubmit = () => {
+    if (leases.length > 1) {
+      setShowLeaseSelectModal(true);
+    } else {
+      setSelectedLease(leases[0] || null);
+      setShowSubmitModal(true);
+    }
+  };
+
+  const handleSelectLease = (lease) => {
+    setSelectedLease(lease);
+    setShowLeaseSelectModal(false);
+    setShowSubmitModal(true);
+  };
+
+  const handleChangeLeaseFromForm = () => {
+    setShowSubmitModal(false);
+    setShowLeaseSelectModal(true);
+  };
+
   return (
     <div className={cn(
       "min-h-screen p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto font-sans transition-colors duration-300",
@@ -50,7 +82,7 @@ export default function TenantMaintenancePortal() {
     )}>
       {/* Header with Submit Request button */}
       <TenantMaintenanceHeader
-        onSubmitClick={() => setShowSubmitModal(true)}
+        onSubmitClick={handleOpenSubmit}
         theme={theme}
       />
 
@@ -106,13 +138,32 @@ export default function TenantMaintenancePortal() {
         theme={theme}
       />
 
+      {/* Lease Selection Step Modal (When multiple leases exist) */}
+      <AnimatePresence>
+        {showLeaseSelectModal && (
+          <TenantLeaseSelectModal
+            leases={leases}
+            onSelectLease={handleSelectLease}
+            onClose={() => setShowLeaseSelectModal(false)}
+            theme={theme}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Submit Request Modal */}
       <AnimatePresence>
         {showSubmitModal && (
           <TenantMaintenanceRequestForm
-            onClose={() => setShowSubmitModal(false)}
+            selectedLease={selectedLease}
+            canChangeLease={leases.length > 1}
+            onChangeLease={handleChangeLeaseFromForm}
+            onClose={() => {
+              setShowSubmitModal(false);
+              setSelectedLease(null);
+            }}
             onSave={() => {
               setShowSubmitModal(false);
+              setSelectedLease(null);
               fetchTenantData();
             }}
             theme={theme}
@@ -133,3 +184,4 @@ export default function TenantMaintenancePortal() {
     </div>
   );
 }
+

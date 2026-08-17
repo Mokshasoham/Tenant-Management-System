@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Wrench, AlertTriangle, Calendar as CalendarIcon, Clock, UploadCloud, Check } from 'lucide-react';
+import { X, Wrench, AlertTriangle, Calendar as CalendarIcon, Clock, UploadCloud, Check, Building2, MapPin } from 'lucide-react';
 import { propertyService, maintenanceService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
@@ -21,14 +21,14 @@ const TIME_SLOTS = [
   { id: 'evening', label: 'Evening (4 PM - 8 PM)', icon: '🌙' },
 ];
 
-export default function TenantMaintenanceRequestForm({ onClose, onSave, theme }) {
+export default function TenantMaintenanceRequestForm({ selectedLease, canChangeLease, onChangeLease, onClose, onSave, theme }) {
   const [form, setForm] = useState({
     title: '',
     category: 'plumbing',
     priority: 'medium',
     description: '',
-    property: '',
-    unit: '',
+    property: selectedLease?.property?._id || selectedLease?.property || '',
+    unit: selectedLease?.property?.unit || '',
     requestedVisitDate: '',
     requestedTimeSlot: 'morning',
   });
@@ -38,8 +38,16 @@ export default function TenantMaintenanceRequestForm({ onClose, onSave, theme })
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchProperties();
-  }, []);
+    if (!selectedLease) {
+      fetchProperties();
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        property: selectedLease.property?._id || selectedLease.property || '',
+        unit: selectedLease.property?.unit || prev.unit || '',
+      }));
+    }
+  }, [selectedLease]);
 
   const fetchProperties = async () => {
     try {
@@ -70,8 +78,9 @@ export default function TenantMaintenanceRequestForm({ onClose, onSave, theme })
         category: form.category,
         priority: form.priority,
         description: form.description,
-        property: form.property || undefined,
-        unit: form.unit || undefined,
+        lease: selectedLease?._id || undefined,
+        property: selectedLease?.property?._id || selectedLease?.property || form.property || undefined,
+        unit: selectedLease?.property?.unit || form.unit || undefined,
         requestedVisitDate: form.requestedVisitDate || undefined,
         requestedTimeSlot: form.requestedTimeSlot || 'morning',
       });
@@ -118,6 +127,41 @@ export default function TenantMaintenanceRequestForm({ onClose, onSave, theme })
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Selected Lease / Property Indicator */}
+        {selectedLease && (
+          <div className={cn(
+            "p-3.5 rounded-2xl border flex items-center justify-between gap-3 shadow-sm",
+            theme === 'light' ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-500/10 border-amber-500/20"
+          )}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 block">
+                  Property / Lease
+                </span>
+                <p className="text-xs font-black text-foreground truncate">
+                  {selectedLease.property?.name || 'Selected Property'}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {selectedLease.property?.address ? `${selectedLease.property.address} • ` : ''}Lease #{selectedLease.leaseNumber || String(selectedLease._id).slice(-8)}
+                </p>
+              </div>
+            </div>
+
+            {canChangeLease && (
+              <button
+                type="button"
+                onClick={onChangeLease}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 font-black text-[10px] uppercase tracking-wider shrink-0 transition-colors cursor-pointer border border-amber-500/30"
+              >
+                Change
+              </button>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2">

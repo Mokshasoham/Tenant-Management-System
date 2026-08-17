@@ -70,8 +70,13 @@ export default function TenantMaintenanceRequests({ requests = [], onSelectTicke
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <h4 className="text-sm font-black tracking-tight">{req.title}</h4>
-                      <p className="text-[10px] text-muted-foreground font-mono font-bold mt-0.5">
-                        ID: {req.ticketNumber || req._id} · {dt}
+                      <p className="text-[10px] text-muted-foreground font-mono font-bold mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>ID: {req.ticketNumber || req._id} · {dt}</span>
+                        {req.property?.name && (
+                          <span className="text-amber-400 font-sans font-bold">
+                            • 🏠 {req.property.name}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">

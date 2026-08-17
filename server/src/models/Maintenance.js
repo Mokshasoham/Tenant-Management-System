@@ -79,6 +79,10 @@ const maintenanceSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Property',
         },
+        lease: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Lease',
+        },
         unit: {
             type: String,
             trim: true,

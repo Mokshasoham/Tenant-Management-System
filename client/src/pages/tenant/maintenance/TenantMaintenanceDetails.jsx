@@ -33,8 +33,13 @@ export default function TenantMaintenanceDetails({ ticket, onClose, theme }) {
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight">{ticket.title}</h3>
-              <p className="text-[10px] text-muted-foreground font-mono font-bold">
-                Ticket ID: {ticket.ticketNumber || ticket._id}
+              <p className="text-[10px] text-muted-foreground font-mono font-bold flex items-center gap-1.5 flex-wrap">
+                <span>Ticket ID: {ticket.ticketNumber || ticket._id}</span>
+                {ticket.property?.name && (
+                  <span className="text-amber-400 font-sans font-bold">
+                    • 🏠 {ticket.property.name}
+                  </span>
+                )}
               </p>
             </div>
           </div>

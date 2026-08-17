@@ -10,6 +10,8 @@ import storageProvider from '../platform/storage/storageProvider.js';
 import eventBus from '../platform/events/eventBus.js';
 import reminderQueue from '../modules/reminders/queue/reminderQueue.js';
 import NotificationService from './NotificationService.js';
+import Tenant from '../models/Tenant.js';
+import Lease from '../models/Lease.js';
 import User from '../models/User.js';
 import logger from '../platform/logging/logger.js';
 import { AppError } from '../utils/errorHandling.js';
@@ -51,6 +53,45 @@ export class MaintenanceService {
     }
 
     const userId = userContext.userId || userContext._id || userContext.id;
+    const userRole = userContext.role;
+
+    // Strict Tenant Ownership & Lease Association Guard
+    if (userRole === 'tenant') {
+      const user = await User.findById(userId);
+      const tenantRecords = await Tenant.find({ email: user?.email || userContext.email });
+      const tenantIds = tenantRecords.map(t => t._id.toString());
+
+      const targetLeaseId = data.lease || data.leaseId;
+      if (targetLeaseId) {
+        const lease = await Lease.findById(targetLeaseId);
+        if (!lease) {
+          throw new AppError('Selected lease not found', 404);
+        }
+        if (!tenantIds.includes(lease.tenant.toString())) {
+          throw new AppError('You are not authorized to submit maintenance requests for this lease', 403);
+        }
+        data.lease = lease._id;
+        data.property = lease.property;
+        data.tenant = lease.tenant;
+      } else {
+        const activeLeases = await Lease.find({
+          tenant: { $in: tenantIds },
+          status: { $in: ['active', 'pending'] }
+        }).sort({ createdAt: -1 });
+
+        if (activeLeases.length === 1) {
+          data.lease = activeLeases[0]._id;
+          if (!data.property) data.property = activeLeases[0].property;
+          if (!data.tenant) data.tenant = activeLeases[0].tenant;
+        } else if (data.property) {
+          const matchingLease = activeLeases.find(l => l.property.toString() === data.property.toString());
+          if (matchingLease) {
+            data.lease = matchingLease._id;
+            data.tenant = matchingLease.tenant;
+          }
+        }
+      }
+    }
 
     // 1. Create Maintenance Document via Repository
     const requestData = {

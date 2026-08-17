@@ -26,6 +26,7 @@ export class MaintenanceRepository {
       .populate('requestedBy', 'firstName lastName email role phone')
       .populate('assignedTo', 'firstName lastName email role phone rating experience')
       .populate('property', 'name address')
+      .populate('lease', 'leaseNumber startDate endDate status')
       .populate('notes.addedBy', 'firstName lastName role')
       .populate('internalNotes.addedBy', 'firstName lastName role')
       .populate('statusHistory.changedBy', 'firstName lastName role')
@@ -37,6 +38,7 @@ export class MaintenanceRepository {
       .populate('requestedBy', 'firstName lastName email role phone')
       .populate('assignedTo', 'firstName lastName email role phone rating experience')
       .populate('property', 'name address')
+      .populate('lease', 'leaseNumber startDate endDate status')
       .populate('notes.addedBy', 'firstName lastName role')
       .populate('internalNotes.addedBy', 'firstName lastName role')
       .populate('statusHistory.changedBy', 'firstName lastName role')
@@ -218,7 +220,8 @@ export class MaintenanceRepository {
       .limit(limit)
       .populate('requestedBy', 'firstName lastName email role')
       .populate('assignedTo', 'firstName lastName role rating experience phone')
-      .populate('property', 'name address');
+      .populate('property', 'name address')
+      .populate('lease', 'leaseNumber startDate endDate status');
   }
 
   async countWithFilters(filter = {}) {
