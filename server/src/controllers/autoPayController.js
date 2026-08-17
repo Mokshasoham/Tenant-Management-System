@@ -136,6 +136,10 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
 
   const { user, lease, primaryTenant } = await verifyTenantLeaseOwnership(req.user.userId, leaseId);
 
+  if (['terminated', 'expired', 'cancelled'].includes(lease.status)) {
+    throw new AppError('This lease is no longer active and cannot be configured for Auto-Pay.', 400);
+  }
+
   const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
@@ -148,8 +152,30 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
     key_secret: keySecret,
   });
 
-  // Calculate standard token authorization amount (₹1 / ₹5 mandate registration fee or 100 paise)
-  const authAmountInPaise = 100; // ₹1 token registration
+  // Calculate standard token authorization amount (₹1 token registration)
+  const authAmountInPaise = 100;
+
+  // Retrieve or create Razorpay customer
+  let customerId = '';
+  try {
+    const customers = await rzp.customers.all({ count: 10 });
+    const existing = customers?.items?.find(c => c.email === user.email);
+    if (existing) {
+      customerId = existing.id;
+    } else {
+      const createdCust = await rzp.customers.create({
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Tenant',
+        email: user.email,
+        contact: user.phone || '9999999999',
+        notes: {
+          tenantUserId: req.user.userId.toString(),
+        },
+      });
+      customerId = createdCust?.id || '';
+    }
+  } catch (custErr) {
+    logger.warn(`[AutoPay] Customer retrieval/creation skipped: ${custErr.message}`);
+  }
 
   let rzpOrder;
   try {
@@ -157,12 +183,14 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
       amount: authAmountInPaise,
       currency: 'INR',
       receipt: `mandate_${lease._id.toString().slice(-8)}_${Date.now().toString().slice(-6)}`,
+      ...(customerId ? { customer_id: customerId } : {}),
       notes: {
         purpose: 'AUTOPAY_MANDATE_REGISTRATION',
         leaseId: lease._id.toString(),
         tenantUserId: req.user.userId.toString(),
         monthlyRent: String(lease.rentAmount || 0),
         methodType: paymentMethodType,
+        customerId,
       },
     });
   } catch (rzpErr) {

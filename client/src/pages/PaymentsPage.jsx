@@ -241,8 +241,8 @@ export default function PaymentsPage() {
           setPayments(payRes.value.data?.data || payRes.value.data || []);
         }
         if (leaseRes.status === 'fulfilled') {
-          const lData = leaseRes.value.data?.data || leaseRes.value.data;
-          const leases = lData?.leases || (Array.isArray(lData) ? lData : (lData ? [lData] : []));
+          const resVal = leaseRes.value?.data || {};
+          const leases = resVal.activeLeases || (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
           const validLeases = leases.filter(l => ['active', 'pending', 'upcoming'].includes(l.status));
           setActiveLeases(validLeases);
         }

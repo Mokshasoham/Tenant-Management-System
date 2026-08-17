@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { autoPayService, leaseService } from '../../services/api';
+import { autoPayService } from '../../services/api';
 import {
   Zap,
   CheckCircle2,
@@ -26,8 +26,15 @@ function loadRazorpayScript() {
       resolve(true);
       return;
     }
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.onload = () => resolve(true);
+      existing.onerror = () => resolve(false);
+      return;
+    }
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
@@ -53,14 +60,14 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
 
   // Fetch Auto-Pay status for the selected lease
   const fetchStatus = async () => {
-    if (!selectedLeaseId) {
+    const targetId = selectedLeaseId || activeLeases[0]?._id;
+    if (!targetId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    setErrorMsg('');
     try {
-      const res = await autoPayService.getStatus(selectedLeaseId);
+      const res = await autoPayService.getStatus(targetId);
       if (res?.data?.success) {
         setStatusData(res.data.data);
       }
@@ -72,10 +79,18 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
   };
 
   useEffect(() => {
-    fetchStatus();
+    if (selectedLeaseId) {
+      fetchStatus();
+    }
   }, [selectedLeaseId]);
 
   const selectedLease = activeLeases.find((l) => l._id === selectedLeaseId) || activeLeases[0];
+
+  const handleOpenEnableModal = () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setModalOpen(true);
+  };
 
   // Enable Auto-Pay via real Razorpay mandate setup
   const handleEnableAutoPay = async () => {
@@ -83,21 +98,32 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
     setErrorMsg('');
     setSuccessMsg('');
 
+    const targetLeaseId = selectedLeaseId || selectedLease?._id || activeLeases[0]?._id;
+    if (!targetLeaseId) {
+      setErrorMsg('Please select a valid lease.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      // 1. Request Setup Intent from backend
+      // 1. Request Setup Intent from backend (POST /api/autopay/setup-intent)
       const intentRes = await autoPayService.createSetupIntent({
-        leaseId: selectedLeaseId,
+        leaseId: targetLeaseId,
         paymentMethodType: 'upi_autopay',
       });
 
       if (!intentRes?.data?.success || !intentRes.data.data) {
-        throw new Error(intentRes?.data?.message || 'Failed to create Auto-Pay authorization setup.');
+        const serverMsg = intentRes?.data?.message;
+        if (serverMsg?.includes('recurring payment configuration')) {
+          throw new Error('Auto-Pay requires Razorpay recurring payment configuration.');
+        }
+        throw new Error(serverMsg || 'Unable to start Auto-Pay authorization. Please try again.');
       }
 
       const { orderId, keyId, amount, customerName, customerEmail, customerPhone } =
         intentRes.data.data;
 
-      // 2. Load Razorpay script
+      // 2. Load Razorpay checkout script
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded || !window.Razorpay) {
         throw new Error('Razorpay payment gateway failed to load. Please check your internet connection.');
@@ -105,8 +131,8 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
 
       // 3. Open Razorpay Checkout for Mandate / Recurring Authorization
       const options = {
-        key: keyId,
-        amount: amount || 100, // ₹1 mandate authorization token
+        key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1',
+        amount: amount || 100, // ₹1 token registration
         currency: 'INR',
         name: 'Tenant Management System',
         description: `Auto-Pay Mandate Registration: ${selectedLease?.property?.name || 'Residence'}`,
@@ -122,12 +148,13 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
         handler: async function (response) {
           try {
             setSubmitting(true);
-            // 4. Send verification payload back to backend
+            // 4. Send verification payload back to backend (POST /api/autopay/verify-and-enable)
             const verifyRes = await autoPayService.verifyAndEnable({
-              leaseId: selectedLeaseId,
+              leaseId: targetLeaseId,
               razorpayOrderId: response.razorpay_order_id || orderId,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
+              token: response.razorpay_token_id,
               paymentMethodType: 'upi_autopay',
             });
 
@@ -137,27 +164,38 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
               await fetchStatus();
               if (typeof onAutoPayUpdated === 'function') onAutoPayUpdated();
             } else {
-              throw new Error(verifyRes?.data?.message || 'Verification failed.');
+              throw new Error(verifyRes?.data?.message || 'Verification failed. Auto-Pay could not be enabled.');
             }
           } catch (verErr) {
-            setErrorMsg(verErr?.response?.data?.message || verErr.message || 'Verification failed.');
+            console.error('[AutoPayCard] Verification error:', verErr);
+            setErrorMsg(verErr?.response?.data?.message || verErr.message || 'Verification failed. Auto-Pay could not be enabled.');
           } finally {
             setSubmitting(false);
           }
         },
         modal: {
           ondismiss: function () {
+            // If user closes/cancels checkout: keep Auto-Pay OFF
             setSubmitting(false);
           },
         },
       };
 
       const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on('payment.failed', function (failure) {
+        console.error('[AutoPayCard] Razorpay payment failed:', failure);
+        setErrorMsg(failure?.error?.description || 'Auto-Pay authorization failed. Please try again.');
+        setSubmitting(false);
+      });
       rzpInstance.open();
     } catch (err) {
       console.error('[AutoPayCard] Setup error:', err);
-      const msg = err?.response?.data?.message || err.message || 'Auto-Pay requires Razorpay recurring payment configuration.';
-      setErrorMsg(msg);
+      if (err?.response?.status === 503 || err?.response?.data?.message?.includes('recurring payment configuration')) {
+        setErrorMsg('Auto-Pay requires Razorpay recurring payment configuration.');
+      } else {
+        const msg = err?.response?.data?.message || err.message || 'Unable to start Auto-Pay authorization. Please try again.';
+        setErrorMsg(msg);
+      }
       setSubmitting(false);
     }
   };
@@ -166,8 +204,9 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
   const handleDisableAutoPay = async () => {
     setSubmitting(true);
     setErrorMsg('');
+    const targetLeaseId = selectedLeaseId || selectedLease?._id || activeLeases[0]?._id;
     try {
-      const res = await autoPayService.disable({ leaseId: selectedLeaseId });
+      const res = await autoPayService.disable({ leaseId: targetLeaseId });
       if (res?.data?.success) {
         setDisableConfirmOpen(false);
         setModalOpen(false);
@@ -268,7 +307,11 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
                   {activeLeases.map((l) => (
                     <button
                       key={l._id}
-                      onClick={() => setSelectedLeaseId(l._id)}
+                      onClick={() => {
+                        setSelectedLeaseId(l._id);
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
                       className={cn(
                         'px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer',
                         selectedLeaseId === l._id
@@ -307,14 +350,14 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
 
             {isAutoPayActive ? (
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={handleOpenEnableModal}
                 className="px-5 py-3 rounded-2xl border border-border/80 bg-muted/60 hover:bg-muted text-foreground text-xs font-black uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <span>Manage Auto-Pay</span>
               </button>
             ) : (
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={handleOpenEnableModal}
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto border border-white/20"
               >
                 <Zap className="w-4 h-4" />
@@ -452,12 +495,15 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
                       type="button"
                       disabled={submitting}
                       onClick={handleEnableAutoPay}
-                      className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 border border-white/20"
+                      className={cn(
+                        "w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 flex items-center justify-center gap-2 border border-white/20",
+                        submitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
+                      )}
                     >
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Authorizing Mandate...</span>
+                          <span>Opening Secure Authorization...</span>
                         </>
                       ) : (
                         <>
