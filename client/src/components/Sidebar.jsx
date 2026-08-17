@@ -7,7 +7,8 @@ import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import {
   LayoutDashboard, Users, FileText, CreditCard, X,
   Building2, Wrench, UserCog, MessageSquare, Home, LogOut, BarChart2, Wallet, Compass,
-  Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar, ShieldCheck
+  Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar, ShieldCheck,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -284,26 +285,80 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         />
 
         {/* ───── HEADER (flex-shrink-0 so it never collapses) ───── */}
-        <div className="relative flex-shrink-0 flex items-center justify-between px-5 py-5">
+        <div className={cn(
+          "relative flex-shrink-0 flex items-center px-5 py-5 transition-all duration-300",
+          isOpen ? "justify-between" : "justify-center px-2"
+        )}>
           <div className="flex items-center gap-3">
-            <motion.div
-              animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            {/* TMS Logo with ChatGPT-style Hover Toggle on Collapsed */}
+            <div
               className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br flex-shrink-0',
-                theme.gradient,
+                "relative flex items-center justify-center flex-shrink-0",
+                !isOpen && "group/logo cursor-pointer"
               )}
-              style={{ boxShadow: `0 4px 20px ${theme.glowColor}` }}
+              onClick={() => {
+                if (!isOpen) setIsOpen(true);
+              }}
+              role={!isOpen ? "button" : undefined}
+              tabIndex={!isOpen ? 0 : undefined}
+              aria-label={!isOpen ? "Open sidebar" : undefined}
+              title={!isOpen ? "Open sidebar" : undefined}
+              onKeyDown={(e) => {
+                if (!isOpen && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  setIsOpen(true);
+                }
+              }}
             >
-              <Building2 className="w-5 h-5" />
-            </motion.div>
+              <motion.div
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                className={cn(
+                  'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-gradient-to-br flex-shrink-0 transition-all duration-200',
+                  theme.gradient,
+                  !isOpen && "group-hover/logo:opacity-0 group-hover/logo:scale-95"
+                )}
+                style={{ boxShadow: `0 4px 20px ${theme.glowColor}` }}
+              >
+                <Building2 className="w-5 h-5" />
+              </motion.div>
+
+              {/* ChatGPT-style Hover Toggle Icon on Collapsed Logo */}
+              {!isOpen && (
+                <div
+                  className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all duration-200 bg-card/90 backdrop-blur-md border border-border/80 text-foreground shadow-lg pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <PanelLeftOpen className="w-5 h-5 text-foreground transition-transform group-hover/logo:scale-105" />
+                </div>
+              )}
+            </div>
+
             <div className={cn("transition-opacity duration-200", isOpen ? "opacity-100 block" : "opacity-0 hidden")}>
               <h2 className="text-lg font-black text-foreground tracking-tight leading-none">TMS</h2>
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{theme.sublabel}</p>
             </div>
           </div>
+
+          {/* Desktop Collapse Button */}
+          {isOpen && (
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              className="hidden lg:flex p-2 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 border border-transparent hover:border-border/60 transition-all duration-200 items-center justify-center cursor-pointer group/toggle focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <PanelLeftClose className="w-4 h-4 transition-transform group-hover/toggle:scale-110" />
+            </button>
+          )}
+
+          {/* Mobile Close Button */}
           <button
+            type="button"
             onClick={() => setIsOpen(false)}
+            aria-label="Close sidebar"
+            title="Close sidebar"
             className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
           >
             <X className="w-4 h-4" />
