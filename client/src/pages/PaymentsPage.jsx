@@ -238,16 +238,20 @@ export default function PaymentsPage() {
           leaseService.getMyLease(),
         ]);
         if (payRes.status === 'fulfilled') {
-          setPayments(payRes.value.data?.data || payRes.value.data || []);
+          const pVal = payRes.value || {};
+          setPayments(pVal.data || (Array.isArray(pVal) ? pVal : []));
         }
         if (leaseRes.status === 'fulfilled') {
-          const resVal = leaseRes.value?.data?.data ? leaseRes.value.data : (leaseRes.value?.data || leaseRes.value || {});
+          const resVal = leaseRes.value || {};
           const leases =
             resVal.activeLeases ||
             resVal.leases ||
-            (resVal.data?.activeLeases) ||
             (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
-          const validLeases = (Array.isArray(leases) ? leases : []).filter(l => l && ['active', 'pending', 'upcoming'].includes(l.status));
+          const validLeases = (Array.isArray(leases) ? leases : []).filter((l) => {
+            if (!l) return false;
+            const s = (l.status || '').toLowerCase();
+            return !['terminated', 'expired', 'cancelled', 'rejected'].includes(s);
+          });
           setActiveLeases(validLeases);
         }
       } else {
