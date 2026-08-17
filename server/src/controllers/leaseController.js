@@ -592,15 +592,22 @@ export const managerSignLease = asyncHandler(async (req, res) => {
   const lease = await Lease.findById(id);
   if (!lease) throw new AppError('Lease not found', 404);
 
+  // Authorization check: Manager must manage this property (or be Admin)
+  const property = await Property.findById(lease.property);
+  if (req.user.role === 'manager' && property && property.manager && property.manager.toString() !== req.user.userId) {
+    throw new AppError('You are not authorized to counter-sign leases for this property', 403);
+  }
+
   // Manager counter-signature requires tenant signature first
   if (!lease.signature || !lease.signedBy || !lease.signedAt) {
     throw new AppError('Tenant must sign the lease agreement before manager counter-signature.', 400);
   }
 
   const now = new Date();
+  const managerName = signedBy || (req.user.firstName ? `${req.user.firstName} ${req.user.lastName || ''}`.trim() : (req.user.name || 'Property Manager'));
   lease.managerSignature = signature || 'system-signed';
   lease.managerSignatureType = signatureType || 'draw';
-  lease.managerSignedBy = signedBy || (req.user.name || 'Property Manager');
+  lease.managerSignedBy = managerName;
   lease.managerSignedAt = now;
   lease.managerSignatureIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
 
@@ -611,37 +618,54 @@ export const managerSignLease = asyncHandler(async (req, res) => {
     await Property.findByIdAndUpdate(lease.property, {
       $set: { status: 'occupied', currentTenant: lease.tenant },
     });
+  }
 
-    try {
-      const Tenant = mongoose.model('Tenant');
-      const User = mongoose.model('User');
-      const Booking = mongoose.model('Booking');
+  try {
+    const Tenant = mongoose.model('Tenant');
+    const User = mongoose.model('User');
+    const Booking = mongoose.model('Booking');
 
-      const tenant = await Tenant.findById(lease.tenant);
-      if (tenant) {
-        const user = await User.findOne({ email: tenant.email });
-        if (user) {
-          const booking = await Booking.findOne({
-            property: lease.property,
-            user: user._id,
-            status: 'approved'
-          }).sort({ createdAt: -1 });
+    const tenant = await Tenant.findById(lease.tenant);
+    if (tenant) {
+      const user = await User.findOne({ email: tenant.email });
+      if (user) {
+        const booking = await Booking.findOne({
+          property: lease.property,
+          user: user._id,
+          status: { $in: ['approved', 'active', 'pending'] }
+        }).sort({ createdAt: -1 });
 
-          if (booking) {
+        if (booking) {
+          if (!isFuture) {
             booking.status = 'completed';
             booking.completedDate = now;
-            booking.timeline.push({
-              event: 'completed',
-              timestamp: now,
-              note: 'Manager counter-signed lease. Tenancy officially active.'
-            });
-            await booking.save();
           }
+          booking.timeline.push({
+            event: !isFuture ? 'completed' : 'approved',
+            timestamp: now,
+            note: `Manager counter-signed lease agreement (${lease.leaseNumber}).`
+          });
+          await booking.save();
+        }
+
+        // Notify tenant of counter-signature
+        try {
+          const Notification = mongoose.model('Notification');
+          await Notification.create({
+            recipient: user._id,
+            sender: req.user.userId,
+            title: 'Lease Agreement Counter-Signed',
+            message: `Property management has counter-signed your lease agreement for ${lease.leaseNumber}.`,
+            type: 'lease',
+            link: '/my-lease'
+          });
+        } catch (notifErr) {
+          logger.error(`[managerSignLease] Error sending notification: ${notifErr.message}`);
         }
       }
-    } catch (bookingErr) {
-      logger.error(`[managerSignLease] Error updating booking status: ${bookingErr.message}`);
     }
+  } catch (bookingErr) {
+    logger.error(`[managerSignLease] Error updating booking status: ${bookingErr.message}`);
   }
 
   await lease.save();
