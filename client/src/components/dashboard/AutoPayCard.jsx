@@ -15,6 +15,7 @@ import {
   Loader2,
   AlertCircle,
   Clock,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -43,10 +44,16 @@ function loadRazorpayScript() {
 }
 
 export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPayUpdated }) {
-  const [internalLeases, setInternalLeases] = useState(propsActiveLeases || []);
-  const [selectedLeaseId, setSelectedLeaseId] = useState('');
+  const [internalLeases, setInternalLeases] = useState(
+    Array.isArray(propsActiveLeases) && propsActiveLeases.length > 0 ? propsActiveLeases : []
+  );
+  const [selectedLeaseId, setSelectedLeaseId] = useState(
+    Array.isArray(propsActiveLeases) && propsActiveLeases.length > 0 ? propsActiveLeases[0]._id : ''
+  );
   const [statusData, setStatusData] = useState(null);
-  const [loadingLeases, setLoadingLeases] = useState(!propsActiveLeases || propsActiveLeases.length === 0);
+  const [loadingLeases, setLoadingLeases] = useState(
+    !Array.isArray(propsActiveLeases) || propsActiveLeases.length === 0
+  );
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,50 +62,47 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // ── Sync or fetch eligible leases independently ──
-  useEffect(() => {
-    if (propsActiveLeases && propsActiveLeases.length > 0) {
-      setInternalLeases(propsActiveLeases);
-      if (!selectedLeaseId) {
-        setSelectedLeaseId(propsActiveLeases[0]._id);
+  // ── Fetch eligible leases independently if not provided by parent ──
+  const fetchEligibleLeases = useCallback(async () => {
+    setLoadingLeases(true);
+    setLoadError('');
+    try {
+      const res = await leaseService.getMyLease();
+      const resVal = res?.data?.data ? res.data : (res?.data || {});
+      const rawLeases =
+        resVal.activeLeases ||
+        resVal.leases ||
+        (resVal.data?.activeLeases) ||
+        (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
+      const valid = (Array.isArray(rawLeases) ? rawLeases : []).filter(
+        (l) => l && ['active', 'pending', 'upcoming'].includes(l.status)
+      );
+
+      setInternalLeases(valid);
+      if (valid.length > 0) {
+        setSelectedLeaseId((prev) => (valid.some((l) => l._id === prev) ? prev : valid[0]._id));
       }
+    } catch (err) {
+      console.warn('[AutoPayCard] Failed to fetch eligible leases:', err);
+      setLoadError('Unable to load leases for Auto-Pay.');
+    } finally {
       setLoadingLeases(false);
-      return;
     }
+  }, []);
 
-    let isMounted = true;
-    const fetchEligibleLeases = async () => {
-      setLoadingLeases(true);
-      try {
-        const res = await leaseService.getMyLease();
-        const resVal = res?.data || {};
-        const leases = resVal.activeLeases || (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
-        const valid = leases.filter(l => ['active', 'pending', 'upcoming'].includes(l.status));
-        if (isMounted) {
-          setInternalLeases(valid);
-          if (valid.length > 0 && !selectedLeaseId) {
-            setSelectedLeaseId(valid[0]._id);
-          }
-        }
-      } catch (err) {
-        console.warn('[AutoPayCard] Failed to fetch eligible leases:', err);
-      } finally {
-        if (isMounted) setLoadingLeases(false);
-      }
-    };
-
-    fetchEligibleLeases();
-    return () => { isMounted = false; };
-  }, [propsActiveLeases]);
-
-  // Keep selectedLeaseId valid if leases change
   useEffect(() => {
-    if (internalLeases.length > 0 && (!selectedLeaseId || !internalLeases.some(l => l._id === selectedLeaseId))) {
-      setSelectedLeaseId(internalLeases[0]._id);
+    if (Array.isArray(propsActiveLeases) && propsActiveLeases.length > 0) {
+      setInternalLeases(propsActiveLeases);
+      setSelectedLeaseId((prev) =>
+        propsActiveLeases.some((l) => l._id === prev) ? prev : propsActiveLeases[0]._id
+      );
+      setLoadingLeases(false);
+    } else {
+      fetchEligibleLeases();
     }
-  }, [internalLeases, selectedLeaseId]);
+  }, [propsActiveLeases, fetchEligibleLeases]);
 
-  // ── Fetch Auto-Pay status for the selected lease ──
+  // ── Fetch Auto-Pay status for currently selected lease ──
   const fetchStatus = useCallback(async () => {
     const targetId = selectedLeaseId || internalLeases[0]?._id;
     if (!targetId) {
@@ -114,7 +118,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
       }
     } catch (err) {
       console.warn('[AutoPayCard] Failed to fetch Auto-Pay status:', err);
-      setLoadError('Unable to load Auto-Pay status for this lease.');
+      setLoadError('Unable to load Auto-Pay status.');
     } finally {
       setLoadingStatus(false);
     }
@@ -126,7 +130,8 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
     }
   }, [selectedLeaseId, fetchStatus]);
 
-  const selectedLease = internalLeases.find((l) => l._id === selectedLeaseId) || internalLeases[0];
+  const selectedLease =
+    internalLeases.find((l) => l._id === selectedLeaseId) || internalLeases[0] || null;
 
   const handleOpenEnableModal = () => {
     setErrorMsg('');
@@ -210,7 +215,11 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
             }
           } catch (verErr) {
             console.error('[AutoPayCard] Verification error:', verErr);
-            setErrorMsg(verErr?.response?.data?.message || verErr.message || 'Verification failed. Auto-Pay could not be enabled.');
+            setErrorMsg(
+              verErr?.response?.data?.message ||
+                verErr.message ||
+                'Verification failed. Auto-Pay could not be enabled.'
+            );
           } finally {
             setSubmitting(false);
           }
@@ -232,10 +241,16 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
       rzpInstance.open();
     } catch (err) {
       console.error('[AutoPayCard] Setup error:', err);
-      if (err?.response?.status === 503 || err?.response?.data?.message?.includes('recurring payment configuration')) {
+      if (
+        err?.response?.status === 503 ||
+        err?.response?.data?.message?.includes('recurring payment configuration')
+      ) {
         setErrorMsg('Auto-Pay requires Razorpay recurring payment configuration.');
       } else {
-        const msg = err?.response?.data?.message || err.message || 'Unable to start Auto-Pay authorization. Please try again.';
+        const msg =
+          err?.response?.data?.message ||
+          err.message ||
+          'Unable to start Auto-Pay authorization. Please try again.';
         setErrorMsg(msg);
       }
       setSubmitting(false);
@@ -265,26 +280,60 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
   // ── Loading Skeleton ──
   if (loadingLeases) {
     return (
-      <div className="rounded-3xl bg-card border border-border/80 p-6 shadow-xl backdrop-blur-xl animate-pulse flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-muted/60" />
-          <div className="space-y-2">
-            <div className="w-24 h-4 rounded-lg bg-muted/60" />
-            <div className="w-48 h-3 rounded-lg bg-muted/40" />
+      <div className="relative overflow-hidden rounded-3xl bg-card/60 border border-border/80 p-6 shadow-xl backdrop-blur-xl animate-pulse">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-muted/60" />
+            <div className="space-y-2">
+              <div className="w-28 h-4 rounded-lg bg-muted/60" />
+              <div className="w-56 h-3 rounded-lg bg-muted/40" />
+            </div>
           </div>
+          <div className="w-36 h-10 rounded-2xl bg-muted/60" />
         </div>
-        <div className="w-32 h-10 rounded-2xl bg-muted/60" />
       </div>
     );
   }
 
-  // ── Empty State if no eligible leases ──
+  // ── Empty State if no eligible leases found ──
   if (internalLeases.length === 0) {
-    return null;
+    return (
+      <div className="relative overflow-hidden rounded-3xl bg-card border border-border/80 p-6 shadow-xl backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-muted/60 border border-border flex items-center justify-center text-muted-foreground">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
+                Auto-Pay
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                No active lease agreements found for automatic rent payments.
+              </p>
+            </div>
+          </div>
+          {loadError && (
+            <button
+              onClick={fetchEligibleLeases}
+              className="px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   const isAutoPayActive = statusData?.enabled && statusData?.status === 'active';
-  const monthlyAmount = statusData?.monthlyAmount || selectedLease?.rentAmount || 0;
+  const monthlyAmount =
+    statusData?.monthlyAmount ||
+    selectedLease?.rentAmount ||
+    (selectedLease?.property?.rentAmount) ||
+    0;
+
   const nextDueDate = statusData?.schedule?.nextPaymentDueAt
     ? new Date(statusData.schedule.nextPaymentDueAt).toLocaleDateString('en-US', {
         month: 'short',
@@ -308,20 +357,20 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
         <div
           className={cn(
             'absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-500',
-            isAutoPayActive ? 'bg-emerald-500' : 'bg-muted-foreground'
+            isAutoPayActive ? 'bg-emerald-500' : 'bg-emerald-600/30'
           )}
         />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           {/* Left Info Column */}
-          <div className="space-y-2 flex-1">
+          <div className="space-y-2.5 flex-1 w-full lg:w-auto">
             <div className="flex items-center gap-3">
               <div
                 className={cn(
                   'w-10 h-10 rounded-2xl flex items-center justify-center border shadow-sm transition-colors',
                   isAutoPayActive
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
-                    : 'bg-muted/60 border-border text-muted-foreground'
+                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
                 )}
               >
                 <Zap className="w-5 h-5" />
@@ -351,31 +400,32 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isAutoPayActive
                     ? 'Your monthly rent will be automatically paid on the scheduled lease due date.'
-                    : 'Automatically pay your monthly rent on the lease due date.'}
+                    : 'Automatically pay your monthly rent on the scheduled lease due date.'}
                 </p>
               </div>
             </div>
 
             {/* Multiple Lease Selector (if tenant has > 1 lease) */}
             {internalLeases.length > 1 && (
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2 pt-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
-                  Select Lease:
+                  Lease:
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {internalLeases.map((l) => (
                     <button
                       key={l._id}
+                      type="button"
                       onClick={() => {
                         setSelectedLeaseId(l._id);
                         setErrorMsg('');
                         setSuccessMsg('');
                       }}
                       className={cn(
-                        'px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5',
+                        'px-3 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5',
                         selectedLeaseId === l._id
-                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300 shadow-sm'
-                          : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300 shadow-sm font-black'
+                          : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                       )}
                     >
                       <span>{l.property?.name || 'Lease'}</span>
@@ -390,19 +440,26 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
               </div>
             )}
 
-            {/* Non-blocking API warning if status fetch failed */}
+            {/* Non-blocking API warning with retry if status fetch failed */}
             {loadError && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-500 pt-1">
+              <div className="flex items-center gap-2 text-[11px] text-amber-500 pt-1">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{loadError}</span>
+                <button
+                  type="button"
+                  onClick={fetchStatus}
+                  className="underline hover:text-amber-400 font-bold ml-1 cursor-pointer"
+                >
+                  Retry
+                </button>
               </div>
             )}
           </div>
 
           {/* Right Details / CTA Column */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
             {/* Rent & Schedule Info Box */}
-            <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/40 border border-border/80 text-left min-w-[240px]">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/40 border border-border/80 text-left min-w-[240px] w-full sm:w-auto">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
                   Monthly Rent
@@ -530,7 +587,9 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground font-bold">Billing Cycle</span>
-                    <span className="font-semibold text-foreground">Monthly on Lease Anchor Date</span>
+                    <span className="font-semibold text-foreground">
+                      Monthly on Lease Anchor Date
+                    </span>
                   </div>
                 </div>
 
@@ -571,8 +630,8 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                       disabled={submitting}
                       onClick={handleEnableAutoPay}
                       className={cn(
-                        "w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 flex items-center justify-center gap-2 border border-white/20",
-                        submitting ? "opacity-80 cursor-not-allowed" : "cursor-pointer"
+                        'w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 flex items-center justify-center gap-2 border border-white/20',
+                        submitting ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'
                       )}
                     >
                       {submitting ? (

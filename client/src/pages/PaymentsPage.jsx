@@ -241,9 +241,13 @@ export default function PaymentsPage() {
           setPayments(payRes.value.data?.data || payRes.value.data || []);
         }
         if (leaseRes.status === 'fulfilled') {
-          const resVal = leaseRes.value?.data || {};
-          const leases = resVal.activeLeases || (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
-          const validLeases = leases.filter(l => ['active', 'pending', 'upcoming'].includes(l.status));
+          const resVal = leaseRes.value?.data?.data ? leaseRes.value.data : (leaseRes.value?.data || leaseRes.value || {});
+          const leases =
+            resVal.activeLeases ||
+            resVal.leases ||
+            (resVal.data?.activeLeases) ||
+            (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
+          const validLeases = (Array.isArray(leases) ? leases : []).filter(l => l && ['active', 'pending', 'upcoming'].includes(l.status));
           setActiveLeases(validLeases);
         }
       } else {

@@ -52,7 +52,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
   if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
   const tenants = await Tenant.find({ email: user.email });
-  const tenantIds = tenants.map(t => t._id);
+  const tenantIds = [req.user.userId, ...tenants.map(t => t._id)];
   if (tenantIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
