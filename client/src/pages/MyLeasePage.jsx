@@ -27,6 +27,8 @@ const AMENITY_ICON = {
 
 const STATUS_CONFIG = {
     active: { label: 'Active', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/25', dot: 'bg-emerald-500 animate-pulse dark:bg-emerald-400' },
+    signed: { label: 'Signed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/25', dot: 'bg-emerald-500 animate-pulse dark:bg-emerald-400' },
+    pending_manager: { label: 'Pending Manager Signature', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 border-blue-500/25', dot: 'bg-blue-500 animate-pulse dark:bg-blue-400' },
     pending: { label: 'Pending Signature', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-500 animate-pulse dark:bg-amber-400' },
     expired: { label: 'Expired', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10 border-rose-500/25', dot: 'bg-rose-500 dark:bg-rose-400' },
     terminated: { label: 'Terminated', color: 'text-muted-foreground/40', bg: 'bg-muted border-border', dot: 'bg-muted-foreground/20' },
@@ -476,8 +478,22 @@ export default function MyLeasePage() {
     };
 
     const currentLease = selectedPastLease || activeLeases[selectedLeaseIndex] || lease || pastLeases[0] || null;
-    const isUnsigned = Boolean(currentLease && (!currentLease.signature || !currentLease.signedBy || !currentLease.signedAt));
-    const statusCfg = isUnsigned ? STATUS_CONFIG.pending : (STATUS_CONFIG[currentLease?.status] || STATUS_CONFIG.pending);
+    const isSignedByTenant = Boolean(currentLease && currentLease.signature && currentLease.signedBy && currentLease.signedAt);
+    const isManagerSigned = Boolean(currentLease && (currentLease.managerSignature || currentLease.managerSignedAt));
+    const isBothSigned = isSignedByTenant && isManagerSigned;
+    const isUnsigned = !isSignedByTenant;
+
+    const statusCfg = (() => {
+        if (!currentLease) return STATUS_CONFIG.pending;
+        if (currentLease.status === 'active') return STATUS_CONFIG.active;
+        if (currentLease.status === 'expired') return STATUS_CONFIG.expired;
+        if (currentLease.status === 'terminated') return STATUS_CONFIG.terminated;
+
+        // Pending lease status based on actual signature progress
+        if (isBothSigned) return STATUS_CONFIG.signed;
+        if (isSignedByTenant && !isManagerSigned) return STATUS_CONFIG.pending_manager;
+        return STATUS_CONFIG.pending;
+    })();
     const currentLeasePayments = currentLease ? payments.filter(p => {
         const pLeaseId = String(p.lease?._id || p.lease || '');
         const cLeaseId = String(currentLease._id || '');
@@ -552,9 +568,13 @@ export default function MyLeasePage() {
                 <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-card/60 backdrop-blur-md border border-border w-fit shadow-sm">
                     {activeLeases.map((actL, i) => {
                         const isSelected = selectedLeaseIndex === i && !selectedPastLease;
-                        const isUpcoming = actL.status === 'pending' && actL.signature;
-                        const isPending = actL.status === 'pending' && !actL.signature;
-                        const statusBadgeText = isUpcoming ? '(Upcoming)' : (isPending ? '(Pending)' : '(Active)');
+                        const actTenantSigned = Boolean(actL.signature && actL.signedBy && actL.signedAt);
+                        const actManagerSigned = Boolean(actL.managerSignature || actL.managerSignedAt);
+                        const actBothSigned = actTenantSigned && actManagerSigned;
+                        const isUpcoming = actL.status === 'pending' && actBothSigned;
+                        const isPendingManager = actL.status === 'pending' && actTenantSigned && !actManagerSigned;
+                        const isPending = actL.status === 'pending' && !actTenantSigned;
+                        const statusBadgeText = isUpcoming ? '(Upcoming)' : (isPendingManager ? '(Pending Manager)' : (isPending ? '(Pending)' : '(Active)'));
                         return (
                             <button
                                 key={actL._id}
@@ -568,7 +588,7 @@ export default function MyLeasePage() {
                             >
                                 <span className={cn(
                                     "w-2 h-2 rounded-full",
-                                    isUpcoming ? "bg-indigo-300" : (isPending ? "bg-amber-300" : "bg-emerald-300")
+                                    isUpcoming ? "bg-indigo-300" : (isPendingManager ? "bg-blue-300" : (isPending ? "bg-amber-300" : "bg-emerald-300"))
                                 )} />
                                 <span>{actL.property?.name || `Lease #${actL.leaseNumber || i + 1}`}</span>
                                 <span className="text-[10px] opacity-75 font-bold">
@@ -626,7 +646,24 @@ export default function MyLeasePage() {
                                     </p>
                                 </div>
                             </motion.div>
-                        ) : (currentLease.status === 'pending' && currentLease.signature) ? (
+                        ) : (isSignedByTenant && !isManagerSigned) ? (
+                            <motion.div
+                                key={`pending-manager-banner-${currentLease._id}`}
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -6 }}
+                                transition={{ duration: 0.2 }}
+                                className="p-4.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 flex items-start gap-3.5 shadow-sm"
+                            >
+                                <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <h4 className="text-sm font-black uppercase tracking-wider">Pending Manager Counter-Signature</h4>
+                                    <p className="text-xs opacity-80 mt-1 leading-relaxed">
+                                        You have successfully signed this lease agreement. Property management is reviewing and counter-signing the document.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ) : (currentLease.status === 'pending' && isBothSigned) ? (
                             <motion.div
                                 key={`upcoming-banner-${currentLease._id}`}
                                 initial={{ opacity: 0, y: -6 }}
