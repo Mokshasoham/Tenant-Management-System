@@ -261,7 +261,8 @@ export default function TenantDashboard({ user, navigate }) {
             const leaseIdStr = activeLease._id ? activeLease._id.toString() : '';
             return {
                 id: schedule.paymentId || activeLease._id,
-                leaseId: activeLease._id,
+                leaseId: activeLease._id ? activeLease._id.toString() : (activeLease.id || ''),
+                propertyId: activeLease.property?._id ? activeLease.property._id.toString() : (activeLease.property ? activeLease.property.toString() : ''),
                 dueDate: schedule.nextPaymentDueAt,
                 amount: schedule.amount ?? activeLease.rentAmount,
                 propertyName: activeLease.property?.name || 'TMS Rental',

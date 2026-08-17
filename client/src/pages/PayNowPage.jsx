@@ -427,12 +427,16 @@ export default function PayNowPage() {
                     setBillDetails(bill);
                     
                     const leaseRes = await leaseService.getMyLease();
-                    const lRes = leaseRes?.data || leaseRes;
-                    const allL = (lRes?.activeLeases || (Array.isArray(lRes?.data) ? lRes.data : (lRes?.data ? [lRes.data] : [])))
+                    const rawRes = leaseRes?.data || leaseRes || {};
+                    const activeArray = Array.isArray(rawRes.activeLeases)
+                        ? rawRes.activeLeases
+                        : (Array.isArray(rawRes.data?.activeLeases) ? rawRes.data.activeLeases : []);
+                    const primary = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
+                    const allL = (activeArray.length > 0 ? activeArray : (primary ? [primary] : (Array.isArray(rawRes.data) ? rawRes.data : [])))
                         .filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
                     if (!isMounted) return;
                     setAvailableLeases(allL);
-                    setLease(lRes?.data || allL[0] || null);
+                    setLease(primary || allL[0] || null);
                 } else {
                     const [leaseRes, payRes] = await Promise.allSettled([
                         leaseService.getMyLease(),
@@ -444,16 +448,31 @@ export default function PayNowPage() {
                     let allLeases = [];
                     let primaryLease = null;
                     if (leaseRes.status === 'fulfilled') {
-                        const lVal = leaseRes.value?.data || leaseRes.value;
-                        primaryLease = lVal?.data || null;
-                        const rawList = lVal?.activeLeases || (Array.isArray(primaryLease) ? primaryLease : (primaryLease ? [primaryLease] : []));
-                        allLeases = rawList.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
+                        const rawRes = leaseRes.value || {};
+                        const activeArray = Array.isArray(rawRes.activeLeases)
+                            ? rawRes.activeLeases
+                            : (Array.isArray(rawRes.data?.activeLeases)
+                                ? rawRes.data.activeLeases
+                                : (Array.isArray(rawRes.data) ? rawRes.data : []));
+                        
+                        primaryLease = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
+                        
+                        const candidateList = activeArray.length > 0
+                            ? activeArray
+                            : (primaryLease ? [primaryLease] : []);
+
+                        allLeases = candidateList.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
                     }
                     setAvailableLeases(allLeases);
 
                     let targetLease = null;
                     if (leaseIdParam) {
-                        const matched = allLeases.find(l => (l._id || l.id) === leaseIdParam);
+                        const cleanParam = String(leaseIdParam).trim();
+                        const matched = allLeases.find(l => {
+                            const lid = l._id ? String(l._id) : (l.id ? String(l.id) : '');
+                            return lid === cleanParam;
+                        });
+
                         if (matched) {
                             targetLease = matched;
                         } else {
