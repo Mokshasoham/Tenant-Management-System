@@ -539,7 +539,7 @@ export default function MyLeasePage() {
                 </div>
                 {pendingPay && (
                     <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                        onClick={() => navigate('/pay-now')}
+                        onClick={() => navigate(currentLease?._id ? `/pay-now?leaseId=${currentLease._id}` : '/pay-now', { state: { leaseId: currentLease?._id } })}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
                         <Wallet className="w-4 h-4" /> Pay Rent Now
                     </motion.button>
@@ -1468,7 +1468,13 @@ export default function MyLeasePage() {
                             const Icon = a.icon;
                             return (
                                 <motion.button key={a.label} whileHover={{ y: -4, scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                                    onClick={() => navigate(a.path)}
+                                    onClick={() => {
+                                        if (a.label === 'Pay Rent' && currentLease?._id) {
+                                            navigate(`/pay-now?leaseId=${currentLease._id}`, { state: { leaseId: currentLease._id } });
+                                        } else {
+                                            navigate(a.path);
+                                        }
+                                    }}
                                     className={cn('flex items-center gap-4 p-5 rounded-[2rem] bg-gradient-to-r text-white shadow-xl text-left transition-all', a.color)}>
                                     <div className="p-3.5 rounded-2xl bg-white/10 flex-shrink-0 backdrop-blur-md border border-white/10">
                                         <Icon className="w-6 h-6" />

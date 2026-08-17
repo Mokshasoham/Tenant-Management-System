@@ -613,7 +613,7 @@ export default function TenantDashboard({ user, navigate }) {
                                             ) : (
                                                 <>
                                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                        onClick={() => navigate('/pay-now', { state: { propertyId: activeLease.property?._id } })}
+                                                        onClick={() => navigate(`/pay-now?leaseId=${activeLease._id}`, { state: { leaseId: activeLease._id, propertyId: activeLease.property?._id } })}
                                                         disabled={activeLease.status === 'pending'}
                                                         className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-90 transition-all", activeLease.status === 'pending' ? "bg-muted text-muted-foreground/45 cursor-not-allowed shadow-none" : "bg-gradient-to-r from-emerald-600 to-teal-600")}
                                                     >
@@ -760,7 +760,10 @@ export default function TenantDashboard({ user, navigate }) {
                                             isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
                                             propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
                                             isAutoPayActive={activePaymentsToShow[activePaymentIndex].isAutoPayActive}
-                                            onPayRent={() => navigate('/pay-now')}
+                                            onPayRent={() => {
+                                                const pmt = activePaymentsToShow[activePaymentIndex];
+                                                navigate(`/pay-now?leaseId=${pmt.leaseId}`, { state: { leaseId: pmt.leaseId } });
+                                            }}
                                         />
                                     </motion.div>
                                 </AnimatePresence>
@@ -793,7 +796,10 @@ export default function TenantDashboard({ user, navigate }) {
                             isEstimate={activePaymentsToShow[0].isEstimate}
                             propertyName={activePaymentsToShow[0].propertyName}
                             isAutoPayActive={activePaymentsToShow[0].isAutoPayActive}
-                            onPayRent={() => navigate('/pay-now')}
+                            onPayRent={() => {
+                                const pmt = activePaymentsToShow[0];
+                                navigate(`/pay-now?leaseId=${pmt.leaseId}`, { state: { leaseId: pmt.leaseId } });
+                            }}
                         />
                     ) : (
                         <NextPaymentCard

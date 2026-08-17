@@ -52,7 +52,7 @@ function Input({ className, error, ...props }) {
 }
 
 // ─── Debit Card Form ────────────────────────────────────────────────────────
-function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId }) {
+function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) {
     const [cardNum, setCardNum] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
@@ -77,18 +77,16 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId }) {
         setLoading(true);
         
         try {
-            // CALL THE REAL BACKEND BRIDGE AS APPROVED IN THE PLAN
-            // This ensures PDFs are generated and History is logged even for "random" inputs.
             await bookingService.processMockPayment({
-                propertyId: propertyId, // Use the propertyId prop
+                propertyId: propertyId,
                 amount: amount,
                 method: 'debit_card',
                 startDate: new Date(),
                 endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                billId: billId
+                billId: billId,
+                leaseId: leaseId,
             });
 
-            // Delay purely for visual "Processing" effect
             setTimeout(() => {
                 setLoading(false);
                 if (typeof onSuccess === 'function') {
@@ -111,7 +109,6 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId }) {
 
     return (
         <form onSubmit={handlePay} className="space-y-4" autoComplete="off">
-            {/* Virtual Card Preview */}
             <div className="relative p-6 rounded-[2rem] overflow-hidden text-white h-48 shadow-2xl"
                 style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)' }}>
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 50%)' }} />
@@ -190,7 +187,7 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId }) {
 }
 
 // ─── UPI Form ───────────────────────────────────────────────────────────────
-function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
+function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) {
     const [upiId, setUpiId] = useState('');
     const [verifying, setVerifying] = useState(false);
     const [verified, setVerified] = useState(false);
@@ -206,7 +203,6 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
         }
         setErrors({});
         setVerifying(true);
-        // Simulate network check
         await new Promise(r => setTimeout(r, 1200));
         setVerifying(false);
         setVerified(true);
@@ -219,15 +215,15 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
 
         try {
             await bookingService.processMockPayment({
-                propertyId: propertyId, // Use the propertyId prop
+                propertyId: propertyId,
                 amount: amount,
                 method: 'upi',
                 startDate: new Date(),
                 endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                billId: billId
+                billId: billId,
+                leaseId: leaseId,
             });
 
-            // Mock Success Simulation
             setTimeout(() => {
                 setLoading(false);
                 if (typeof onSuccess === 'function') {
@@ -245,7 +241,6 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
 
     return (
         <form onSubmit={handlePay} className="space-y-5">
-            {/* UPI visual */}
             <div className="flex flex-col items-center gap-4 py-8 rounded-[2rem] bg-gradient-to-br from-violet-600/10 to-indigo-600/5 border border-violet-500/20 shadow-inner">
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-violet-500/30">
                     <Smartphone className="w-10 h-10 text-white" />
@@ -254,7 +249,6 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
                     <p className="text-3xl font-black text-foreground">₹{amount.toLocaleString('en-IN')}</p>
                     <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mt-1">Pay via any UPI app</p>
                 </div>
-                {/* Quick apps */}
                 <div className="flex gap-2.5 mt-2">
                     {['GPay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
                         <span key={app} className="px-3 py-1.5 rounded-xl bg-card border border-border text-[9px] font-black text-muted-foreground hover:text-foreground hover:border-violet-500/30 transition-all cursor-default">{app}</span>
@@ -283,7 +277,6 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
                 </div>
             </Field>
 
-            {/* Quick handles */}
             <div>
                 <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-2.5">Popular handles</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -298,14 +291,9 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
             </div>
 
             {verified && (
-                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    <div>
-                        <p className="text-sm font-black text-emerald-300">UPI ID Verified</p>
-                        <p className="text-xs text-emerald-300/50">{upiId}</p>
-                    </div>
-                </motion.div>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> UPI ID verified. Proceed to pay.
+                </div>
             )}
 
             {errors.submit && (
@@ -314,15 +302,13 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId }) {
                 </div>
             )}
 
-            <button type="submit" disabled={loading || !upiId}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-sm disabled:opacity-50 hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 flex items-center justify-center gap-2">
-                {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
-                    : !verified ? <><CheckCircle2 className="w-4 h-4" /> Verify &amp; Pay</>
-                        : <><Lock className="w-4 h-4" /> Pay ₹{amount.toLocaleString('en-IN')}</>}
+            <button type="submit" disabled={loading || !verified}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 flex items-center justify-center gap-2">
+                {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</> : <><Lock className="w-4 h-4" /> Pay ₹{amount.toLocaleString('en-IN')} via UPI</>}
             </button>
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest">
-                <Shield className="w-3.5 h-3.5" /> NPCI certified UPI • Instant transfer
+                <Shield className="w-3.5 h-3.5" /> NPCI / UPI compliant • Instant settlement
             </div>
         </form>
     );
@@ -407,6 +393,7 @@ export default function PayNowPage() {
     const [searchParams] = useSearchParams();
     const user = useAuthStore(s => s.user);
 
+    const leaseIdParam = searchParams.get('leaseId') || location.state?.leaseId;
     const billIdParam = searchParams.get('billId');
 
     // From navigation state (Booking flow)
@@ -416,6 +403,8 @@ export default function PayNowPage() {
     const [method, setMethod] = useState('card'); // 'card' | 'upi'
     const [success, setSuccess] = useState(false);
     const [lease, setLease] = useState(null);
+    const [availableLeases, setAvailableLeases] = useState([]);
+    const [leaseNotFound, setLeaseNotFound] = useState(false);
     const [pendingPayment, setPendingPayment] = useState(null);
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
@@ -426,36 +415,97 @@ export default function PayNowPage() {
     const [useCustom, setUseCustom] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
         (async () => {
             setLoadingLease(true);
+            setLeaseNotFound(false);
             try {
                 if (billIdParam) {
                     const res = await billService.getBillById(billIdParam);
                     const bill = res.data?.data || res.data;
+                    if (!isMounted) return;
                     setBillDetails(bill);
                     
                     const leaseRes = await leaseService.getMyLease();
-                    setLease(leaseRes.data?.data || leaseRes.data || null);
+                    const lRes = leaseRes?.data || leaseRes;
+                    const allL = (lRes?.activeLeases || (Array.isArray(lRes?.data) ? lRes.data : (lRes?.data ? [lRes.data] : [])))
+                        .filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
+                    if (!isMounted) return;
+                    setAvailableLeases(allL);
+                    setLease(lRes?.data || allL[0] || null);
                 } else {
                     const [leaseRes, payRes] = await Promise.allSettled([
                         leaseService.getMyLease(),
                         paymentService.getMyPayments(),
                     ]);
-                    const l = leaseRes.status === 'fulfilled' ? (leaseRes.value?.data?.data || leaseRes.value?.data) : null;
-                    setLease(l);
-                    if (payRes.status === 'fulfilled') {
+
+                    if (!isMounted) return;
+
+                    let allLeases = [];
+                    let primaryLease = null;
+                    if (leaseRes.status === 'fulfilled') {
+                        const lVal = leaseRes.value?.data || leaseRes.value;
+                        primaryLease = lVal?.data || null;
+                        const rawList = lVal?.activeLeases || (Array.isArray(primaryLease) ? primaryLease : (primaryLease ? [primaryLease] : []));
+                        allLeases = rawList.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
+                    }
+                    setAvailableLeases(allLeases);
+
+                    let targetLease = null;
+                    if (leaseIdParam) {
+                        const matched = allLeases.find(l => (l._id || l.id) === leaseIdParam);
+                        if (matched) {
+                            targetLease = matched;
+                        } else {
+                            setLease(null);
+                            setPendingPayment(null);
+                            setLeaseNotFound(true);
+                            setLoadingLease(false);
+                            return;
+                        }
+                    } else {
+                        targetLease = allLeases[0] || primaryLease || null;
+                    }
+
+                    setLease(targetLease);
+                    setLeaseNotFound(false);
+
+                    if (payRes.status === 'fulfilled' && targetLease) {
                         const allPayments = payRes.value?.data || [];
                         const statePaymentId = location.state?.paymentId;
+                        const targetLeaseIdStr = targetLease._id ? targetLease._id.toString() : '';
+                        
+                        const leasePayments = allPayments.filter(p => {
+                            const pLeaseId = p.lease?._id ? p.lease._id.toString() : (p.lease ? p.lease.toString() : '');
+                            const pPropId = p.property?._id ? p.property._id.toString() : (p.property ? p.property.toString() : '');
+                            const tPropId = targetLease.property?._id ? targetLease.property._id.toString() : (targetLease.property ? targetLease.property.toString() : '');
+                            return (pLeaseId && pLeaseId === targetLeaseIdStr) || (pPropId && pPropId === tPropId);
+                        });
+
                         const pending = statePaymentId
                             ? allPayments.find(p => p._id === statePaymentId || p.id === statePaymentId)
-                            : allPayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
+                            : leasePayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
                         setPendingPayment(pending || null);
+                    } else {
+                        setPendingPayment(null);
                     }
                 }
-            } catch (_) { }
-            setLoadingLease(false);
+            } catch (err) {
+                console.error('[PayNowPage] Error loading lease/payment context:', err);
+            } finally {
+                if (isMounted) setLoadingLease(false);
+            }
         })();
-    }, [location.state?.paymentId, searchParams, billIdParam]);
+        return () => { isMounted = false; };
+    }, [leaseIdParam, location.state?.paymentId, searchParams, billIdParam]);
+
+    const handleSelectLease = (selectedL) => {
+        if (!selectedL || (lease?._id === selectedL._id)) return;
+        setCustomAmount('');
+        setUseCustom(false);
+        setAmountError('');
+        navigate(`/pay-now?leaseId=${selectedL._id}`, { replace: true, state: { leaseId: selectedL._id } });
+    };
 
     const rentAmount = lease?.rentAmount || 0;
     const pendingAmount = pendingPayment
@@ -464,7 +514,6 @@ export default function PayNowPage() {
 
     const parsedCustom = parseInt(customAmount.replace(/[^\d]/g, '')) || 0;
 
-    // Resolve baseAmount
     const baseAmount = bookingData.amount !== undefined 
         ? bookingData.amount 
         : billDetails 
@@ -486,7 +535,6 @@ export default function PayNowPage() {
 
     return (
         <div className="max-w-lg mx-auto space-y-5 pb-10">
-            {/* Header */}
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
                 <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-muted-foreground/50 hover:text-foreground mb-6 transition-colors group">
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back
@@ -508,17 +556,47 @@ export default function PayNowPage() {
                     </motion.div>
                 ) : (
                     <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-
-                        {/* Amount Card */}
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                             className="rounded-[2.5rem] border border-emerald-500/20 p-8 shadow-2xl"
                             style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' }}>
-                            <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em] mb-3">
-                                {isBooking ? 'Total Due' : (pendingPayment ? (pendingPayment.status === 'overdue' ? '⚠️ Overdue Payment' : 'Pending Rent') : 'Monthly Rent')}
-                            </p>
+                            
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                                <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em]">
+                                    {isBooking ? 'Total Due' : (pendingPayment ? (pendingPayment.status === 'overdue' ? '⚠️ Overdue Payment' : 'Pending Rent') : 'Monthly Rent')}
+                                </p>
+
+                                {availableLeases.length > 1 && !isBooking && !billIdParam && (
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {availableLeases.map((l) => {
+                                            const isSelected = (lease?._id || lease?.id) === (l._id || l.id);
+                                            return (
+                                                <button
+                                                    key={l._id}
+                                                    type="button"
+                                                    onClick={() => handleSelectLease(l)}
+                                                    className={cn(
+                                                        "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer",
+                                                        isSelected
+                                                            ? "bg-white/25 border-white/40 text-white font-extrabold shadow-sm ring-1 ring-white/30"
+                                                            : "bg-white/5 border-white/10 text-emerald-100/60 hover:text-white hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    {l.property?.name || 'Lease'}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
 
                             {loadingLease ? (
                                 <div className="h-16 bg-white/10 rounded-2xl animate-pulse" />
+                            ) : leaseNotFound ? (
+                                <div className="py-6 text-center text-white space-y-2">
+                                    <AlertTriangle className="w-8 h-8 mx-auto text-amber-300" />
+                                    <h4 className="text-lg font-bold">Lease Not Found</h4>
+                                    <p className="text-xs text-white/70">The specified lease ID could not be loaded.</p>
+                                </div>
                             ) : (
                                 <>
                                     <div className="flex items-end gap-1 mb-6">
@@ -530,13 +608,17 @@ export default function PayNowPage() {
                                             ? <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {bookingData.propertyName}</span>
                                             : (lease && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {lease.property?.name}</span>)
                                         }
-                                        {!isBooking && pendingPayment?.dueDate && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Due: {new Date(pendingPayment.dueDate).toLocaleDateString('en-IN')}</span>}
+                                        {!isBooking && (pendingPayment?.dueDate || lease?.nextPaymentDueAt || lease?.startDate) && (
+                                            <span className="flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> 
+                                                Due: {new Date(pendingPayment?.dueDate || lease?.nextPaymentDueAt || lease?.startDate).toLocaleDateString('en-IN')}
+                                            </span>
+                                        )}
                                     </div>
                                 </>
                             )}
 
-                            {/* Custom amount toggle (Only for rent) */}
-                            {!isBooking && (
+                            {!isBooking && !leaseNotFound && (
                                 <div className="mt-6 pt-6 border-t border-white/10">
                                     <button type="button" onClick={() => setUseCustom(v => !v)}
                                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 hover:text-emerald-100 transition-colors">
@@ -560,7 +642,6 @@ export default function PayNowPage() {
                                                         />
                                                     </div>
                                                 </Field>
-                                                {/* Quick amounts */}
                                                 <div className="flex gap-2 mt-3 flex-wrap">
                                                     {[500, 1000, 2000, 5000].map(a => (
                                                         <button key={a} type="button" onClick={() => setCustomAmount(String(a))}
@@ -576,82 +657,111 @@ export default function PayNowPage() {
                             )}
                         </motion.div>
 
-                        {/* Auto-Pay Info / Setup Link for Rent */}
-                        {!isBooking && (
+                        {leaseNotFound ? (
                             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
-                                <div className="flex items-center gap-2.5">
-                                    <Zap className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                                    <div>
-                                        <p className="font-bold text-foreground">Want Hassle-Free Rent Payments?</p>
-                                        <p className="text-[10px] text-muted-foreground">Manage automatic monthly payments on the Payments page.</p>
-                                    </div>
+                                className="p-6 rounded-[2rem] border border-border bg-card text-center space-y-4 shadow-sm">
+                                <p className="text-xs text-muted-foreground">
+                                    The selected lease is not available or does not belong to your account.
+                                </p>
+                                <div className="flex gap-3 justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/my-lease')}
+                                        className="px-4 py-2.5 rounded-xl border border-border text-foreground text-xs font-bold hover:bg-muted transition-colors"
+                                    >
+                                        View My Leases
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/dashboard')}
+                                        className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+                                    >
+                                        Go to Dashboard
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate('/payments')}
-                                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
-                                >
-                                    View Auto-Pay
-                                </button>
                             </motion.div>
-                        )}
-
-                        {/* Method Selector */}
-                        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                            className="grid grid-cols-2 gap-4">
-                            {[
-                                { id: 'card', label: 'Debit Card', icon: CreditCard, color: 'from-emerald-600 to-teal-600', glow: 'shadow-emerald-500/20' },
-                                { id: 'upi', label: 'UPI', icon: Smartphone, color: 'from-violet-600 to-indigo-600', glow: 'shadow-violet-500/20' },
-                            ].map(m => {
-                                const Icon = m.icon;
-                                const active = method === m.id;
-                                return (
-                                    <motion.button key={m.id} type="button" onClick={() => setMethod(m.id)}
-                                        whileHover={{ y: -3 }} whileTap={{ scale: 0.98 }}
-                                        className={cn(
-                                            'flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all',
-                                            active
-                                                ? cn('bg-gradient-to-br text-white shadow-xl border-transparent ring-2 ring-offset-2 ring-offset-background', m.color, m.glow)
-                                                : 'border-border bg-card text-muted-foreground/40 hover:bg-muted hover:text-foreground hover:border-border/80'
-                                        )}>
-                                        <div className={cn('p-3 rounded-2xl bg-white/10 backdrop-blur-md transition-colors', active ? 'bg-white/20' : 'bg-muted')}>
-                                            <Icon className="w-6 h-6" />
+                        ) : (
+                            <>
+                                {/* Auto-Pay Info / Setup Link for Rent */}
+                                {!isBooking && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                        className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                                        <div className="flex items-center gap-2.5">
+                                            <Zap className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-foreground">Want Hassle-Free Rent Payments?</p>
+                                                <p className="text-[10px] text-muted-foreground">Manage automatic monthly payments on the Payments page.</p>
+                                            </div>
                                         </div>
-                                        <span className="font-black text-xs uppercase tracking-widest">{m.label}</span>
-                                        {active && <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Active</span>}
-                                    </motion.button>
-                                );
-                            })}
-                        </motion.div>
-
-                        {/* Payment Form */}
-                        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                            className="rounded-[2.5rem] border border-border bg-card p-6 shadow-sm">
-                            <AnimatePresence mode="wait">
-                                {method === 'card' ? (
-                                    <motion.div key="card" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
-                                        <DebitCardForm
-                                            amount={payAmount}
-                                            paymentId={paymentId || 'manual'}
-                                            onSuccess={handleSuccess}
-                                            propertyId={propertyId}
-                                            billId={billIdParam}
-                                        />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div key="upi" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
-                                        <UpiForm
-                                            amount={payAmount}
-                                            paymentId={paymentId || 'manual'}
-                                            onSuccess={handleSuccess}
-                                            propertyId={propertyId}
-                                            billId={billIdParam}
-                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/payments')}
+                                            className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
+                                        >
+                                            View Auto-Pay
+                                        </button>
                                     </motion.div>
                                 )}
-                            </AnimatePresence>
-                        </motion.div>
+
+                                {/* Method Selector */}
+                                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                                    className="grid grid-cols-2 gap-4">
+                                    {[
+                                        { id: 'card', label: 'Debit Card', icon: CreditCard, color: 'from-emerald-600 to-teal-600', glow: 'shadow-emerald-500/20' },
+                                        { id: 'upi', label: 'UPI', icon: Smartphone, color: 'from-violet-600 to-indigo-600', glow: 'shadow-violet-500/20' },
+                                    ].map(m => {
+                                        const Icon = m.icon;
+                                        const active = method === m.id;
+                                        return (
+                                            <motion.button key={m.id} type="button" onClick={() => setMethod(m.id)}
+                                                whileHover={{ y: -3 }} whileTap={{ scale: 0.98 }}
+                                                className={cn(
+                                                    'flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all',
+                                                    active
+                                                        ? cn('bg-gradient-to-br text-white shadow-xl border-transparent ring-2 ring-offset-2 ring-offset-background', m.color, m.glow)
+                                                        : 'border-border bg-card text-muted-foreground/40 hover:bg-muted hover:text-foreground hover:border-border/80'
+                                                )}>
+                                                <div className={cn('p-3 rounded-2xl bg-white/10 backdrop-blur-md transition-colors', active ? 'bg-white/20' : 'bg-muted')}>
+                                                    <Icon className="w-6 h-6" />
+                                                </div>
+                                                <span className="font-black text-xs uppercase tracking-widest">{m.label}</span>
+                                                {active && <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Active</span>}
+                                            </motion.button>
+                                        );
+                                    })}
+                                </motion.div>
+
+                                {/* Payment Form */}
+                                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                                    className="rounded-[2.5rem] border border-border bg-card p-6 shadow-sm">
+                                    <AnimatePresence mode="wait">
+                                        {method === 'card' ? (
+                                            <motion.div key="card" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
+                                                <DebitCardForm
+                                                    amount={payAmount}
+                                                    paymentId={paymentId || 'manual'}
+                                                    onSuccess={handleSuccess}
+                                                    propertyId={propertyId}
+                                                    billId={billIdParam}
+                                                    leaseId={lease?._id}
+                                                />
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div key="upi" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
+                                                <UpiForm
+                                                    amount={payAmount}
+                                                    paymentId={paymentId || 'manual'}
+                                                    onSuccess={handleSuccess}
+                                                    propertyId={propertyId}
+                                                    billId={billIdParam}
+                                                    leaseId={lease?._id}
+                                                />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            </>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

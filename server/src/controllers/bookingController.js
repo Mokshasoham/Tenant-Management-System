@@ -1033,7 +1033,7 @@ export const getBookingById = asyncHandler(async (req, res) => {
 // This forces a booking into "Paid" status, creates a tenant/lease, and generates a PDF
 export const processMockPayment = asyncHandler(async (req, res, next) => {
     try {
-        let { propertyId, amount, method, startDate, endDate } = req.body;
+        let { propertyId, amount, method, startDate, endDate, leaseId } = req.body;
         let userId = req.user?.userId;
         if (!userId) {
             console.log('[MockPay] Trace: No user in request, finding demo user...');
@@ -1070,6 +1070,14 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 success: true,
                 message: 'Bill payment processed successfully.'
             });
+        }
+
+        let lease = null;
+        if (leaseId) {
+            lease = await Lease.findById(leaseId).populate('property');
+            if (lease && lease.property) {
+                propertyId = lease.property._id || lease.property;
+            }
         }
 
         const property = await Property.findById(propertyId);
@@ -1121,11 +1129,13 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         // 3. Ensure Lease (Reuse active lease if it exists, otherwise create new)
         console.log('[MockPay] Trace: Step 3 (Lease)');
 
-        let lease = await Lease.findOne({ 
-            tenant: tenant._id, 
-            property: propertyId, 
-            status: { $in: ['pending', 'active'] }
-        });
+        if (!lease) {
+            lease = await Lease.findOne({ 
+                tenant: tenant._id, 
+                property: propertyId, 
+                status: { $in: ['pending', 'active'] }
+            });
+        }
 
         if (!lease) {
             console.log('[MockPay] Trace: Creating new lease');
