@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { autoPayService } from '../../services/api';
+import { autoPayService, leaseService } from '../../services/api';
 import {
   Zap,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Loader2,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -41,50 +42,91 @@ function loadRazorpayScript() {
   });
 }
 
-export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
+export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPayUpdated }) {
+  const [internalLeases, setInternalLeases] = useState(propsActiveLeases || []);
   const [selectedLeaseId, setSelectedLeaseId] = useState('');
   const [statusData, setStatusData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLeases, setLoadingLeases] = useState(!propsActiveLeases || propsActiveLeases.length === 0);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Select first active lease if not already selected
+  // ── Sync or fetch eligible leases independently ──
   useEffect(() => {
-    if (activeLeases && activeLeases.length > 0 && !selectedLeaseId) {
-      setSelectedLeaseId(activeLeases[0]._id);
-    }
-  }, [activeLeases, selectedLeaseId]);
-
-  // Fetch Auto-Pay status for the selected lease
-  const fetchStatus = async () => {
-    const targetId = selectedLeaseId || activeLeases[0]?._id;
-    if (!targetId) {
-      setLoading(false);
+    if (propsActiveLeases && propsActiveLeases.length > 0) {
+      setInternalLeases(propsActiveLeases);
+      if (!selectedLeaseId) {
+        setSelectedLeaseId(propsActiveLeases[0]._id);
+      }
+      setLoadingLeases(false);
       return;
     }
-    setLoading(true);
+
+    let isMounted = true;
+    const fetchEligibleLeases = async () => {
+      setLoadingLeases(true);
+      try {
+        const res = await leaseService.getMyLease();
+        const resVal = res?.data || {};
+        const leases = resVal.activeLeases || (resVal.data ? (Array.isArray(resVal.data) ? resVal.data : [resVal.data]) : []);
+        const valid = leases.filter(l => ['active', 'pending', 'upcoming'].includes(l.status));
+        if (isMounted) {
+          setInternalLeases(valid);
+          if (valid.length > 0 && !selectedLeaseId) {
+            setSelectedLeaseId(valid[0]._id);
+          }
+        }
+      } catch (err) {
+        console.warn('[AutoPayCard] Failed to fetch eligible leases:', err);
+      } finally {
+        if (isMounted) setLoadingLeases(false);
+      }
+    };
+
+    fetchEligibleLeases();
+    return () => { isMounted = false; };
+  }, [propsActiveLeases]);
+
+  // Keep selectedLeaseId valid if leases change
+  useEffect(() => {
+    if (internalLeases.length > 0 && (!selectedLeaseId || !internalLeases.some(l => l._id === selectedLeaseId))) {
+      setSelectedLeaseId(internalLeases[0]._id);
+    }
+  }, [internalLeases, selectedLeaseId]);
+
+  // ── Fetch Auto-Pay status for the selected lease ──
+  const fetchStatus = useCallback(async () => {
+    const targetId = selectedLeaseId || internalLeases[0]?._id;
+    if (!targetId) {
+      setLoadingStatus(false);
+      return;
+    }
+    setLoadingStatus(true);
+    setLoadError('');
     try {
       const res = await autoPayService.getStatus(targetId);
       if (res?.data?.success) {
         setStatusData(res.data.data);
       }
     } catch (err) {
-      console.warn('[AutoPayCard] Failed to fetch status:', err);
+      console.warn('[AutoPayCard] Failed to fetch Auto-Pay status:', err);
+      setLoadError('Unable to load Auto-Pay status for this lease.');
     } finally {
-      setLoading(false);
+      setLoadingStatus(false);
     }
-  };
+  }, [selectedLeaseId, internalLeases]);
 
   useEffect(() => {
     if (selectedLeaseId) {
       fetchStatus();
     }
-  }, [selectedLeaseId]);
+  }, [selectedLeaseId, fetchStatus]);
 
-  const selectedLease = activeLeases.find((l) => l._id === selectedLeaseId) || activeLeases[0];
+  const selectedLease = internalLeases.find((l) => l._id === selectedLeaseId) || internalLeases[0];
 
   const handleOpenEnableModal = () => {
     setErrorMsg('');
@@ -92,13 +134,13 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
     setModalOpen(true);
   };
 
-  // Enable Auto-Pay via real Razorpay mandate setup
+  // ── Enable Auto-Pay via real Razorpay recurring authorization ──
   const handleEnableAutoPay = async () => {
     setSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
 
-    const targetLeaseId = selectedLeaseId || selectedLease?._id || activeLeases[0]?._id;
+    const targetLeaseId = selectedLeaseId || selectedLease?._id || internalLeases[0]?._id;
     if (!targetLeaseId) {
       setErrorMsg('Please select a valid lease.');
       setSubmitting(false);
@@ -175,7 +217,7 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
         },
         modal: {
           ondismiss: function () {
-            // If user closes/cancels checkout: keep Auto-Pay OFF
+            // User closed/cancelled checkout: keep Auto-Pay OFF
             setSubmitting(false);
           },
         },
@@ -200,11 +242,11 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
     }
   };
 
-  // Disable Auto-Pay
+  // ── Disable Auto-Pay ──
   const handleDisableAutoPay = async () => {
     setSubmitting(true);
     setErrorMsg('');
-    const targetLeaseId = selectedLeaseId || selectedLease?._id || activeLeases[0]?._id;
+    const targetLeaseId = selectedLeaseId || selectedLease?._id || internalLeases[0]?._id;
     try {
       const res = await autoPayService.disable({ leaseId: targetLeaseId });
       if (res?.data?.success) {
@@ -220,7 +262,24 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
     }
   };
 
-  if (!activeLeases || activeLeases.length === 0) {
+  // ── Loading Skeleton ──
+  if (loadingLeases) {
+    return (
+      <div className="rounded-3xl bg-card border border-border/80 p-6 shadow-xl backdrop-blur-xl animate-pulse flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-muted/60" />
+          <div className="space-y-2">
+            <div className="w-24 h-4 rounded-lg bg-muted/60" />
+            <div className="w-48 h-3 rounded-lg bg-muted/40" />
+          </div>
+        </div>
+        <div className="w-32 h-10 rounded-2xl bg-muted/60" />
+      </div>
+    );
+  }
+
+  // ── Empty State if no eligible leases ──
+  if (internalLeases.length === 0) {
     return null;
   }
 
@@ -298,13 +357,13 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
             </div>
 
             {/* Multiple Lease Selector (if tenant has > 1 lease) */}
-            {activeLeases.length > 1 && (
+            {internalLeases.length > 1 && (
               <div className="flex items-center gap-2 pt-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
                   Select Lease:
                 </span>
-                <div className="flex gap-1.5">
-                  {activeLeases.map((l) => (
+                <div className="flex flex-wrap gap-1.5">
+                  {internalLeases.map((l) => (
                     <button
                       key={l._id}
                       onClick={() => {
@@ -313,43 +372,58 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
                         setSuccessMsg('');
                       }}
                       className={cn(
-                        'px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer',
+                        'px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5',
                         selectedLeaseId === l._id
                           ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300 shadow-sm'
                           : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      {l.property?.name?.split(' ')[0] || 'Lease'}
+                      <span>{l.property?.name || 'Lease'}</span>
+                      {l.status && (
+                        <span className="text-[8px] uppercase tracking-wider opacity-60">
+                          ({l.status})
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Non-blocking API warning if status fetch failed */}
+            {loadError && (
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-500 pt-1">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{loadError}</span>
               </div>
             )}
           </div>
 
           {/* Right Details / CTA Column */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
-            {isAutoPayActive && (
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/40 border border-border/80 text-left min-w-[220px]">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
-                    Monthly Rent
-                  </p>
-                  <p className="text-xs font-black text-foreground truncate">
-                    ₹{monthlyAmount.toLocaleString('en-IN')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
-                    Next Auto-Payment
-                  </p>
-                  <p className="text-xs font-black text-emerald-500 truncate">{nextDueDate}</p>
-                </div>
+            {/* Rent & Schedule Info Box */}
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/40 border border-border/80 text-left min-w-[240px]">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
+                  Monthly Rent
+                </p>
+                <p className="text-xs font-black text-foreground truncate">
+                  ₹{monthlyAmount.toLocaleString('en-IN')}
+                </p>
               </div>
-            )}
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
+                  {isAutoPayActive ? 'Next Auto-Payment' : 'Next Payment Due'}
+                </p>
+                <p className="text-xs font-black text-emerald-500 truncate">
+                  {loadingStatus ? '...' : nextDueDate}
+                </p>
+              </div>
+            </div>
 
             {isAutoPayActive ? (
               <button
+                type="button"
                 onClick={handleOpenEnableModal}
                 className="px-5 py-3 rounded-2xl border border-border/80 bg-muted/60 hover:bg-muted text-foreground text-xs font-black uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto"
               >
@@ -357,6 +431,7 @@ export default function AutoPayCard({ activeLeases = [], onAutoPayUpdated }) {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleOpenEnableModal}
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto border border-white/20"
               >

@@ -321,7 +321,7 @@ export default function PaymentsPage() {
       </motion.div>
 
       {/* Tenant Auto-Pay Section */}
-      {isTenant && activeLeases.length > 0 && (
+      {isTenant && (
         <AutoPayCard
           activeLeases={activeLeases}
           onAutoPayUpdated={fetchPayments}
