@@ -100,11 +100,50 @@ export async function calculateManagerLedger(managerId) {
       { owner: managerId }
     ],
     status: 'paid'
-  }).select('amount amountPaid netAmount status createdAt');
+  })
+    .populate('tenant', 'firstName lastName email')
+    .populate('property', 'name address')
+    .populate('lease', 'leaseNumber rentAmount')
+    .sort({ paymentDate: -1, createdAt: -1 });
 
+  // Manager Total Earned = sum of managerNetAmount (gross rent - manager commission).
+  // CRITICAL: TMS Platform Fee (e.g. ₹150) is platform revenue and is NEVER added to manager withdrawable funds!
   const totalEarned = paidPayments.reduce((sum, p) => {
-    return sum + (p.amountPaid || p.amount || 0);
+    const net = (p.managerNetAmount !== undefined && p.managerNetAmount !== null)
+      ? p.managerNetAmount
+      : ((p.rentAmount !== undefined && p.rentAmount !== null)
+          ? p.rentAmount - (p.managerCommission || 0)
+          : (p.amountPaid || p.amount || 0));
+    return sum + net;
   }, 0);
+
+  // Total Platform Revenue generated across this portfolio
+  const totalPlatformFees = paidPayments.reduce((sum, p) => {
+    return sum + (p.platformFee || 0);
+  }, 0);
+
+  // Itemized Earnings Breakdown for Manager Portal
+  const earningsBreakdown = paidPayments.map(p => {
+    const gross = p.managerGrossAmount || p.rentAmount || p.amountPaid || p.amount || 0;
+    const commission = p.managerCommission || 0;
+    const net = (p.managerNetAmount !== undefined && p.managerNetAmount !== null)
+      ? p.managerNetAmount
+      : Math.max(0, gross - commission);
+
+    return {
+      _id: p._id,
+      tenantName: p.tenant ? `${p.tenant.firstName || ''} ${p.tenant.lastName || ''}`.trim() : 'Valued Tenant',
+      propertyName: p.property?.name || 'Assigned Property',
+      leaseNumber: p.lease?.leaseNumber || '—',
+      grossRent: gross,
+      platformFee: p.platformFee !== undefined ? p.platformFee : null,
+      managerCommission: commission,
+      managerNet: net,
+      paymentDate: p.paymentDate || p.createdAt,
+      status: p.status,
+      razorpayPaymentId: p.razorpayPaymentId || p.reference || '—',
+    };
+  });
 
   // 3. Fetch all pending/upcoming payments
   const pendingPayments = await Payment.find({
@@ -113,10 +152,10 @@ export async function calculateManagerLedger(managerId) {
       { owner: managerId }
     ],
     status: { $in: ['pending', 'partially_paid'] }
-  }).select('amount');
+  }).select('amount rentAmount');
 
   const totalPending = pendingPayments.reduce((sum, p) => {
-    return sum + (p.amount || 0);
+    return sum + (p.rentAmount || p.amount || 0);
   }, 0);
 
   // 4. Fetch all payouts for this manager
@@ -136,17 +175,19 @@ export async function calculateManagerLedger(managerId) {
     .filter(p => completedStatuses.includes(p.status))
     .reduce((sum, p) => sum + p.amount, 0);
 
-  // Available to withdraw (failed/rejected/cancelled payouts are released automatically)
+  // Available to withdraw (Total Net Earned - Reserved - Completed)
   const availableBalance = Math.max(0, totalEarned - reservedAmount - completedAmount);
 
   return {
     totalEarned,
     totalPending,
+    totalPlatformFees,
     reservedAmount,
     completedAmount,
     totalWithdrawn: completedAmount,
     availableBalance,
     payouts,
+    earningsBreakdown,
     propertyCount: propertyIds.length
   };
 }
@@ -493,6 +534,8 @@ export const getPayoutSummary = asyncHandler(async (req, res) => {
       pending: ledger.totalPending,
       reserved: ledger.reservedAmount,
       totalWithdrawn: ledger.completedAmount,
+      totalPlatformFees: ledger.totalPlatformFees,
+      earningsBreakdown: ledger.earningsBreakdown,
       isPayoutReady,
       hasConnectedAccount,
       verificationStatus: bankAccount?.verificationStatus || null,

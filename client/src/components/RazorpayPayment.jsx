@@ -31,8 +31,31 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
     const navigate = useNavigate();
     const [step, setStep] = useState('confirm'); // confirm | paying | success | error
     const [errorMsg, setErrorMsg] = useState('');
-    const securityDeposit = property.depositAmount || (property.rentAmount * 2);
-    const totalPayable = securityDeposit;
+    const [feeBreakdown, setFeeBreakdown] = useState(null);
+    const securityDeposit = property.depositAmount || (property.rentAmount * 2) || 1000;
+
+    useEffect(() => {
+        // Fetch real server-calculated platform fee breakdown preview
+        (async () => {
+            try {
+                const { platformService } = await import('../services/api');
+                const res = await platformService.getFeePreview(securityDeposit);
+                const raw = res?.data || res;
+                if (raw) setFeeBreakdown(raw);
+            } catch (_) {
+                // Fallback default 1% estimate if network unavailable
+                setFeeBreakdown({
+                    rentAmount: securityDeposit,
+                    platformFee: Math.round(securityDeposit * 0.01),
+                    platformFeePercentage: 1,
+                    taxAmount: 0,
+                    totalPayable: securityDeposit + Math.round(securityDeposit * 0.01)
+                });
+            }
+        })();
+    }, [securityDeposit]);
+
+    const totalPayable = feeBreakdown?.totalPayable || (securityDeposit + Math.round(securityDeposit * 0.01));
 
     const handlePayNow = async () => {
         setStep('paying');
@@ -142,16 +165,30 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                 {/* Breakdown */}
                                 <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)' }}>
                                     <p className="text-xs font-black uppercase tracking-widest mb-4" style={{ color: 'var(--text-muted)' }}>Payment Breakdown</p>
-                                    {[
-                                        { label: 'Security Deposit', amount: securityDeposit },
-                                    ].map(row => (
-                                        <div key={row.label} className="flex items-center justify-between text-sm">
-                                            <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
-                                            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>₹{row.amount.toLocaleString('en-IN')}</span>
+                                    
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span style={{ color: 'var(--text-secondary)' }}>Deposit / Rent</span>
+                                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>₹{securityDeposit.toLocaleString('en-IN')}</span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span style={{ color: 'var(--text-secondary)' }}>
+                                            TMS Platform Fee ({feeBreakdown?.platformFeePercentage || 1}%)
+                                        </span>
+                                        <span className="font-bold text-indigo-400">
+                                            ₹{(feeBreakdown?.platformFee || Math.round(securityDeposit * 0.01)).toLocaleString('en-IN')}
+                                        </span>
+                                    </div>
+
+                                    {(feeBreakdown?.taxAmount > 0) && (
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span style={{ color: 'var(--text-secondary)' }}>Applicable Tax</span>
+                                            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>₹{feeBreakdown.taxAmount.toLocaleString('en-IN')}</span>
                                         </div>
-                                    ))}
+                                    )}
+
                                     <div className="pt-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-color)' }}>
-                                        <span className="font-black text-sm" style={{ color: 'var(--text-primary)' }}>Total Due Now</span>
+                                        <span className="font-black text-sm" style={{ color: 'var(--text-primary)' }}>Total Payable</span>
                                         <span className="text-xl font-black" style={{ color: '#6366f1' }}>
                                             ₹{totalPayable.toLocaleString('en-IN')}
                                         </span>

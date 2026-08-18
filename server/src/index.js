@@ -49,6 +49,7 @@ import workforceSchedulingRoutes from './routes/workforceSchedulingRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import leaseRenewalV1Routes from './modules/lease-renewal/routes.js';
 import verificationRoutes from './routes/verificationRoutes.js';
+import platformRoutes from './routes/platformRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
 import { handleStripeConnectWebhook } from './controllers/stripeConnectController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
@@ -301,6 +302,7 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/stripe-connect', stripeConnectRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/payouts', payoutRoutes);
+app.use('/api/platform', platformRoutes);
 app.use('/api/v1/schedulers', schedulerRoutes);
 
 // 404 handler

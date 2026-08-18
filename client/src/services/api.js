@@ -263,6 +263,13 @@ export const payoutService = {
   rejectPayout: (id, note) => apiClient.put(`/payouts/${id}/reject`, { note }),
 };
 
+export const platformService = {
+  getFeePreview: (amount) => apiClient.get('/platform/fee-preview', { params: { amount } }),
+  getPlatformSettings: () => apiClient.get('/platform/settings'),
+  updatePlatformSettings: (data) => apiClient.put('/platform/settings', data),
+  getAdminRevenueSummary: () => apiClient.get('/platform/revenue-summary'),
+};
+
 export const stripeConnectService = {
   getStatus: () => apiClient.get('/stripe-connect/status'),
   createAccount: () => apiClient.post('/stripe-connect/account'),

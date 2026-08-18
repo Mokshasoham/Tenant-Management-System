@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { paymentService, leaseService, bookingService, billService } from '../services/api';
+import { paymentService, leaseService, bookingService, billService, platformService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
@@ -408,6 +408,7 @@ export default function PayNowPage() {
     const [pendingPayment, setPendingPayment] = useState(null);
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
+    const [feeBreakdown, setFeeBreakdown] = useState(null);
 
     // Custom amount mode
     const [customAmount, setCustomAmount] = useState('');
@@ -543,6 +544,30 @@ export default function PayNowPage() {
     const paymentId = billDetails ? (billDetails.payment?._id || billDetails.payment) : (pendingPayment?._id || pendingPayment?.id);
     const propertyId = bookingData.propertyId || billDetails?.property?._id || lease?.property?._id;
 
+    useEffect(() => {
+        let isMounted = true;
+        const base = useCustom ? parsedCustom : baseAmount;
+        if (base > 0) {
+            platformService.getFeePreview(base).then(res => {
+                const raw = res?.data || res;
+                if (isMounted && raw) setFeeBreakdown(raw);
+            }).catch(() => {
+                if (isMounted) {
+                    setFeeBreakdown({
+                        rentAmount: base,
+                        platformFee: Math.round(base * 0.01),
+                        platformFeePercentage: 1,
+                        taxAmount: 0,
+                        totalPayable: base + Math.round(base * 0.01)
+                    });
+                }
+            });
+        }
+        return () => { isMounted = false; };
+    }, [baseAmount, customAmount, useCustom, parsedCustom]);
+
+    const finalTotalPayable = feeBreakdown?.totalPayable || (payAmount + Math.round(payAmount * 0.01));
+
     const validateCustom = () => {
         if (parsedCustom < 1) { setAmountError('Enter a valid amount'); return false; }
         if (parsedCustom > 1000000) { setAmountError('Amount cannot exceed ₹10,00,000'); return false; }
@@ -571,7 +596,7 @@ export default function PayNowPage() {
                 {success ? (
                     <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }} className="rounded-[2.5rem] border border-border bg-card p-8 shadow-xl">
-                        <SuccessScreen amount={payAmount} method={method} navigate={navigate} type={isBooking ? 'booking' : 'rent'} />
+                        <SuccessScreen amount={finalTotalPayable} method={method} navigate={navigate} type={isBooking ? 'booking' : 'rent'} />
                     </motion.div>
                 ) : (
                     <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
@@ -581,7 +606,7 @@ export default function PayNowPage() {
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em]">
-                                    {isBooking ? 'Total Due' : (pendingPayment ? (pendingPayment.status === 'overdue' ? '⚠️ Overdue Payment' : 'Pending Rent') : 'Monthly Rent')}
+                                    {isBooking ? 'Total Payable' : (pendingPayment ? (pendingPayment.status === 'overdue' ? '⚠️ Overdue Payment' : 'Pending Rent') : 'Monthly Rent')}
                                 </p>
 
                                 {availableLeases.length > 1 && !isBooking && !billIdParam && (
@@ -618,10 +643,31 @@ export default function PayNowPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-end gap-1 mb-6">
+                                    <div className="flex items-end gap-1 mb-4">
                                         <span className="text-emerald-400 text-4xl font-black">₹</span>
-                                        <span className="text-6xl font-black text-white">{payAmount.toLocaleString('en-IN')}</span>
+                                        <span className="text-6xl font-black text-white">{finalTotalPayable.toLocaleString('en-IN')}</span>
                                     </div>
+
+                                    {/* Breakdown items */}
+                                    <div className="bg-black/20 rounded-2xl p-3 mb-4 space-y-1.5 text-xs text-emerald-100/80">
+                                        <div className="flex justify-between">
+                                            <span>Base Rent</span>
+                                            <span className="font-bold text-white">₹{payAmount.toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>TMS Platform Fee ({feeBreakdown?.platformFeePercentage || 1}%)</span>
+                                            <span className="font-bold text-emerald-300">
+                                                ₹{(feeBreakdown?.platformFee || Math.round(payAmount * 0.01)).toLocaleString('en-IN')}
+                                            </span>
+                                        </div>
+                                        {(feeBreakdown?.taxAmount > 0) && (
+                                            <div className="flex justify-between">
+                                                <span>Applicable Tax</span>
+                                                <span className="font-bold text-white">₹{feeBreakdown.taxAmount.toLocaleString('en-IN')}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 font-mono">
                                         {isBooking
                                             ? <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {bookingData.propertyName}</span>

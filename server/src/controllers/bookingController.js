@@ -75,6 +75,7 @@ import Razorpay from 'razorpay';
 import { generateAndUploadLeasePDF, generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
 import { getSignedUrlForFile } from './fileController.js';
+import { calculatePaymentBreakdown, recordVerifiedRevenue } from '../services/platformFeeService.js';
 
 // Helper: add timeline event
 const addTimeline = (booking, event, note = '') => {
@@ -118,13 +119,14 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     
     // Use the exact security deposit amount selected for the booking or property
     const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2) || booking.totalAmount || 1000;
+    const breakdown = await calculatePaymentBreakdown(securityDeposit);
 
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-    logger.info(`[RAZORPAY CREATE ORDER DEBUG] authenticatedUserId: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${booking._id}, bookingStatus: ${booking.status}, securityDeposit: ${securityDeposit}, monthlyRent: ${property.rentAmount}`);
+    logger.info(`[RAZORPAY CREATE ORDER DEBUG] authenticatedUserId: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${booking._id}, rentAmount: ${breakdown.rentAmount}, platformFee: ${breakdown.platformFee}, totalPayable: ${breakdown.totalPayable}`);
 
-    let amountInPaise = Math.round(Number(securityDeposit) * 100);
+    let amountInPaise = Math.round(Number(breakdown.totalPayable) * 100);
     const isTestMode = keyId.startsWith('rzp_test_');
 
     if (isTestMode && amountInPaise > 10000000) {
@@ -156,10 +158,10 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     }
 
     booking.razorpayOrderId = razorpayOrderId;
-    booking.platformFee = 0;
-    booking.managerEarnings = 0;
-    booking.ownerEarnings = securityDeposit;
-    booking.totalAmount = securityDeposit; // Lock in the final total as exactly the security deposit amount
+    booking.platformFee = breakdown.platformFee;
+    booking.managerEarnings = breakdown.managerNetAmount;
+    booking.ownerEarnings = breakdown.managerNetAmount;
+    booking.totalAmount = breakdown.totalPayable;
     await booking.save();
 
     // Save signature to the pending lease if provided
@@ -366,25 +368,65 @@ const verifyAndProcessPaymentInternal = async ({
                     ]
                 });
 
+                const depositBase = booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || (booking.totalAmount - (booking.platformFee || 0));
+                const breakdown = await calculatePaymentBreakdown(depositBase);
+
                 payment = await Payment.create({
                     type: 'security_deposit',
                     tenant: tenant._id,
                     property: booking.property._id,
                     lease: lease?._id,
-                    amount: booking.totalAmount,
-                    amountPaid: booking.totalAmount,
+                    owner: managerId,
+                    amount: breakdown.totalPayable,
+                    amountPaid: breakdown.totalPayable,
+                    rentAmount: breakdown.rentAmount,
+                    platformFee: breakdown.platformFee,
+                    platformFeePercentage: breakdown.platformFeePercentage,
+                    taxAmount: breakdown.taxAmount,
+                    totalAmount: breakdown.totalPayable,
+                    managerGrossAmount: breakdown.managerGrossAmount,
+                    managerCommission: breakdown.managerCommission,
+                    managerNetAmount: breakdown.managerNetAmount,
+                    platformRevenue: breakdown.platformRevenue,
                     paymentDate: new Date(),
                     dueDate: booking.startDate || new Date(),
                     status: 'paid',
                     paymentMethod: 'card',
                     reference: razorpayPaymentId,
+                    razorpayOrderId: razorpayOrderId,
                     razorpayPaymentId: razorpayPaymentId,
+                    razorpaySignature: razorpaySignature,
+                    providerStatus: 'captured',
                     description: `Security deposit for ${booking.property?.name || 'Property'}`,
                     bill: bill._id
                 });
 
                 bill.payment = payment._id;
                 await bill.save();
+
+                // Idempotently record verified revenue in immutable PaymentTransaction ledger
+                await recordVerifiedRevenue({
+                    paymentId: payment._id,
+                    tenantId: tenant._id,
+                    leaseId: lease?._id,
+                    propertyId: booking.property._id,
+                    managerId: managerId,
+                    rentAmount: breakdown.rentAmount,
+                    platformFee: breakdown.platformFee,
+                    platformFeePercentage: breakdown.platformFeePercentage,
+                    platformTax: breakdown.taxAmount,
+                    managerCommission: breakdown.managerCommission,
+                    managerCommissionPercentage: breakdown.managerCommissionPercentage,
+                    managerGrossAmount: breakdown.managerGrossAmount,
+                    managerNetAmount: breakdown.managerNetAmount,
+                    platformRevenue: breakdown.platformRevenue,
+                    totalAmount: breakdown.totalPayable,
+                    currency: 'INR',
+                    feePayer: breakdown.feePayer,
+                    razorpayOrderId: razorpayOrderId,
+                    razorpayPaymentId: razorpayPaymentId,
+                    razorpaySignature: razorpaySignature,
+                });
 
                 // Generate & upload invoice PDF asynchronously
                 try {

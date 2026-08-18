@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Wallet, ArrowDownToLine, History, 
     CheckCircle2, Clock, XCircle, AlertCircle, Info,
-    CreditCard, ShieldCheck, X, Building2, RefreshCw, Unlink
+    CreditCard, ShieldCheck, X, Building2, RefreshCw, Unlink, Receipt
 } from 'lucide-react';
 import { payoutService } from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -23,17 +23,14 @@ const IFSC_PREVIEW_MAP = {
     'BKID': 'Bank of India',
     'IDIB': 'Indian Bank',
     'YESB': 'YES Bank',
-    'INDB': 'IndusInd Bank',
-    'FDRL': 'Federal Bank',
-    'IDFB': 'IDFC FIRST Bank',
-    'AIRP': 'Airtel Payments Bank',
-    'PYTM': 'Paytm Payments Bank',
 };
 
 export default function PayoutsSection() {
     const [stats, setStats] = useState({ available: 0, totalEarned: 0, pending: 0 });
-    const [bankAccount, setBankAccount] = useState(null);
     const [history, setHistory] = useState([]);
+    const [earningsBreakdown, setEarningsBreakdown] = useState([]);
+    const [activeHistoryTab, setActiveHistoryTab] = useState('withdrawals'); // 'withdrawals' | 'breakdown'
+    const [bankAccount, setBankAccount] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requestAmount, setRequestAmount] = useState('');
     const [requesting, setRequesting] = useState(false);
@@ -71,6 +68,9 @@ export default function PayoutsSection() {
                     totalEarned: s.totalEarned ?? 0,
                     pending: s.pending ?? s.totalPending ?? 0,
                 });
+                if (Array.isArray(s.earningsBreakdown)) {
+                    setEarningsBreakdown(s.earningsBreakdown);
+                }
             }
 
             if (historyRes.status === 'fulfilled') {
@@ -509,13 +509,42 @@ export default function PayoutsSection() {
                 </div>
             </div>
 
-            {/* Right: History */}
+            {/* Right: History & Rental Earnings Breakdown */}
             <div className="lg:col-span-2 space-y-4">
                 <div className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 flex flex-col h-full">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-                            <History className="w-4 h-4 text-blue-500" /> Withdrawal History
-                        </h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/40 border border-border">
+                            <button
+                                type="button"
+                                onClick={() => setActiveHistoryTab('withdrawals')}
+                                className={cn(
+                                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                                    activeHistoryTab === 'withdrawals' 
+                                        ? "bg-card text-foreground shadow-sm border border-border" 
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <History className="w-3.5 h-3.5 text-blue-500" /> Withdrawal History
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveHistoryTab('breakdown')}
+                                className={cn(
+                                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                                    activeHistoryTab === 'breakdown' 
+                                        ? "bg-card text-foreground shadow-sm border border-border" 
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <Receipt className="w-3.5 h-3.5 text-emerald-500" /> Rental Earnings Breakdown
+                            </button>
+                        </div>
+
+                        {activeHistoryTab === 'breakdown' && (
+                            <span className="text-[11px] font-bold text-muted-foreground">
+                                {earningsBreakdown.length} verified transaction{earningsBreakdown.length !== 1 ? 's' : ''}
+                            </span>
+                        )}
                     </div>
 
                     <div className="space-y-3 flex-1 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
@@ -523,48 +552,107 @@ export default function PayoutsSection() {
                             Array(5).fill(0).map((_, i) => (
                                 <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />
                             ))
-                        ) : history.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-                                <History className="w-12 h-12 opacity-20 mb-2" />
-                                <p className="text-sm font-bold italic">No payouts requested yet.</p>
-                            </div>
-                        ) : (
-                            history.map((item, i) => (
-                                <motion.div 
-                                    key={item._id}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                    className="flex items-center justify-between p-4 rounded-xl bg-white/3 border border-transparent hover:border-white/5 transition-all group"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-2 rounded-lg bg-white/5">
-                                            <CreditCard className="w-4 h-4 text-muted-foreground group-hover:text-blue-400 transition-colors" />
+                        ) : activeHistoryTab === 'withdrawals' ? (
+                            /* Tab 1: Withdrawal History */
+                            history.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                                    <History className="w-12 h-12 opacity-20 mb-2" />
+                                    <p className="text-sm font-bold italic">No payouts requested yet.</p>
+                                </div>
+                            ) : (
+                                history.map((item, i) => (
+                                    <motion.div 
+                                        key={item._id}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className="flex items-center justify-between p-4 rounded-xl bg-white/3 border border-transparent hover:border-white/5 transition-all group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2 rounded-lg bg-white/5">
+                                                <CreditCard className="w-4 h-4 text-muted-foreground group-hover:text-blue-400 transition-colors" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">₹{(item.amount || 0).toLocaleString('en-IN')}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium">
+                                                    Requested on {new Date(item.requestedAt || item.createdAt).toLocaleDateString()}
+                                                    {item.accountNumberLast4 && ` • Account ending in ${item.accountNumberLast4}`}
+                                                </p>
+                                                {item.failureReason && (
+                                                    <p className="text-[10px] text-rose-400 font-medium mt-0.5">{item.failureReason}</p>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-foreground">₹{(item.amount || 0).toLocaleString('en-IN')}</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium">
-                                                Requested on {new Date(item.requestedAt || item.createdAt).toLocaleDateString()}
-                                                {item.accountNumberLast4 && ` • Account ending in ${item.accountNumberLast4}`}
-                                            </p>
-                                            {item.failureReason && (
-                                                <p className="text-[10px] text-rose-400 font-medium mt-0.5">{item.failureReason}</p>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/5">
+                                                {getStatusIcon(item.status)}
+                                                <span className="text-[9px] font-black uppercase text-foreground/70">{item.status}</span>
+                                            </div>
+                                            {(item.completedAt || item.processedAt) && (
+                                                <p className="text-[8px] text-muted-foreground italic">
+                                                    Processed {new Date(item.completedAt || item.processedAt).toLocaleDateString()}
+                                                </p>
                                             )}
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/5">
-                                            {getStatusIcon(item.status)}
-                                            <span className="text-[9px] font-black uppercase text-foreground/70">{item.status}</span>
+                                    </motion.div>
+                                ))
+                            )
+                        ) : (
+                            /* Tab 2: Rental Earnings Breakdown */
+                            earningsBreakdown.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                                    <Receipt className="w-12 h-12 opacity-20 mb-2" />
+                                    <p className="text-sm font-bold italic">No rental earnings recorded yet.</p>
+                                </div>
+                            ) : (
+                                earningsBreakdown.map((item, i) => (
+                                    <motion.div 
+                                        key={item._id || i}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.04 }}
+                                        className="p-4 rounded-xl bg-muted/20 border border-border/60 hover:border-border transition-all space-y-3"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold text-foreground">{item.tenantName}</p>
+                                                <p className="text-[10px] text-muted-foreground">{item.propertyName} • Lease {item.leaseNumber}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                                                <CheckCircle2 className="w-3 h-3" /> {item.status}
+                                            </div>
                                         </div>
-                                        {(item.completedAt || item.processedAt) && (
-                                            <p className="text-[8px] text-muted-foreground italic">
-                                                Processed {new Date(item.completedAt || item.processedAt).toLocaleDateString()}
-                                            </p>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))
+
+                                        <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border/40 text-[11px]">
+                                            <div>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Gross Rent</p>
+                                                <p className="font-bold text-foreground">₹{Number(item.grossRent || 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">TMS Fee</p>
+                                                <p className="font-bold text-indigo-400">
+                                                    {item.platformFee !== null ? `₹${Number(item.platformFee).toLocaleString('en-IN')}` : '—'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Commission</p>
+                                                <p className="font-bold text-muted-foreground">
+                                                    {item.managerCommission !== null && item.managerCommission > 0 ? `₹${Number(item.managerCommission).toLocaleString('en-IN')}` : '₹0'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Manager Net</p>
+                                                <p className="font-black text-emerald-400">₹{Number(item.managerNet || 0).toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-[9px] text-muted-foreground pt-1 border-t border-border/20">
+                                            <span>Payment ID: <span className="font-mono text-foreground/80">{item.razorpayPaymentId}</span></span>
+                                            <span>{new Date(item.paymentDate).toLocaleDateString()}</span>
+                                        </div>
+                                    </motion.div>
+                                ))
+                            )
                         )}
                     </div>
                 </div>

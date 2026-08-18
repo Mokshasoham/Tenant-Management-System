@@ -43,6 +43,61 @@ const paymentSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Platform Revenue & Breakdown extensions
+    rentAmount: {
+      type: Number,
+    },
+    platformFee: {
+      type: Number,
+      default: 0,
+    },
+    platformFeePercentage: {
+      type: Number,
+    },
+    taxAmount: {
+      type: Number,
+      default: 0,
+    },
+    totalAmount: {
+      type: Number,
+    },
+    currency: {
+      type: String,
+      default: 'INR',
+    },
+    feePayer: {
+      type: String,
+      default: 'tenant',
+    },
+    managerGrossAmount: {
+      type: Number,
+    },
+    managerCommission: {
+      type: Number,
+      default: 0,
+    },
+    managerNetAmount: {
+      type: Number,
+    },
+    platformRevenue: {
+      type: Number,
+      default: 0,
+    },
+    providerFee: {
+      type: Number,
+      default: 0,
+    },
+    providerTax: {
+      type: Number,
+      default: 0,
+    },
+    razorpayOrderId: String,
+    razorpaySignature: String,
+    providerStatus: String,
+    transaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PaymentTransaction',
+    },
     paymentDate: Date,
     dueDate: {
       type: Date,

@@ -11,6 +11,7 @@ import logger from '../utils/logger.js';
 import { processPostPayment } from '../services/paymentAutomation.js';
 import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { getSignedUrlForFile } from './fileController.js';
+import { calculatePaymentBreakdown, recordVerifiedRevenue } from '../services/platformFeeService.js';
 
 const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
@@ -342,6 +343,39 @@ export const recordPayment = asyncHandler(async (req, res) => {
   }
 
   await payment.save();
+
+  if (payment.status === 'paid') {
+    try {
+      const breakdown = await calculatePaymentBreakdown(payment.rentAmount || payment.amount);
+      const property = await Property.findById(payment.property);
+      const managerId = payment.owner || property?.manager || property?.owner;
+
+      await recordVerifiedRevenue({
+        paymentId: payment._id,
+        tenantId: payment.tenant,
+        leaseId: payment.lease,
+        propertyId: payment.property,
+        managerId: managerId,
+        rentAmount: payment.rentAmount || breakdown.rentAmount,
+        platformFee: payment.platformFee !== undefined ? payment.platformFee : breakdown.platformFee,
+        platformFeePercentage: payment.platformFeePercentage || breakdown.platformFeePercentage,
+        platformTax: payment.taxAmount || breakdown.taxAmount,
+        managerCommission: payment.managerCommission || breakdown.managerCommission,
+        managerCommissionPercentage: breakdown.managerCommissionPercentage,
+        managerGrossAmount: payment.managerGrossAmount || breakdown.managerGrossAmount,
+        managerNetAmount: payment.managerNetAmount !== undefined ? payment.managerNetAmount : breakdown.managerNetAmount,
+        platformRevenue: payment.platformRevenue !== undefined ? payment.platformRevenue : breakdown.platformRevenue,
+        totalAmount: payment.totalAmount || breakdown.totalPayable,
+        currency: payment.currency || 'INR',
+        feePayer: payment.feePayer || breakdown.feePayer,
+        razorpayOrderId: payment.razorpayOrderId,
+        razorpayPaymentId: payment.razorpayPaymentId || reference,
+        razorpaySignature: payment.razorpaySignature,
+      });
+    } catch (revErr) {
+      logger.warn(`[PaymentRecord] Revenue recording non-fatal warning: ${revErr.message}`);
+    }
+  }
 
   if (payment.bill) {
     try {
