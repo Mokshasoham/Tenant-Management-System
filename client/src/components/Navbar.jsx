@@ -271,51 +271,114 @@ export default function Navbar({ toggleSidebar }) {
     }
   };
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocusedWithin, setIsFocusedWithin] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 220);
+  };
+
+  const handleFocus = () => {
+    setIsFocusedWithin(true);
+  };
+
+  const handleBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsFocusedWithin(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
+
+  const isExpanded = isHovered || isFocusedWithin || searchOpen || showNotif;
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <nav className={cn(
-      "w-full border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#070b12]/45 backdrop-blur-xl relative group h-[64px] min-h-[64px]",
-      "px-4 py-2 rounded-2xl flex items-center justify-between gap-4 transition-all duration-300",
-      "shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.12)]",
-      role === 'admin' && "shadow-violet-500/5 hover:border-violet-500/25",
-      role === 'manager' && "shadow-blue-500/5 hover:border-blue-500/25",
-      role === 'tenant' && "shadow-emerald-500/5 hover:border-emerald-500/25",
-      role === 'technician' && "shadow-cyan-500/5 hover:border-cyan-500/25"
-    )}>
+    <nav 
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      className={cn(
+        "border border-slate-200/80 dark:border-white/10 bg-white/85 dark:bg-[#070b12]/75 backdrop-blur-2xl relative group",
+        "flex items-center justify-between transition-all duration-300 ease-out mx-auto",
+        role === 'admin' && "hover:border-violet-500/30",
+        role === 'manager' && "hover:border-blue-500/30",
+        role === 'tenant' && "hover:border-emerald-500/30",
+        role === 'technician' && "hover:border-cyan-500/30",
+        isExpanded
+          ? "w-full max-w-full rounded-2xl px-4 py-2 h-[64px] min-h-[64px] shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.25)] gap-4"
+          : "w-full max-w-[420px] sm:max-w-[460px] rounded-full px-3 py-1.5 h-[56px] min-h-[56px] shadow-xl dark:shadow-[0_12px_36px_rgba(0,0,0,0.45)] ring-1 ring-white/10 gap-2 sm:gap-3"
+      )}
+    >
       {/* Glossy Reflection Overlay */}
-      <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+      <div className={cn(
+        "absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300",
+        isExpanded ? "rounded-2xl" : "rounded-full"
+      )}>
         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-30" />
         <div className="absolute -inset-y-12 -left-36 w-24 bg-white/10 dark:bg-white/5 blur-xl transform rotate-12 transition-all duration-1000 group-hover:left-[110%]" />
       </div>
+
       {/* Left */}
-      <div className="flex items-center gap-3">
-        <button onClick={toggleSidebar} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-all">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <button 
+          onClick={toggleSidebar} 
+          className={cn(
+            "p-2 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer shrink-0",
+            isExpanded ? "rounded-xl" : "rounded-full"
+          )}
+          title="Toggle Navigation Menu"
+        >
           <Menu className="w-5 h-5" />
         </button>
+
         <button 
           onClick={() => setSearchOpen(true)}
           className={cn(
-            'hidden sm:flex items-center justify-between gap-2 bg-slate-100 dark:bg-muted border border-slate-200 dark:border-border px-3 py-1.5 rounded-xl transition-all duration-200 w-56 sm:w-64 text-left cursor-text hover:bg-slate-200/50 dark:hover:bg-muted-foreground/5 shrink-0 h-9',
+            'flex items-center justify-between gap-2 bg-slate-100/90 dark:bg-muted/70 border border-slate-200/80 dark:border-border/80 text-left cursor-text hover:bg-slate-200/50 dark:hover:bg-muted/90 shrink-0 h-9 transition-all duration-300 ease-out overflow-hidden',
+            isExpanded
+              ? 'w-52 sm:w-64 px-3 py-1.5 rounded-xl'
+              : 'w-28 sm:w-36 px-2.5 py-1.5 rounded-full',
             theme.searchFocus
           )}
         >
           <div className="flex items-center gap-2 min-w-0 overflow-hidden">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground truncate whitespace-nowrap overflow-hidden text-ellipsis">
-              {role === 'technician' ? 'Search jobs, requests...' : (t('common.search') || 'Search') + '...'}
+              {role === 'technician' ? 'Search jobs...' : (t('common.search') || 'Search') + '...'}
             </span>
           </div>
-          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-background text-[9px] font-black text-muted-foreground/60 select-none shrink-0">
-            Ctrl K
-          </kbd>
+          {isExpanded && (
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-border/80 bg-background text-[9px] font-black text-muted-foreground/60 select-none shrink-0 transition-opacity duration-200">
+              Ctrl K
+            </kbd>
+          )}
         </button>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Role Badge */}
-        <div className={cn('hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold', theme.pillBg)}>
+        <div className={cn(
+          'items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-300 overflow-hidden',
+          theme.pillBg,
+          isExpanded ? 'flex opacity-100 max-w-[140px]' : 'hidden sm:flex opacity-90 max-w-[120px] text-[11px] py-1 px-2.5'
+        )}>
           <span>{theme.emoji}</span>
           <span className="capitalize">{theme.label}</span>
           <span className={cn('w-1.5 h-1.5 rounded-full ml-0.5', theme.pillDot)} />
@@ -325,22 +388,39 @@ export default function Navbar({ toggleSidebar }) {
         <NavbarNotificationBell />
 
         {/* User Avatar */}
-        <button onClick={() => navigate(role === 'technician' ? '/technician/profile' : '/profile')} className="flex items-center gap-2 pl-1">
+        <button 
+          onClick={() => navigate(role === 'technician' ? '/technician/profile' : '/profile')} 
+          className="flex items-center gap-2 pl-0.5 cursor-pointer"
+        >
           <motion.div
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            className={cn('w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg cursor-pointer', `bg-gradient-to-br ${theme.avatarGrad}`)}
+            className={cn(
+              'w-8 h-8 flex items-center justify-center text-white text-sm font-black shadow-lg cursor-pointer transition-all duration-300',
+              isExpanded ? 'rounded-xl' : 'rounded-full',
+              `bg-gradient-to-br ${theme.avatarGrad}`
+            )}
             style={{ boxShadow: `0 4px 16px ${theme.avatarGlow}` }}
           >
             {user?.firstName?.[0]}{user?.lastName?.[0]}
           </motion.div>
-          <div className="hidden lg:block text-left">
-            <p className="text-xs font-bold text-foreground/80 leading-none">{user?.firstName} {user?.lastName}</p>
+          <div className={cn(
+            "text-left transition-all duration-300 overflow-hidden",
+            isExpanded ? "hidden lg:block opacity-100 max-w-[180px]" : "max-w-0 opacity-0 hidden"
+          )}>
+            <p className="text-xs font-bold text-foreground/80 leading-none truncate">{user?.firstName} {user?.lastName}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">{user?.role}</p>
           </div>
         </button>
 
         {/* Logout */}
-        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all ml-1" title={t('nav.logout') || 'Sign Out'}>
+        <button 
+          onClick={handleLogout} 
+          className={cn(
+            "p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300 ml-0.5 cursor-pointer",
+            isExpanded ? "opacity-100 max-w-[40px] rounded-xl flex items-center justify-center" : "opacity-0 max-w-0 overflow-hidden pointer-events-none p-0 m-0 hidden"
+          )} 
+          title={t('nav.logout') || 'Sign Out'}
+        >
           <LogOut className="w-4 h-4" />
         </button>
       </div>
