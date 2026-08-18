@@ -2,6 +2,7 @@ import PayoutRequest from '../models/PayoutRequest.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
 import Property from '../models/Property.js';
+import StripeConnectAccount from '../models/StripeConnectAccount.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import NotificationService from '../services/NotificationService.js';
@@ -100,16 +101,20 @@ async function verifyStripeConnectAccount(user) {
     };
   }
 
-  if (!user.stripeAccountId) {
+  // Look up StripeConnectAccount or user.stripeAccountId
+  const connectRecord = await StripeConnectAccount.findOne({ manager: user._id });
+  const accountId = connectRecord?.stripeAccountId || user.stripeAccountId;
+
+  if (!accountId) {
     return {
       isConfigured: true,
       isReady: false,
-      reason: 'No connected Stripe bank account found for this manager. Please complete Stripe onboarding.'
+      reason: 'Please connect your bank account before requesting a payout.'
     };
   }
 
   try {
-    const account = await stripe.accounts.retrieve(user.stripeAccountId);
+    const account = await stripe.accounts.retrieve(accountId);
     const payoutsEnabled = Boolean(account.payouts_enabled);
     const chargesEnabled = Boolean(account.charges_enabled);
     const detailsSubmitted = Boolean(account.details_submitted);
@@ -119,7 +124,7 @@ async function verifyStripeConnectAccount(user) {
         isConfigured: true,
         isReady: false,
         account,
-        reason: 'Stripe Connect bank payouts are not enabled for this account. Additional verification may be required.'
+        reason: 'Stripe payouts are not enabled for this account yet.'
       };
     }
 
@@ -298,12 +303,14 @@ export const requestPayout = asyncHandler(async (req, res) => {
 
   logger.info(`[Payout] Created PayoutRequest ${payoutRecord._id} for Manager ${managerId} (₹${numericAmount})`);
 
+  const destinationAccountId = stripeStatus.account?.id || user.stripeAccountId;
+
   // 5. Execute Stripe Transfer: Platform balance -> Connected Manager Account
   try {
     const transfer = await stripe.transfers.create({
       amount: Math.round(numericAmount * 100), // paise
       currency: 'inr',
-      destination: user.stripeAccountId,
+      destination: destinationAccountId,
       description: `Payout #${payoutRecord._id} for Manager ${user.firstName} ${user.lastName}`,
       metadata: {
         payoutId: payoutRecord._id.toString(),
@@ -314,6 +321,7 @@ export const requestPayout = asyncHandler(async (req, res) => {
 
     payoutRecord.providerTransferId = transfer.id;
     payoutRecord.stripeTransferId = transfer.id;
+    payoutRecord.stripeAccountId = destinationAccountId;
     await payoutRecord.save();
     logger.info(`[Payout] Stripe Transfer ${transfer.id} succeeded for PayoutRequest ${payoutRecord._id}`);
   } catch (stripeErr) {
@@ -336,7 +344,7 @@ export const requestPayout = asyncHandler(async (req, res) => {
         managerId: managerId.toString()
       }
     }, {
-      stripeAccount: user.stripeAccountId,
+      stripeAccount: destinationAccountId,
       idempotencyKey: `PO_${payoutRecord._id}`
     });
 

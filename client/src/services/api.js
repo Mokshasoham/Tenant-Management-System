@@ -258,6 +258,13 @@ export const payoutService = {
   rejectPayout: (id, note) => apiClient.put(`/payouts/${id}/reject`, { note }),
 };
 
+export const stripeConnectService = {
+  getStatus: () => apiClient.get('/stripe-connect/status'),
+  createAccount: () => apiClient.post('/stripe-connect/account'),
+  getOnboardingLink: () => apiClient.post('/stripe-connect/onboarding'),
+  getLoginLink: () => apiClient.post('/stripe-connect/login-link'),
+};
+
 export const subscriptionService = {
   getMySubscription: () => apiClient.get('/subscriptions/my'),
   createCheckoutSession: (data) => apiClient.post('/subscriptions/checkout', data),

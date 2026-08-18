@@ -38,6 +38,7 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import stripeRoutes from './routes/stripeRoutes.js';
+import stripeConnectRoutes from './routes/stripeConnectRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import payoutRoutes from './routes/payoutRoutes.js';
 import propertyVisitRoutes from './routes/propertyVisitRoutes.js';
@@ -49,6 +50,7 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 import leaseRenewalV1Routes from './modules/lease-renewal/routes.js';
 import verificationRoutes from './routes/verificationRoutes.js';
 import { handleStripeWebhook } from './controllers/stripeController.js';
+import { handleStripeConnectWebhook } from './controllers/stripeConnectController.js';
 import { resolveLegacyUploadAlias } from './controllers/fileController.js';
 import { verifyEmailConfiguration } from './services/emailProvider.js';
 
@@ -143,6 +145,7 @@ app.use(cors({
 
 // Stripe Webhook MUST be processed before express.json() parses the body!
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+app.post('/api/stripe-connect/webhook', express.raw({ type: 'application/json' }), handleStripeConnectWebhook);
 
 app.use(express.json({ limit: '16mb' }));
 app.use(express.urlencoded({ limit: '16mb', extended: true }));
@@ -295,6 +298,7 @@ app.use('/api/verification', verificationRoutes);
 
 // General auth-protected Stripe routes
 app.use('/api/stripe', stripeRoutes);
+app.use('/api/stripe-connect', stripeConnectRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/v1/schedulers', schedulerRoutes);
