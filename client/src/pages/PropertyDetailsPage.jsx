@@ -17,6 +17,7 @@ import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import RazorpayPayment from '../components/RazorpayPayment';
 import PropertyModal from '../components/PropertyModal';
+import MaintenanceTermsModal from '../components/MaintenanceTermsModal';
 
 
 import L from 'leaflet';
@@ -141,6 +142,31 @@ export default function PropertyDetailsPage() {
     const [showRazorpay, setShowRazorpay] = useState(false);
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [bookingError, setBookingError] = useState('');
+
+    // Maintenance Add-On Selection & Terms State
+    const [includeMaintenance, setIncludeMaintenance] = useState(false);
+    const [maintenanceTermsAccepted, setMaintenanceTermsAccepted] = useState(false);
+    const [showMaintenanceTermsModal, setShowMaintenanceTermsModal] = useState(false);
+    const [maintenanceConfig, setMaintenanceConfig] = useState({ fee: 500, frequency: 'monthly', version: '1.0' });
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const { platformService } = await import('../services/api');
+                const res = await platformService.getPublicConfig();
+                const data = res?.data || res;
+                if (data) {
+                    setMaintenanceConfig({
+                        fee: data.maintenanceFee !== undefined ? data.maintenanceFee : 500,
+                        frequency: data.maintenanceFeeFrequency || 'monthly',
+                        version: data.maintenanceTermsVersion || '1.0'
+                    });
+                }
+            } catch (e) {
+                // fallback defaults
+            }
+        })();
+    }, []);
 
     const [activeBookingTab, setActiveBookingTab] = useState(location.state?.activeBookingTab || 'book');
     const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
@@ -307,7 +333,9 @@ export default function PropertyDetailsPage() {
                 propertyId: id,
                 startDate,
                 endDate,
-                totalAmount: property.rentAmount || 0
+                totalAmount: property.rentAmount || 0,
+                includeMaintenance,
+                maintenanceTermsAccepted: includeMaintenance && maintenanceTermsAccepted
             });
             // res = { success: true, data: booking }
             const createdBooking = res.data;
@@ -1250,6 +1278,70 @@ export default function PropertyDetailsPage() {
                                                 </div>
                                             </div>
 
+                                            {/* ══ OPTIONAL MAINTENANCE & REPAIRS ADD-ON ══ */}
+                                            {property.bookingType !== 'free' && (
+                                                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                                                    <div className="flex items-start gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="include-maintenance-checkbox"
+                                                            checked={includeMaintenance}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    if (!maintenanceTermsAccepted) {
+                                                                        setShowMaintenanceTermsModal(true);
+                                                                    } else {
+                                                                        setIncludeMaintenance(true);
+                                                                    }
+                                                                } else {
+                                                                    setIncludeMaintenance(false);
+                                                                }
+                                                            }}
+                                                            className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-white/30 cursor-pointer"
+                                                        />
+                                                        <div>
+                                                            <label htmlFor="include-maintenance-checkbox" className="text-xs font-black text-white cursor-pointer select-none">
+                                                                Include Maintenance &amp; Repairs
+                                                            </label>
+                                                            <p className="text-[11px] text-white/60 mt-0.5 leading-snug">
+                                                                Get access to maintenance requests, technician support, repair tracking and maintenance history.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[11px]">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowMaintenanceTermsModal(true)}
+                                                            className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer"
+                                                        >
+                                                            Read Terms &amp; Conditions
+                                                        </button>
+                                                        <span className="font-mono font-bold text-white/90">
+                                                            +₹{maintenanceConfig.fee} / {maintenanceConfig.frequency}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Live Pricing Breakdown */}
+                                            {includeMaintenance && property.bookingType !== 'free' && (
+                                                <div className="p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 space-y-1.5 text-xs">
+                                                    <div className="flex justify-between text-white/70">
+                                                        <span>Monthly Rent</span>
+                                                        <span className="font-mono text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-indigo-300 font-medium">
+                                                        <span>Maintenance &amp; Repairs</span>
+                                                        <span className="font-mono font-bold">+₹{maintenanceConfig.fee?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-white font-bold pt-1.5 border-t border-white/10">
+                                                        <span>Total Monthly Amount</span>
+                                                        <span className="font-mono text-indigo-400">₹{((property.rentAmount || 0) + maintenanceConfig.fee)?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Warnings and messages */}
                                             {isNotBookable && (
                                                 <div className="p-3 bg-white/10 border border-white/10 rounded-xl flex items-center gap-2 text-white">
@@ -2049,6 +2141,18 @@ export default function PropertyDetailsPage() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* ══ MAINTENANCE TERMS & CONDITIONS MODAL ══ */}
+            <MaintenanceTermsModal
+                isOpen={showMaintenanceTermsModal}
+                onClose={() => setShowMaintenanceTermsModal(false)}
+                onAccept={() => {
+                    setMaintenanceTermsAccepted(true);
+                    setIncludeMaintenance(true);
+                }}
+                fee={maintenanceConfig.fee}
+                version={maintenanceConfig.version}
+            />
 
             {/* ══ RAZORPAY PAYMENT MODAL FOR TENANTS ══ */}
             {showRazorpay && existingBooking && (

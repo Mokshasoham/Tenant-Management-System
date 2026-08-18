@@ -12,6 +12,11 @@ const router = express.Router();
 
 router.use(authenticate);
 
+// Maintenance Add-on Access Status & Unlock Payment Routes
+router.get('/access-status/:leaseId?', maintenanceController.getMaintenanceAccessStatus);
+router.post('/unlock/create-order', maintenanceController.createUnlockRazorpayOrder);
+router.post('/unlock/verify', maintenanceController.verifyUnlockRazorpayPayment);
+
 router.get('/', maintenanceController.getAllRequests);
 router.get('/stats', maintenanceController.getStats);
 router.get('/manager-dashboard', maintenanceController.getManagerDashboard);

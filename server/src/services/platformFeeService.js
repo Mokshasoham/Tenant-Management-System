@@ -44,9 +44,19 @@ export async function getPlatformFeeConfig() {
  * managerGrossAmount = 15000, managerCommission = 0, managerNetAmount = 15000
  * platformRevenue = 150
  */
-export async function calculatePaymentBreakdown(rentAmountInput) {
+export async function calculatePaymentBreakdown(rentAmountInput, includeMaintenance = false) {
   const rentAmount = Math.max(0, Number(rentAmountInput) || 0);
   const config = await getPlatformFeeConfig();
+
+  // Maintenance Add-on calculation
+  let maintenanceFee = 0;
+  if (includeMaintenance && config.maintenanceFeatureEnabled) {
+    if (config.maintenanceFeeType === 'percentage') {
+      maintenanceFee = Math.round((rentAmount * ((config.maintenanceFee || 0) / 100)) * 100) / 100;
+    } else {
+      maintenanceFee = Math.round((config.maintenanceFee !== undefined ? config.maintenanceFee : 500) * 100) / 100;
+    }
+  }
 
   let platformFee = 0;
   if (config.platformFeeEnabled && rentAmount > 0) {
@@ -73,16 +83,16 @@ export async function calculatePaymentBreakdown(rentAmountInput) {
   const managerNetAmount = Math.max(0, rentAmount - managerCommission);
 
   // Total payable by payer
-  let totalPayable = rentAmount;
+  let totalPayable = rentAmount + maintenanceFee;
   const feePayer = config.platformFeePayer || 'tenant';
 
   if (feePayer === 'tenant') {
-    totalPayable = rentAmount + platformFee + taxAmount;
+    totalPayable = rentAmount + maintenanceFee + platformFee + taxAmount;
   } else if (feePayer === 'manager') {
-    totalPayable = rentAmount;
+    totalPayable = rentAmount + maintenanceFee;
   } else if (feePayer === 'split') {
     const halfFee = Math.round(((platformFee + taxAmount) / 2) * 100) / 100;
-    totalPayable = rentAmount + halfFee;
+    totalPayable = rentAmount + maintenanceFee + halfFee;
   }
 
   // Net Platform Revenue earned by TMS
@@ -90,6 +100,10 @@ export async function calculatePaymentBreakdown(rentAmountInput) {
 
   return {
     rentAmount,
+    maintenanceFee,
+    includeMaintenance: Boolean(includeMaintenance && config.maintenanceFeatureEnabled),
+    maintenanceFeeFrequency: config.maintenanceFeeFrequency || 'monthly',
+    maintenanceTermsVersion: config.maintenanceTermsVersion || '1.0',
     platformFee,
     platformFeePercentage: config.platformFeePercentage,
     platformFeeType: config.platformFeeType,

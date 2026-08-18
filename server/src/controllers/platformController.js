@@ -8,16 +8,42 @@ import { asyncHandler, AppError } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 
 /**
- * GET /api/platform/fee-preview?amount=15000
+ * GET /api/platform/fee-preview?amount=15000&includeMaintenance=true
  * Public / Tenant endpoint to calculate payment fee breakdown before checkout.
  */
 export const getFeePreview = asyncHandler(async (req, res) => {
   const amount = Number(req.query.amount) || 0;
-  const breakdown = await calculatePaymentBreakdown(amount);
+  const includeMaintenance = req.query.includeMaintenance === 'true' || req.query.includeMaintenance === true;
+  const breakdown = await calculatePaymentBreakdown(amount, includeMaintenance);
 
   res.status(200).json({
     success: true,
     data: breakdown,
+  });
+});
+
+/**
+ * GET /api/platform/public-config
+ * Public / Tenant endpoint to retrieve active platform config & maintenance add-on pricing/terms.
+ */
+export const getPublicConfig = asyncHandler(async (req, res) => {
+  const config = await getPlatformFeeConfig();
+  res.status(200).json({
+    success: true,
+    data: {
+      platformFeeEnabled: config.platformFeeEnabled,
+      platformFeeType: config.platformFeeType,
+      platformFeePercentage: config.platformFeePercentage,
+      platformFeeFixedAmount: config.platformFeeFixedAmount,
+      platformFeePayer: config.platformFeePayer,
+      platformFeeTaxPercentage: config.platformFeeTaxPercentage,
+      maintenanceFeatureEnabled: config.maintenanceFeatureEnabled !== false,
+      maintenanceFeeType: config.maintenanceFeeType || 'fixed',
+      maintenanceFee: config.maintenanceFee !== undefined ? config.maintenanceFee : 500,
+      maintenanceFeeFrequency: config.maintenanceFeeFrequency || 'monthly',
+      maintenanceTermsVersion: config.maintenanceTermsVersion || '1.0',
+      maintenanceTermsContent: config.maintenanceTermsContent || 'Maintenance & Repairs add-on provides access to professional technician dispatch, maintenance tracking, repair history, and scheduled visits. Normal wear-and-tear repairs are covered subject to property terms.',
+    },
   });
 });
 
@@ -48,6 +74,12 @@ export const updatePlatformSettings = asyncHandler(async (req, res) => {
     platformFeeTaxPercentage,
     managerCommissionEnabled,
     managerCommissionPercentage,
+    maintenanceFeatureEnabled,
+    maintenanceFeeType,
+    maintenanceFee,
+    maintenanceFeeFrequency,
+    maintenanceTermsVersion,
+    maintenanceTermsContent,
   } = req.body;
 
   let settings = await PlatformSetting.findOne().sort({ createdAt: -1 });
@@ -78,10 +110,30 @@ export const updatePlatformSettings = asyncHandler(async (req, res) => {
     settings.managerCommissionPercentage = Math.max(0, Math.min(100, Number(managerCommissionPercentage) || 0));
   }
 
+  // Maintenance settings
+  if (maintenanceFeatureEnabled !== undefined) {
+    settings.maintenanceFeatureEnabled = Boolean(maintenanceFeatureEnabled);
+  }
+  if (maintenanceFeeType && ['fixed', 'percentage'].includes(maintenanceFeeType)) {
+    settings.maintenanceFeeType = maintenanceFeeType;
+  }
+  if (maintenanceFee !== undefined) {
+    settings.maintenanceFee = Math.max(0, Number(maintenanceFee) || 0);
+  }
+  if (maintenanceFeeFrequency && ['monthly', 'one_time'].includes(maintenanceFeeFrequency)) {
+    settings.maintenanceFeeFrequency = maintenanceFeeFrequency;
+  }
+  if (maintenanceTermsVersion) {
+    settings.maintenanceTermsVersion = String(maintenanceTermsVersion).trim();
+  }
+  if (maintenanceTermsContent) {
+    settings.maintenanceTermsContent = String(maintenanceTermsContent).trim();
+  }
+
   settings.updatedBy = req.user?.userId || req.user?._id;
   await settings.save();
 
-  logger.info(`[PlatformSettings] Updated by admin ${req.user?.userId}: fee=${settings.platformFeePercentage}%, commission=${settings.managerCommissionPercentage}%`);
+  logger.info(`[PlatformSettings] Updated by admin ${req.user?.userId}: fee=${settings.platformFeePercentage}%, commission=${settings.managerCommissionPercentage}%, maintenanceFee=₹${settings.maintenanceFee}`);
 
   res.status(200).json({
     success: true,

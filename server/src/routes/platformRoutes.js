@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getFeePreview,
+  getPublicConfig,
   getPlatformSettings,
   updatePlatformSettings,
   getAdminRevenueSummary,
@@ -9,8 +10,9 @@ import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Public / Authenticated Preview endpoint for pre-checkout breakdown
+// Public / Authenticated Preview & Config endpoints for pre-checkout breakdown & maintenance settings
 router.get('/fee-preview', getFeePreview);
+router.get('/public-config', getPublicConfig);
 
 // Admin-protected Settings & Revenue endpoints
 router.use(authenticate);

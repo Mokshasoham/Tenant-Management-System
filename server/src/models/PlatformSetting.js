@@ -43,6 +43,34 @@ const platformSettingSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    // ══ MAINTENANCE ADD-ON CONFIGURATION ══
+    maintenanceFeatureEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    maintenanceFeeType: {
+      type: String,
+      enum: ['fixed', 'percentage'],
+      default: 'fixed',
+    },
+    maintenanceFee: {
+      type: Number,
+      default: 500, // Default ₹500/month
+      min: 0,
+    },
+    maintenanceFeeFrequency: {
+      type: String,
+      enum: ['monthly', 'one_time'],
+      default: 'monthly',
+    },
+    maintenanceTermsVersion: {
+      type: String,
+      default: '1.0',
+    },
+    maintenanceTermsContent: {
+      type: String,
+      default: 'Maintenance & Repairs add-on provides access to professional technician dispatch, maintenance tracking, repair history, and scheduled visits. Normal wear-and-tear repairs are covered subject to property terms.',
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

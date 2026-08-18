@@ -119,7 +119,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     
     // Use the exact security deposit amount selected for the booking or property
     const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2) || booking.totalAmount || 1000;
-    const breakdown = await calculatePaymentBreakdown(securityDeposit);
+    const breakdown = await calculatePaymentBreakdown(securityDeposit, booking.maintenanceSelected === true);
 
     const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
@@ -199,7 +199,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     });
 });
 
-const verifyAndProcessPaymentInternal = async ({
+export const verifyAndProcessPaymentInternal = async ({
     bookingId,
     razorpayOrderId,
     razorpayPaymentId,
@@ -322,7 +322,15 @@ const verifyAndProcessPaymentInternal = async ({
                 terms: 'Generated from booking approval and verified payment',
                 utilities: {
                     water: true, electricity: true, gas: false, internet: false
-                }
+                },
+                // Lease-level maintenance add-on access control
+                maintenanceEnabled: booking.maintenanceSelected === true,
+                maintenanceAccessStatus: booking.maintenanceSelected ? 'included' : 'locked',
+                maintenancePlan: booking.maintenanceSelected ? 'included' : 'none',
+                maintenanceFee: booking.maintenanceFeeAtBooking || 0,
+                maintenanceTermsAccepted: booking.maintenanceTermsAccepted === true,
+                maintenanceTermsAcceptedAt: booking.maintenanceTermsAcceptedAt,
+                maintenanceTermsVersion: booking.maintenanceTermsVersion,
             });
             if (!tenant.leases.includes(lease._id)) {
                 tenant.leases.push(lease._id);
@@ -333,8 +341,20 @@ const verifyAndProcessPaymentInternal = async ({
             if (!lease.signature || !lease.signedAt) {
                 lease.status = 'pending';
             }
+            if (booking.maintenanceSelected !== undefined) {
+                lease.maintenanceEnabled = booking.maintenanceSelected === true;
+                lease.maintenanceAccessStatus = booking.maintenanceSelected ? 'included' : 'locked';
+                lease.maintenancePlan = booking.maintenanceSelected ? 'included' : 'none';
+                lease.maintenanceFee = booking.maintenanceFeeAtBooking || 0;
+                lease.maintenanceTermsAccepted = booking.maintenanceTermsAccepted === true;
+                lease.maintenanceTermsAcceptedAt = booking.maintenanceTermsAcceptedAt;
+                lease.maintenanceTermsVersion = booking.maintenanceTermsVersion;
+            }
             await lease.save();
         }
+
+        booking.lease = lease._id;
+        await booking.save();
 
         // Record Payment and Bill history entry idempotently so it appears on /payments, /bills, and My Lease schedule
         try {
@@ -635,7 +655,14 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
                 terms: 'Generated from booking approval',
                 utilities: {
                     water: true, electricity: true, gas: false, internet: false
-                }
+                },
+                maintenanceEnabled: booking.maintenanceSelected === true,
+                maintenanceAccessStatus: booking.maintenanceSelected ? 'included' : 'locked',
+                maintenancePlan: booking.maintenanceSelected ? 'included' : 'none',
+                maintenanceFee: booking.maintenanceFeeAtBooking || 0,
+                maintenanceTermsAccepted: booking.maintenanceTermsAccepted === true,
+                maintenanceTermsAcceptedAt: booking.maintenanceTermsAcceptedAt,
+                maintenanceTermsVersion: booking.maintenanceTermsVersion,
             });
 
             if (!tenant.leases.includes(lease._id)) {
@@ -872,7 +899,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 
 // POST /api/bookings/request (original simplified flow)
 export const requestBooking = asyncHandler(async (req, res) => {
-    const { propertyId, startDate, endDate, totalAmount, paymentReference } = req.body;
+    const { propertyId, startDate, endDate, totalAmount, paymentReference, includeMaintenance, maintenanceTermsAccepted } = req.body;
 
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);
@@ -921,6 +948,14 @@ export const requestBooking = asyncHandler(async (req, res) => {
     }
 
     const isFree = property.bookingType === 'free';
+    const isMaintenanceSelected = Boolean(includeMaintenance);
+
+    if (isMaintenanceSelected && !isFree && !maintenanceTermsAccepted) {
+        throw new AppError('You must accept the Maintenance Terms & Conditions to include Maintenance & Repairs coverage.', 400);
+    }
+
+    const baseDepositOrRent = property.depositAmount || property.rentAmount || totalAmount || 0;
+    const breakdown = isFree ? { totalPayable: 0, platformFee: 0, maintenanceFee: 0, maintenanceTermsVersion: '1.0' } : await calculatePaymentBreakdown(baseDepositOrRent, isMaintenanceSelected);
 
     const booking = await Booking.create({
         user: req.user.userId,
@@ -928,8 +963,14 @@ export const requestBooking = asyncHandler(async (req, res) => {
         manager: property.manager || property.owner,
         startDate,
         endDate,
-        totalAmount: isFree ? 0 : (property.depositAmount || property.rentAmount || totalAmount || 0),
-        depositAmount: isFree ? 0 : (property.depositAmount || property.rentAmount || totalAmount || 0),
+        totalAmount: isFree ? 0 : breakdown.totalPayable,
+        depositAmount: isFree ? 0 : baseDepositOrRent,
+        platformFee: isFree ? 0 : breakdown.platformFee,
+        maintenanceSelected: isFree ? false : isMaintenanceSelected,
+        maintenanceFeeAtBooking: isFree ? 0 : (breakdown.maintenanceFee || 0),
+        maintenanceTermsAccepted: isFree ? false : (isMaintenanceSelected && Boolean(maintenanceTermsAccepted)),
+        maintenanceTermsAcceptedAt: (isMaintenanceSelected && !isFree) ? new Date() : null,
+        maintenanceTermsVersion: (isMaintenanceSelected && !isFree) ? (breakdown.maintenanceTermsVersion || '1.0') : null,
         paymentStatus: isFree ? 'paid' : 'pending',
         paymentReference: isFree ? 'FREE-BOOKING' : 'PENDING',
         status: 'pending',
@@ -1137,6 +1178,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         console.log('[MockPay] Trace: Step 1 (Booking)');
         const start = startDate ? new Date(startDate) : new Date();
 
+        const isMaint = req.body.includeMaintenance === true;
         const booking = await Booking.create({
             user: userId,
             property: propertyId,
@@ -1150,6 +1192,11 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             escrowStatus: 'released',
             bookingDate: new Date(),
             paymentDate: new Date(),
+            maintenanceSelected: isMaint,
+            maintenanceFeeAtBooking: isMaint ? 500 : 0,
+            maintenanceTermsAccepted: isMaint,
+            maintenanceTermsAcceptedAt: isMaint ? new Date() : null,
+            maintenanceTermsVersion: isMaint ? '1.0' : null,
         });
 
         // 2. Ensure Tenant
@@ -1195,7 +1242,14 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 signature: 'MOCK-SIGNATURE-BASE64',
                 signatureType: 'draw',
                 signedBy: `${tenant.firstName} ${tenant.lastName}`,
-                signedAt: new Date()
+                signedAt: new Date(),
+                maintenanceEnabled: isMaint,
+                maintenanceAccessStatus: isMaint ? 'included' : 'locked',
+                maintenancePlan: isMaint ? 'included' : 'none',
+                maintenanceFee: isMaint ? 500 : 0,
+                maintenanceTermsAccepted: isMaint,
+                maintenanceTermsAcceptedAt: isMaint ? new Date() : null,
+                maintenanceTermsVersion: isMaint ? '1.0' : null,
             });
         }
 

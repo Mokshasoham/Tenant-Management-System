@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, Wrench } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export default function TenantMaintenanceHeader({ onSubmitClick, theme }) {
+export default function TenantMaintenanceHeader({ onSubmitClick, theme, isLocked = false }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div className="flex items-center gap-3">
@@ -25,11 +25,14 @@ export default function TenantMaintenanceHeader({ onSubmitClick, theme }) {
       <button
         onClick={onSubmitClick}
         className={cn(
-          "px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
+          "px-5 py-2.5 rounded-2xl text-white font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]",
+          isLocked
+            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/25"
+            : "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-amber-600/25"
         )}
       >
         <Plus className="w-4 h-4" />
-        <span>Submit Request</span>
+        <span>{isLocked ? 'Unlock Coverage' : 'Submit Request'}</span>
       </button>
     </div>
   );

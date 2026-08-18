@@ -4,7 +4,7 @@ const paymentSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['rent', 'security_deposit', 'late_fee', 'subscription', 'commission', 'refund', 'payout'],
+      enum: ['rent', 'security_deposit', 'late_fee', 'subscription', 'commission', 'refund', 'payout', 'maintenance_unlock'],
       default: 'rent'
     },
     // References - Made optional since some payments (like subscriptions or payouts) 

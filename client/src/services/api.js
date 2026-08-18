@@ -169,6 +169,10 @@ export const maintenanceService = {
   submitCompletion: (id, data) => apiClient.post(`/maintenance/${id}/complete`, data),
   resolveTicket: (id, data) => apiClient.post(`/maintenance/${id}/resolve`, data),
   getTicketQr: (id) => apiClient.get(`/maintenance/${id}/qr`),
+  // Maintenance Add-on Access & Unlock
+  getAccessStatus: (leaseId) => apiClient.get(`/maintenance/access-status${leaseId ? `/${leaseId}` : ''}`),
+  createUnlockOrder: (data) => apiClient.post('/maintenance/unlock/create-order', data),
+  verifyUnlockPayment: (data) => apiClient.post('/maintenance/unlock/verify', data),
 };
 
 export const technicianService = {
@@ -269,7 +273,8 @@ export const payoutService = {
 };
 
 export const platformService = {
-  getFeePreview: (amount) => apiClient.get('/platform/fee-preview', { params: { amount } }),
+  getFeePreview: (amount, includeMaintenance = false) => apiClient.get('/platform/fee-preview', { params: { amount, includeMaintenance } }),
+  getPublicConfig: () => apiClient.get('/platform/public-config'),
   getPlatformSettings: () => apiClient.get('/platform/settings'),
   updatePlatformSettings: (data) => apiClient.put('/platform/settings', data),
   getAdminRevenueSummary: () => apiClient.get('/platform/revenue-summary'),

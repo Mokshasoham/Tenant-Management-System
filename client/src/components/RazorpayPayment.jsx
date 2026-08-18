@@ -38,14 +38,25 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
         // Fetch real server-calculated platform fee breakdown preview
         (async () => {
             try {
+                let hasMaint = false;
+                const validBookingId = (typeof bookingId === 'object' && bookingId !== null) ? (bookingId._id || bookingId.id) : bookingId;
+                if (validBookingId) {
+                    try {
+                        const bRes = await bookingService.getBookingById(validBookingId);
+                        const bData = bRes?.data?.data || bRes?.data || bRes;
+                        if (bData && bData.maintenanceSelected) hasMaint = true;
+                    } catch (_) {}
+                }
+
                 const { platformService } = await import('../services/api');
-                const res = await platformService.getFeePreview(securityDeposit);
+                const res = await platformService.getFeePreview(securityDeposit, hasMaint);
                 const raw = res?.data || res;
                 if (raw) setFeeBreakdown(raw);
             } catch (_) {
-                // Fallback default 1% estimate if network unavailable
+                // Fallback default estimate if network unavailable
                 setFeeBreakdown({
                     rentAmount: securityDeposit,
+                    maintenanceFee: 0,
                     platformFee: Math.round(securityDeposit * 0.01),
                     platformFeePercentage: 1,
                     taxAmount: 0,
@@ -53,7 +64,7 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 });
             }
         })();
-    }, [securityDeposit]);
+    }, [securityDeposit, bookingId]);
 
     const totalPayable = feeBreakdown?.totalPayable || (securityDeposit + Math.round(securityDeposit * 0.01));
 
@@ -170,6 +181,13 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                                         <span style={{ color: 'var(--text-secondary)' }}>Deposit / Rent</span>
                                         <span className="font-bold" style={{ color: 'var(--text-primary)' }}>₹{securityDeposit.toLocaleString('en-IN')}</span>
                                     </div>
+
+                                    {(feeBreakdown?.maintenanceFee > 0) && (
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span style={{ color: 'var(--text-secondary)' }}>Maintenance &amp; Repairs</span>
+                                            <span className="font-bold text-indigo-400">₹{feeBreakdown.maintenanceFee.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center justify-between text-sm">
                                         <span style={{ color: 'var(--text-secondary)' }}>

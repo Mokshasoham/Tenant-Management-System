@@ -57,6 +57,33 @@ const leaseSchema = new mongoose.Schema(
       enum: ['none', 'requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing', 'completed'],
       default: 'none',
     },
+    // ══ LEASE-SPECIFIC MAINTENANCE ACCESS CONTROL ══
+    maintenanceEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    maintenanceAccessStatus: {
+      type: String,
+      enum: ['not_selected', 'included', 'locked', 'unlocked'],
+      default: 'not_selected',
+    },
+    maintenancePlan: {
+      type: String,
+      enum: ['none', 'included', 'paid_unlock'],
+      default: 'none',
+    },
+    maintenanceFee: {
+      type: Number,
+      default: 0,
+    },
+    maintenanceTermsAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    maintenanceTermsAcceptedAt: Date,
+    maintenanceTermsVersion: String,
+    maintenanceUnlockedAt: Date,
+    maintenanceUnlockPaymentId: String,
     renewedFrom: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lease',

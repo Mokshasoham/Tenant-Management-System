@@ -90,6 +90,22 @@ const bookingSchema = new mongoose.Schema(
             },
         ],
 
+        // ══ OPTIONAL MAINTENANCE ADD-ON AT BOOKING ══
+        maintenanceSelected: {
+            type: Boolean,
+            default: false,
+        },
+        maintenanceFeeAtBooking: {
+            type: Number,
+            default: 0,
+        },
+        maintenanceTermsAccepted: {
+            type: Boolean,
+            default: false,
+        },
+        maintenanceTermsAcceptedAt: Date,
+        maintenanceTermsVersion: String,
+
         notes: String,
     },
     { timestamps: true }

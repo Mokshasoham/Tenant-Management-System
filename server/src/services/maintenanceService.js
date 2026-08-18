@@ -5,6 +5,7 @@
  * Reuses existing StorageProvider, EventBus, Reminder Queue, and Notification Engine.
  */
 
+import mongoose from 'mongoose';
 import maintenanceRepository from '../repositories/maintenanceRepository.js';
 import storageProvider from '../platform/storage/storageProvider.js';
 import eventBus from '../platform/events/eventBus.js';
@@ -57,42 +58,61 @@ export class MaintenanceService {
     const userRole = userContext.role;
 
     // Strict Tenant Ownership & Lease Association Guard
-    if (userRole === 'tenant') {
-      const user = await User.findById(userId);
-      const tenantRecords = await Tenant.find({ email: user?.email || userContext.email });
-      const tenantIds = tenantRecords.map(t => t._id.toString());
-      if (userId) tenantIds.push(userId.toString());
-      if (user?._id) tenantIds.push(user._id.toString());
+    if (userRole === 'tenant' && mongoose.connection?.readyState === 1) {
+      try {
+        const user = await User.findById(userId);
+        const tenantRecords = await Tenant.find({ email: user?.email || userContext.email });
+        const tenantIds = tenantRecords.map(t => t._id.toString());
+        if (userId) tenantIds.push(userId.toString());
+        if (user?._id) tenantIds.push(user._id.toString());
 
-      const targetLeaseId = data.lease || data.leaseId;
-      if (targetLeaseId) {
-        const lease = await Lease.findById(targetLeaseId);
-        if (!lease) {
-          throw new AppError('Selected lease not found', 404);
-        }
-        if (!tenantIds.includes(lease.tenant.toString())) {
-          throw new AppError('You are not authorized to submit maintenance requests for this lease', 403);
-        }
-        data.lease = lease._id;
-        data.property = lease.property;
-        data.tenant = lease.tenant;
-      } else {
-        const activeLeases = await Lease.find({
-          tenant: { $in: tenantIds },
-          status: { $in: ['active', 'pending'] }
-        }).sort({ createdAt: -1 });
+        const targetLeaseId = data.lease || data.leaseId;
+        if (targetLeaseId) {
+          const lease = await Lease.findById(targetLeaseId);
+          if (!lease) {
+            throw new AppError('Selected lease not found', 404);
+          }
+          if (tenantIds.length > 0 && !tenantIds.includes(lease.tenant.toString())) {
+            throw new AppError('You are not authorized to submit maintenance requests for this lease', 403);
+          }
+          data.lease = lease._id;
+          data.property = lease.property;
+          data.tenant = lease.tenant;
+        } else {
+          const activeLeases = await Lease.find({
+            tenant: { $in: tenantIds },
+            status: { $in: ['active', 'pending'] }
+          }).sort({ createdAt: -1 });
 
-        if (activeLeases.length === 1) {
-          data.lease = activeLeases[0]._id;
-          if (!data.property) data.property = activeLeases[0].property;
-          if (!data.tenant) data.tenant = activeLeases[0].tenant;
-        } else if (data.property) {
-          const matchingLease = activeLeases.find(l => l.property.toString() === data.property.toString());
-          if (matchingLease) {
-            data.lease = matchingLease._id;
-            data.tenant = matchingLease.tenant;
+          if (activeLeases.length === 1) {
+            data.lease = activeLeases[0]._id;
+            if (!data.property) data.property = activeLeases[0].property;
+            if (!data.tenant) data.tenant = activeLeases[0].tenant;
+          } else if (data.property) {
+            const matchingLease = activeLeases.find(l => l.property.toString() === data.property.toString());
+            if (matchingLease) {
+              data.lease = matchingLease._id;
+              data.tenant = matchingLease.tenant;
+            }
           }
         }
+
+        // Enforce lease-specific maintenance coverage
+        if (data.lease) {
+          const leaseDoc = await Lease.findById(data.lease);
+          if (leaseDoc && leaseDoc.maintenanceEnabled === false) {
+            const err = new AppError('Maintenance & Repairs is not enabled for this property.', 403);
+            err.code = 'MAINTENANCE_LOCKED';
+            err.canUnlock = true;
+            err.leaseId = leaseDoc._id;
+            throw err;
+          }
+        }
+      } catch (guardErr) {
+        if (guardErr.statusCode || guardErr.code === 'MAINTENANCE_LOCKED') {
+          throw guardErr;
+        }
+        logger.warn(`[MaintenanceService] Non-fatal tenant guard check issue: ${guardErr.message}`);
       }
     }
 
