@@ -14,6 +14,7 @@ import TenantMaintenanceHistory from './TenantMaintenanceHistory';
 import TenantMaintenanceRequestForm from './TenantMaintenanceRequestForm';
 import TenantMaintenanceDetails from './TenantMaintenanceDetails';
 import TenantLeaseSelectModal from './TenantLeaseSelectModal';
+import TenantMaintenanceVerifyModal from './TenantMaintenanceVerifyModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
@@ -24,6 +25,7 @@ export default function TenantMaintenancePortal() {
 
   const [showLeaseSelectModal, setShowLeaseSelectModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedLease, setSelectedLease] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
@@ -80,9 +82,10 @@ export default function TenantMaintenancePortal() {
       "min-h-screen p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto font-sans transition-colors duration-300",
       theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#050508] text-slate-100"
     )}>
-      {/* Header with Submit Request button */}
+      {/* Header with Submit Request and Verify buttons */}
       <TenantMaintenanceHeader
         onSubmitClick={handleOpenSubmit}
+        onVerifyClick={() => setShowVerifyModal(true)}
         theme={theme}
       />
 
@@ -177,6 +180,24 @@ export default function TenantMaintenancePortal() {
           <TenantMaintenanceDetails
             ticket={selectedTicket}
             onClose={() => setSelectedTicket(null)}
+            onResolved={() => {
+              setSelectedTicket(null);
+              fetchTenantData();
+            }}
+            theme={theme}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* QR / Ticket ID Verification Modal */}
+      <AnimatePresence>
+        {showVerifyModal && (
+          <TenantMaintenanceVerifyModal
+            onClose={() => setShowVerifyModal(false)}
+            onResolved={() => {
+              setShowVerifyModal(false);
+              fetchTenantData();
+            }}
             theme={theme}
           />
         )}

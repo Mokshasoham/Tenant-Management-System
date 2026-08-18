@@ -21,7 +21,7 @@ import {
   Building,
   Sparkles,
 } from 'lucide-react';
-import { technicianPortalService } from '../services/api';
+import { technicianPortalService, maintenanceService } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
 /**
@@ -62,6 +62,37 @@ export default function QRScannerPage() {
     setErrorMsg(null);
 
     try {
+      if (code.includes('TMS-MNT')) {
+        const cleanCode = code.replace(/^TMS-MNT-VERIFY:/, '').split(':')[0];
+        const maintRes = await maintenanceService.verifyTicket(cleanCode).catch(() => null);
+        if (maintRes?.data?.data) {
+          const t = maintRes.data.data;
+          setAssetData({
+            qrCode: t.ticketCode || cleanCode,
+            assetName: `Maintenance Ticket: ${t.title}`,
+            serialNumber: t.ticketCode || cleanCode,
+            property: t.property?.name || 'Assigned Property',
+            installedDate: new Date(t.createdAt).toLocaleDateString(),
+            warrantyStatus: t.status.toUpperCase(),
+            warrantyExpiration: 'N/A',
+            lastRepairDate: t.scheduledDate ? new Date(t.scheduledDate).toLocaleDateString() : 'Pending',
+            lastTechnician: t.technicianName || 'Specialist',
+            activeTicketId: t._id,
+            pastRepairs: [
+              {
+                id: t.ticketCode || 'MNT-01',
+                date: new Date(t.createdAt).toLocaleDateString(),
+                technician: t.technicianName || 'Assigned Tech',
+                issue: t.title,
+                resolution: t.completionDetails?.workPerformed || t.description || 'In Progress'
+              }
+            ]
+          });
+          setLoadingLookup(false);
+          return;
+        }
+      }
+
       const res = await technicianPortalService.lookupPropertyByQR(code);
       const data = res?.data || res || {};
 

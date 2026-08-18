@@ -1,5 +1,6 @@
 import maintenanceService from '../services/maintenanceService.js';
 import maintenanceRepository from '../repositories/maintenanceRepository.js';
+import * as maintenanceTicketService from '../services/maintenanceTicketService.js';
 import maintenanceReportService from '../modules/reporting/services/MaintenanceReportService.js';
 import eventBus from '../platform/events/eventBus.js';
 import User from '../models/User.js';
@@ -677,7 +678,67 @@ export const searchTechnicianData = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * GET /api/maintenance/verify/:ticketCode or POST /api/maintenance/verify
+ * Public & authenticated ticket lookup via QR or Ticket Code
+ */
+export const verifyTicketByCode = asyncHandler(async (req, res) => {
+    const code = req.params.ticketCode || req.body.ticketCode || req.query.ticketCode;
+    if (!code) throw new AppError('Ticket code or QR token is required', 400);
 
+    const verificationResult = await maintenanceTicketService.verifyTicketByCode(code, req.user);
+    res.status(200).json({
+        success: true,
+        data: verificationResult.ticket,
+        canResolve: verificationResult.canResolve,
+        userRelationship: verificationResult.userRelationship,
+        isAwaitingConfirmation: verificationResult.isAwaitingConfirmation,
+        isResolved: verificationResult.isResolved
+    });
+});
 
+/**
+ * POST /api/maintenance/:id/complete
+ * Technician submits work completion details (work performed, parts used, notes, photos).
+ */
+export const submitCompletion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const ticket = await maintenanceTicketService.submitTechnicianCompletion(id, req.body, req.user);
+    res.status(200).json({
+        success: true,
+        message: 'Technician work completion submitted. Awaiting tenant verification.',
+        data: ticket
+    });
+});
 
+/**
+ * POST /api/maintenance/:id/resolve
+ * Authorized user (tenant, technician, manager, admin) confirms and resolves maintenance ticket.
+ */
+export const resolveTicket = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const ticket = await maintenanceTicketService.resolveMaintenanceTicket(id, req.body, req.user);
+    res.status(200).json({
+        success: true,
+        message: 'Maintenance ticket successfully confirmed and resolved.',
+        data: ticket
+    });
+});
 
+/**
+ * GET /api/maintenance/:id/qr
+ * Retrieves QR code data URL and ticket code for display/download.
+ */
+export const getTicketQr = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const verification = await maintenanceTicketService.verifyTicketByCode(id, req.user);
+    res.status(200).json({
+        success: true,
+        data: {
+            ticketCode: verification.ticket.ticketCode,
+            qrToken: verification.ticket.qrToken,
+            qrCodeDataUrl: verification.ticket.qrCodeDataUrl,
+            qrGeneratedAt: verification.ticket.qrGeneratedAt
+        }
+    });
+});

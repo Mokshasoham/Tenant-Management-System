@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, Wrench } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export default function TenantMaintenanceHeader({ onSubmitClick, theme }) {
+export default function TenantMaintenanceHeader({ onSubmitClick, onVerifyClick, theme }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div className="flex items-center gap-3">
@@ -22,15 +22,28 @@ export default function TenantMaintenanceHeader({ onSubmitClick, theme }) {
         </div>
       </div>
 
-      <button
-        onClick={onSubmitClick}
-        className={cn(
-          "px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
+      <div className="flex items-center gap-2">
+        {onVerifyClick && (
+          <button
+            onClick={onVerifyClick}
+            className={cn(
+              "px-4 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-white/10 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-[1.02]"
+            )}
+          >
+            <span>🔍 Verify / Scan QR</span>
+          </button>
         )}
-      >
-        <Plus className="w-4 h-4" />
-        <span>Submit Request</span>
-      </button>
+
+        <button
+          onClick={onSubmitClick}
+          className={cn(
+            "px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
+          )}
+        >
+          <Plus className="w-4 h-4" />
+          <span>Submit Request</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import Lease from '../models/Lease.js';
 import User from '../models/User.js';
 import logger from '../platform/logging/logger.js';
 import { AppError } from '../utils/errorHandling.js';
+import { generateUniqueTicketCode, generateQrData } from './maintenanceTicketService.js';
 
 export class MaintenanceService {
   /**
@@ -60,6 +61,8 @@ export class MaintenanceService {
       const user = await User.findById(userId);
       const tenantRecords = await Tenant.find({ email: user?.email || userContext.email });
       const tenantIds = tenantRecords.map(t => t._id.toString());
+      if (userId) tenantIds.push(userId.toString());
+      if (user?._id) tenantIds.push(user._id.toString());
 
       const targetLeaseId = data.lease || data.leaseId;
       if (targetLeaseId) {
@@ -93,14 +96,32 @@ export class MaintenanceService {
       }
     }
 
-    // 1. Create Maintenance Document via Repository
+    // 1. Generate Unique Ticket Code and QR Data
+    const ticketCode = data.ticketCode || (await generateUniqueTicketCode().catch(() => null)) || `TMS-MNT-${Date.now()}`;
+    const qrData = await generateQrData(ticketCode).catch(() => ({ qrToken: null, qrCodeDataUrl: null, qrGeneratedAt: null }));
+
     const requestData = {
       ...data,
       requestedBy: userId,
       status: 'open',
+      ticketCode,
+      ticketNumber: ticketCode,
+      qrToken: qrData.qrToken,
+      qrCodeDataUrl: qrData.qrCodeDataUrl,
+      qrGeneratedAt: qrData.qrGeneratedAt || new Date(),
+      completionStatus: 'pending',
       submissionSource: data.submissionSource || 'web',
       createdFromIP: reqMeta.ip || '127.0.0.1',
-      deviceInfo: reqMeta.userAgent || 'Web Client'
+      deviceInfo: reqMeta.userAgent || 'Web Client',
+      auditLog: [{
+        action: 'REQUEST_CREATED',
+        userId,
+        userName: userContext.name || userContext.email || 'Tenant Requester',
+        userRole: userRole || 'tenant',
+        timestamp: new Date(),
+        notes: `Maintenance ticket "${data.title}" submitted. Ticket ID: ${ticketCode}`,
+        method: 'web_portal'
+      }]
     };
 
     const request = await maintenanceRepository.create(requestData);

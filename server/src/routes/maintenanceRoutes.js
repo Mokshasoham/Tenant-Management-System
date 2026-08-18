@@ -35,6 +35,11 @@ router.post('/:id/comments', maintenanceController.addNote);
 router.post('/:id/internal-notes', authorize('manager', 'admin'), maintenanceController.addInternalNote);
 router.post('/:id/escalate', authorize('manager', 'admin'), maintenanceController.escalateTicket);
 router.post('/:id/merge', authorize('manager', 'admin'), maintenanceController.mergeTicket);
+router.get('/verify/:ticketCode', maintenanceController.verifyTicketByCode);
+router.post('/verify', maintenanceController.verifyTicketByCode);
+router.get('/:id/qr', maintenanceController.getTicketQr);
+router.post('/:id/complete', maintenanceController.submitCompletion);
+router.post('/:id/resolve', maintenanceController.resolveTicket);
 router.post('/:id/rating', maintenanceController.addRating);
 router.post('/:id/feedback', maintenanceController.addRating);
 

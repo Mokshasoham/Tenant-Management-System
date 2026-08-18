@@ -41,6 +41,15 @@ export default function TechnicianJobDetailPage() {
 
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Work completion form state
+  const [completionForm, setCompletionForm] = useState({
+    workPerformed: '',
+    partsUsed: '',
+    completionNotes: '',
+  });
+  const [submittingCompletion, setSubmittingCompletion] = useState(false);
+  const [completionSuccess, setCompletionSuccess] = useState('');
+
   useEffect(() => {
     fetchJobDetail();
   }, [id]);
@@ -48,7 +57,17 @@ export default function TechnicianJobDetailPage() {
   const fetchJobDetail = async () => {
     try {
       const res = await maintenanceService.getRequestById(id);
-      if (res?.data) setJob(res.data?.data || res.data);
+      if (res?.data) {
+        const d = res.data?.data || res.data;
+        setJob(d);
+        if (d.completionDetails) {
+          setCompletionForm({
+            workPerformed: d.completionDetails.workPerformed || '',
+            partsUsed: d.completionDetails.partsUsed || '',
+            completionNotes: d.completionDetails.completionNotes || '',
+          });
+        }
+      }
     } catch (err) {
       console.error('Failed to load job detail', err);
     } finally {
@@ -67,6 +86,29 @@ export default function TechnicianJobDetailPage() {
       setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to update status');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleCompletionSubmit = async (e) => {
+    e.preventDefault();
+    if (!completionForm.workPerformed.trim()) {
+      setErrorMessage('Please describe the work performed before submitting completion.');
+      return;
+    }
+
+    setSubmittingCompletion(true);
+    setErrorMessage('');
+    setCompletionSuccess('');
+
+    try {
+      await maintenanceService.submitCompletion(id, completionForm);
+      setCompletionSuccess('Work completion successfully submitted! Tenant has been notified to verify.');
+      fetchJobDetail();
+    } catch (err) {
+      console.error('Failed to submit work completion', err);
+      setErrorMessage(err?.response?.data?.message || err?.message || 'Failed to submit work completion.');
+    } finally {
+      setSubmittingCompletion(false);
     }
   };
 
@@ -273,6 +315,93 @@ export default function TechnicianJobDetailPage() {
                   <p className="text-[10px] text-muted-foreground">No tenant review has been submitted yet for this completed job.</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Work Completion Form */}
+          {job.status !== 'resolved' && (
+            <div className={cn(
+              "rounded-3xl border p-6 backdrop-blur-xl space-y-4 shadow-xl transition-all",
+              theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
+            )}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-emerald-400" />
+                  <span>Submit Work Completion</span>
+                </h2>
+                {job.status === 'awaiting_tenant_confirmation' && (
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Awaiting Tenant Confirmation
+                  </span>
+                )}
+              </div>
+
+              {completionSuccess && (
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{completionSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCompletionSubmit} className="space-y-3 text-xs">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
+                    Work Performed *
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Describe the diagnosis and repairs completed..."
+                    value={completionForm.workPerformed}
+                    onChange={(e) => setCompletionForm(prev => ({ ...prev, workPerformed: e.target.value }))}
+                    className={cn(
+                      "w-full p-3 rounded-2xl border font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50",
+                      theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/10 text-white"
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
+                      Parts / Supplies Used
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1 PVC valve, seal tape"
+                      value={completionForm.partsUsed}
+                      onChange={(e) => setCompletionForm(prev => ({ ...prev, partsUsed: e.target.value }))}
+                      className={cn(
+                        "w-full p-2.5 rounded-xl border font-medium focus:outline-none",
+                        theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/10 text-white"
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
+                      Completion Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Optional remarks for tenant..."
+                      value={completionForm.completionNotes}
+                      onChange={(e) => setCompletionForm(prev => ({ ...prev, completionNotes: e.target.value }))}
+                      className={cn(
+                        "w-full p-2.5 rounded-xl border font-medium focus:outline-none",
+                        theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/10 text-white"
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingCompletion}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{submittingCompletion ? 'Submitting Completion...' : 'Mark Work Completed (Send to Tenant)'}</span>
+                </button>
+              </form>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Wrench, AlertTriangle, Calendar as CalendarIcon, Clock, UploadCloud, Check, Building2, MapPin } from 'lucide-react';
+import { X, Wrench, AlertTriangle, Calendar as CalendarIcon, Clock, UploadCloud, Check, Building2, MapPin, CheckCircle2, QrCode, Download, ArrowRight } from 'lucide-react';
 import { propertyService, maintenanceService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
@@ -36,6 +36,7 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [createdTicket, setCreatedTicket] = useState(null);
 
   useEffect(() => {
     if (!selectedLease) {
@@ -73,7 +74,7 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
     setError('');
 
     try {
-      await maintenanceService.createRequest({
+      const res = await maintenanceService.createRequest({
         title: form.title,
         category: form.category,
         priority: form.priority,
@@ -84,13 +85,22 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
         requestedVisitDate: form.requestedVisitDate || undefined,
         requestedTimeSlot: form.requestedTimeSlot || 'morning',
       });
-      onSave && onSave();
+      const ticket = res?.data?.data || res?.data || res;
+      setCreatedTicket(ticket);
     } catch (err) {
       console.error('Error submitting maintenance request:', err);
       setError(err?.message || 'Failed to submit maintenance request. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const downloadQr = () => {
+    if (!createdTicket?.qrCodeDataUrl) return;
+    const a = document.createElement('a');
+    a.href = createdTicket.qrCodeDataUrl;
+    a.download = `QR_${createdTicket.ticketCode || createdTicket._id}.png`;
+    a.click();
   };
 
   return (
@@ -110,23 +120,104 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
           theme === 'light' ? "bg-white text-slate-900 border-slate-200" : "bg-[#0c0d15] text-white border-white/15 shadow-black"
         )}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center pb-3 border-b border-border/40">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md">
-              <Wrench className="w-5 h-5" />
+        {createdTicket ? (
+          /* SUCCESS SCREEN WITH TICKET ID & QR CODE */
+          <div className="space-y-5 text-center py-2">
+            <div className="flex justify-between items-center pb-3 border-b border-border/40 text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-foreground">Maintenance Request Submitted</h3>
+                  <p className="text-[10px] text-muted-foreground font-medium">
+                    Your service ticket has been created and logged
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { onSave && onSave(); }} className="p-2 text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div>
-              <h3 className="text-base font-black tracking-tight">Smart Maintenance Request</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">
-                Submit repair ticket & schedule preferred visit time
-              </p>
+
+            <div className={cn(
+              "p-6 rounded-3xl border shadow-lg space-y-4 text-left",
+              theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/10"
+            )}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider block font-mono">
+                    UNIQUE TICKET ID
+                  </span>
+                  <p className="text-base font-mono font-black text-foreground">
+                    {createdTicket.ticketCode || createdTicket.ticketNumber || createdTicket._id}
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Status: {createdTicket.status?.toUpperCase() || 'OPEN'}
+                </span>
+              </div>
+
+              {createdTicket.qrCodeDataUrl && (
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5 flex flex-col sm:flex-row items-center gap-4">
+                  <img
+                    src={createdTicket.qrCodeDataUrl}
+                    alt="Ticket QR Code"
+                    className="w-24 h-24 rounded-2xl bg-white p-1.5 border border-border shadow-md"
+                  />
+                  <div className="space-y-1 text-center sm:text-left flex-1">
+                    <h5 className="text-xs font-black text-foreground">Official Ticket QR Code</h5>
+                    <p className="text-[10px] text-muted-foreground">
+                      Use this QR code for instant technician verification and confirmation upon repair completion.
+                    </p>
+                    <button
+                      onClick={downloadQr}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-[11px] font-bold cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download QR
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1 text-xs">
+                <p className="text-muted-foreground"><strong className="text-foreground">Title:</strong> {createdTicket.title}</p>
+                <p className="text-muted-foreground"><strong className="text-foreground">Category:</strong> <span className="capitalize">{createdTicket.category}</span> · <strong className="text-foreground">Priority:</strong> <span className="capitalize">{createdTicket.priority}</span></p>
+                {createdTicket.property?.name && (
+                  <p className="text-muted-foreground"><strong className="text-foreground">Property:</strong> {createdTicket.property.name}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { onSave && onSave(); }}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs transition-all shadow-lg shadow-amber-600/25 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>View Ticket in Portal</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground cursor-pointer">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex justify-between items-center pb-3 border-b border-border/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md">
+                  <Wrench className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight">Smart Maintenance Request</h3>
+                  <p className="text-[10px] text-muted-foreground font-medium">
+                    Submit repair ticket &amp; schedule preferred visit time
+                  </p>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
         {/* Selected Lease / Property Indicator */}
         {selectedLease && (
@@ -298,24 +389,26 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 rounded-2xl border border-border text-xs font-black hover:bg-muted transition-all cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 text-white text-xs font-black shadow-lg shadow-amber-600/30 hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              {loading ? 'Submitting Ticket...' : 'Submit Ticket & Schedule Visit'}
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 rounded-2xl border border-border text-xs font-black hover:bg-muted transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 text-white text-xs font-black shadow-lg shadow-amber-600/30 hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {loading ? 'Submitting Ticket...' : 'Submit Ticket & Schedule Visit'}
+              </button>
+            </div>
+          </form>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );

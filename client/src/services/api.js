@@ -164,6 +164,11 @@ export const maintenanceService = {
   uploadVoiceNote: (id, formData) => apiClient.post(`/maintenance/${id}/voice-notes`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  verifyTicket: (ticketCode) => apiClient.get(`/maintenance/verify/${encodeURIComponent(ticketCode)}`),
+  verifyTicketPost: (ticketCode) => apiClient.post('/maintenance/verify', { ticketCode }),
+  submitCompletion: (id, data) => apiClient.post(`/maintenance/${id}/complete`, data),
+  resolveTicket: (id, data) => apiClient.post(`/maintenance/${id}/resolve`, data),
+  getTicketQr: (id) => apiClient.get(`/maintenance/${id}/qr`),
 };
 
 export const technicianService = {
