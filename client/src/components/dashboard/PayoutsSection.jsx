@@ -123,7 +123,7 @@ export default function PayoutsSection() {
         setShowBankModal(true);
     };
 
-    // Verify Bank Account
+    // Verify & Save Bank Account
     const handleVerifyBank = async (e) => {
         e.preventDefault();
         setBankModalError(null);
@@ -170,7 +170,7 @@ export default function PayoutsSection() {
 
         setVerifyingBank(true);
         try {
-            const res = await payoutService.verifyBankAccount({
+            const res = await payoutService.saveBankAccount({
                 accountHolderName: name,
                 accountNumber: cleanAcc,
                 confirmAccountNumber: cleanConfirm,
@@ -178,14 +178,29 @@ export default function PayoutsSection() {
             });
 
             if (res.data?.success && res.data?.data) {
-                setVerifiedData(res.data.data);
+                const saved = res.data.data;
+                setBankAccount(saved);
+                setShowBankModal(false);
+
+                if (saved.verificationStatus === 'verified') {
+                    setMessage({ 
+                        type: 'success', 
+                        text: `✓ ${saved.bankName} (•••• ${saved.accountNumberLast4}) connected and verified successfully!` 
+                    });
+                } else {
+                    setMessage({ 
+                        type: 'success', 
+                        text: `✓ Bank details saved securely. Bank ownership verification is currently unavailable and will require provider verification before real payouts can be processed.` 
+                    });
+                }
+                fetchData();
             } else {
-                const errMsg = res.data?.message || 'The bank account could not be verified.';
+                const errMsg = res.data?.message || 'The bank account could not be saved.';
                 setBankModalError(errMsg);
             }
         } catch (error) {
             const errorData = error.response?.data;
-            const errMsg = errorData?.message || error.message || 'We could not verify this bank account. Please check the details and try again.';
+            const errMsg = errorData?.message || error.message || 'We could not save this bank account. Please check the details and try again.';
             setBankModalError(errMsg);
         } finally {
             setVerifyingBank(false);
@@ -238,6 +253,14 @@ export default function PayoutsSection() {
             setMessage({ 
                 type: 'error', 
                 text: 'Please connect your bank account before requesting a payout.' 
+            });
+            return;
+        }
+
+        if (bankAccount.verificationStatus !== 'verified') {
+            setMessage({ 
+                type: 'error', 
+                text: 'Bank account verification is required before payouts can be processed.' 
             });
             return;
         }
@@ -343,19 +366,39 @@ export default function PayoutsSection() {
                             <Building2 className="w-4 h-4 text-blue-500" /> Bank Payout Account
                         </h3>
                         {bankAccount && (
-                            <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                                <CheckCircle2 className="w-3 h-3" /> Verified
-                            </span>
+                            bankAccount.verificationStatus === 'verified' ? (
+                                <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                                    <Clock className="w-3 h-3" /> Pending Verification
+                                </span>
+                            )
                         )}
                     </div>
 
                     {bankAccount ? (
                         /* Connected State */
                         <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex items-start gap-3">
-                                <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                            <div className={cn(
+                                "p-3.5 rounded-xl border flex items-start gap-3",
+                                bankAccount.verificationStatus === 'verified' 
+                                    ? "bg-emerald-500/5 border-emerald-500/15" 
+                                    : "bg-amber-500/5 border-amber-500/15"
+                            )}>
+                                {bankAccount.verificationStatus === 'verified' ? (
+                                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                                ) : (
+                                    <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                )}
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-emerald-400">✓ Bank account connected</p>
+                                    <p className={cn(
+                                        "text-xs font-bold",
+                                        bankAccount.verificationStatus === 'verified' ? "text-emerald-400" : "text-amber-400"
+                                    )}>
+                                        {bankAccount.verificationStatus === 'verified' ? '✓ Bank account connected' : '✓ Bank details saved (Pending Verification)'}
+                                    </p>
                                     <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
                                         <p className="font-semibold text-foreground truncate">{bankAccount.bankName}</p>
                                         <p>Account: <span className="font-mono font-semibold text-foreground/90">•••• {bankAccount.accountNumberLast4}</span></p>
@@ -423,12 +466,18 @@ export default function PayoutsSection() {
                         
                         <button 
                             type="submit"
-                            disabled={requesting || !requestAmount || stats.available < 500 || !bankAccount}
+                            disabled={requesting || !requestAmount || stats.available < 500 || !bankAccount || bankAccount.verificationStatus !== 'verified'}
                             className="w-full py-3 rounded-xl bg-blue-500 text-white font-black text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
                         >
                             {requesting ? 'Processing...' : 'Withdraw to Bank'}
                         </button>
                     </form>
+
+                    {bankAccount && bankAccount.verificationStatus !== 'verified' && (
+                        <p className="mt-2 text-[11px] text-amber-500/90 font-medium text-center">
+                            Bank account verification is required before payouts can be processed.
+                        </p>
+                    )}
 
                     <AnimatePresence>
                         {message && (

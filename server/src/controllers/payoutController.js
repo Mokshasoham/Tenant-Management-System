@@ -174,10 +174,11 @@ function verifyVerificationToken(token, managerId) {
 }
 
 /**
- * POST /api/payouts/bank-account/verify
- * Authenticate manager, validate bank account inputs & verify with Razorpay provider
+ * POST /api/payouts/bank-account
+ * Authenticate manager, validate bank account inputs & save bank destination safely.
+ * If provider verification is not available: saves as PENDING VERIFICATION without blocking error.
  */
-export const verifyBankAccount = asyncHandler(async (req, res) => {
+export const saveBankAccount = asyncHandler(async (req, res) => {
   const managerId = req.user.userId || req.user.id;
   const { accountHolderName, accountNumber, confirmAccountNumber, ifsc } = req.body;
 
@@ -198,11 +199,7 @@ export const verifyBankAccount = asyncHandler(async (req, res) => {
     throw new AppError('Please enter a valid bank account number (8 to 20 digits).', 400);
   }
 
-  if (!cleanConfirmAccNum) {
-    throw new AppError('Please confirm your bank account number.', 400);
-  }
-
-  if (cleanAccNum !== cleanConfirmAccNum) {
+  if (cleanConfirmAccNum && cleanAccNum !== cleanConfirmAccNum) {
     throw new AppError('Account numbers do not match.', 400);
   }
 
@@ -227,251 +224,199 @@ export const verifyBankAccount = asyncHandler(async (req, res) => {
 
   const bankName = ifscDetails.bankName;
   const branch = ifscDetails.branch;
+  const city = ifscDetails.city;
   const last4 = cleanAccNum.slice(-4);
 
-  // 3. Provider Configuration Check
+  // 3. Provider Check & Verification Attempt
+  let verificationStatus = 'pending';
+  let connectionStatus = 'connected_pending_verification';
+  let providerVerificationAvailable = false;
+  let fundAccountId = null;
+  let providerReference = null;
+  let verifiedAt = null;
+
   const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
   const isConfigured = Boolean(keyId && keySecret && !keyId.includes('mock'));
 
-  if (!isConfigured) {
-    logger.warn('[BankVerify] Razorpay credentials not configured for bank account verification');
-    return res.status(400).json({
-      success: false,
-      status: 'not_configured',
-      message: 'Bank account verification is not enabled for this Razorpay account.'
-    });
-  }
-
-  // 4. Authoritative Verification via Razorpay
-  try {
-    const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-    const user = await User.findById(managerId).select('firstName lastName email phone');
-    const contactEmail = user?.email || 'manager@tms.local';
-    const contactPhone = user?.phone || '9999999999';
-
-    // Step 4a: Create/retrieve Contact on Razorpay
-    let contactId = null;
+  if (isConfigured) {
     try {
-      const contactResp = await fetch('https://api.razorpay.com/v1/contacts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authHeader
-        },
-        body: JSON.stringify({
-          name: name,
-          email: contactEmail,
-          contact: contactPhone,
-          type: 'vendor',
-          reference_id: managerId.toString()
-        })
-      });
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const user = await User.findById(managerId).select('firstName lastName email phone');
+      const contactEmail = user?.email || 'manager@tms.local';
+      const contactPhone = user?.phone || '9999999999';
 
-      if (contactResp.ok) {
-        const contactData = await contactResp.json();
-        contactId = contactData.id;
-      }
-    } catch (contactErr) {
-      logger.warn(`[BankVerify] Razorpay contact step warning: ${contactErr.message}`);
-    }
-
-    if (!contactId) {
-      contactId = `cont_${Date.now()}`;
-    }
-
-    // Step 4b: Create and validate Fund Account on Razorpay
-    const faResp = await fetch('https://api.razorpay.com/v1/fund_accounts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader
-      },
-      body: JSON.stringify({
-        contact_id: contactId,
-        account_type: 'bank_account',
-        bank_account: {
-          name: name,
-          ifsc: cleanIfsc,
-          account_number: cleanAccNum
-        }
-      })
-    });
-
-    const faData = await faResp.json().catch(() => ({}));
-
-    if (!faResp.ok) {
-      const errDesc = faData.error?.description || 'The bank account could not be verified.';
-      logger.warn(`[BankVerify] Razorpay fund account validation failed: ${errDesc}`);
-      return res.status(400).json({
-        success: false,
-        status: 'failed',
-        message: errDesc
-      });
-    }
-
-    const fundAccountId = faData.id || `fa_${Date.now()}`;
-    const confirmedBankName = faData.bank_account?.bank_name || bankName;
-    let registeredName = name;
-    let verificationReference = fundAccountId;
-
-    // Step 4c: Attempt Razorpay Penny Drop Validation endpoint
-    try {
-      const valResp = await fetch('https://api.razorpay.com/v1/fund_accounts/validations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authHeader
-        },
-        body: JSON.stringify({
-          account_number: process.env.RAZORPAY_ACCOUNT_NUMBER || '2323230034479900',
-          fund_account: {
-            id: fundAccountId
+      // Create contact
+      let contactId = null;
+      try {
+        const contactResp = await fetch('https://api.razorpay.com/v1/contacts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader
           },
-          amount: 100,
-          currency: 'INR',
-          notes: {
-            managerId: managerId.toString()
+          body: JSON.stringify({
+            name: name,
+            email: contactEmail,
+            contact: contactPhone,
+            type: 'vendor',
+            reference_id: managerId.toString()
+          })
+        });
+        if (contactResp.ok) {
+          const contactData = await contactResp.json();
+          contactId = contactData.id;
+        }
+      } catch (cErr) {
+        logger.warn(`[BankSave] Contact step warning: ${cErr.message}`);
+      }
+
+      if (!contactId) contactId = `cont_${Date.now()}`;
+
+      // Create fund account on Razorpay
+      const faResp = await fetch('https://api.razorpay.com/v1/fund_accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        },
+        body: JSON.stringify({
+          contact_id: contactId,
+          account_type: 'bank_account',
+          bank_account: {
+            name: name,
+            ifsc: cleanIfsc,
+            account_number: cleanAccNum
           }
         })
       });
 
-      if (valResp.ok) {
-        const valData = await valResp.json();
-        if (valData.results?.registered_name) {
-          registeredName = valData.results.registered_name;
-        }
-        if (valData.id) {
-          verificationReference = valData.id;
+      if (faResp.ok) {
+        const faData = await faResp.json();
+        fundAccountId = faData.id;
+        providerReference = faData.id;
+
+        // Try penny-drop validation if enabled on merchant account
+        try {
+          const valResp = await fetch('https://api.razorpay.com/v1/fund_accounts/validations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify({
+              account_number: process.env.RAZORPAY_ACCOUNT_NUMBER || '2323230034479900',
+              fund_account: { id: fundAccountId },
+              amount: 100,
+              currency: 'INR'
+            })
+          });
+
+          if (valResp.ok) {
+            const valData = await valResp.json();
+            if (valData.results?.account_status === 'active' || valData.status === 'completed') {
+              verificationStatus = 'verified';
+              connectionStatus = 'connected';
+              providerVerificationAvailable = true;
+              verifiedAt = new Date();
+              providerReference = valData.id || providerReference;
+            }
+          }
+        } catch (vErr) {
+          logger.info(`[BankSave] Penny-drop validation not available: ${vErr.message}`);
         }
       }
-    } catch (valErr) {
-      logger.info(`[BankVerify] Penny-drop validation note: ${valErr.message}`);
+    } catch (pErr) {
+      logger.warn(`[BankSave] Provider validation unavailable: ${pErr.message}`);
     }
-
-    // Step 4d: Create Signed 15-Minute Verification Token
-    const verificationToken = signVerificationToken({
-      managerId: managerId.toString(),
-      verificationReference,
-      fundAccountId,
-      accountNumberLast4: last4,
-      ifsc: cleanIfsc,
-      bankName: confirmedBankName,
-      accountHolderName: name,
-      registeredName,
-      branch
-    });
-
-    logger.info(`[BankVerify] Bank account verified via Razorpay for Manager ${managerId}: ${confirmedBankName} (•••• ${last4}), FundAccount: ${fundAccountId}`);
-
-    return res.status(200).json({
-      success: true,
-      status: 'verified',
-      data: {
-        verificationReference,
-        verificationToken,
-        fundAccountId,
-        accountHolderName: name,
-        registeredName,
-        bankName: confirmedBankName,
-        branch,
-        city: ifscDetails.city,
-        accountNumberLast4: last4,
-        ifsc: cleanIfsc,
-        status: 'VERIFIED',
-        message: 'Bank account verified successfully.'
-      }
-    });
-  } catch (err) {
-    logger.error(`[BankVerify] Provider network error: ${err.message}`);
-    return res.status(502).json({
-      success: false,
-      status: 'unavailable',
-      message: 'Bank account verification is temporarily unavailable. Please try again.'
-    });
-  }
-});
-
-/**
- * POST /api/payouts/bank-account/connect
- * Connect verified bank account to manager profile
- */
-export const connectBankAccount = asyncHandler(async (req, res) => {
-  const managerId = req.user.userId || req.user.id;
-  const { verificationToken, verificationReference } = req.body;
-
-  if (!verificationToken) {
-    throw new AppError('Bank account verification token is required. Please verify your bank account first.', 400);
   }
 
-  const verifiedPayload = verifyVerificationToken(verificationToken, managerId);
-  if (!verifiedPayload) {
-    throw new AppError('Verification reference is invalid or has expired. Please verify your bank account again.', 400);
-  }
-
-  const { accountHolderName, registeredName, accountNumberLast4, ifsc, bankName, branch, fundAccountId } = verifiedPayload;
-
-  // Find or create ManagerBankAccount
+  // 4. Save/Update ManagerBankAccount (Never stores full account number or secret credentials!)
   let bankAccount = await ManagerBankAccount.findOne({ manager: managerId });
-
   if (bankAccount) {
-    bankAccount.accountHolderName = registeredName || accountHolderName;
+    bankAccount.accountHolderName = name;
     bankAccount.bankName = bankName;
-    bankAccount.accountNumberLast4 = accountNumberLast4;
-    bankAccount.ifsc = ifsc;
+    bankAccount.accountNumberLast4 = last4;
+    bankAccount.ifsc = cleanIfsc;
     bankAccount.branch = branch || bankAccount.branch;
-    bankAccount.verificationStatus = 'verified';
-    bankAccount.connectionStatus = 'connected';
+    bankAccount.city = city || bankAccount.city;
+    bankAccount.verificationStatus = verificationStatus;
+    bankAccount.connectionStatus = connectionStatus;
+    bankAccount.providerVerificationAvailable = providerVerificationAvailable;
     bankAccount.provider = 'razorpay';
-    bankAccount.providerReference = verificationReference || verifiedPayload.verificationReference;
+    bankAccount.providerReference = providerReference || bankAccount.providerReference;
     bankAccount.fundAccountId = fundAccountId || bankAccount.fundAccountId;
-    bankAccount.verifiedAt = new Date();
+    bankAccount.verifiedAt = verifiedAt;
     bankAccount.connectedAt = new Date();
     await bankAccount.save();
   } else {
     bankAccount = await ManagerBankAccount.create({
       manager: managerId,
-      accountHolderName: registeredName || accountHolderName,
+      accountHolderName: name,
       bankName: bankName,
-      accountNumberLast4: accountNumberLast4,
-      ifsc: ifsc,
+      accountNumberLast4: last4,
+      ifsc: cleanIfsc,
       branch: branch || null,
-      verificationStatus: 'verified',
-      connectionStatus: 'connected',
+      city: city || null,
+      verificationStatus: verificationStatus,
+      connectionStatus: connectionStatus,
+      providerVerificationAvailable: providerVerificationAvailable,
       provider: 'razorpay',
-      providerReference: verificationReference || verifiedPayload.verificationReference,
-      fundAccountId: fundAccountId || null,
-      verifiedAt: new Date(),
+      providerReference: providerReference,
+      fundAccountId: fundAccountId,
+      verifiedAt: verifiedAt,
       connectedAt: new Date()
     });
   }
 
-  logger.info(`[BankConnect] Manager ${managerId} connected bank account ending in ${accountNumberLast4} (${bankName})`);
+  logger.info(`[BankSave] Bank destination saved for Manager ${managerId}: ${bankName} (•••• ${last4}), Status: ${verificationStatus}`);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
-    message: 'Bank account connected successfully.',
+    status: verificationStatus,
+    connectionStatus: connectionStatus,
+    providerVerificationAvailable: providerVerificationAvailable,
+    message: verificationStatus === 'verified'
+      ? 'Bank account verified and connected successfully.'
+      : 'Bank ownership verification is currently unavailable. Your bank details have been saved securely and will require provider verification before real payouts can be processed.',
     data: {
+      connected: true,
       bankName: bankAccount.bankName,
       accountHolderName: bankAccount.accountHolderName,
       accountNumberLast4: bankAccount.accountNumberLast4,
       ifsc: bankAccount.ifsc,
       branch: bankAccount.branch,
-      status: 'connected',
+      city: bankAccount.city,
+      status: bankAccount.connectionStatus,
+      verificationStatus: bankAccount.verificationStatus,
+      connectionStatus: bankAccount.connectionStatus,
+      providerVerificationAvailable: bankAccount.providerVerificationAvailable,
       connectedAt: bankAccount.connectedAt
     }
   });
 });
 
 /**
+ * POST /api/payouts/bank-account/verify
+ * Authenticate manager & save bank destination safely (alias to saveBankAccount)
+ */
+export const verifyBankAccount = saveBankAccount;
+
+/**
+ * POST /api/payouts/bank-account/connect
+ * Alias to saveBankAccount / connect verified bank account
+ */
+export const connectBankAccount = saveBankAccount;
+
+/**
  * GET /api/payouts/bank-account
- * Get currently connected bank account for manager
+ * Get currently connected/saved bank account for manager
  */
 export const getConnectedBankAccount = asyncHandler(async (req, res) => {
-  const managerId = req.user.userId;
+  const managerId = req.user.userId || req.user.id;
   const bankAccount = await ManagerBankAccount.findOne({ 
     manager: managerId, 
-    connectionStatus: 'connected' 
+    connectionStatus: { $in: ['connected', 'connected_pending_verification'] } 
   });
 
   if (!bankAccount) {
@@ -491,8 +436,11 @@ export const getConnectedBankAccount = asyncHandler(async (req, res) => {
       accountNumberLast4: bankAccount.accountNumberLast4,
       ifsc: bankAccount.ifsc,
       branch: bankAccount.branch,
-      status: 'connected',
+      city: bankAccount.city,
+      status: bankAccount.connectionStatus,
       verificationStatus: bankAccount.verificationStatus,
+      connectionStatus: bankAccount.connectionStatus,
+      providerVerificationAvailable: bankAccount.providerVerificationAvailable ?? false,
       connectedAt: bankAccount.connectedAt
     }
   });
@@ -500,10 +448,10 @@ export const getConnectedBankAccount = asyncHandler(async (req, res) => {
 
 /**
  * DELETE /api/payouts/bank-account
- * Disconnect bank account (does not delete payment/payout history)
+ * Disconnect bank account (preserves payment & payout history)
  */
 export const disconnectBankAccount = asyncHandler(async (req, res) => {
-  const managerId = req.user.userId;
+  const managerId = req.user.userId || req.user.id;
   const bankAccount = await ManagerBankAccount.findOne({ manager: managerId });
 
   if (bankAccount) {
@@ -523,17 +471,18 @@ export const disconnectBankAccount = asyncHandler(async (req, res) => {
  * Manager/Admin: Get real-time balance, earnings, and connected bank account status
  */
 export const getPayoutSummary = asyncHandler(async (req, res) => {
-  const managerId = req.user.userId;
+  const managerId = req.user.userId || req.user.id;
   const user = await User.findById(managerId);
   if (!user) throw new AppError('User not found', 404);
 
   const ledger = await calculateManagerLedger(managerId);
   const bankAccount = await ManagerBankAccount.findOne({ 
     manager: managerId, 
-    connectionStatus: 'connected' 
+    connectionStatus: { $in: ['connected', 'connected_pending_verification'] } 
   });
 
   const hasConnectedAccount = Boolean(bankAccount);
+  const isPayoutReady = Boolean(bankAccount && bankAccount.verificationStatus === 'verified');
 
   res.status(200).json({
     success: true,
@@ -544,8 +493,11 @@ export const getPayoutSummary = asyncHandler(async (req, res) => {
       pending: ledger.totalPending,
       reserved: ledger.reservedAmount,
       totalWithdrawn: ledger.completedAmount,
-      isPayoutReady: hasConnectedAccount,
+      isPayoutReady,
       hasConnectedAccount,
+      verificationStatus: bankAccount?.verificationStatus || null,
+      connectionStatus: bankAccount?.connectionStatus || null,
+      providerVerificationAvailable: bankAccount?.providerVerificationAvailable ?? false,
       accountNumberLast4: bankAccount?.accountNumberLast4 || null,
       bankName: bankAccount?.bankName || null,
       ifsc: bankAccount?.ifsc || null,

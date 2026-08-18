@@ -40,13 +40,17 @@ const managerBankAccountSchema = new mongoose.Schema(
     },
     verificationStatus: {
       type: String,
-      enum: ['verified', 'pending', 'failed', 'unverified'],
-      default: 'verified',
+      enum: ['pending', 'verified', 'failed', 'unverified'],
+      default: 'pending',
     },
     connectionStatus: {
       type: String,
-      enum: ['connected', 'disconnected'],
-      default: 'connected',
+      enum: ['disconnected', 'connected_pending_verification', 'connected'],
+      default: 'connected_pending_verification',
+    },
+    providerVerificationAvailable: {
+      type: Boolean,
+      default: false,
     },
     provider: {
       type: String,
@@ -66,7 +70,7 @@ const managerBankAccountSchema = new mongoose.Schema(
     },
     verifiedAt: {
       type: Date,
-      default: Date.now,
+      default: null,
     },
     connectedAt: {
       type: Date,

@@ -7,6 +7,7 @@ import {
   rejectPayout, 
   getPayoutSummary, 
   handlePayoutWebhook,
+  saveBankAccount,
   verifyBankAccount,
   connectBankAccount,
   getConnectedBankAccount,
@@ -23,6 +24,7 @@ router.post('/webhook', handlePayoutWebhook);
 router.use(authenticate);
 
 // Bank Account Management Routes (Manager / Owner / Admin)
+router.post('/bank-account', authorize('manager', 'owner', 'admin'), saveBankAccount);
 router.post('/bank-account/verify', authorize('manager', 'owner', 'admin'), verifyBankAccount);
 router.post('/bank-account/connect', authorize('manager', 'owner', 'admin'), connectBankAccount);
 router.get('/bank-account', authorize('manager', 'owner', 'admin'), getConnectedBankAccount);
