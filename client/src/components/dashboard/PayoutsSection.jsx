@@ -64,7 +64,8 @@ export default function PayoutsSection() {
             ]);
 
             if (summaryRes.status === 'fulfilled') {
-                const s = summaryRes.value.data?.data || summaryRes.value.data || {};
+                const raw = summaryRes.value;
+                const s = raw?.data?.data || raw?.data || raw || {};
                 setStats({
                     available: s.available ?? s.availableBalance ?? 0,
                     totalEarned: s.totalEarned ?? 0,
@@ -73,13 +74,15 @@ export default function PayoutsSection() {
             }
 
             if (historyRes.status === 'fulfilled') {
-                const h = historyRes.value.data?.data || historyRes.value.data || [];
+                const raw = historyRes.value;
+                const h = raw?.data?.data || raw?.data || (Array.isArray(raw) ? raw : []);
                 setHistory(Array.isArray(h) ? h : []);
             }
 
             if (bankRes.status === 'fulfilled') {
-                const b = bankRes.value.data?.data || null;
-                setBankAccount(b);
+                const raw = bankRes.value;
+                const b = raw?.data?.data || raw?.data || (raw?.bankName ? raw : null);
+                setBankAccount(b?.bankName ? b : null);
             }
         } catch (error) {
             console.error('Failed to fetch payout data:', error);
@@ -170,15 +173,17 @@ export default function PayoutsSection() {
 
         setVerifyingBank(true);
         try {
-            const res = await payoutService.saveBankAccount({
+            const raw = await payoutService.saveBankAccount({
                 accountHolderName: name,
                 accountNumber: cleanAcc,
                 confirmAccountNumber: cleanConfirm,
                 ifsc: cleanIfsc
             });
 
-            if (res.data?.success && res.data?.data) {
-                const saved = res.data.data;
+            const saved = raw?.data?.data || raw?.data || (raw?.bankName ? raw : null);
+            const isSuccess = raw?.success !== false && Boolean(saved?.bankName || saved?.accountNumberLast4);
+
+            if (isSuccess && saved) {
                 setBankAccount(saved);
                 setShowBankModal(false);
 
@@ -195,12 +200,11 @@ export default function PayoutsSection() {
                 }
                 fetchData();
             } else {
-                const errMsg = res.data?.message || 'The bank account could not be saved.';
+                const errMsg = raw?.message || 'The bank account could not be saved.';
                 setBankModalError(errMsg);
             }
         } catch (error) {
-            const errorData = error.response?.data;
-            const errMsg = errorData?.message || error.message || 'We could not save this bank account. Please check the details and try again.';
+            const errMsg = error?.message || error?.error || (typeof error === 'string' ? error : 'We could not save this bank account. Please check the details and try again.');
             setBankModalError(errMsg);
         } finally {
             setVerifyingBank(false);
