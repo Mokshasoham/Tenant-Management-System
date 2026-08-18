@@ -1,42 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Wallet, ArrowDownToLine, History, TrendingUp, 
+    Wallet, ArrowDownToLine, History, 
     CheckCircle2, Clock, XCircle, AlertCircle, Info,
-    CreditCard, ShieldCheck, X, Building2, ExternalLink, RefreshCw
+    CreditCard, ShieldCheck, X, Building2, RefreshCw, Unlink
 } from 'lucide-react';
-import { payoutService, stripeConnectService } from '../../services/api';
+import { payoutService } from '../../services/api';
 import { cn } from '../../utils/cn';
 
+// Quick bank lookup from IFSC prefix
+const IFSC_PREVIEW_MAP = {
+    'SBIN': 'State Bank of India',
+    'HDFC': 'HDFC Bank',
+    'ICIC': 'ICICI Bank',
+    'UTIB': 'Axis Bank',
+    'PUNB': 'Punjab National Bank',
+    'BARB': 'Bank of Baroda',
+    'KKBK': 'Kotak Mahindra Bank',
+    'UBIN': 'Union Bank of India',
+    'CNRB': 'Canara Bank',
+    'IOBA': 'Indian Overseas Bank',
+    'BKID': 'Bank of India',
+    'IDIB': 'Indian Bank',
+    'YESB': 'YES Bank',
+    'INDB': 'IndusInd Bank',
+    'FDRL': 'Federal Bank',
+    'IDFB': 'IDFC FIRST Bank',
+    'AIRP': 'Airtel Payments Bank',
+    'PYTM': 'Paytm Payments Bank',
+};
+
 export default function PayoutsSection() {
-    const [stats, setStats] = useState({ available: 0, totalEarned: 0, pending: 0, isPayoutReady: false, payoutDisabledReason: null });
-    const [connectData, setConnectData] = useState({
-        configured: true,
-        connected: false,
-        payoutsEnabled: false,
-        chargesEnabled: false,
-        detailsSubmitted: false,
-        onboardingStatus: 'not_connected',
-        status: 'not_connected',
-        message: 'Connect your bank account to receive property rental payouts securely.',
-        bankName: null,
-        accountNumberLast4: null
-    });
+    const [stats, setStats] = useState({ available: 0, totalEarned: 0, pending: 0 });
+    const [bankAccount, setBankAccount] = useState(null);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [connecting, setConnecting] = useState(false);
     const [requestAmount, setRequestAmount] = useState('');
     const [requesting, setRequesting] = useState(false);
     const [message, setMessage] = useState(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+    // Bank Account Modal States
+    const [showBankModal, setShowBankModal] = useState(false);
+    const [bankForm, setBankForm] = useState({
+        accountHolderName: '',
+        accountNumber: '',
+        confirmAccountNumber: '',
+        ifsc: ''
+    });
+    const [detectedBank, setDetectedBank] = useState('');
+    const [verifyingBank, setVerifyingBank] = useState(false);
+    const [verifiedData, setVerifiedData] = useState(null);
+    const [connectingBank, setConnectingBank] = useState(false);
+    const [bankModalError, setBankModalError] = useState(null);
+
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [summaryRes, historyRes, connectRes] = await Promise.allSettled([
+            const [summaryRes, historyRes, bankRes] = await Promise.allSettled([
                 payoutService.getPayoutSummary(),
                 payoutService.getAllPayouts(),
-                stripeConnectService.getStatus()
+                payoutService.getConnectedBankAccount()
             ]);
 
             if (summaryRes.status === 'fulfilled') {
@@ -45,10 +69,6 @@ export default function PayoutsSection() {
                     available: s.available ?? s.availableBalance ?? 0,
                     totalEarned: s.totalEarned ?? 0,
                     pending: s.pending ?? s.totalPending ?? 0,
-                    isPayoutReady: s.isPayoutReady ?? false,
-                    payoutDisabledReason: s.payoutDisabledReason || null,
-                    accountNumberLast4: s.accountNumberLast4 || null,
-                    bankName: s.bankName || null,
                 });
             }
 
@@ -57,20 +77,9 @@ export default function PayoutsSection() {
                 setHistory(Array.isArray(h) ? h : []);
             }
 
-            if (connectRes.status === 'fulfilled') {
-                const c = connectRes.value.data?.data || connectRes.value.data || {};
-                setConnectData({
-                    configured: connectRes.value.data?.configured ?? true,
-                    connected: connectRes.value.data?.connected ?? false,
-                    payoutsEnabled: c.payoutsEnabled ?? false,
-                    chargesEnabled: c.chargesEnabled ?? false,
-                    detailsSubmitted: c.detailsSubmitted ?? false,
-                    onboardingStatus: c.onboardingStatus || 'not_connected',
-                    status: c.status || (c.payoutsEnabled ? 'payouts_enabled' : 'not_connected'),
-                    message: c.message || connectRes.value.data?.message || 'Connect your bank account to receive property rental payouts securely.',
-                    bankName: c.bankName || null,
-                    accountNumberLast4: c.accountNumberLast4 || null,
-                });
+            if (bankRes.status === 'fulfilled') {
+                const b = bankRes.value.data?.data || null;
+                setBankAccount(b);
             }
         } catch (error) {
             console.error('Failed to fetch payout data:', error);
@@ -83,52 +92,140 @@ export default function PayoutsSection() {
         fetchData();
     }, []);
 
-    const handleConnectStripe = async () => {
-        setConnecting(true);
-        setMessage(null);
-        try {
-            const res = await stripeConnectService.getOnboardingLink();
-            if (res.data?.url) {
-                window.location.href = res.data.url;
+    // Handle IFSC change and auto-detect bank name
+    const handleIfscChange = (val) => {
+        const clean = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+        setBankForm(prev => ({ ...prev, ifsc: clean }));
+        
+        if (clean.length >= 4) {
+            const prefix = clean.substring(0, 4);
+            if (IFSC_PREVIEW_MAP[prefix]) {
+                setDetectedBank(IFSC_PREVIEW_MAP[prefix]);
             } else {
-                setMessage({ type: 'error', text: 'Failed to generate Stripe onboarding link.' });
+                setDetectedBank('');
             }
-        } catch (error) {
-            const errMsg = error.response?.data?.message || error.message || 'Failed to start Stripe onboarding.';
-            setMessage({ type: 'error', text: errMsg });
-        } finally {
-            setConnecting(false);
+        } else {
+            setDetectedBank('');
         }
     };
 
-    const handleManageStripe = async () => {
-        setConnecting(true);
-        setMessage(null);
+    // Open Bank Account Modal
+    const handleOpenBankModal = () => {
+        setBankModalError(null);
+        setVerifiedData(null);
+        setBankForm({
+            accountHolderName: '',
+            accountNumber: '',
+            confirmAccountNumber: '',
+            ifsc: ''
+        });
+        setDetectedBank('');
+        setShowBankModal(true);
+    };
+
+    // Verify Bank Account
+    const handleVerifyBank = async (e) => {
+        e.preventDefault();
+        setBankModalError(null);
+
+        if (!bankForm.accountHolderName.trim()) {
+            setBankModalError('Please enter the account holder name.');
+            return;
+        }
+
+        const cleanAcc = bankForm.accountNumber.trim();
+        const cleanConfirm = bankForm.confirmAccountNumber.trim();
+
+        if (!cleanAcc || cleanAcc.length < 8 || cleanAcc.length > 20 || !/^\d+$/.test(cleanAcc)) {
+            setBankModalError('Please enter a valid bank account number (8 to 20 digits).');
+            return;
+        }
+
+        if (cleanAcc !== cleanConfirm) {
+            setBankModalError('Bank account numbers do not match.');
+            return;
+        }
+
+        const cleanIfsc = bankForm.ifsc.trim().toUpperCase();
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
+            setBankModalError('Please enter a valid 11-character IFSC code (e.g. SBIN0001234).');
+            return;
+        }
+
+        setVerifyingBank(true);
         try {
-            const res = await stripeConnectService.getLoginLink();
-            if (res.data?.url) {
-                window.open(res.data.url, '_blank');
+            const res = await payoutService.verifyBankAccount({
+                accountHolderName: bankForm.accountHolderName.trim(),
+                accountNumber: cleanAcc,
+                confirmAccountNumber: cleanConfirm,
+                ifsc: cleanIfsc
+            });
+
+            if (res.data?.data) {
+                setVerifiedData(res.data.data);
             } else {
-                setMessage({ type: 'error', text: 'Failed to generate Stripe management link.' });
+                setBankModalError('We could not verify this bank account. Please check the details and try again.');
             }
         } catch (error) {
-            const errMsg = error.response?.data?.message || error.message || 'Failed to open Stripe management.';
-            setMessage({ type: 'error', text: errMsg });
+            const errMsg = error.response?.data?.message || 'We could not verify this bank account. Please check the details and try again.';
+            setBankModalError(errMsg);
         } finally {
-            setConnecting(false);
+            setVerifyingBank(false);
         }
     };
 
+    // Connect Verified Bank Account
+    const handleConnectBank = async () => {
+        if (!verifiedData) return;
+
+        setConnectingBank(true);
+        setBankModalError(null);
+        try {
+            const res = await payoutService.connectBankAccount({
+                accountHolderName: verifiedData.registeredName || verifiedData.accountHolderName,
+                accountNumberLast4: verifiedData.accountNumberLast4,
+                ifsc: verifiedData.ifsc,
+                bankName: verifiedData.bankName,
+                branch: verifiedData.branch,
+                verificationId: verifiedData.verificationId,
+                providerReference: verifiedData.providerReference,
+                verificationProvider: verifiedData.verificationProvider
+            });
+
+            setBankAccount(res.data?.data || verifiedData);
+            setShowBankModal(false);
+            setMessage({ type: 'success', text: `✓ ${verifiedData.bankName} (•••• ${verifiedData.accountNumberLast4}) connected successfully!` });
+            fetchData();
+        } catch (error) {
+            const errMsg = error.response?.data?.message || 'Failed to connect bank account. Please try again.';
+            setBankModalError(errMsg);
+        } finally {
+            setConnectingBank(false);
+        }
+    };
+
+    // Disconnect Bank Account
+    const handleDisconnectBank = async () => {
+        if (!window.confirm('Are you sure you want to disconnect this bank account?')) return;
+        try {
+            await payoutService.disconnectBankAccount();
+            setBankAccount(null);
+            setMessage({ type: 'success', text: 'Bank account disconnected.' });
+            fetchData();
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Failed to disconnect bank account.' });
+        }
+    };
+
+    // Open Payout Confirmation
     const handleOpenConfirm = (e) => {
         e.preventDefault();
         setMessage(null);
 
-        if (!connectData.payoutsEnabled) {
+        if (!bankAccount) {
             setMessage({ 
                 type: 'error', 
-                text: connectData.connected 
-                    ? 'Stripe payouts are not enabled for this account yet.'
-                    : 'Please connect your bank account before requesting a payout.' 
+                text: 'Please connect your bank account before requesting a payout.' 
             });
             return;
         }
@@ -150,6 +247,7 @@ export default function PayoutsSection() {
         setShowConfirmModal(true);
     };
 
+    // Confirm and Execute Payout
     const handleConfirmPayout = async () => {
         const parsed = parseFloat(requestAmount);
         if (!parsed || parsed < 500) return;
@@ -165,7 +263,7 @@ export default function PayoutsSection() {
             });
             setMessage({ 
                 type: 'success', 
-                text: res.data?.message || 'Payout request submitted to your connected bank account!' 
+                text: res.data?.message || 'Payout request submitted successfully!' 
             });
             setRequestAmount('');
             fetchData();
@@ -232,116 +330,60 @@ export default function PayoutsSection() {
                         <h3 className="text-sm font-black text-foreground flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-blue-500" /> Bank Payout Account
                         </h3>
-                        {connectData.payoutsEnabled ? (
+                        {bankAccount && (
                             <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                                <CheckCircle2 className="w-3 h-3" /> Payouts Enabled
+                                <CheckCircle2 className="w-3 h-3" /> Verified
                             </span>
-                        ) : connectData.connected ? (
-                            <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                                <Clock className="w-3 h-3" /> Setup Incomplete
-                            </span>
-                        ) : null}
+                        )}
                     </div>
 
-                    {/* State 5: Payouts Enabled */}
-                    {connectData.payoutsEnabled ? (
+                    {bankAccount ? (
+                        /* Connected State */
                         <div className="space-y-3">
                             <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex items-start gap-3">
                                 <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                                <div>
+                                <div className="flex-1 min-w-0">
                                     <p className="text-xs font-bold text-emerald-400">✓ Bank account connected</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        Payouts are enabled to your connected Stripe account
-                                        {connectData.bankName && ` • ${connectData.bankName}`}
-                                        {connectData.accountNumberLast4 && ` (•• ${connectData.accountNumberLast4})`}.
-                                    </p>
+                                    <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+                                        <p className="font-semibold text-foreground truncate">{bankAccount.bankName}</p>
+                                        <p>Account: <span className="font-mono font-semibold text-foreground/90">•••• {bankAccount.accountNumberLast4}</span></p>
+                                        <p>IFSC: <span className="font-mono font-semibold text-foreground/90">{bankAccount.ifsc}</span></p>
+                                        {bankAccount.accountHolderName && (
+                                            <p className="truncate">Holder: {bankAccount.accountHolderName}</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={handleManageStripe}
-                                disabled={connecting}
-                                className="w-full py-2.5 rounded-xl border border-border bg-card hover:bg-muted/80 text-foreground font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
-                                {connecting ? 'Opening...' : 'Manage Payout Account'}
-                            </button>
-                        </div>
-                    ) : connectData.status === 'verification_pending' ? (
-                        /* State 4: Verification Pending */
-                        <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/15 flex items-start gap-3">
-                                <Clock className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs font-bold text-blue-400">Stripe is verifying your payout account.</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        Bank payouts will be enabled automatically as soon as verification completes.
-                                    </p>
-                                </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleOpenBankModal}
+                                    className="flex-1 py-2 rounded-xl border border-border bg-card hover:bg-muted/80 text-foreground font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                >
+                                    <RefreshCw className="w-3 h-3 text-blue-500" /> Change Account
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleDisconnectBank}
+                                    title="Disconnect Bank Account"
+                                    className="p-2 rounded-xl border border-border bg-card hover:bg-rose-500/10 hover:border-rose-500/30 text-muted-foreground hover:text-rose-500 transition-all cursor-pointer shadow-sm"
+                                >
+                                    <Unlink className="w-3.5 h-3.5" />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={fetchData}
-                                className="w-full py-2.5 rounded-xl border border-border bg-card hover:bg-muted/80 text-foreground font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                            >
-                                <RefreshCw className="w-3.5 h-3.5 text-blue-500" /> Refresh Status
-                            </button>
-                        </div>
-                    ) : connectData.status === 'verification_required' ? (
-                        /* State 3: Verification Required */
-                        <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/15 flex items-start gap-3">
-                                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs font-bold text-amber-400">Additional verification is required.</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        Stripe requires updated verification details before payouts can be activated.
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleConnectStripe}
-                                disabled={connecting}
-                                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
-                            >
-                                {connecting ? 'Redirecting to Stripe...' : 'Complete Verification'}
-                            </button>
-                        </div>
-                    ) : connectData.connected ? (
-                        /* State 2 & 6: Onboarding Incomplete or Payouts Disabled */
-                        <div className="space-y-3">
-                            <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/15 flex items-start gap-3">
-                                <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs font-bold text-amber-400">Stripe payout setup is incomplete.</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                                        Complete your Stripe onboarding to start receiving rental payouts into your bank account.
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleConnectStripe}
-                                disabled={connecting}
-                                className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
-                            >
-                                {connecting ? 'Redirecting to Stripe...' : 'Complete Setup'}
-                            </button>
                         </div>
                     ) : (
-                        /* State 1: Not Connected */
+                        /* Unconnected State */
                         <div className="space-y-3">
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                Connect your bank account to receive property rental payouts securely via Stripe Connect.
+                                Connect your bank account to receive property rental payouts directly to your account.
                             </p>
                             <button
                                 type="button"
-                                onClick={handleConnectStripe}
-                                disabled={connecting}
-                                className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
+                                onClick={handleOpenBankModal}
+                                className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition-all shadow-md cursor-pointer"
                             >
-                                {connecting ? 'Connecting to Stripe...' : 'Connect Bank Account'}
+                                Connect Bank Account
                             </button>
                         </div>
                     )}
@@ -369,7 +411,7 @@ export default function PayoutsSection() {
                         
                         <button 
                             type="submit"
-                            disabled={requesting || !requestAmount || stats.available < 500 || !connectData.payoutsEnabled}
+                            disabled={requesting || !requestAmount || stats.available < 500 || !bankAccount}
                             className="w-full py-3 rounded-xl bg-blue-500 text-white font-black text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
                         >
                             {requesting ? 'Processing...' : 'Withdraw to Bank'}
@@ -396,7 +438,7 @@ export default function PayoutsSection() {
                     <div className="mt-6 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                         <Info className="w-5 h-5 text-blue-500 flex-shrink-0" />
                         <p className="text-[10px] text-muted-foreground leading-relaxed">
-                            Funds are typically transferred to your connected Stripe bank account within 2-3 business days after approval.
+                            Funds are transferred to your verified bank account within 2-3 business days after processing.
                         </p>
                     </div>
                 </div>
@@ -463,6 +505,179 @@ export default function PayoutsSection() {
                 </div>
             </div>
 
+            {/* Bank Account Verification Modal */}
+            <AnimatePresence>
+                {showBankModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl space-y-5"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
+                                        <Building2 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-foreground">
+                                            {verifiedData ? '✓ Bank Account Verified' : 'Connect Bank Account'}
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            {verifiedData ? 'Review and confirm account details' : 'Enter bank details for rental payouts'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowBankModal(false)}
+                                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {bankModalError && (
+                                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                    <span>{bankModalError}</span>
+                                </div>
+                            )}
+
+                            {/* Step 1: Input Form */}
+                            {!verifiedData ? (
+                                <form onSubmit={handleVerifyBank} className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-foreground block mb-1.5">Account Holder Name</label>
+                                        <input 
+                                            type="text"
+                                            value={bankForm.accountHolderName}
+                                            onChange={(e) => setBankForm(prev => ({ ...prev, accountHolderName: e.target.value }))}
+                                            placeholder="e.g. Mokshagna Soham"
+                                            required
+                                            className="w-full bg-white/5 border border-border rounded-xl py-2.5 px-3.5 text-xs text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-foreground block mb-1.5">Bank Account Number</label>
+                                        <input 
+                                            type="password"
+                                            value={bankForm.accountNumber}
+                                            onChange={(e) => setBankForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                            placeholder="Enter account number"
+                                            required
+                                            className="w-full bg-white/5 border border-border rounded-xl py-2.5 px-3.5 text-xs text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-foreground block mb-1.5">Confirm Bank Account Number</label>
+                                        <input 
+                                            type="text"
+                                            value={bankForm.confirmAccountNumber}
+                                            onChange={(e) => setBankForm(prev => ({ ...prev, confirmAccountNumber: e.target.value }))}
+                                            placeholder="Re-enter account number"
+                                            required
+                                            className="w-full bg-white/5 border border-border rounded-xl py-2.5 px-3.5 text-xs text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-xs font-bold text-foreground">IFSC Code</label>
+                                            {detectedBank && (
+                                                <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+                                                    {detectedBank}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            value={bankForm.ifsc}
+                                            onChange={(e) => handleIfscChange(e.target.value)}
+                                            placeholder="e.g. SBIN0001234"
+                                            maxLength={11}
+                                            required
+                                            className="w-full bg-white/5 border border-border rounded-xl py-2.5 px-3.5 text-xs text-foreground font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBankModal(false)}
+                                            className="flex-1 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-bold text-xs transition-all cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={verifyingBank}
+                                            className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-xs transition-all shadow-lg disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {verifyingBank ? 'Verifying...' : 'Verify Bank Account'}
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                /* Step 2: Verification Preview */
+                                <div className="space-y-4">
+                                    <div className="space-y-3 bg-muted/30 border border-border/60 rounded-2xl p-4 text-xs">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground font-semibold">Account Holder:</span>
+                                            <span className="font-bold text-foreground">{verifiedData.registeredName || verifiedData.accountHolderName}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground font-semibold">Bank Name:</span>
+                                            <span className="font-bold text-foreground">{verifiedData.bankName}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground font-semibold">Account Number:</span>
+                                            <span className="font-mono font-bold text-foreground">•••• {verifiedData.accountNumberLast4}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground font-semibold">IFSC Code:</span>
+                                            <span className="font-mono font-bold text-foreground">{verifiedData.ifsc}</span>
+                                        </div>
+                                        {verifiedData.branch && (
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-muted-foreground font-semibold">Branch:</span>
+                                                <span className="font-bold text-foreground">{verifiedData.branch}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center border-t border-border/40 pt-2">
+                                            <span className="text-muted-foreground font-semibold">Verification Status:</span>
+                                            <span className="font-black text-emerald-400 flex items-center gap-1">
+                                                <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setVerifiedData(null)}
+                                            className="flex-1 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-bold text-xs transition-all cursor-pointer"
+                                        >
+                                            Edit Details
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleConnectBank}
+                                            disabled={connectingBank}
+                                            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition-all shadow-lg disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {connectingBank ? 'Connecting...' : 'Connect Bank Account'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Payout Confirmation Modal */}
             <AnimatePresence>
                 {showConfirmModal && (
@@ -485,7 +700,7 @@ export default function PayoutsSection() {
                                 </div>
                                 <button 
                                     onClick={() => setShowConfirmModal(false)}
-                                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -497,10 +712,9 @@ export default function PayoutsSection() {
                                     <span className="text-base font-black text-blue-500">₹{parseFloat(requestAmount || 0).toLocaleString('en-IN')}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-muted-foreground font-semibold">Destination:</span>
+                                    <span className="text-muted-foreground font-semibold">Destination Bank:</span>
                                     <span className="font-bold text-foreground">
-                                        {connectData.bankName || 'Connected Stripe Bank Account'}
-                                        {connectData.accountNumberLast4 && ` (•• ${connectData.accountNumberLast4})`}
+                                        {bankAccount?.bankName} (•• {bankAccount?.accountNumberLast4})
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs border-t border-border/40 pt-2">
@@ -510,7 +724,7 @@ export default function PayoutsSection() {
                             </div>
 
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                This payout will be processed securely through your connected Stripe account and transferred directly to your external bank account.
+                                This payout will be processed securely and transferred directly to your verified bank account.
                             </p>
 
                             <div className="flex gap-3">
@@ -537,5 +751,6 @@ export default function PayoutsSection() {
         </div>
     );
 }
+
 
 

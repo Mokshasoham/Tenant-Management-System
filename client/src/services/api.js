@@ -251,6 +251,10 @@ export const offerService = {
 
 export const payoutService = {
   getPayoutSummary: () => apiClient.get('/payouts/summary'),
+  verifyBankAccount: (data) => apiClient.post('/payouts/bank-account/verify', data),
+  connectBankAccount: (data) => apiClient.post('/payouts/bank-account/connect', data),
+  getConnectedBankAccount: () => apiClient.get('/payouts/bank-account'),
+  disconnectBankAccount: () => apiClient.delete('/payouts/bank-account'),
   requestPayout: (data) => apiClient.post('/payouts/request', data),
   getAllPayouts: (status) => apiClient.get('/payouts', { params: { status } }),
   getPayoutById: (id) => apiClient.get(`/payouts/${id}`),

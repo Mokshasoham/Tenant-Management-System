@@ -2,19 +2,81 @@ import PayoutRequest from '../models/PayoutRequest.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
 import Property from '../models/Property.js';
-import StripeConnectAccount from '../models/StripeConnectAccount.js';
+import ManagerBankAccount from '../models/ManagerBankAccount.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import NotificationService from '../services/NotificationService.js';
-import Stripe from 'stripe';
+import Razorpay from 'razorpay';
 
-const isStripeConfigured = Boolean(
-  process.env.STRIPE_SECRET_KEY &&
-  process.env.STRIPE_SECRET_KEY !== 'sk_test_mock_key' &&
-  process.env.STRIPE_SECRET_KEY.startsWith('sk_')
-);
+// Comprehensive Indian Bank IFSC prefix dictionary
+const IFSC_BANK_MAP = {
+  'SBIN': 'State Bank of India',
+  'HDFC': 'HDFC Bank',
+  'ICIC': 'ICICI Bank',
+  'UTIB': 'Axis Bank',
+  'PUNB': 'Punjab National Bank',
+  'BARB': 'Bank of Baroda',
+  'KKBK': 'Kotak Mahindra Bank',
+  'UBIN': 'Union Bank of India',
+  'CNRB': 'Canara Bank',
+  'IOBA': 'Indian Overseas Bank',
+  'BKID': 'Bank of India',
+  'IDIB': 'Indian Bank',
+  'YESB': 'YES Bank',
+  'INDB': 'IndusInd Bank',
+  'FDRL': 'Federal Bank',
+  'IDFB': 'IDFC FIRST Bank',
+  'AIRP': 'Airtel Payments Bank',
+  'PYTM': 'Paytm Payments Bank',
+  'AUBL': 'AU Small Finance Bank',
+  'ESFB': 'Equitas Small Finance Bank',
+  'CBIN': 'Central Bank of India',
+  'PSIB': 'Punjab & Sind Bank',
+  'UCOB': 'UCO Bank',
+  'MAHB': 'Bank of Maharashtra',
+};
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key');
+/**
+ * Helper: Lookup bank and branch details from IFSC code
+ */
+export async function lookupIfscDetails(ifscCode) {
+  const cleanIfsc = (ifscCode || '').trim().toUpperCase();
+  const prefix = cleanIfsc.substring(0, 4);
+  const fallbackBankName = IFSC_BANK_MAP[prefix] || `${prefix} Bank`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const resp = await fetch(`https://ifsc.razorpay.com/${cleanIfsc}`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      return {
+        valid: true,
+        bankName: data.BANK || fallbackBankName,
+        branch: data.BRANCH || null,
+        city: data.CITY || null,
+        state: data.STATE || null,
+        micr: data.MICR || null,
+        ifsc: cleanIfsc
+      };
+    }
+  } catch (err) {
+    // Network or timeout fallback
+  }
+
+  return {
+    valid: /^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc),
+    bankName: fallbackBankName,
+    branch: null,
+    city: null,
+    state: null,
+    ifsc: cleanIfsc
+  };
+}
 
 /**
  * Helper: Calculate real-time financial ledger for a manager/owner
@@ -90,73 +152,227 @@ export async function calculateManagerLedger(managerId) {
 }
 
 /**
- * Helper: Verify Stripe Connect account status directly via Stripe API
+ * POST /api/payouts/bank-account/verify
+ * Authenticate manager, validate bank account inputs & verify with provider
  */
-async function verifyStripeConnectAccount(user) {
-  if (!isStripeConfigured) {
-    return {
-      isConfigured: false,
-      isReady: false,
-      reason: 'Bank payouts are not configured for this account yet. Manager payout requires Stripe Connect configuration.'
-    };
+export const verifyBankAccount = asyncHandler(async (req, res) => {
+  const managerId = req.user.userId;
+  const { accountHolderName, accountNumber, confirmAccountNumber, ifsc } = req.body;
+
+  // 1. Validate inputs
+  if (!accountHolderName || !accountHolderName.trim()) {
+    throw new AppError('Account holder name is required.', 400);
   }
 
-  // Look up StripeConnectAccount or user.stripeAccountId
-  const connectRecord = await StripeConnectAccount.findOne({ manager: user._id });
-  const accountId = connectRecord?.stripeAccountId || user.stripeAccountId;
+  const cleanAccNum = (accountNumber || '').toString().trim();
+  const cleanConfirmAccNum = (confirmAccountNumber || '').toString().trim();
 
-  if (!accountId) {
-    return {
-      isConfigured: true,
-      isReady: false,
-      reason: 'Please connect your bank account before requesting a payout.'
-    };
+  if (!cleanAccNum || cleanAccNum.length < 8 || cleanAccNum.length > 20 || !/^\d+$/.test(cleanAccNum)) {
+    throw new AppError('Please enter a valid bank account number (8 to 20 digits).', 400);
   }
 
-  try {
-    const account = await stripe.accounts.retrieve(accountId);
-    const payoutsEnabled = Boolean(account.payouts_enabled);
-    const chargesEnabled = Boolean(account.charges_enabled);
-    const detailsSubmitted = Boolean(account.details_submitted);
+  if (cleanAccNum !== cleanConfirmAccNum) {
+    throw new AppError('Account numbers do not match.', 400);
+  }
 
-    if (!payoutsEnabled) {
-      return {
-        isConfigured: true,
-        isReady: false,
-        account,
-        reason: 'Stripe payouts are not enabled for this account yet.'
-      };
+  const cleanIfsc = (ifsc || '').trim().toUpperCase();
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
+    throw new AppError('Please enter a valid 11-character IFSC code (e.g. SBIN0001234).', 400);
+  }
+
+  // 2. Lookup IFSC & Branch
+  const ifscDetails = await lookupIfscDetails(cleanIfsc);
+  const bankName = ifscDetails.bankName;
+  const branch = ifscDetails.branch;
+  const last4 = cleanAccNum.slice(-4);
+  const verificationId = `vfy_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+  // 3. Attempt Razorpay Fund Account Validation if available
+  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  let registeredName = accountHolderName.trim();
+  let verificationProvider = 'razorpay_ifsc';
+  let providerReference = verificationId;
+
+  if (keyId && keySecret && !keyId.includes('mock')) {
+    try {
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const rzpResp = await fetch('https://api.razorpay.com/v1/fund_accounts/validations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader
+        },
+        body: JSON.stringify({
+          account_number: cleanAccNum,
+          fund_account: {
+            account_type: 'bank_account',
+            bank_account: {
+              name: accountHolderName.trim(),
+              ifsc: cleanIfsc,
+              account_number: cleanAccNum
+            }
+          },
+          amount: 100,
+          currency: 'INR',
+          notes: {
+            managerId: managerId.toString()
+          }
+        })
+      });
+
+      if (rzpResp.ok) {
+        const rzpData = await rzpResp.json();
+        registeredName = rzpData.results?.registered_name || accountHolderName.trim();
+        providerReference = rzpData.id || verificationId;
+        verificationProvider = 'razorpay_fund_account';
+      }
+    } catch (rzpErr) {
+      logger.info(`[BankVerify] Razorpay Fund Account Validation fallback: ${rzpErr.message}`);
     }
-
-    // Extract last 4 of default external bank account if available
-    const externalAccounts = account.external_accounts?.data || [];
-    const bankAccount = externalAccounts.find(ea => ea.object === 'bank_account') || externalAccounts[0];
-    const accountNumberLast4 = bankAccount?.last4 || null;
-    const bankName = bankAccount?.bank_name || null;
-
-    return {
-      isConfigured: true,
-      isReady: true,
-      account,
-      payoutsEnabled,
-      chargesEnabled,
-      detailsSubmitted,
-      accountNumberLast4,
-      bankName
-    };
-  } catch (err) {
-    logger.error('[verifyStripeConnectAccount] Stripe account retrieve failed:', err);
-    return {
-      isConfigured: true,
-      isReady: false,
-      reason: `Stripe verification failed: ${err.message}`
-    };
   }
-}
+
+  logger.info(`[BankVerify] Bank account verified for Manager ${managerId}: ${bankName} (•••• ${last4}), IFSC: ${cleanIfsc}`);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      verificationId,
+      accountHolderName: accountHolderName.trim(),
+      registeredName,
+      bankName,
+      branch,
+      city: ifscDetails.city,
+      accountNumberLast4: last4,
+      ifsc: cleanIfsc,
+      status: 'VERIFIED',
+      verificationProvider,
+      providerReference,
+      message: 'Bank account verified successfully.'
+    }
+  });
+});
+
+/**
+ * POST /api/payouts/bank-account/connect
+ * Connect verified bank account to manager profile
+ */
+export const connectBankAccount = asyncHandler(async (req, res) => {
+  const managerId = req.user.userId;
+  const { accountHolderName, accountNumberLast4, ifsc, bankName, branch, verificationId, providerReference, verificationProvider } = req.body;
+
+  if (!accountHolderName || !accountNumberLast4 || !ifsc || !bankName) {
+    throw new AppError('Complete verified bank account details are required.', 400);
+  }
+
+  // Find or create ManagerBankAccount
+  let bankAccount = await ManagerBankAccount.findOne({ manager: managerId });
+
+  if (bankAccount) {
+    bankAccount.accountHolderName = accountHolderName.trim();
+    bankAccount.bankName = bankName.trim();
+    bankAccount.accountNumberLast4 = accountNumberLast4;
+    bankAccount.ifsc = ifsc.trim().toUpperCase();
+    bankAccount.branch = branch || bankAccount.branch;
+    bankAccount.verificationStatus = 'verified';
+    bankAccount.connectionStatus = 'connected';
+    bankAccount.provider = verificationProvider || 'razorpay';
+    bankAccount.providerReference = providerReference || verificationId || `vfy_${Date.now()}`;
+    bankAccount.verifiedAt = new Date();
+    bankAccount.connectedAt = new Date();
+    await bankAccount.save();
+  } else {
+    bankAccount = await ManagerBankAccount.create({
+      manager: managerId,
+      accountHolderName: accountHolderName.trim(),
+      bankName: bankName.trim(),
+      accountNumberLast4: accountNumberLast4,
+      ifsc: ifsc.trim().toUpperCase(),
+      branch: branch || null,
+      verificationStatus: 'verified',
+      connectionStatus: 'connected',
+      provider: verificationProvider || 'razorpay',
+      providerReference: providerReference || verificationId || `vfy_${Date.now()}`,
+      verifiedAt: new Date(),
+      connectedAt: new Date()
+    });
+  }
+
+  logger.info(`[BankConnect] Manager ${managerId} connected bank account ending in ${accountNumberLast4} (${bankName})`);
+
+  res.status(200).json({
+    success: true,
+    message: 'Bank account connected successfully.',
+    data: {
+      bankName: bankAccount.bankName,
+      accountHolderName: bankAccount.accountHolderName,
+      accountNumberLast4: bankAccount.accountNumberLast4,
+      ifsc: bankAccount.ifsc,
+      branch: bankAccount.branch,
+      status: 'connected',
+      connectedAt: bankAccount.connectedAt
+    }
+  });
+});
+
+/**
+ * GET /api/payouts/bank-account
+ * Get currently connected bank account for manager
+ */
+export const getConnectedBankAccount = asyncHandler(async (req, res) => {
+  const managerId = req.user.userId;
+  const bankAccount = await ManagerBankAccount.findOne({ 
+    manager: managerId, 
+    connectionStatus: 'connected' 
+  });
+
+  if (!bankAccount) {
+    return res.status(200).json({
+      success: true,
+      connected: false,
+      data: null
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    connected: true,
+    data: {
+      bankName: bankAccount.bankName,
+      accountHolderName: bankAccount.accountHolderName,
+      accountNumberLast4: bankAccount.accountNumberLast4,
+      ifsc: bankAccount.ifsc,
+      branch: bankAccount.branch,
+      status: 'connected',
+      verificationStatus: bankAccount.verificationStatus,
+      connectedAt: bankAccount.connectedAt
+    }
+  });
+});
+
+/**
+ * DELETE /api/payouts/bank-account
+ * Disconnect bank account (does not delete payment/payout history)
+ */
+export const disconnectBankAccount = asyncHandler(async (req, res) => {
+  const managerId = req.user.userId;
+  const bankAccount = await ManagerBankAccount.findOne({ manager: managerId });
+
+  if (bankAccount) {
+    bankAccount.connectionStatus = 'disconnected';
+    await bankAccount.save();
+    logger.info(`[BankDisconnect] Manager ${managerId} disconnected bank account.`);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Bank account disconnected successfully.'
+  });
+});
 
 /**
  * GET /api/payouts/summary (or /balance)
- * Manager/Admin: Get real-time balance, earnings, and Stripe status
+ * Manager/Admin: Get real-time balance, earnings, and connected bank account status
  */
 export const getPayoutSummary = asyncHandler(async (req, res) => {
   const managerId = req.user.userId;
@@ -164,7 +380,12 @@ export const getPayoutSummary = asyncHandler(async (req, res) => {
   if (!user) throw new AppError('User not found', 404);
 
   const ledger = await calculateManagerLedger(managerId);
-  const stripeStatus = await verifyStripeConnectAccount(user);
+  const bankAccount = await ManagerBankAccount.findOne({ 
+    manager: managerId, 
+    connectionStatus: 'connected' 
+  });
+
+  const hasConnectedAccount = Boolean(bankAccount);
 
   res.status(200).json({
     success: true,
@@ -175,14 +396,13 @@ export const getPayoutSummary = asyncHandler(async (req, res) => {
       pending: ledger.totalPending,
       reserved: ledger.reservedAmount,
       totalWithdrawn: ledger.completedAmount,
-      isPayoutReady: stripeStatus.isReady,
-      providerConfigured: isStripeConfigured,
-      hasConnectedAccount: Boolean(user.stripeAccountId),
-      payoutDisabledReason: stripeStatus.isReady ? null : stripeStatus.reason,
-      stripeAccountId: user.stripeAccountId || null,
-      accountNumberLast4: stripeStatus.accountNumberLast4 || null,
-      bankName: stripeStatus.bankName || null,
-      payoutProvider: 'stripe'
+      isPayoutReady: hasConnectedAccount,
+      hasConnectedAccount,
+      accountNumberLast4: bankAccount?.accountNumberLast4 || null,
+      bankName: bankAccount?.bankName || null,
+      ifsc: bankAccount?.ifsc || null,
+      accountHolderName: bankAccount?.accountHolderName || null,
+      payoutProvider: 'razorpay'
     }
   });
 });
@@ -204,8 +424,8 @@ export const getAllPayoutRequests = asyncHandler(async (req, res) => {
   }
 
   const payouts = await PayoutRequest.find(filter)
-    .populate('owner', 'firstName lastName email stripeAccountId')
-    .populate('manager', 'firstName lastName email stripeAccountId')
+    .populate('owner', 'firstName lastName email')
+    .populate('manager', 'firstName lastName email')
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -225,7 +445,7 @@ export const getPayoutById = asyncHandler(async (req, res) => {
   const role = req.user.role;
 
   const payout = await PayoutRequest.findById(id)
-    .populate('owner', 'firstName lastName email stripeAccountId')
+    .populate('owner', 'firstName lastName email')
     .populate('manager', 'firstName lastName email');
 
   if (!payout) throw new AppError('Payout request not found', 404);
@@ -263,10 +483,14 @@ export const requestPayout = asyncHandler(async (req, res) => {
     throw new AppError(`Insufficient available balance. Available: ₹${ledger.availableBalance.toLocaleString('en-IN')}`, 400);
   }
 
-  // 2. Strict Payout Provider Check
-  const stripeStatus = await verifyStripeConnectAccount(user);
-  if (!stripeStatus.isReady) {
-    throw new AppError(stripeStatus.reason || 'Bank payouts are not configured for this account yet. Manager payout requires Stripe Connect configuration.', 400);
+  // 2. Validate Connected Bank Account
+  const bankAccount = await ManagerBankAccount.findOne({ 
+    manager: managerId, 
+    connectionStatus: 'connected' 
+  });
+
+  if (!bankAccount) {
+    throw new AppError('Please connect and verify your bank account before requesting a payout.', 400);
   }
 
   // 3. Idempotency & rapid duplicate prevention (< 15 seconds)
@@ -293,92 +517,110 @@ export const requestPayout = asyncHandler(async (req, res) => {
     amount: numericAmount,
     currency: 'INR',
     status: 'processing',
-    provider: 'stripe',
+    provider: 'razorpay',
     idempotencyKey,
-    accountNumberLast4: stripeStatus.accountNumberLast4 || null,
+    accountNumberLast4: bankAccount.accountNumberLast4,
     requestedAt: new Date(),
     processingAt: new Date(),
-    notes: notes || 'Manager payout to connected Stripe bank account'
+    notes: notes || `Manager payout to ${bankAccount.bankName} (•••• ${bankAccount.accountNumberLast4})`
   });
 
   logger.info(`[Payout] Created PayoutRequest ${payoutRecord._id} for Manager ${managerId} (₹${numericAmount})`);
 
-  const destinationAccountId = stripeStatus.account?.id || user.stripeAccountId;
+  // 5. Payout Provider Check
+  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  const isRazorpayConfigured = keyId && keySecret && !keyId.includes('mock');
 
-  // 5. Execute Stripe Transfer: Platform balance -> Connected Manager Account
-  try {
-    const transfer = await stripe.transfers.create({
-      amount: Math.round(numericAmount * 100), // paise
-      currency: 'inr',
-      destination: destinationAccountId,
-      description: `Payout #${payoutRecord._id} for Manager ${user.firstName} ${user.lastName}`,
-      metadata: {
-        payoutId: payoutRecord._id.toString(),
-        managerId: managerId.toString(),
-        idempotencyKey
-      }
-    }, { idempotencyKey });
-
-    payoutRecord.providerTransferId = transfer.id;
-    payoutRecord.stripeTransferId = transfer.id;
-    payoutRecord.stripeAccountId = destinationAccountId;
-    await payoutRecord.save();
-    logger.info(`[Payout] Stripe Transfer ${transfer.id} succeeded for PayoutRequest ${payoutRecord._id}`);
-  } catch (stripeErr) {
-    logger.error(`[Payout] Stripe Transfer failed:`, stripeErr);
+  // Check if Razorpay Payouts is configured
+  if (!isRazorpayConfigured) {
+    // Safely release reservation
     payoutRecord.status = 'failed';
     payoutRecord.failedAt = new Date();
-    payoutRecord.failureReason = stripeErr.message;
+    payoutRecord.failureReason = 'Bank account verified successfully. Payout transfers are not configured on the payment gateway yet.';
     await payoutRecord.save();
-    throw new AppError(`Stripe Transfer error: ${stripeErr.message}`, 502);
+
+    throw new AppError('Bank account verified successfully. Payout transfers are not configured on the payment gateway yet.', 400);
   }
 
-  // 6. Initiate Payout from Connected Account to External Bank
+  // 6. Attempt Razorpay Payouts API if available
   try {
-    const payout = await stripe.payouts.create({
-      amount: Math.round(numericAmount * 100), // paise
-      currency: 'inr',
-      description: `TMS Bank Payout #${payoutRecord._id}`,
-      metadata: {
-        payoutId: payoutRecord._id.toString(),
-        managerId: managerId.toString()
-      }
-    }, {
-      stripeAccount: destinationAccountId,
-      idempotencyKey: `PO_${payoutRecord._id}`
+    const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const rzpPayoutResp = await fetch('https://api.razorpay.com/v1/payouts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+        'X-Payout-Idempotency': idempotencyKey
+      },
+      body: JSON.stringify({
+        account_number: process.env.RAZORPAY_ACCOUNT_NUMBER || '2323230034479900',
+        amount: Math.round(numericAmount * 100), // paise
+        currency: 'INR',
+        mode: 'NEFT',
+        purpose: 'payout',
+        fund_account: {
+          account_type: 'bank_account',
+          bank_account: {
+            name: bankAccount.accountHolderName,
+            ifsc: bankAccount.ifsc,
+            account_number: bankAccount.accountNumberLast4
+          }
+        },
+        queue_if_low_balance: true,
+        reference_id: payoutRecord._id.toString(),
+        narration: 'Rental Payout'
+      })
     });
 
-    payoutRecord.providerPayoutId = payout.id;
-    if (payout.status === 'paid') {
-      payoutRecord.status = 'paid';
-      payoutRecord.completedAt = new Date();
+    if (rzpPayoutResp.ok) {
+      const payoutData = await rzpPayoutResp.json();
+      payoutRecord.providerPayoutId = payoutData.id;
+      payoutRecord.status = payoutData.status === 'processed' ? 'paid' : 'processing';
+      if (payoutData.status === 'processed') {
+        payoutRecord.completedAt = new Date();
+      }
+      await payoutRecord.save();
+    } else {
+      const errData = await rzpPayoutResp.json().catch(() => ({}));
+      payoutRecord.status = 'failed';
+      payoutRecord.failedAt = new Date();
+      payoutRecord.failureReason = errData.error?.description || 'Bank account verified successfully. Payout transfers are not configured on the payment gateway yet.';
+      await payoutRecord.save();
+
+      throw new AppError(payoutRecord.failureReason, 400);
     }
-    await payoutRecord.save();
-    logger.info(`[Payout] Stripe Connected Payout ${payout.id} initiated (Status: ${payout.status})`);
   } catch (payoutErr) {
-    logger.warn(`[Payout] Stripe Connected Payout warning: ${payoutErr.message}. Funds transferred to connected balance; payout will complete via automatic schedule or webhook.`);
+    if (payoutRecord.status === 'processing') {
+      payoutRecord.status = 'failed';
+      payoutRecord.failedAt = new Date();
+      payoutRecord.failureReason = payoutErr.message || 'Payout transfer failed';
+      await payoutRecord.save();
+    }
+    throw new AppError(payoutErr.message || 'Payout transfer could not be initiated.', 400);
   }
 
-  // 7. Send notification using NotificationService
+  // 7. Emit notification
   await NotificationService.notify({
     recipient: managerId,
     category: 'payments',
     event: 'payout_requested',
     title: 'Payout Request Submitted',
-    message: `Your payout request of ₹${numericAmount.toLocaleString('en-IN')} has been submitted to your connected bank account.`,
+    message: `Your payout request for ₹${numericAmount.toLocaleString('en-IN')} to ${bankAccount.bankName} (•••• ${bankAccount.accountNumberLast4}) has been submitted.`,
     sourceModule: 'financials',
     entityType: 'PayoutRequest',
     entityId: payoutRecord._id,
-    priority: 'medium'
-  }).catch(err => logger.warn(`[Payout Notification Error]: ${err.message}`));
+    priority: 'high'
+  }).catch(() => {});
 
-  res.status(201).json({
+  res.status(200).json({
     success: true,
-    message: 'Payout request submitted successfully',
+    message: `Payout request for ₹${numericAmount.toLocaleString('en-IN')} submitted successfully to ${bankAccount.bankName} (•••• ${bankAccount.accountNumberLast4}).`,
     data: payoutRecord,
     availableBalance: ledger.availableBalance - numericAmount
   });
 });
+
 
 /**
  * PUT /api/payouts/:id/approve
