@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import jsQR from 'jsqr';
 import {
   QrCode,
   Camera,
@@ -26,9 +27,10 @@ import { useTheme } from '../context/ThemeContext';
 
 /**
  * QRScannerPage Component
- * HTML5 QR camera scanner page for technicians.
- * On scan or code entry (e.g. QR-A101-AC-01), performs asset property lookup.
- * Displays comprehensive Asset History Card with warranty, equipment manual, past repairs timeline, and parts used history.
+ * Live HTML5 QR camera scanner page for technicians.
+ * Supports:
+ * 1. Asset QR Codes (e.g. QR-A101-AC-01) -> Asset history & equipment info
+ * 2. Maintenance Ticket QR Codes (TMS_MAINTENANCE:... or TMS-MNT-...) -> Real-time ticket verification & work completion
  */
 export default function QRScannerPage() {
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export default function QRScannerPage() {
 
   const [qrInput, setQrInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [assetData, setAssetData] = useState(null);
   const [maintenanceTicketData, setMaintenanceTicketData] = useState(null);
@@ -51,7 +54,10 @@ export default function QRScannerPage() {
   const [completionSuccess, setCompletionSuccess] = useState('');
 
   const scannerContainerRef = useRef(null);
-  const html5QrCodeRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const canvasRef = useRef(null);
 
   // Sample quick test QR codes for easy technician testing
   const SAMPLE_QR_CODES = [
@@ -59,6 +65,172 @@ export default function QRScannerPage() {
     'QR-B204-ELEV-02',
     'QR-C305-BOILER-01',
   ];
+
+  // Stop camera and release all media stream tracks cleanly
+  const stopCameraScanner = () => {
+    setIsScanning(false);
+    setCameraReady(false);
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  // Start / Stop camera scanner toggle
+  const startCameraScanner = () => {
+    setErrorMsg(null);
+    setIsScanning(true);
+  };
+
+  // Live Camera Scanner Lifecycle & jsQR detection loop
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function initCamera() {
+      if (!isScanning) return;
+      setErrorMsg(null);
+      setCameraReady(false);
+
+      // Stop any existing stream before starting a new one
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      try {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+        } catch (constraintErr) {
+          console.warn('Fallback to standard video constraint:', constraintErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+
+        if (isCancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
+          await videoRef.current.play();
+          if (!isCancelled) {
+            setCameraReady(true);
+          }
+        }
+
+        // Prepare offscreen canvas for frame capture
+        if (!canvasRef.current) {
+          canvasRef.current = document.createElement('canvas');
+        }
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // Optional browser-native BarcodeDetector support
+        let barcodeDetector = null;
+        if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+          try {
+            barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          } catch (e) {
+            barcodeDetector = null;
+          }
+        }
+
+        const scanFrame = async () => {
+          if (!streamRef.current || isCancelled) return;
+          const video = videoRef.current;
+
+          if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+            let detectedText = null;
+
+            if (barcodeDetector) {
+              try {
+                const barcodes = await barcodeDetector.detect(video);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  detectedText = barcodes[0].rawValue;
+                }
+              } catch (e) {
+                // fall through to jsQR
+              }
+            }
+
+            if (!detectedText) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const qr = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert',
+              }) || jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'onlyInvert',
+              });
+
+              if (qr && qr.data && qr.data.trim()) {
+                detectedText = qr.data.trim();
+              }
+            }
+
+            if (detectedText) {
+              // Stop camera immediately once QR is detected
+              stopCameraScanner();
+              setQrInput(detectedText);
+              handleLookup(detectedText);
+              return;
+            }
+          }
+
+          animFrameRef.current = requestAnimationFrame(scanFrame);
+        };
+
+        animFrameRef.current = requestAnimationFrame(scanFrame);
+      } catch (err) {
+        console.error('Camera initialization error:', err);
+        let friendlyMsg = 'Camera could not be accessed on this device.';
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          friendlyMsg = 'Camera access was denied. Please allow camera permission in your browser settings and try again.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          friendlyMsg = 'No camera device found on this system.';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          friendlyMsg = 'Camera is already in use by another application or tab.';
+        } else if (typeof window !== 'undefined' && !window.isSecureContext) {
+          friendlyMsg = 'Camera access requires a secure HTTPS connection or localhost.';
+        }
+        setErrorMsg(friendlyMsg);
+        setIsScanning(false);
+      }
+    }
+
+    if (isScanning) {
+      initCamera();
+    } else {
+      stopCameraScanner();
+    }
+
+    return () => {
+      isCancelled = true;
+      stopCameraScanner();
+    };
+  }, [isScanning]);
 
   // Lookup Property/Asset or Maintenance Ticket by QR Code
   const handleLookup = async (codeToLookup) => {
@@ -180,65 +352,6 @@ export default function QRScannerPage() {
     }
   };
 
-  // Toggle Camera Scanner simulation / html5-qrcode
-  const startCameraScanner = async () => {
-    setIsScanning(true);
-    setErrorMsg(null);
-
-    try {
-      // Check if html5-qrcode library is available globally or dynamically
-      if (window.Html5Qrcode) {
-        const html5QrCode = new window.Html5Qrcode('qr-reader-container');
-        html5QrCodeRef.current = html5QrCode;
-
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            setQrInput(decodedText);
-            stopCameraScanner();
-            handleLookup(decodedText);
-          },
-          (errorMessage) => {
-            // scan failure per frame, quiet
-          }
-        );
-      } else {
-        // Fallback simulation timer for demo scanning
-        setTimeout(() => {
-          const sample = SAMPLE_QR_CODES[0];
-          setQrInput(sample);
-        }, 1500);
-      }
-    } catch (err) {
-      console.warn('Camera scanner initialization notice:', err);
-      // Fallback timer simulation
-      setTimeout(() => {
-        const sample = SAMPLE_QR_CODES[0];
-        setQrInput(sample);
-      }, 1500);
-    }
-  };
-
-  const stopCameraScanner = async () => {
-    setIsScanning(false);
-    if (html5QrCodeRef.current) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch (e) {
-        console.warn('Error stopping QR scanner:', e);
-      }
-      html5QrCodeRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      stopCameraScanner();
-    };
-  }, []);
-
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl mx-auto pb-12">
       {/* Top Header Banner */}
@@ -285,14 +398,44 @@ export default function QRScannerPage() {
           <div
             id="qr-reader-container"
             ref={scannerContainerRef}
-            className="w-full max-w-sm h-64 mx-auto rounded-xl bg-slate-950 border-2 border-dashed border-cyan-500/60 flex items-center justify-center overflow-hidden relative"
+            className="w-full max-w-sm h-64 sm:h-72 mx-auto rounded-xl bg-slate-950 border-2 border-dashed border-cyan-500/60 flex items-center justify-center overflow-hidden relative"
           >
+            {/* Live Video Feed Element */}
+            <video
+              ref={videoRef}
+              playsInline
+              autoPlay
+              muted
+              className={`w-full h-full object-cover absolute inset-0 transition-opacity duration-300 ${cameraReady ? 'opacity-100' : 'opacity-0'}`}
+            />
+
             {/* Viewfinder overlay laser line animation */}
-            <div className="absolute inset-x-4 h-0.5 bg-cyan-400 shadow-lg shadow-cyan-400 animate-pulse" style={{ top: '50%' }} />
-            <div className="text-slate-500 text-xs flex flex-col items-center gap-2 p-4">
-              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-              <span>Scanning for QR tag...</span>
+            <div className="absolute inset-x-4 h-0.5 bg-cyan-400 shadow-lg shadow-cyan-400 animate-pulse pointer-events-none" style={{ top: '50%' }} />
+
+            {/* Viewfinder Corner Framing */}
+            <div className="absolute inset-4 border border-cyan-400/20 rounded-lg pointer-events-none flex flex-col justify-between p-2">
+              <div className="flex justify-between">
+                <div className="w-4 h-4 border-t-2 border-l-2 border-cyan-400" />
+                <div className="w-4 h-4 border-t-2 border-r-2 border-cyan-400" />
+              </div>
+              <div className="flex justify-between">
+                <div className="w-4 h-4 border-b-2 border-l-2 border-cyan-400" />
+                <div className="w-4 h-4 border-b-2 border-r-2 border-cyan-400" />
+              </div>
             </div>
+
+            {/* Status indicator */}
+            {!cameraReady ? (
+              <div className="text-slate-500 text-xs flex flex-col items-center gap-2 p-4 relative z-10">
+                <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                <span>Connecting camera stream...</span>
+              </div>
+            ) : (
+              <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 text-xs text-cyan-300 font-semibold bg-black/60 backdrop-blur-sm py-1 px-3 mx-auto w-fit rounded-full pointer-events-none z-10">
+                <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <span>Scanning for QR tag...</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-center gap-2">
@@ -303,7 +446,7 @@ export default function QRScannerPage() {
                 stopCameraScanner();
                 handleLookup(code);
               }}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-mono border border-slate-700"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-mono border border-slate-700 cursor-pointer"
             >
               Simulate Scan: {SAMPLE_QR_CODES[0]}
             </button>

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Wrench, Calendar as CalendarIcon, Clock, UserCheck, 
-  CheckCircle2, FileText, Activity, QrCode, Download, ShieldCheck, RefreshCw 
+  CheckCircle2, FileText, Activity, QrCode, Download, ShieldCheck, RefreshCw, Maximize2 
 } from 'lucide-react';
 import { maintenanceService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
@@ -10,7 +10,23 @@ import { cn } from '../../../utils/cn';
 export default function TenantMaintenanceDetails({ ticket, onClose, onResolved, theme }) {
   const [resolving, setResolving] = useState(false);
   const [resolveSuccess, setResolveSuccess] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle ESC key to close modal / QR popup
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showQrModal) {
+          setShowQrModal(false);
+        } else if (onClose) {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showQrModal, onClose]);
 
   if (!ticket) return null;
 
@@ -104,22 +120,32 @@ export default function TenantMaintenanceDetails({ ticket, onClose, onResolved, 
           </div>
         )}
 
-        {/* QR Code Section */}
+        {/* QR Code Section - Clickable to open large modal */}
         {ticket.qrCodeDataUrl && (
-          <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/5 flex items-center justify-between gap-4">
-            <img
-              src={ticket.qrCodeDataUrl}
-              alt="Ticket QR"
-              className="w-16 h-16 rounded-xl bg-white p-1 border border-border shrink-0"
-            />
+          <div
+            onClick={() => setShowQrModal(true)}
+            className="p-4 rounded-2xl bg-slate-900/40 border border-white/5 flex items-center justify-between gap-4 cursor-pointer hover:border-amber-500/40 transition-all group"
+          >
+            <div className="relative shrink-0">
+              <img
+                src={ticket.qrCodeDataUrl}
+                alt="Ticket QR"
+                className="w-16 h-16 rounded-xl bg-white p-1 border border-border shrink-0 group-hover:scale-105 transition-transform"
+              />
+            </div>
             <div className="flex-1 min-w-0">
-              <span className="text-[9px] font-black uppercase text-amber-400 block font-mono">Ticket QR Code</span>
+              <span className="text-[9px] font-black uppercase text-amber-400 block font-mono">
+                Ticket QR Code (Click to Enlarge)
+              </span>
               <p className="text-xs font-mono font-bold text-foreground truncate">{ticketIdDisplay}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Use for quick technician/on-site verification</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Click to show large QR for technician scanning</p>
             </div>
             <button
-              onClick={downloadQr}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadQr();
+              }}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
               title="Download QR Code"
             >
               <Download className="w-3.5 h-3.5" />
@@ -200,6 +226,67 @@ export default function TenantMaintenanceDetails({ ticket, onClose, onResolved, 
           </button>
         )}
       </motion.div>
+
+      {/* Large QR Modal Popup for Quick Camera Scanning */}
+      <AnimatePresence>
+        {showQrModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[700] flex items-center justify-center p-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowQrModal(false);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm p-6 sm:p-8 rounded-[2.5rem] bg-slate-900 border border-slate-700 shadow-2xl text-center space-y-6 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
+                title="Close QR"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Large Centered Sharp QR Code with Contrasting Background */}
+              <div className="pt-2 flex justify-center">
+                <div className="p-4 rounded-3xl bg-white shadow-2xl inline-block border-4 border-slate-800">
+                  <img
+                    src={ticket.qrCodeDataUrl}
+                    alt="Ticket QR Code"
+                    className="w-60 h-60 sm:w-68 sm:h-68 object-contain block"
+                  />
+                </div>
+              </div>
+
+              {/* Ticket ID */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono font-bold uppercase text-amber-400 tracking-widest block">
+                  TICKET ID
+                </span>
+                <p className="text-sm sm:text-base font-mono font-black text-white tracking-wider select-all">
+                  {ticketIdDisplay}
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/25 transition-all cursor-pointer"
+              >
+                CLOSE
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

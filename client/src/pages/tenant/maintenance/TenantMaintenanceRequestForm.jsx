@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Wrench, AlertTriangle, Calendar as CalendarIcon, Clock, UploadCloud, Check, Building2, MapPin, CheckCircle2, QrCode, Download, ArrowRight } from 'lucide-react';
 import { propertyService, maintenanceService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
@@ -37,6 +37,21 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdTicket, setCreatedTicket] = useState(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showQrModal) {
+          setShowQrModal(false);
+        } else if (onClose) {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showQrModal, onClose]);
 
   useEffect(() => {
     if (!selectedLease) {
@@ -159,19 +174,27 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
               </div>
 
               {createdTicket.qrCodeDataUrl && (
-                <div className="p-4 rounded-2xl bg-black/20 border border-white/5 flex flex-col sm:flex-row items-center gap-4">
+                <div
+                  onClick={() => setShowQrModal(true)}
+                  className="p-4 rounded-2xl bg-black/20 border border-white/5 flex flex-col sm:flex-row items-center gap-4 cursor-pointer hover:border-amber-500/40 transition-all group"
+                >
                   <img
                     src={createdTicket.qrCodeDataUrl}
                     alt="Ticket QR Code"
-                    className="w-24 h-24 rounded-2xl bg-white p-1.5 border border-border shadow-md"
+                    className="w-24 h-24 rounded-2xl bg-white p-1.5 border border-border shadow-md shrink-0 group-hover:scale-105 transition-transform"
                   />
-                  <div className="space-y-1 text-center sm:text-left flex-1">
-                    <h5 className="text-xs font-black text-foreground">Official Ticket QR Code</h5>
+                  <div className="space-y-1 text-center sm:text-left flex-1 min-w-0">
+                    <h5 className="text-xs font-black text-foreground group-hover:text-amber-400 transition-colors">
+                      Official Ticket QR Code (Click to Enlarge)
+                    </h5>
                     <p className="text-[10px] text-muted-foreground">
-                      Use this QR code for instant technician verification and confirmation upon repair completion.
+                      Click to show large QR code for quick technician scanning.
                     </p>
                     <button
-                      onClick={downloadQr}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadQr();
+                      }}
                       className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-[11px] font-bold cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" /> Download QR
@@ -198,6 +221,64 @@ export default function TenantMaintenanceRequestForm({ selectedLease, canChangeL
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Large QR Modal Popup */}
+            <AnimatePresence>
+              {showQrModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/90 backdrop-blur-md z-[700] flex items-center justify-center p-4"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQrModal(false);
+                  }}
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    className="w-full max-w-sm p-6 sm:p-8 rounded-[2.5rem] bg-slate-900 border border-slate-700 shadow-2xl text-center space-y-6 relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => setShowQrModal(false)}
+                      className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition-colors"
+                      title="Close QR"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+
+                    <div className="pt-2 flex justify-center">
+                      <div className="p-4 rounded-3xl bg-white shadow-2xl inline-block border-4 border-slate-800">
+                        <img
+                          src={createdTicket.qrCodeDataUrl}
+                          alt="Ticket QR Code"
+                          className="w-60 h-60 sm:w-68 sm:h-68 object-contain block"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-mono font-bold uppercase text-amber-400 tracking-widest block">
+                        TICKET ID
+                      </span>
+                      <p className="text-sm sm:text-base font-mono font-black text-white tracking-wider select-all">
+                        {createdTicket.ticketCode || createdTicket.ticketNumber || createdTicket._id}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setShowQrModal(false)}
+                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/25 transition-all cursor-pointer"
+                    >
+                      CLOSE
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           <>
