@@ -292,6 +292,13 @@ export async function verifyTicketByCode(ticketCodeOrId, userContext = null) {
     }
   }
 
+  if (!extractedTicketCode) {
+    const match = rawCode.match(/TMS-MNT-\d{8}-[A-Z0-9]+/i);
+    if (match) {
+      extractedTicketCode = match[0];
+    }
+  }
+
   // Query by ticketCode, ticketNumber, qrToken, or _id
   let queryConditions = [
     { ticketCode: { $regex: new RegExp(`^${cleanCode}$`, 'i') } },

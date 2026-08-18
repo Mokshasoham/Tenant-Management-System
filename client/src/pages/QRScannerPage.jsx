@@ -53,6 +53,7 @@ export default function QRScannerPage() {
   });
   const [submittingCompletion, setSubmittingCompletion] = useState(false);
   const [completionSuccess, setCompletionSuccess] = useState('');
+  const [scanFeedback, setScanFeedback] = useState('');
 
   const scannerContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -60,6 +61,8 @@ export default function QRScannerPage() {
   const scanLoopRef = useRef(null);
   const canvasRef = useRef(null);
   const isScanningActiveRef = useRef(false);
+  const isDecodingRef = useRef(false);
+  const barcodeDetectorRef = useRef(null);
 
   // Sample quick test QR codes for easy technician testing
   const SAMPLE_QR_CODES = [
@@ -71,6 +74,7 @@ export default function QRScannerPage() {
   // Stop camera and release all media stream tracks cleanly
   const stopCameraScanner = () => {
     isScanningActiveRef.current = false;
+    isDecodingRef.current = false;
     setIsScanning(false);
     setCameraStatus('idle');
     setCameraError(null);
@@ -96,14 +100,26 @@ export default function QRScannerPage() {
   const startCameraScanner = () => {
     setErrorMsg(null);
     setCameraError(null);
+    setScanFeedback('');
     setIsScanning(true);
   };
 
-  // Dedicated Camera Stream & Scanning Loop Initializer
+  // Dedicated Camera Stream & Continuous Multi-Pass QR Decoder
   const initCamera = async () => {
     setCameraError(null);
+    setScanFeedback('');
     setCameraStatus('starting');
     isScanningActiveRef.current = true;
+    isDecodingRef.current = false;
+
+    // Initialize native browser BarcodeDetector if supported
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ['qr_code'] });
+      } catch (e) {
+        barcodeDetectorRef.current = null;
+      }
+    }
 
     // Stop any previously dangling stream
     if (cameraStreamRef.current) {
@@ -165,35 +181,110 @@ export default function QRScannerPage() {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-      // Frame-by-frame QR scanning loop
-      const scanFrame = () => {
+      // Frame-by-frame continuous QR scanning loop
+      const scanFrame = async () => {
         if (!isScanningActiveRef.current || !cameraStreamRef.current) return;
 
         const video = videoRef.current;
-        if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+          scanLoopRef.current = requestAnimationFrame(scanFrame);
+          return;
+        }
 
-          const qr = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-          }) || jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'onlyInvert',
-          });
+        // Prevent overlapping decode passes
+        if (isDecodingRef.current) {
+          scanLoopRef.current = requestAnimationFrame(scanFrame);
+          return;
+        }
 
-          if (qr && qr.data && qr.data.trim()) {
-            const detectedCode = qr.data.trim();
-            // QR successfully detected -> stop camera now and process result
+        isDecodingRef.current = true;
+
+        try {
+          let detectedText = null;
+
+          // PASS 1: Native hardware-accelerated BarcodeDetector (Chrome/Edge/Android/Safari 17+)
+          if (barcodeDetectorRef.current) {
+            try {
+              const barcodes = await barcodeDetectorRef.current.detect(video);
+              if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                detectedText = barcodes[0].rawValue.trim();
+              }
+            } catch (detectorErr) {
+              // fallback to jsQR below
+            }
+          }
+
+          // PASS 2: Canvas jsQR Center-Crop (focuses directly on the viewfinder frame)
+          if (!detectedText) {
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            const cropSize = Math.min(vw, vh) * 0.8;
+            const cropX = (vw - cropSize) / 2;
+            const cropY = (vh - cropSize) / 2;
+            const targetCropDim = Math.min(480, Math.round(cropSize));
+
+            canvas.width = targetCropDim;
+            canvas.height = targetCropDim;
+            ctx.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, targetCropDim, targetCropDim);
+
+            let imgData = ctx.getImageData(0, 0, targetCropDim, targetCropDim);
+            let qr = jsQR(imgData.data, targetCropDim, targetCropDim, {
+              inversionAttempts: 'dontInvert',
+            }) || jsQR(imgData.data, targetCropDim, targetCropDim, {
+              inversionAttempts: 'onlyInvert',
+            });
+
+            if (qr && qr.data && qr.data.trim()) {
+              detectedText = qr.data.trim();
+            }
+
+            // PASS 3: Full-frame downscaled to 600px for LCD monitor moire / glare reduction
+            if (!detectedText) {
+              const maxDim = 600;
+              let scale = 1;
+              if (vw > maxDim || vh > maxDim) {
+                scale = maxDim / Math.max(vw, vh);
+              }
+              const fullW = Math.round(vw * scale);
+              const fullH = Math.round(vh * scale);
+
+              canvas.width = fullW;
+              canvas.height = fullH;
+              ctx.drawImage(video, 0, 0, fullW, fullH);
+
+              imgData = ctx.getImageData(0, 0, fullW, fullH);
+              qr = jsQR(imgData.data, fullW, fullH, {
+                inversionAttempts: 'dontInvert',
+              }) || jsQR(imgData.data, fullW, fullH, {
+                inversionAttempts: 'onlyInvert',
+              });
+
+              if (qr && qr.data && qr.data.trim()) {
+                detectedText = qr.data.trim();
+              }
+            }
+          }
+
+          if (detectedText) {
+            console.log('✅ [QR Scanner] Detected QR Code from live camera feed:', detectedText);
+            setScanFeedback('QR code detected!');
+
+            // Stop camera immediately once QR is recognized
             stopCameraScanner();
-            setQrInput(detectedCode);
-            handleLookup(detectedCode);
+            setQrInput(detectedText);
+            await handleLookup(detectedText);
             return;
           }
+        } catch (frameErr) {
+          console.warn('[QR Scanner] Frame processing notice:', frameErr);
+        } finally {
+          isDecodingRef.current = false;
         }
 
         // Keep scanner running continuously while waiting for QR
-        scanLoopRef.current = requestAnimationFrame(scanFrame);
+        if (isScanningActiveRef.current) {
+          scanLoopRef.current = requestAnimationFrame(scanFrame);
+        }
       };
 
       scanLoopRef.current = requestAnimationFrame(scanFrame);
@@ -211,7 +302,6 @@ export default function QRScannerPage() {
       }
       setCameraStatus('error');
       setCameraError(friendlyMsg);
-      // Scanner panel remains open with error and retry button!
     }
   };
 
@@ -226,6 +316,7 @@ export default function QRScannerPage() {
   useEffect(() => {
     return () => {
       isScanningActiveRef.current = false;
+      isDecodingRef.current = false;
       if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
       if (cameraStreamRef.current) {
         try {
@@ -241,8 +332,8 @@ export default function QRScannerPage() {
 
   // Lookup Property/Asset or Maintenance Ticket by QR Code
   const handleLookup = async (codeToLookup) => {
-    const code = (codeToLookup || qrInput).trim();
-    if (!code) {
+    const raw = (codeToLookup || qrInput).trim();
+    if (!raw) {
       setErrorMsg('Please enter or scan a valid QR code or Ticket ID.');
       return;
     }
@@ -252,9 +343,25 @@ export default function QRScannerPage() {
     setCompletionSuccess('');
 
     try {
-      // 1. Detect Maintenance Ticket QR Code payload (TMS_MAINTENANCE:..., TMS-MNT-..., TMS-MNT-VERIFY:...)
-      if (code.startsWith('TMS_MAINTENANCE') || code.startsWith('TMS-MNT') || code.startsWith('TMS-MNT-VERIFY')) {
-        const maintRes = await maintenanceService.verifyTicket(code);
+      // 1. Detect Maintenance Ticket QR Code payload (TMS_MAINTENANCE:..., TMS-MNT-..., URL, etc.)
+      const isMaint =
+        raw.includes('TMS_MAINTENANCE') ||
+        raw.includes('TMS-MNT') ||
+        raw.includes('TMS-MNT-VERIFY') ||
+        /TMS-MNT-\d{8}-[A-Z0-9]+/i.test(raw);
+
+      if (isMaint) {
+        let codeToSend = raw;
+        // If it's a URL or contains TMS-MNT-... extract clean ticketCode or pass full payload
+        if (!raw.startsWith('TMS_MAINTENANCE:')) {
+          const match = raw.match(/TMS-MNT-\d{8}-[A-Z0-9]+/i);
+          if (match) {
+            codeToSend = match[0];
+          }
+        }
+
+        console.log('[QR Scanner] Looking up maintenance ticket:', codeToSend);
+        const maintRes = await maintenanceService.verifyTicket(codeToSend);
         const ticket = maintRes?.data?.data || maintRes?.data;
         if (ticket) {
           setMaintenanceTicketData(ticket);
@@ -277,9 +384,9 @@ export default function QRScannerPage() {
         }
       }
 
-      // 2. Existing Asset / Equipment Tag QR code lookup
+      // 2. Existing Asset / Equipment Tag QR code lookup (e.g. QR-A101-AC-01)
       setMaintenanceTicketData(null);
-      const res = await technicianPortalService.lookupPropertyByQR(code);
+      const res = await technicianPortalService.lookupPropertyByQR(raw);
       const data = res?.data || res || {};
 
       // If backend returns data or fallback mock asset
@@ -288,7 +395,7 @@ export default function QRScannerPage() {
       } else {
         // Fallback mock asset structure for rich asset card display if endpoint is mocked
         setAssetData({
-          qrCode: code,
+          qrCode: raw,
           assetName: 'Carrier 50-Ton Rooftop HVAC Unit X200',
           serialNumber: 'SN-99824-HVAC-2024',
           property: 'Skyline Apartments - Building A (Unit 101)',
@@ -434,14 +541,21 @@ export default function QRScannerPage() {
             </div>
 
             {/* Status indicators */}
-            {cameraStatus === 'starting' && (
+            {scanFeedback && (
+              <div className="absolute top-3 inset-x-0 flex items-center justify-center gap-1.5 text-xs text-emerald-300 font-semibold bg-emerald-950/80 border border-emerald-500/40 backdrop-blur-sm py-1.5 px-3 mx-auto w-fit rounded-full pointer-events-none z-20 animate-fade-in shadow-lg">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{scanFeedback}</span>
+              </div>
+            )}
+
+            {cameraStatus === 'starting' && !scanFeedback && (
               <div className="text-slate-400 text-xs flex flex-col items-center gap-2 p-4 relative z-10">
                 <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
                 <span>Requesting camera permission &amp; starting feed...</span>
               </div>
             )}
 
-            {cameraStatus === 'active' && (
+            {cameraStatus === 'active' && !scanFeedback && (
               <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5 text-xs text-cyan-300 font-semibold bg-black/60 backdrop-blur-sm py-1 px-3 mx-auto w-fit rounded-full pointer-events-none z-10">
                 <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
                 <span>Scanning for QR tag...</span>
