@@ -56,6 +56,10 @@ const managerBankAccountSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    fundAccountId: {
+      type: String,
+      default: null,
+    },
     registeredName: {
       type: String,
       default: null,
