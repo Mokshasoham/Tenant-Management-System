@@ -128,46 +128,64 @@ export default function PayoutsSection() {
         e.preventDefault();
         setBankModalError(null);
 
-        if (!bankForm.accountHolderName.trim()) {
-            setBankModalError('Please enter the account holder name.');
+        const name = bankForm.accountHolderName.trim();
+        if (!name) {
+            setBankModalError('Account holder name is required.');
             return;
         }
 
         const cleanAcc = bankForm.accountNumber.trim();
         const cleanConfirm = bankForm.confirmAccountNumber.trim();
 
-        if (!cleanAcc || cleanAcc.length < 8 || cleanAcc.length > 20 || !/^\d+$/.test(cleanAcc)) {
+        if (!cleanAcc) {
+            setBankModalError('Bank account number is required.');
+            return;
+        }
+
+        if (cleanAcc.length < 8 || cleanAcc.length > 20 || !/^\d+$/.test(cleanAcc)) {
             setBankModalError('Please enter a valid bank account number (8 to 20 digits).');
             return;
         }
 
+        if (!cleanConfirm) {
+            setBankModalError('Please confirm your bank account number.');
+            return;
+        }
+
         if (cleanAcc !== cleanConfirm) {
-            setBankModalError('Bank account numbers do not match.');
+            setBankModalError('Account numbers do not match.');
             return;
         }
 
         const cleanIfsc = bankForm.ifsc.trim().toUpperCase();
+        if (!cleanIfsc) {
+            setBankModalError('IFSC code is required.');
+            return;
+        }
+
         if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
-            setBankModalError('Please enter a valid 11-character IFSC code (e.g. SBIN0001234).');
+            setBankModalError('Please enter a valid 11-character IFSC code (e.g. SBIN0001234, UBIN0804681).');
             return;
         }
 
         setVerifyingBank(true);
         try {
             const res = await payoutService.verifyBankAccount({
-                accountHolderName: bankForm.accountHolderName.trim(),
+                accountHolderName: name,
                 accountNumber: cleanAcc,
                 confirmAccountNumber: cleanConfirm,
                 ifsc: cleanIfsc
             });
 
-            if (res.data?.data) {
+            if (res.data?.success && res.data?.data) {
                 setVerifiedData(res.data.data);
             } else {
-                setBankModalError('We could not verify this bank account. Please check the details and try again.');
+                const errMsg = res.data?.message || 'The bank account could not be verified.';
+                setBankModalError(errMsg);
             }
         } catch (error) {
-            const errMsg = error.response?.data?.message || 'We could not verify this bank account. Please check the details and try again.';
+            const errorData = error.response?.data;
+            const errMsg = errorData?.message || error.message || 'We could not verify this bank account. Please check the details and try again.';
             setBankModalError(errMsg);
         } finally {
             setVerifyingBank(false);
@@ -176,20 +194,14 @@ export default function PayoutsSection() {
 
     // Connect Verified Bank Account
     const handleConnectBank = async () => {
-        if (!verifiedData) return;
+        if (!verifiedData?.verificationToken) return;
 
         setConnectingBank(true);
         setBankModalError(null);
         try {
             const res = await payoutService.connectBankAccount({
-                accountHolderName: verifiedData.registeredName || verifiedData.accountHolderName,
-                accountNumberLast4: verifiedData.accountNumberLast4,
-                ifsc: verifiedData.ifsc,
-                bankName: verifiedData.bankName,
-                branch: verifiedData.branch,
-                verificationId: verifiedData.verificationId,
-                providerReference: verifiedData.providerReference,
-                verificationProvider: verifiedData.verificationProvider
+                verificationToken: verifiedData.verificationToken,
+                verificationReference: verifiedData.verificationReference
             });
 
             setBankAccount(res.data?.data || verifiedData);
@@ -574,7 +586,7 @@ export default function PayoutsSection() {
                                     <div>
                                         <label className="text-xs font-bold text-foreground block mb-1.5">Confirm Bank Account Number</label>
                                         <input 
-                                            type="text"
+                                            type="password"
                                             value={bankForm.confirmAccountNumber}
                                             onChange={(e) => setBankForm(prev => ({ ...prev, confirmAccountNumber: e.target.value }))}
                                             placeholder="Re-enter account number"
