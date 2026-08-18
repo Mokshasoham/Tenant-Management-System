@@ -82,10 +82,9 @@ export default function TenantMaintenancePortal() {
       "min-h-screen p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto font-sans transition-colors duration-300",
       theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#050508] text-slate-100"
     )}>
-      {/* Header with Submit Request and Verify buttons */}
+      {/* Header with Submit Request button */}
       <TenantMaintenanceHeader
         onSubmitClick={handleOpenSubmit}
-        onVerifyClick={() => setShowVerifyModal(true)}
         theme={theme}
       />
 

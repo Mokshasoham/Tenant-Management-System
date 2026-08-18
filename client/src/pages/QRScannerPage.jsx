@@ -38,7 +38,17 @@ export default function QRScannerPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [assetData, setAssetData] = useState(null);
+  const [maintenanceTicketData, setMaintenanceTicketData] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  // Technician Completion state within QR scanner
+  const [completionForm, setCompletionForm] = useState({
+    workPerformed: '',
+    partsUsed: '',
+    completionNotes: '',
+  });
+  const [submittingCompletion, setSubmittingCompletion] = useState(false);
+  const [completionSuccess, setCompletionSuccess] = useState('');
 
   const scannerContainerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
@@ -50,49 +60,46 @@ export default function QRScannerPage() {
     'QR-C305-BOILER-01',
   ];
 
-  // Lookup Property/Asset by QR Code
+  // Lookup Property/Asset or Maintenance Ticket by QR Code
   const handleLookup = async (codeToLookup) => {
     const code = (codeToLookup || qrInput).trim();
     if (!code) {
-      setErrorMsg('Please enter or scan a valid QR asset code.');
+      setErrorMsg('Please enter or scan a valid QR code or Ticket ID.');
       return;
     }
 
     setLoadingLookup(true);
     setErrorMsg(null);
+    setCompletionSuccess('');
 
     try {
-      if (code.includes('TMS-MNT')) {
-        const cleanCode = code.replace(/^TMS-MNT-VERIFY:/, '').split(':')[0];
-        const maintRes = await maintenanceService.verifyTicket(cleanCode).catch(() => null);
-        if (maintRes?.data?.data) {
-          const t = maintRes.data.data;
-          setAssetData({
-            qrCode: t.ticketCode || cleanCode,
-            assetName: `Maintenance Ticket: ${t.title}`,
-            serialNumber: t.ticketCode || cleanCode,
-            property: t.property?.name || 'Assigned Property',
-            installedDate: new Date(t.createdAt).toLocaleDateString(),
-            warrantyStatus: t.status.toUpperCase(),
-            warrantyExpiration: 'N/A',
-            lastRepairDate: t.scheduledDate ? new Date(t.scheduledDate).toLocaleDateString() : 'Pending',
-            lastTechnician: t.technicianName || 'Specialist',
-            activeTicketId: t._id,
-            pastRepairs: [
-              {
-                id: t.ticketCode || 'MNT-01',
-                date: new Date(t.createdAt).toLocaleDateString(),
-                technician: t.technicianName || 'Assigned Tech',
-                issue: t.title,
-                resolution: t.completionDetails?.workPerformed || t.description || 'In Progress'
-              }
-            ]
-          });
+      // 1. Detect Maintenance Ticket QR Code payload (TMS_MAINTENANCE:..., TMS-MNT-..., TMS-MNT-VERIFY:...)
+      if (code.startsWith('TMS_MAINTENANCE') || code.startsWith('TMS-MNT') || code.startsWith('TMS-MNT-VERIFY')) {
+        const maintRes = await maintenanceService.verifyTicket(code);
+        const ticket = maintRes?.data?.data || maintRes?.data;
+        if (ticket) {
+          setMaintenanceTicketData(ticket);
+          setAssetData(null);
+          if (ticket.completionDetails) {
+            setCompletionForm({
+              workPerformed: ticket.completionDetails.workPerformed || '',
+              partsUsed: ticket.completionDetails.partsUsed || '',
+              completionNotes: ticket.completionDetails.completionNotes || '',
+            });
+          } else {
+            setCompletionForm({
+              workPerformed: '',
+              partsUsed: '',
+              completionNotes: '',
+            });
+          }
           setLoadingLookup(false);
           return;
         }
       }
 
+      // 2. Existing Asset / Equipment Tag QR code lookup
+      setMaintenanceTicketData(null);
       const res = await technicianPortalService.lookupPropertyByQR(code);
       const data = res?.data || res || {};
 
@@ -138,34 +145,38 @@ export default function QRScannerPage() {
       }
     } catch (err) {
       console.error('QR Lookup failed:', err);
-      // Fallback mock data so user experience remains flawless during demo
-      setAssetData({
-        qrCode: code,
-        assetName: `HVAC / Facility Asset (${code})`,
-        serialNumber: `SN-${code}-2024`,
-        property: 'Grand Oak Residences - Unit 302',
-        installedDate: '2023-01-10',
-        warrantyStatus: 'ACTIVE',
-        warrantyExpiration: '2028-01-10',
-        lastRepairDate: '2026-07-01',
-        lastTechnician: 'Sarah Connor (HVAC Specialist)',
-        manualUrl: '#',
-        activeTicketId: null,
-        pastRepairs: [
-          {
-            id: 'REP-201',
-            date: '2026-07-01',
-            technician: 'Sarah Connor',
-            issue: 'Routine quarterly maintenance and coil cleaning',
-            resolution: 'Inspected electrical connections, flushed condensate drain line.',
-          },
-        ],
-        partsUsed: [
-          { id: 'PRT-11', name: 'Condensate Drain Cleaner Liquid', partNumber: 'CLN-100', cost: '$25.00' },
-        ],
-      });
+      if (err?.response?.status === 403) {
+        setErrorMsg(err.response?.data?.message || 'You are not assigned to this maintenance ticket.');
+      } else {
+        setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to find asset or maintenance ticket for this QR code.');
+      }
     } finally {
       setLoadingLookup(false);
+    }
+  };
+
+  const handleMaintenanceCompletionSubmit = async (e) => {
+    e.preventDefault();
+    if (!maintenanceTicketData) return;
+    if (!completionForm.workPerformed.trim()) {
+      setErrorMsg('Please describe the work performed before submitting completion.');
+      return;
+    }
+
+    setSubmittingCompletion(true);
+    setErrorMsg(null);
+    setCompletionSuccess('');
+
+    try {
+      const res = await maintenanceService.submitCompletion(maintenanceTicketData._id, completionForm);
+      const updated = res?.data?.data || res?.data || res;
+      setMaintenanceTicketData(updated);
+      setCompletionSuccess('Work completed & maintenance ticket marked as RESOLVED!');
+    } catch (err) {
+      console.error('Failed to submit completion:', err);
+      setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to submit work completion.');
+    } finally {
+      setSubmittingCompletion(false);
     }
   };
 
@@ -353,6 +364,153 @@ export default function QRScannerPage() {
         <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* MAINTENANCE TICKET CARD */}
+      {maintenanceTicketData && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="p-6 rounded-2xl bg-slate-900 border border-cyan-500/40 shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white">{maintenanceTicketData.title}</h2>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    maintenanceTicketData.status === 'resolved'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}>
+                    {maintenanceTicketData.status === 'resolved' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                    {maintenanceTicketData.status?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1 font-mono">
+                  <Building className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{maintenanceTicketData.property?.name || 'Property'} {maintenanceTicketData.property?.unit ? `· Unit ${maintenanceTicketData.property.unit}` : ''}</span>
+                  <span className="text-slate-600">|</span>
+                  <QrCode className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Ticket: {maintenanceTicketData.ticketCode || maintenanceTicketData.ticketNumber || maintenanceTicketData._id}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate(`/technician/jobs/${maintenanceTicketData._id}`)}
+                  className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open Full Job Details
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase">Category / Priority</span>
+                <p className="font-mono text-slate-200 font-medium capitalize">{maintenanceTicketData.category} · {maintenanceTicketData.priority}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase">Tenant Requester</span>
+                <p className="font-mono text-slate-200 font-medium truncate">
+                  {maintenanceTicketData.requestedBy ? `${maintenanceTicketData.requestedBy.firstName || ''} ${maintenanceTicketData.requestedBy.lastName || ''}`.trim() || maintenanceTicketData.requestedBy.email : 'Tenant'}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase">Created Date</span>
+                <p className="font-mono text-slate-200 font-medium">{new Date(maintenanceTicketData.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase">Assigned Tech</span>
+                <p className="font-mono text-slate-200 font-medium truncate">
+                  {maintenanceTicketData.assignedTo ? `${maintenanceTicketData.assignedTo.firstName || ''} ${maintenanceTicketData.assignedTo.lastName || ''}`.trim() : (maintenanceTicketData.technicianName || 'Assigned')}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase">Reported Issue Description</span>
+              <p className="text-xs text-slate-300 leading-relaxed">{maintenanceTicketData.description}</p>
+            </div>
+
+            {completionSuccess && (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 font-bold">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>{completionSuccess}</span>
+              </div>
+            )}
+
+            {maintenanceTicketData.status === 'resolved' ? (
+              <div className="p-5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>This maintenance ticket is verified &amp; RESOLVED.</span>
+                </div>
+                {maintenanceTicketData.completionDetails && (
+                  <div className="space-y-1 text-xs text-slate-300 pt-1">
+                    <p><strong className="text-white">Work Performed:</strong> {maintenanceTicketData.completionDetails.workPerformed}</p>
+                    {maintenanceTicketData.completionDetails.partsUsed && (
+                      <p><strong className="text-white">Parts Used:</strong> {maintenanceTicketData.completionDetails.partsUsed}</p>
+                    )}
+                    {maintenanceTicketData.completionDetails.completionNotes && (
+                      <p><strong className="text-white">Notes:</strong> {maintenanceTicketData.completionDetails.completionNotes}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleMaintenanceCompletionSubmit} className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Wrench className="w-3.5 h-3.5" /> Submit Work Completion &amp; Resolve Ticket
+                </h3>
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-medium mb-1">
+                    Work Performed *
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Describe repairs completed on site..."
+                    value={completionForm.workPerformed}
+                    onChange={(e) => setCompletionForm(prev => ({ ...prev, workPerformed: e.target.value }))}
+                    className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-medium mb-1">
+                      Parts / Supplies Used
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1 PVC valve, seal tape"
+                      value={completionForm.partsUsed}
+                      onChange={(e) => setCompletionForm(prev => ({ ...prev, partsUsed: e.target.value }))}
+                      className="w-full p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-medium mb-1">
+                      Completion Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Optional remarks..."
+                      value={completionForm.completionNotes}
+                      onChange={(e) => setCompletionForm(prev => ({ ...prev, completionNotes: e.target.value }))}
+                      className="w-full p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submittingCompletion}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submittingCompletion ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  <span>Submit Completion &amp; Resolve Ticket</span>
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
 

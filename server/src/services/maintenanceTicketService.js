@@ -58,7 +58,7 @@ export async function generateUniqueTicketCode() {
  */
 export async function generateQrData(ticketCode, existingToken = null) {
   const qrToken = existingToken || crypto.randomBytes(16).toString('hex');
-  const payload = `TMS-MNT-VERIFY:${ticketCode}:${qrToken}`;
+  const payload = `TMS_MAINTENANCE:${ticketCode}:${qrToken}`;
 
   let qrCodeDataUrl = '';
   try {
@@ -112,10 +112,10 @@ export async function ensureTicketCodeAndQr(ticket) {
 }
 
 /**
- * Submits technician work completion details.
- * Transitions status to `awaiting_tenant_confirmation` and notifies tenant.
+ * Submits technician work completion details and resolves the maintenance ticket.
+ * Enforces assignment check, updates status to `resolved`, logs audit trail, and notifies tenant.
  */
-export async function submitTechnicianCompletion(ticketId, completionData, userContext) {
+export async function submitTechnicianCompletion(ticketId, completionData = {}, userContext) {
   const userId = userContext.userId || userContext._id || userContext.id;
   const userRole = userContext.role;
 
@@ -129,24 +129,24 @@ export async function submitTechnicianCompletion(ticketId, completionData, userC
   const ticket = await Maintenance.findOne(query)
     .populate('requestedBy', 'firstName lastName email phone')
     .populate('assignedTo', 'firstName lastName email role')
-    .populate('property', 'name address')
-    .populate('lease', 'leaseNumber');
+    .populate('property', 'name address unit')
+    .populate('lease', 'leaseNumber startDate endDate status');
 
   if (!ticket) {
     throw new AppError('Maintenance ticket not found', 404);
   }
 
-  // Check ticket status
+  // 1. Prevent duplicate completion on already-resolved or closed tickets
   if (['resolved', 'completed', 'closed'].includes(ticket.status)) {
-    throw new AppError('This maintenance ticket is already resolved or closed.', 400);
+    throw new AppError('This maintenance ticket is already resolved.', 400);
   }
   if (ticket.status === 'cancelled') {
     throw new AppError('Cannot complete a cancelled maintenance ticket.', 400);
   }
 
-  // Authorization check: Assigned technician, Manager, or Admin
+  // 2. Strict Authorization check: Logged-in technician must be assigned to this ticket (or Manager/Admin)
   if (userRole === 'technician') {
-    const assignedId = ticket.assignedTo?._id?.toString() || ticket.assignedTo?.toString() || ticket.technicianId?.toString();
+    const assignedId = (ticket.assignedTo?._id || ticket.assignedTo || ticket.technicianId?._id || ticket.technicianId)?.toString();
     if (assignedId && assignedId !== userId.toString()) {
       throw new AppError('You are not assigned to this maintenance ticket.', 403);
     }
@@ -159,62 +159,73 @@ export async function submitTechnicianCompletion(ticketId, completionData, userC
     : (userContext.name || 'Assigned Technician');
 
   // Extract completion payload
-  const workPerformed = completionData.workPerformed || completionData.notes || 'Work completed by technician.';
-  const partsUsed = completionData.partsUsed || 'Standard maintenance supplies.';
+  const workPerformed = completionData.workPerformed || completionData.notes || 'Maintenance repair completed by technician.';
+  const partsUsed = completionData.partsUsed || 'Standard repair materials.';
   const completionNotes = completionData.completionNotes || completionData.notes || '';
   const completionPhotos = Array.isArray(completionData.completionPhotos)
     ? completionData.completionPhotos
     : (completionData.photos || []);
+
+  const now = new Date();
 
   ticket.completionDetails = {
     workPerformed,
     partsUsed,
     completionNotes,
     completionPhotos,
-    completedAt: new Date()
+    completedAt: now
   };
   ticket.completionNotes = completionNotes;
   ticket.technicianId = userId;
   ticket.technicianName = technicianName;
-  ticket.technicianCompletedAt = new Date();
-  ticket.completionStatus = 'completed_by_technician';
-  ticket.status = 'awaiting_tenant_confirmation';
+  ticket.technicianCompletedAt = now;
+  ticket.resolvedAt = now;
+  ticket.completedAt = now;
+  ticket.resolvedBy = userId;
+  ticket.resolutionMethod = completionData.resolutionMethod || 'qr';
+  ticket.completionStatus = 'resolved';
+  ticket.status = 'resolved';
+
+  if (ticket.createdAt) {
+    ticket.actualResolutionTimeMinutes = Math.round((now.getTime() - new Date(ticket.createdAt).getTime()) / (1000 * 60));
+  }
 
   // Push status history
   ticket.statusHistory.push({
-    status: 'awaiting_tenant_confirmation',
+    status: 'resolved',
     changedBy: userId,
-    changedAt: new Date(),
-    note: `Work completed by technician: ${workPerformed}`
+    changedAt: now,
+    note: `Work completed and resolved by technician ${technicianName}: ${workPerformed}`
   });
 
   // Push audit log
   ticket.auditLog.push({
-    action: 'WORK_COMPLETED',
+    action: 'WORK_COMPLETED_AND_RESOLVED',
     userId,
     userName: technicianName,
     userRole: technicianUser?.role || userRole,
-    timestamp: new Date(),
-    notes: `Technician marked work complete. Work: ${workPerformed}. Parts: ${partsUsed}`,
-    method: 'technician_portal',
+    timestamp: now,
+    notes: `Technician resolved ticket via QR scan / completion. Work: ${workPerformed}. Parts: ${partsUsed}`,
+    method: ticket.resolutionMethod,
     metadata: {
       workPerformed,
       partsUsed,
-      completionNotes
+      completionNotes,
+      actualResolutionTimeMinutes: ticket.actualResolutionTimeMinutes
     }
   });
 
   await ticket.save();
 
-  // Send Notification to Tenant to verify and resolve
+  // Send Notification to Tenant of resolution
   if (ticket.requestedBy) {
     const tenantRecipientId = ticket.requestedBy._id || ticket.requestedBy;
     await NotificationService.notify({
       recipient: tenantRecipientId,
       category: 'maintenance',
-      event: 'work_completed',
-      title: '🔧 Maintenance Work Completed',
-      description: `Technician ${technicianName} completed repairs on "${ticket.title}". Please verify the work to resolve the ticket.`,
+      event: 'resolved',
+      title: '✅ Maintenance Ticket Resolved',
+      description: `Technician ${technicianName} completed repairs on "${ticket.title}". Status is now Resolved.`,
       sourceModule: 'maintenance',
       entityType: 'Maintenance',
       entityId: ticket._id,
@@ -222,7 +233,7 @@ export async function submitTechnicianCompletion(ticketId, completionData, userC
     }).catch(err => logger.warn('[MaintenanceTicketService] Notification error:', err.message));
   }
 
-  // Publish event
+  // Publish domain events
   try {
     await eventBus.publish('maintenance.work_completed', {
       ticketId: ticket._id,
@@ -230,7 +241,21 @@ export async function submitTechnicianCompletion(ticketId, completionData, userC
       technicianId: userId,
       technicianName,
       workPerformed,
-      timestamp: new Date().toISOString()
+      timestamp: now.toISOString()
+    });
+    await eventBus.publish('maintenance.resolved', {
+      ticketId: ticket._id,
+      ticketCode: ticket.ticketCode,
+      resolvedBy: userId,
+      resolvedAt: now.toISOString(),
+      resolutionMethod: ticket.resolutionMethod,
+      timestamp: now.toISOString()
+    });
+    await eventBus.publish('maintenance.completed', {
+      ticketId: ticket._id,
+      ticketCode: ticket.ticketCode,
+      completedAt: now,
+      resolutionMinutes: ticket.actualResolutionTimeMinutes
     });
   } catch (err) {
     logger.warn('[MaintenanceTicketService] Event bus publish error:', err.message);
@@ -248,14 +273,37 @@ export async function verifyTicketByCode(ticketCodeOrId, userContext = null) {
     throw new AppError('Ticket reference is required', 400);
   }
 
-  const cleanCode = String(ticketCodeOrId).trim();
+  const rawCode = String(ticketCodeOrId).trim();
+  let cleanCode = rawCode;
+  let token = rawCode;
+  let extractedTicketCode = null;
+
+  if (rawCode.startsWith('TMS_MAINTENANCE:') || rawCode.startsWith('TMS-MNT-VERIFY:')) {
+    const parts = rawCode.split(':');
+    if (parts.length >= 3) {
+      extractedTicketCode = parts[1];
+      token = parts[2];
+    } else if (parts.length === 2) {
+      if (parts[1].startsWith('TMS-MNT')) {
+        extractedTicketCode = parts[1];
+      } else {
+        token = parts[1];
+      }
+    }
+  }
 
   // Query by ticketCode, ticketNumber, qrToken, or _id
   let queryConditions = [
     { ticketCode: { $regex: new RegExp(`^${cleanCode}$`, 'i') } },
     { ticketNumber: { $regex: new RegExp(`^${cleanCode}$`, 'i') } },
-    { qrToken: cleanCode }
+    { qrToken: cleanCode },
+    { qrToken: token }
   ];
+
+  if (extractedTicketCode) {
+    queryConditions.push({ ticketCode: { $regex: new RegExp(`^${extractedTicketCode}$`, 'i') } });
+    queryConditions.push({ ticketNumber: { $regex: new RegExp(`^${extractedTicketCode}$`, 'i') } });
+  }
 
   if (mongoose.Types.ObjectId.isValid(cleanCode)) {
     queryConditions.push({ _id: cleanCode });
@@ -270,13 +318,13 @@ export async function verifyTicketByCode(ticketCodeOrId, userContext = null) {
     .populate('resolvedBy', 'firstName lastName role');
 
   if (!ticket) {
-    throw new AppError(`Maintenance ticket "${cleanCode}" not found.`, 404);
+    throw new AppError(`Maintenance ticket "${rawCode}" not found.`, 404);
   }
 
   // Lazy ensure ticketCode & QR
   await ensureTicketCodeAndQr(ticket);
 
-  // If user context is provided, check if authorized to resolve
+  // If user context is provided, check if authorized to view / resolve
   let canResolve = false;
   let userRelationship = 'guest';
 
@@ -287,15 +335,19 @@ export async function verifyTicketByCode(ticketCodeOrId, userContext = null) {
     const requesterId = (ticket.requestedBy?._id || ticket.requestedBy)?.toString();
     const technicianId = (ticket.assignedTo?._id || ticket.assignedTo || ticket.technicianId?._id || ticket.technicianId)?.toString();
 
-    if (['admin', 'manager'].includes(userRole)) {
+    // Security check: An unrelated technician cannot inspect or modify tickets assigned to other technicians
+    if (userRole === 'technician') {
+      if (technicianId && technicianId !== userId) {
+        throw new AppError('You are not assigned to this maintenance ticket.', 403);
+      }
+      canResolve = true;
+      userRelationship = 'assigned_technician';
+    } else if (['admin', 'manager'].includes(userRole)) {
       canResolve = true;
       userRelationship = userRole;
     } else if (requesterId === userId) {
       canResolve = true;
       userRelationship = 'tenant_owner';
-    } else if (technicianId === userId) {
-      canResolve = true;
-      userRelationship = 'assigned_technician';
     }
 
     // Log QR/ID verification audit
@@ -305,8 +357,8 @@ export async function verifyTicketByCode(ticketCodeOrId, userContext = null) {
       userName: userContext.name || userContext.email || 'Authenticated User',
       userRole: userRole || 'user',
       timestamp: new Date(),
-      notes: `Ticket lookup verified via ${cleanCode.startsWith('TMS-MNT') ? 'ticket_id' : 'qr'}`,
-      method: cleanCode.startsWith('TMS-MNT') ? 'ticket_id' : 'qr'
+      notes: `Ticket lookup verified via ${rawCode.includes('TMS') ? 'qr_or_ticket_id' : 'qr'}`,
+      method: 'qr'
     });
     await ticket.save().catch(() => {});
   }
