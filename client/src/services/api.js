@@ -250,8 +250,10 @@ export const offerService = {
 };
 
 export const payoutService = {
+  getPayoutSummary: () => apiClient.get('/payouts/summary'),
   requestPayout: (data) => apiClient.post('/payouts/request', data),
   getAllPayouts: (status) => apiClient.get('/payouts', { params: { status } }),
+  getPayoutById: (id) => apiClient.get(`/payouts/${id}`),
   approvePayout: (id) => apiClient.put(`/payouts/${id}/approve`),
   rejectPayout: (id, note) => apiClient.put(`/payouts/${id}/reject`, { note }),
 };

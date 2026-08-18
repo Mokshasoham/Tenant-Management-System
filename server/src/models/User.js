@@ -157,6 +157,15 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     twoFactorSecret: String,
+    stripeAccountId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    stripeAccountStatus: {
+      type: String,
+      default: 'unconfigured',
+    },
     kycStatus: {
       type: String,
       enum: ['unverified', 'pending', 'approved', 'rejected'],
