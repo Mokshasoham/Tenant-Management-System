@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Wrench, Check, CheckCircle2, ShieldCheck, Loader2, AlertCircle, Building2 } from 'lucide-react';
+import { X, Wrench, Check, ShieldCheck, Loader2, AlertCircle, Building2, Lock, Sparkles } from 'lucide-react';
 import { maintenanceService } from '../../../services/api';
 
 const loadRazorpayScript = () => {
@@ -104,76 +104,108 @@ export default function TenantMaintenanceUnlockModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md font-sans">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#02050D]/85 backdrop-blur-xl font-sans">
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          initial={{ opacity: 0, scale: 0.97, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-lg rounded-[28px] bg-[#0A0F1D] border border-amber-500/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_-10px_rgba(245,158,11,0.12)] overflow-hidden text-slate-100 flex flex-col max-h-[92vh]"
+          exit={{ opacity: 0, scale: 0.97, y: 16 }}
+          transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-xl rounded-[30px] bg-gradient-to-b from-[#0B132B] via-[#070D1F] to-[#040814] border border-amber-500/25 shadow-[0_25px_80px_-15px_rgba(0,0,0,0.95),0_0_60px_-15px_rgba(245,158,11,0.15)] overflow-hidden text-slate-100 flex flex-col max-h-[94vh]"
         >
+          {/* Subtle Background Decorative Graphic */}
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 opacity-[0.03] pointer-events-none text-amber-400">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="w-full h-full">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          
+          <div className="absolute top-0 right-1/4 w-60 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
           {/* Header */}
-          <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-md shadow-amber-500/10 shrink-0">
-                <Wrench className="w-5 h-5" />
+          <div className="p-6 sm:p-7 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-amber-500/30 to-orange-500/20 blur-sm pointer-events-none" />
+                <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/25 via-orange-500/15 to-[#0B132B] border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-inner shrink-0">
+                  <Wrench className="w-6 h-6 stroke-[2.2]" />
+                </div>
               </div>
+
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                <div className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400/90 flex items-center gap-1.5">
+                  <span>MAINTENANCE COVERAGE</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight mt-0.5">
                   Unlock Maintenance Feature
                 </h3>
-                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{propertyName}</span>
-                </p>
+                <div className="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                  <span className="flex items-center gap-1 font-medium text-slate-300">
+                    <Building2 className="w-3.5 h-3.5 text-amber-400/70" />
+                    {propertyName}
+                  </span>
+                  <span className="text-slate-600">•</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    COVERAGE AVAILABLE
+                  </span>
+                </div>
               </div>
             </div>
+
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-slate-800 transition-all cursor-pointer"
+              className="w-9 h-9 rounded-full bg-slate-800/50 hover:bg-white/10 border border-slate-700/60 hover:border-slate-500 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 ml-2"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Body Content */}
-          <div className="p-5 sm:p-6 space-y-5 overflow-y-auto">
-            {/* Coverage Plan Card */}
-            <div className="relative p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-[#0D1424] to-slate-950/90 border border-amber-500/25 shadow-lg shadow-black/40 overflow-hidden">
-              {/* Subtle ambient amber backlight */}
-              <div className="absolute -right-6 -top-6 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+          {/* Scrollable Content Body */}
+          <div className="p-6 sm:p-7 space-y-6 overflow-y-auto relative z-10">
+            {/* Hero Coverage Card */}
+            <div className="relative p-5 sm:p-6 rounded-[22px] bg-gradient-to-br from-[#121E3E]/95 via-[#0D162E]/95 to-[#070D1C]/95 border border-amber-500/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_12px_30px_rgba(0,0,0,0.5)] overflow-hidden">
+              {/* Subtle Ambient Backlights */}
+              <div className="absolute -right-8 -top-8 w-36 h-36 bg-gradient-to-br from-amber-500/20 to-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
-              <div className="relative z-10 flex items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/90 mb-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                    <span>COVERAGE PLAN</span>
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-[9px] font-black uppercase tracking-[0.2em] text-amber-300 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-amber-400" />
+                      COVERAGE PLAN
+                    </span>
                   </div>
-                  <h4 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  <h4 className="text-lg sm:text-xl font-black text-white tracking-tight">
                     Comprehensive Maintenance
                   </h4>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Complete property maintenance support
+                  </p>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight drop-shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+
+                <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 border-slate-800/80 pt-3 sm:pt-0">
+                  <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 tracking-tight drop-shadow-[0_0_16px_rgba(245,158,11,0.3)]">
                     ₹{fee}
                   </div>
-                  <div className="text-[11px] text-slate-400 font-medium">
+                  <div className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                     / {frequency}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* What's Included Feature Grid */}
+            {/* Coverage Benefits Grid */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black tracking-wider uppercase text-slate-400">
-                  WHAT'S INCLUDED:
+                <span className="text-[11px] font-black tracking-[0.2em] uppercase text-slate-400">
+                  WHAT YOU GET
                 </span>
-                <span className="text-[10px] text-amber-400/80 font-semibold uppercase tracking-wider">
-                  6 Premium Perks
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/90 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  6 BENEFITS INCLUDED
                 </span>
               </div>
 
@@ -188,12 +220,12 @@ export default function TenantMaintenanceUnlockModal({
                 ].map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/70 hover:border-amber-500/25 hover:bg-slate-900/50 transition-all duration-200 group"
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-[#091024]/80 hover:bg-[#0E1938] border border-slate-800/80 hover:border-amber-500/30 transition-all duration-200 group shadow-sm"
                   >
-                    <div className="w-5 h-5 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-110 transition-transform">
-                      <Check className="w-3 h-3 stroke-[3]" />
+                    <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0 group-hover:scale-110 group-hover:border-amber-400/50 transition-all shadow-sm">
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
-                    <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors">
                       {item}
                     </span>
                   </div>
@@ -203,35 +235,60 @@ export default function TenantMaintenanceUnlockModal({
 
             {/* Error Notification */}
             {error && (
-              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2.5 animate-shake">
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2.5">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span className="font-medium">{error}</span>
+                <span className="font-semibold">{error}</span>
               </div>
             )}
 
-            {/* Terms & Conditions Checkbox Container */}
-            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 transition-colors">
+            {/* Terms & Authorization Consent Card */}
+            <div
+              className={`p-4 rounded-2xl transition-all duration-200 ${
+                termsAgreed
+                  ? 'bg-[#0B1530] border border-amber-500/35 shadow-[0_0_25px_rgba(245,158,11,0.08)]'
+                  : 'bg-[#070E20]/80 border border-slate-800/90 hover:border-slate-700/90'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <Lock className="w-3 h-3 text-amber-400/90" />
+                <span>Secure Authorization</span>
+              </div>
+
               <label className="flex items-start gap-3 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={termsAgreed}
                   onChange={(e) => setTermsAgreed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500/30 focus:ring-offset-0 accent-amber-500 cursor-pointer shrink-0"
+                  className="mt-0.5 w-4 h-4 rounded-md border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 focus:ring-offset-0 accent-amber-500 cursor-pointer shrink-0"
                 />
-                <span className="text-xs text-slate-400 leading-relaxed font-normal">
+                <span className="text-xs text-slate-300 leading-relaxed font-normal">
                   I agree to the Maintenance Terms &amp; Conditions and authorize the payment of ₹{fee} to activate coverage for this property.
                 </span>
               </label>
             </div>
+
+            {/* Payment Summary Strip */}
+            <div className="px-4 py-3 rounded-xl bg-[#060B18]/90 border border-slate-800/70 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-300 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Maintenance Coverage</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                  Instant Activation
+                </span>
+              </span>
+              <span className="font-black text-amber-400 text-sm">
+                ₹{fee} / {frequency}
+              </span>
+            </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="p-5 sm:p-6 bg-slate-950/70 border-t border-slate-800/80 flex items-center justify-end gap-3">
+          <div className="p-5 sm:p-6 bg-[#03060F]/95 border-t border-slate-800/80 flex items-center justify-between gap-4 backdrop-blur-md relative z-10">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent hover:border-slate-700/50 transition-all cursor-pointer"
+              className="text-xs font-bold text-slate-400 hover:text-slate-200 px-3 py-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer"
             >
               Cancel
             </button>
@@ -239,7 +296,7 @@ export default function TenantMaintenanceUnlockModal({
               type="button"
               disabled={loading || !termsAgreed}
               onClick={handlePayAndUnlock}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-200 disabled:opacity-40 disabled:grayscale disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-7 py-3.5 rounded-2xl text-xs sm:text-sm font-black tracking-wide bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-[0_8px_25px_-5px_rgba(245,158,11,0.35)] hover:shadow-[0_12px_30px_-5px_rgba(245,158,11,0.5)] transition-all duration-200 disabled:opacity-40 disabled:grayscale disabled:shadow-none disabled:cursor-not-allowed cursor-pointer flex items-center gap-2.5 hover:-translate-y-0.5 active:translate-y-0"
             >
               {loading ? (
                 <>
