@@ -24,7 +24,8 @@ import {
   HelpCircle,
   FileCheck,
   TrendingUp,
-  FolderLock
+  FolderLock,
+  MessageSquare
 } from 'lucide-react';
 import { subscriptionService, leaseService } from '../../../services/api';
 import { useTheme } from '../../../context/ThemeContext';
@@ -428,10 +429,10 @@ export default function TenantSubscriptionPage() {
                   className={cn(
                     "h-full rounded-full transition-all duration-500",
                     usage.isExceeded
-                      ? "bg-gradient-to-r from-amber-500 to-rose-500"
-                      : usage.isAtLimit
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500"
-                      : "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                  ? "bg-gradient-to-r from-amber-500 to-rose-500"
+                  : usage.isAtLimit
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500"
+                  : "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
                   )}
                 />
               </div>
@@ -711,84 +712,305 @@ export default function TenantSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── COMPARISON TABLE ── */}
-        <div className="rounded-[28px] bg-[#050E17]/85 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
-          <div>
-            <h3 className="text-lg font-black text-white tracking-tight">
-              Compare Plan Features
-            </h3>
-            <p className="text-xs text-slate-400">
-              Detailed breakdown of capacity and features across all Resident tiers.
-            </p>
-          </div>
+        {/* ── REDESIGNED HIGH-END SAAS COMPARE PLAN FEATURES SECTION ── */}
+        <div className="relative rounded-[32px] bg-gradient-to-b from-[#06141F] via-[#040D15] to-[#02070B] border border-slate-800/80 p-6 sm:p-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
+          {/* Subtle Ambient Background Radial Glows */}
+          <div className="absolute -top-32 right-1/4 w-96 h-96 bg-emerald-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-cyan-500/[0.04] rounded-full blur-3xl pointer-events-none" />
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                  <th className="py-3 px-4">Feature</th>
-                  <th className={cn("py-3 px-4 text-center", currentPlanId === 'free' && "bg-emerald-500/10 text-emerald-300 rounded-t-xl")}>
-                    FREE
-                  </th>
-                  <th className={cn("py-3 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/15 font-bold rounded-t-xl")}>
-                    PLUS
-                  </th>
-                  <th className={cn("py-3 px-4 text-center text-cyan-400", currentPlanId === 'pro' && "bg-cyan-500/15 font-bold rounded-t-xl")}>
-                    PRO
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-white">Active Leases</td>
-                  <td className={cn("py-3.5 px-4 text-center font-mono", currentPlanId === 'free' && "bg-emerald-500/5 font-bold text-white")}>
-                    2
-                  </td>
-                  <td className={cn("py-3.5 px-4 text-center font-mono text-emerald-400 font-bold", currentPlanId === 'plus' && "bg-emerald-500/10")}>
-                    4
-                  </td>
-                  <td className={cn("py-3.5 px-4 text-center font-mono text-cyan-400 font-bold", currentPlanId === 'pro' && "bg-cyan-500/10")}>
-                    Unlimited (5+)
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Rent Payments &amp; Receipts</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'free' && "bg-emerald-500/5")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/10")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Utility Invoices &amp; Bills</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'free' && "bg-emerald-500/5")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/10")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Direct Landlord Messaging</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'free' && "bg-emerald-500/5")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/10")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Advanced Tax &amp; Expense Reports</td>
-                  <td className={cn("py-3.5 px-4 text-center text-slate-600", currentPlanId === 'free' && "bg-emerald-500/5")}>—</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/10")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Priority Resident Support</td>
-                  <td className={cn("py-3.5 px-4 text-center text-slate-600", currentPlanId === 'free' && "bg-emerald-500/5")}>—</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'plus' && "bg-emerald-500/10")}>✓</td>
-                  <td className={cn("py-3.5 px-4 text-center text-emerald-400", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4">Lifetime Document Vault &amp; Early Access</td>
-                  <td className={cn("py-3.5 px-4 text-center text-slate-600", currentPlanId === 'free' && "bg-emerald-500/5")}>—</td>
-                  <td className={cn("py-3.5 px-4 text-center text-slate-600", currentPlanId === 'plus' && "bg-emerald-500/10")}>—</td>
-                  <td className={cn("py-3.5 px-4 text-center text-cyan-300 font-bold", currentPlanId === 'pro' && "bg-cyan-500/10")}>✓ (VIP)</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="relative z-10 space-y-8">
+            {/* Header Area */}
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black tracking-widest uppercase shadow-sm">
+                <Layers className="w-3.5 h-3.5" />
+                <span>✦ PLAN COMPARISON</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Compare Plan Features
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                Detailed breakdown of capacity and features across all Resident tiers.
+              </p>
+            </div>
+
+            {/* Premium Table Container */}
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="min-w-[620px] pb-2">
+                {/* Column Headers Grid */}
+                <div className="grid grid-cols-12 gap-3 sm:gap-4 pb-4 items-end border-b border-slate-800/80">
+                  <div className="col-span-5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    FEATURE BREAKDOWN
+                  </div>
+
+                  {/* FREE Header Cell */}
+                  <div className="col-span-2 text-center">
+                    <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-1 shadow-sm">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        FREE
+                      </span>
+                      <span className="text-base sm:text-lg font-black text-white block tracking-tight">
+                        ₹0 <span className="text-[10px] font-bold text-slate-500 font-normal">/mo</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 block">
+                        2 leases
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* PLUS Header Cell (Emphasized) */}
+                  <div className="col-span-2 text-center relative">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-emerald-300/40">
+                        MOST POPULAR
+                      </span>
+                    </div>
+                    <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-b from-emerald-950/50 to-emerald-950/20 border border-emerald-500/40 space-y-1 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">
+                        ✦ PLUS
+                      </span>
+                      <span className="text-base sm:text-lg font-black text-white block tracking-tight">
+                        ₹499 <span className="text-[10px] font-bold text-emerald-400/70 font-normal">/mo</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-300 block">
+                        4 leases
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* PRO Header Cell */}
+                  <div className="col-span-3 text-center relative">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-cyan-300/40">
+                        BEST VALUE
+                      </span>
+                    </div>
+                    <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-b from-cyan-950/50 to-cyan-950/20 border border-cyan-500/40 space-y-1 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 block">
+                        ♛ PRO
+                      </span>
+                      <span className="text-base sm:text-lg font-black text-white block tracking-tight">
+                        ₹999 <span className="text-[10px] font-bold text-cyan-400/70 font-normal">/mo</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-cyan-300 block">
+                        Unlimited (5+)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature Rows */}
+                <div className="divide-y divide-slate-800/40">
+                  {/* Row 1: Active Leases */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-4 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-bold text-white tracking-tight">
+                        Active Leases
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300 font-mono font-bold text-xs shadow-inner">
+                        2
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-mono font-bold text-xs shadow-sm">
+                        4
+                      </span>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <span className="px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 font-mono font-bold text-xs shadow-sm">
+                        Unlimited (5+)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Rent Payments & Receipts */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Rent Payments &amp; Receipts
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Utility Invoices & Bills */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Utility Invoices &amp; Bills
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Direct Landlord Messaging */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Direct Landlord Messaging
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 5: Advanced Tax & Expense Reports */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Advanced Tax &amp; Expense Reports
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="text-slate-600 font-mono text-base select-none">—</span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 6: Priority Resident Support */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Priority Resident Support
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="text-slate-600 font-mono text-base select-none">—</span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 7: Lifetime Document Vault & Early Access */}
+                  <div className="grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl hover:bg-slate-800/30 transition-colors duration-200">
+                    <div className="col-span-5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-300 shrink-0 shadow-sm">
+                        <FolderLock className="w-3.5 h-3.5 text-cyan-400" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-200">
+                        Lifetime Document Vault &amp; Early Access
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="text-slate-600 font-mono text-base select-none">—</span>
+                    </div>
+
+                    <div className="col-span-2 text-center flex justify-center">
+                      <span className="text-slate-600 font-mono text-base select-none">—</span>
+                    </div>
+
+                    <div className="col-span-3 text-center flex justify-center">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+                        <Check className="w-3 h-3 stroke-[3]" />
+                        <span className="text-[10px] font-black tracking-wider uppercase">VIP</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Subtitle */}
+                <div className="pt-6 mt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+                  <span className="font-medium">Choose the plan that fits your rental portfolio.</span>
+                  <span className="text-slate-500 text-[11px]">Plans can be upgraded as your leasing needs grow.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
