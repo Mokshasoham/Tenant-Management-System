@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { RefreshCw, AlertCircle, Lock, CheckCircle2, Sparkles, Building2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  RefreshCw,
+  AlertCircle,
+  Lock,
+  CheckCircle2,
+  Check,
+  Sparkles,
+  Building2,
+  ShieldCheck,
+  Clock,
+  ArrowRight,
+  Plus,
+  QrCode
+} from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { maintenanceService, leaseService, platformService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
@@ -16,6 +29,7 @@ import TenantMaintenanceDetails from './TenantMaintenanceDetails';
 import TenantLeaseSelectModal from './TenantLeaseSelectModal';
 import TenantMaintenanceVerifyModal from './TenantMaintenanceVerifyModal';
 import TenantMaintenanceUnlockModal from './TenantMaintenanceUnlockModal';
+import TenantMaintenanceHowItWorksModal from './TenantMaintenanceHowItWorksModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
@@ -29,6 +43,7 @@ export default function TenantMaintenancePortal() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   const [selectedLease, setSelectedLease] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
@@ -125,51 +140,64 @@ export default function TenantMaintenancePortal() {
     setShowLeaseSelectModal(true);
   };
 
+  const propertyName = currentLease?.property?.name || currentLease?.propertyName || 'Your Property';
+
   return (
     <div className={cn(
-      "min-h-screen p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto font-sans transition-colors duration-300",
-      theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#050508] text-slate-100"
+      "min-h-screen p-4 sm:p-8 space-y-6 max-w-[1600px] mx-auto font-sans transition-colors duration-300 relative",
+      theme === 'light' ? "bg-slate-50 text-slate-900" : "bg-[#020817] text-slate-100"
     )}>
-      {/* Header with Submit Request button */}
+      {/* Background Ambient Radial Accents */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 right-10 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Header */}
       <TenantMaintenanceHeader
-        onSubmitClick={handleOpenSubmit}
+        onHowItWorksClick={() => setShowHowItWorksModal(true)}
         theme={theme}
-        isLocked={isLocked}
       />
 
-      {/* Multi-Property Lease Switcher (When tenant has multiple properties) */}
-      {leases.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-800">
-          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider mr-1 flex items-center gap-1.5 shrink-0">
-            <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-            Property:
-          </span>
-          {leases.map((l) => {
-            const isSelected = (currentLease?._id || currentLease?.id) === (l._id || l.id);
-            const isLeaseLocked = l.maintenanceEnabled === false;
-            return (
-              <button
-                key={l._id || l.id}
-                onClick={() => setActivePropertyLease(l)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
-                  isSelected
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>{l.property?.name || l.propertyName || 'Property'}</span>
-                {isLeaseLocked ? (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">
-                    Locked
-                  </span>
-                ) : (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
-                    Included
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      {/* Property Selector Pills */}
+      {leases.length > 0 && (
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 border-b border-slate-800/80">
+          <div className="flex items-center gap-2 text-slate-400 font-black uppercase tracking-[0.2em] text-[11px] shrink-0">
+            <Building2 className="w-4 h-4 text-amber-500" />
+            <span>PROPERTY:</span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {leases.map((l) => {
+              const isSelected = (currentLease?._id || currentLease?.id) === (l._id || l.id);
+              const isLeaseLocked = l.maintenanceEnabled === false;
+              const name = l.property?.name || l.propertyName || 'Property';
+
+              return (
+                <button
+                  key={l._id || l.id}
+                  onClick={() => setActivePropertyLease(l)}
+                  className={cn(
+                    "px-4 py-2 rounded-2xl text-xs font-bold transition-all duration-200 flex items-center gap-2.5 cursor-pointer shrink-0",
+                    isSelected && isLeaseLocked
+                      ? "border-2 border-amber-500/90 bg-[#0C152B] text-white shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+                      : isSelected && !isLeaseLocked
+                      ? "border-2 border-emerald-500/90 bg-[#081F1F] text-white shadow-[0_0_20px_rgba(16,185,129,0.25)]"
+                      : "bg-[#060D1D]/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
+                  )}
+                >
+                  <span className="font-semibold">{name}</span>
+                  {isLeaseLocked ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                      Locked
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                      Included
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -189,74 +217,273 @@ export default function TenantMaintenancePortal() {
         </div>
       )}
 
-      {/* ══ CONDITIONAL: LOCKED STATE VS ACTIVE MAINTENANCE DASHBOARD ══ */}
+      {/* ══ CONDITIONAL: LOCKED CARD VS INCLUDED CARD + DASHBOARD ══ */}
       {isLocked ? (
-        /* 🔒 LOCKED MAINTENANCE STATE */
-        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-2xl text-center space-y-6 max-w-2xl mx-auto my-8 animate-fade-in">
-          <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mx-auto shadow-xl shadow-indigo-500/10">
-            <Lock className="w-8 h-8" />
-          </div>
+        /* 🔒 LOCKED MAINTENANCE CARD (ORANGE THEME) */
+        <div className="relative rounded-[28px] bg-gradient-to-b from-[#0B142B]/95 via-[#070D1F]/98 to-[#030712] border border-amber-500/35 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.9),0_0_30px_-5px_rgba(245,158,11,0.12)] p-6 sm:p-8 overflow-hidden animate-fade-in">
+          {/* Ambient decorative backlights */}
+          <div className="absolute -left-12 -top-12 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-black text-white">
-              Maintenance &amp; Repairs
-            </h2>
-            <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-              Maintenance coverage is not enabled for <strong className="text-slate-200">{currentLease?.property?.name || 'this property'}</strong>.
-            </p>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            {/* Left Column: Lock Badge & Skyline Graphic */}
+            <div className="lg:col-span-4 flex flex-col justify-between h-full space-y-4">
+              <div className="flex items-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-black tracking-wider uppercase">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>LOCKED</span>
+                </span>
+              </div>
 
-          {/* Benefit list */}
-          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 text-left space-y-3 max-w-lg mx-auto text-xs text-slate-300">
-            <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Get Access To:</span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Maintenance requests</span>
+              {/* Skyline & Glowing Shield Graphic */}
+              <div className="relative w-full max-w-[220px] aspect-[4/3] flex items-center justify-center mx-auto my-2">
+                <div className="absolute inset-0 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+                <svg viewBox="0 0 200 120" className="w-full h-full text-slate-800/80 absolute inset-0 z-0">
+                  <path fill="currentColor" opacity="0.6" d="M10 120 L10 65 L25 65 L25 50 L40 50 L40 120 Z" />
+                  <path fill="currentColor" opacity="0.8" d="M35 120 L35 40 L55 40 L55 25 L65 25 L65 120 Z" />
+                  <path fill="currentColor" opacity="0.5" d="M70 120 L70 30 L80 15 L90 30 L90 120 Z" />
+                  <path fill="currentColor" opacity="0.7" d="M110 120 L110 35 L130 35 L130 120 Z" />
+                  <path fill="currentColor" opacity="0.6" d="M135 120 L135 55 L150 55 L150 40 L165 40 L165 120 Z" />
+                  <path fill="currentColor" opacity="0.5" d="M160 120 L160 70 L185 70 L185 120 Z" />
+                  <circle cx="45" cy="55" r="1.5" fill="#f59e0b" opacity="0.6" />
+                  <circle cx="45" cy="70" r="1.5" fill="#f59e0b" opacity="0.6" />
+                  <circle cx="120" cy="50" r="1.5" fill="#f59e0b" opacity="0.7" />
+                  <circle cx="120" cy="65" r="1.5" fill="#f59e0b" opacity="0.7" />
+                  <circle cx="120" cy="80" r="1.5" fill="#f59e0b" opacity="0.7" />
+                  <circle cx="145" cy="60" r="1.5" fill="#f59e0b" opacity="0.5" />
+                  <circle cx="145" cy="75" r="1.5" fill="#f59e0b" opacity="0.5" />
+                </svg>
+                <div className="relative z-10 w-24 h-28 flex items-center justify-center">
+                  <svg viewBox="0 0 100 120" className="w-full h-full drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                    <defs>
+                      <linearGradient id="lockedShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#ea580c" stopOpacity="0.1" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M50 5 L90 22 C90 70 50 110 50 110 C50 110 10 70 10 22 Z" fill="url(#lockedShieldGrad)" stroke="#f59e0b" strokeWidth="3" />
+                    <path d="M50 16 L80 30 C80 68 50 98 50 98 C50 98 20 68 20 30 Z" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8" />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center text-amber-400">
+                    <Lock className="w-8 h-8 stroke-[2.5] drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Technician support</span>
+            </div>
+
+            {/* Middle Column: Title, Subtitle, Benefits */}
+            <div className="lg:col-span-5 space-y-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Maintenance &amp; Repairs
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 font-medium mt-1 leading-relaxed">
+                  Maintenance coverage is not enabled for{' '}
+                  <span className="text-amber-400 font-bold">{propertyName}</span>.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Repair tracking</span>
+
+              <div className="pt-2">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/90 mb-3">
+                  YOU'LL GET ACCESS TO
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-200">
+                  {[
+                    'Maintenance requests',
+                    'Technician support',
+                    'Repair tracking',
+                    'Scheduled visits',
+                    'Maintenance history',
+                    'QR-based verification'
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5">
+                      <div className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                      <span className="font-semibold text-slate-200">{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Scheduled visits</span>
+            </div>
+
+            {/* Right Column: Price & Unlock CTA */}
+            <div className="lg:col-span-3 lg:border-l lg:border-slate-800/80 lg:pl-8 flex flex-col justify-between h-full space-y-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800">
+              <div>
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>MAINTENANCE ACCESS</span>
+                </div>
+
+                <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-tight mt-1.5 drop-shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                  ₹{currentLease?.maintenanceFee || accessConfig.fee}{' '}
+                  <span className="text-xs text-slate-400 font-medium tracking-normal">
+                    / {accessConfig.frequency}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-medium">
+                  Unlock comprehensive maintenance coverage for this property.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Maintenance history</span>
+
+              <button
+                type="button"
+                onClick={() => setShowUnlockModal(true)}
+                className="w-full px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Lock className="w-4 h-4 stroke-[2.5]" />
+                <span>Unlock Maintenance Feature</span>
+              </button>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span className="text-[9px] font-bold text-slate-400 leading-tight">Reliable<br/>Support</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <span className="text-[9px] font-bold text-slate-400 leading-tight">Faster<br/>Resolution</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-[9px] font-bold text-slate-400 leading-tight">Track<br/>Everything</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>QR-based verification</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ✅ INCLUDED MAINTENANCE CARD (GREEN THEME) + ACTIVE DASHBOARD */
+        <div className="space-y-6 animate-fade-in">
+          {/* Included Hero Card */}
+          <div className="relative rounded-[28px] bg-gradient-to-b from-[#061C1E]/95 via-[#031317]/98 to-[#020B0E] border border-emerald-500/35 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.9),0_0_30px_-5px_rgba(16,185,129,0.12)] p-6 sm:p-8 overflow-hidden">
+            {/* Ambient decorative backlights */}
+            <div className="absolute -left-12 -top-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+              {/* Left Column: Included Badge & House Graphic */}
+              <div className="lg:col-span-4 flex flex-col justify-between h-full space-y-4">
+                <div className="flex items-center">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-black tracking-wider uppercase">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>INCLUDED</span>
+                  </span>
+                </div>
+
+                {/* House & Glowing Shield Graphic */}
+                <div className="relative w-full max-w-[220px] aspect-[4/3] flex items-center justify-center mx-auto my-2">
+                  <div className="absolute inset-0 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
+                  <svg viewBox="0 0 200 120" className="w-full h-full text-slate-800/80 absolute inset-0 z-0">
+                    <path fill="currentColor" opacity="0.7" d="M30 65 L100 15 L170 65 L160 65 L160 115 L40 115 L40 65 Z" />
+                    <path fill="#02201c" opacity="0.9" d="M45 68 L100 25 L155 68 L150 68 L150 112 L50 112 L50 68 Z" />
+                    <rect x="135" y="25" width="14" height="25" fill="currentColor" opacity="0.6" />
+                    <rect x="60" y="75" width="18" height="22" rx="2" fill="#10b981" opacity="0.7" />
+                    <rect x="122" y="75" width="18" height="22" rx="2" fill="#10b981" opacity="0.7" />
+                    <circle cx="25" cy="85" r="14" fill="currentColor" opacity="0.5" />
+                    <circle cx="178" cy="80" r="16" fill="currentColor" opacity="0.5" />
+                  </svg>
+                  <div className="relative z-10 w-24 h-28 flex items-center justify-center">
+                    <svg viewBox="0 0 100 120" className="w-full h-full drop-shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                      <defs>
+                        <linearGradient id="includedShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#059669" stopOpacity="0.1" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M50 5 L90 22 C90 70 50 110 50 110 C50 110 10 70 10 22 Z" fill="url(#includedShieldGrad)" stroke="#10b981" strokeWidth="3" />
+                      <path d="M50 16 L80 30 C80 68 50 98 50 98 C50 98 20 68 20 30 Z" fill="none" stroke="#10b981" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-emerald-400">
+                      <Check className="w-9 h-9 stroke-[3] drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Column: Title, Subtitle, Benefits */}
+              <div className="lg:col-span-5 space-y-4">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Maintenance &amp; Repairs
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 font-medium mt-1 leading-relaxed">
+                    Maintenance coverage is <span className="text-emerald-400 font-bold">included</span> for{' '}
+                    <span className="text-emerald-400 font-bold">{propertyName}</span>.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/90 mb-3">
+                    YOU HAVE ACCESS TO
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-200">
+                    {[
+                      'Maintenance requests',
+                      'Technician support',
+                      'Repair tracking',
+                      'Scheduled visits',
+                      'Maintenance history',
+                      'QR-based verification'
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5">
+                        <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span className="font-semibold text-slate-200">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Status & Go to Dashboard Button */}
+              <div className="lg:col-span-3 lg:border-l lg:border-slate-800/80 lg:pl-8 flex flex-col justify-between h-full space-y-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800">
+                <div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>MAINTENANCE ACCESS</span>
+                  </div>
+
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight mt-1.5 drop-shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+                    Included
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-medium">
+                    You have full access to all maintenance services.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={handleOpenSubmit}
+                    className="w-full px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span>Create Request</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowVerifyModal(true)}
+                    className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#061A1C] hover:bg-[#0A262A] border border-emerald-500/30 text-emerald-300 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>Verify QR Code</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/60">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Full Protection Active
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-2 space-y-3">
-            <p className="text-xs text-slate-400">
-              Maintenance Access:{' '}
-              <strong className="text-indigo-400 font-mono text-sm">
-                ₹{currentLease?.maintenanceFee || accessConfig.fee} / {accessConfig.frequency}
-              </strong>
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowUnlockModal(true)}
-              className="px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer inline-flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              Unlock Maintenance Feature
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* ✅ ACTIVE MAINTENANCE DASHBOARD */
-        <>
           {/* Summary KPI Cards */}
           <TenantMaintenanceSummary requests={filteredRequests} theme={theme} />
 
@@ -292,7 +519,7 @@ export default function TenantMaintenancePortal() {
             onRefresh={fetchTenantData}
             theme={theme}
           />
-        </>
+        </div>
       )}
 
       {/* Lease Selection Step Modal (When multiple leases exist) */}
@@ -357,6 +584,16 @@ export default function TenantMaintenancePortal() {
         )}
       </AnimatePresence>
 
+      {/* How It Works Modal */}
+      <AnimatePresence>
+        {showHowItWorksModal && (
+          <TenantMaintenanceHowItWorksModal
+            isOpen={showHowItWorksModal}
+            onClose={() => setShowHowItWorksModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ══ UNLOCK MAINTENANCE MODAL ══ */}
       <AnimatePresence>
         {showUnlockModal && currentLease && (
@@ -376,4 +613,5 @@ export default function TenantMaintenancePortal() {
     </div>
   );
 }
+
 

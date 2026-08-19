@@ -1,39 +1,40 @@
 import React from 'react';
-import { Plus, Wrench } from 'lucide-react';
+import { Wrench, BookOpen } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-export default function TenantMaintenanceHeader({ onSubmitClick, theme, isLocked = false }) {
+export default function TenantMaintenanceHeader({ onHowItWorksClick, theme }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <Wrench className="w-6 h-6" />
+      {/* Left: Icon & Titles */}
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 border border-amber-400/30 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 shrink-0">
+          <Wrench className="w-7 h-7 stroke-[2.2]" />
         </div>
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-1.5 h-4 rounded-full bg-gradient-to-b from-amber-400 to-orange-600" />
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400">
-              Tenant Portal
-            </p>
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-amber-500">
+              TENANT PORTAL
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-            Maintenance & Repairs
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            Maintenance &amp; Repairs
           </h1>
+          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-0.5">
+            Manage and track all your property maintenance requests
+          </p>
         </div>
       </div>
 
+      {/* Right: How It Works Button */}
       <button
-        onClick={onSubmitClick}
-        className={cn(
-          "px-5 py-2.5 rounded-2xl text-white font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]",
-          isLocked
-            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/25"
-            : "bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-amber-600/25"
-        )}
+        type="button"
+        onClick={onHowItWorksClick}
+        className="px-5 py-2.5 rounded-2xl bg-[#0B1328]/80 hover:bg-[#101C3D] border border-amber-500/50 hover:border-amber-400 text-amber-400 hover:text-amber-300 font-bold text-xs sm:text-sm shadow-md hover:shadow-[0_0_20px_rgba(245,158,11,0.25)] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer self-start sm:self-center shrink-0 hover:scale-[1.02] active:scale-[0.98]"
       >
-        <Plus className="w-4 h-4" />
-        <span>{isLocked ? 'Unlock Coverage' : 'Submit Request'}</span>
+        <BookOpen className="w-4 h-4 text-amber-400" />
+        <span>How It Works</span>
       </button>
     </div>
   );
 }
+
