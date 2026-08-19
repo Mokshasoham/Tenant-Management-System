@@ -114,6 +114,12 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         throw new AppError('This booking has already been paid and processed.', 400);
     }
 
+    // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD ══
+    if (req.user?.userId) {
+        const { checkSubscriptionLimit } = await import('../services/subscriptionService.js');
+        await checkSubscriptionLimit(req.user.userId, 'tenant', 'create_lease');
+    }
+
     const property = booking.property;
     if (!property) throw new AppError('Associated property not found', 404);
     
@@ -900,6 +906,12 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 // POST /api/bookings/request (original simplified flow)
 export const requestBooking = asyncHandler(async (req, res) => {
     const { propertyId, startDate, endDate, totalAmount, paymentReference, includeMaintenance, maintenanceTermsAccepted } = req.body;
+
+    // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD ══
+    if (req.user?.userId) {
+        const { checkSubscriptionLimit } = await import('../services/subscriptionService.js');
+        await checkSubscriptionLimit(req.user.userId, 'tenant', 'request_booking');
+    }
 
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);

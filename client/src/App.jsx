@@ -48,6 +48,12 @@ import ActivateAccountPage from './pages/ActivateAccountPage';
 import PublicPropertyVerificationPage from './pages/public/PublicPropertyVerificationPage';
 import VerificationComponentGallery from './pages/internal/VerificationComponentGallery';
 
+// Subscription Pages
+import TenantSubscriptionPage from './pages/tenant/subscription/TenantSubscriptionPage';
+import ManagerSubscriptionPage from './pages/manager/subscription/ManagerSubscriptionPage';
+import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage';
+
+
 // Manager Verification Portal Pages
 import ManagerVerificationPage from './pages/manager/ManagerVerificationPage';
 import ManagerVerificationWizard from './pages/manager/ManagerVerificationWizard';
@@ -137,6 +143,15 @@ const AdminRoute = ({ children }) => {
   if (!isAdmin) return <Navigate to="/dashboard" />;
   return children;
 };
+
+const SubscriptionRouter = () => {
+  const user = useAuthStore((state) => state.user);
+  if (user?.role === 'manager' || user?.role === 'admin') {
+    return <ManagerSubscriptionPage />;
+  }
+  return <TenantSubscriptionPage />;
+};
+
 
 const PaymentRedirectHandler = () => {
   const [searchParams] = useSearchParams();
@@ -234,6 +249,12 @@ function App() {
                 <Route path="/tenant/verification/documents" element={<ProtectedRoute><DashboardLayout><TenantVerificationDocuments /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/tenant/verification/timeline" element={<ProtectedRoute><DashboardLayout><TenantVerificationTimeline /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/tenant/trust-score" element={<ProtectedRoute><DashboardLayout><TenantTrustScorePage /></DashboardLayout></ProtectedRoute>} />
+
+                {/* Subscription Routes */}
+                <Route path="/subscription" element={<ProtectedRoute><DashboardLayout><SubscriptionRouter /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/tenant/subscription" element={<ProtectedRoute><DashboardLayout><TenantSubscriptionPage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/manager/subscription" element={<ManagerRoute><DashboardLayout><ManagerSubscriptionPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/admin/subscriptions" element={<AdminRoute><DashboardLayout><AdminSubscriptionPage /></DashboardLayout></AdminRoute>} />
 
                 {/* Manager + Admin */}
                 <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />

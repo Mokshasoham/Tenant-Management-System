@@ -13,6 +13,9 @@ import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import { useTheme } from '../context/ThemeContext';
 import PropertyModal from '../components/PropertyModal';
+import ManagerPropertyLimitModal from '../components/subscription/ManagerPropertyLimitModal';
+import { subscriptionService } from '../services/api';
+
 
 const TYPE_COLORS = {
   apartment: '#10b981', // Emerald
@@ -443,7 +446,32 @@ export default function PropertiesPage() {
   const [total, setTotal] = useState(0);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [subData, setSubData] = useState(null);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const LIMIT = 12;
+
+  const fetchSubscription = useCallback(async () => {
+    try {
+      const res = await subscriptionService.getMySubscription();
+      setSubData(res?.data?.data || res?.data);
+    } catch (err) {
+      console.warn('Subscription fetch error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSubscription();
+  }, [fetchSubscription]);
+
+  const handleAddPropertyClick = () => {
+    if (subData?.usage?.isAtLimit || subData?.usage?.isExceeded) {
+      setShowLimitModal(true);
+      return;
+    }
+    setSelected(null);
+    setModal('add');
+  };
+
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -534,10 +562,7 @@ export default function PropertiesPage() {
 
         {/* Add Property CTA */}
         <button
-          onClick={() => {
-            setSelected(null);
-            setModal('add');
-          }}
+          onClick={handleAddPropertyClick}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-500/20 active:scale-95 cursor-pointer self-start sm:self-auto group"
         >
           <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
@@ -778,7 +803,7 @@ export default function PropertiesPage() {
                 setStatusFilter('');
                 setPage(1);
               } else {
-                setModal('add');
+                handleAddPropertyClick();
               }
             }}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
@@ -848,6 +873,16 @@ export default function PropertiesPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* ── Manager Property Limit Modal ── */}
+      <ManagerPropertyLimitModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        currentCount={subData?.usage?.currentCount || totalCount}
+        maxLimit={subData?.usage?.maxLimit || 3}
+        planName={subData?.subscription?.planName || 'Manager Starter'}
+      />
     </div>
   );
 }
+

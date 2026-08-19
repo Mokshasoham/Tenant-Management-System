@@ -248,6 +248,15 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 });
 
 export const createProperty = asyncHandler(async (req, res) => {
+  const userId = req.user.userId || req.user._id || req.user.id;
+  const userRole = req.user.role || 'manager';
+
+  // ══ MANAGER SUBSCRIPTION PROPERTY CAPACITY GUARD ══
+  if (userId && userRole !== 'admin') {
+    const { checkSubscriptionLimit } = await import('../services/subscriptionService.js');
+    await checkSubscriptionLimit(userId, 'manager', 'create_property');
+  }
+
   const {
     name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl
   } = req.body;
@@ -261,7 +270,7 @@ export const createProperty = asyncHandler(async (req, res) => {
   }
 
   const property = await Property.create({
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: req.user.userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
   });
 
   logger.info(`New property created: ${property.name}`);

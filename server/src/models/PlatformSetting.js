@@ -71,6 +71,41 @@ const platformSettingSchema = new mongoose.Schema(
       type: String,
       default: 'Maintenance & Repairs add-on provides access to professional technician dispatch, maintenance tracking, repair history, and scheduled visits. Normal wear-and-tear repairs are covered subject to property terms.',
     },
+    // ══ SUBSCRIPTION PLAN CONFIGURATIONS ══
+    tenantPlans: {
+      free: {
+        maxLeases: { type: Number, default: 2 },
+        price: { type: Number, default: 0 },
+        enabled: { type: Boolean, default: true },
+      },
+      plus: {
+        maxLeases: { type: Number, default: 4 },
+        price: { type: Number, default: 499 }, // Default ₹499/mo (configurable by admin)
+        enabled: { type: Boolean, default: true },
+      },
+      pro: {
+        maxLeases: { type: Number, default: 999999 }, // Unlimited / 5+
+        price: { type: Number, default: 999 }, // Default ₹999/mo (configurable by admin)
+        enabled: { type: Boolean, default: true },
+      },
+    },
+    managerPlans: {
+      starter: {
+        maxProperties: { type: Number, default: 3 },
+        price: { type: Number, default: 0 },
+        enabled: { type: Boolean, default: true },
+      },
+      plus: {
+        maxProperties: { type: Number, default: 5 },
+        price: { type: Number, default: 1499 }, // Default ₹1,499/mo (configurable by admin)
+        enabled: { type: Boolean, default: true },
+      },
+      pro: {
+        maxProperties: { type: Number, default: 999999 }, // Unlimited / 6+
+        price: { type: Number, default: 2999 }, // Default ₹2,999/mo (configurable by admin)
+        enabled: { type: Boolean, default: true },
+      },
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

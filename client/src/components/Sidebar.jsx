@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, FileText, CreditCard, X,
   Building2, Wrench, UserCog, MessageSquare, Home, LogOut, BarChart2, Wallet, Compass,
   Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar, ShieldCheck,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Sparkles
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -108,6 +108,8 @@ const ALL_NAV_ITEMS = [
   { label: 'Notifications', key: 'notifications', icon: Bell, path: '/notifications', roles: ['admin', 'manager', 'tenant', 'technician'] },
   { label: 'Profile', key: 'techProfile', icon: UserCog, path: '/technician/profile', roles: ['technician'] },
   { label: 'Users', key: 'users', icon: UserCog, path: '/users', roles: ['admin'] },
+  { label: 'Subscription', key: 'subscription', icon: Sparkles, path: '/subscription', roles: ['manager', 'tenant'] },
+  { label: 'Subscriptions', key: 'adminSubscriptions', icon: Sparkles, path: '/admin/subscriptions', roles: ['admin'] },
   { label: 'Settings', key: 'settings', icon: Settings, path: '/settings', roles: ['admin', 'manager', 'tenant'] },
 ];
 

@@ -289,10 +289,15 @@ export const stripeConnectService = {
 };
 
 export const subscriptionService = {
-  getMySubscription: () => apiClient.get('/subscriptions/my'),
-  createCheckoutSession: (data) => apiClient.post('/subscriptions/checkout', data),
+  getMySubscription: () => apiClient.get('/subscriptions/me'),
+  getPlans: (role) => apiClient.get('/subscriptions/plans', { params: { role } }),
+  createOrder: (data) => apiClient.post('/subscriptions/create-order', data),
+  verifyPayment: (data) => apiClient.post('/subscriptions/verify-payment', data),
   cancelSubscription: () => apiClient.post('/subscriptions/cancel'),
+  getAdminStats: () => apiClient.get('/subscriptions/admin/stats'),
+  updateAdminConfig: (data) => apiClient.put('/subscriptions/admin/config', data),
 };
+
 
 export const visitService = {
   requestVisit: (data) => apiClient.post('/visits', data),
@@ -397,4 +402,6 @@ export const verificationService = {
 };
 
 export default apiClient;
+
+
 

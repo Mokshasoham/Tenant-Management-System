@@ -1,73 +1,134 @@
-import Subscription from '../models/Subscription.js';
-import User from '../models/User.js';
-import { AppError, asyncHandler } from '../utils/errorHandling.js';
+import { asyncHandler, AppError } from '../utils/errorHandling.js';
+import * as subscriptionService from '../services/subscriptionService.js';
 import logger from '../utils/logger.js';
-import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_key');
-
-// PLAN DEFINITIONS
-const PLANS = {
-  basic: { priceId: process.env.STRIPE_BASIC_PLAN_ID, amount: 999 }, // e.g. $9.99
-  pro: { priceId: process.env.STRIPE_PRO_PLAN_ID, amount: 2999 },
-  enterprise: { priceId: process.env.STRIPE_ENTERPRISE_PLAN_ID, amount: 9999 }
-};
-
+/**
+ * GET /api/subscriptions/me
+ * Returns the authenticated user's current subscription, active limits, and live usage.
+ */
 export const getMySubscription = asyncHandler(async (req, res) => {
-  const subscription = await Subscription.findOne({ owner: req.user.userId });
-  
-  if (!subscription) {
-    // Return a default freemium/trial state if none exists
-    return res.status(200).json({
-      success: true,
-      data: {
-        planName: 'basic',
-        status: 'trialing',
-        amount: 0
-      }
-    });
-  }
+  const userId = req.user.userId || req.user._id || req.user.id;
+  const role = req.user.role;
 
-  res.status(200).json({ success: true, data: subscription });
+  const data = await subscriptionService.getUserSubscription(userId, role);
+  res.status(200).json({
+    success: true,
+    data,
+  });
 });
 
-export const createSubscriptionCheckout = asyncHandler(async (req, res) => {
-  const { planName, successUrl, cancelUrl } = req.body;
-  const owner = await User.findById(req.user.userId);
+/**
+ * GET /api/subscriptions/plans
+ * Returns available plans for the authenticated user's role.
+ */
+export const getAvailablePlans = asyncHandler(async (req, res) => {
+  const role = req.query.role || req.user.role || 'tenant';
+  const configs = await subscriptionService.getPlanConfigs();
+  const normalizedRole = role === 'admin' ? 'manager' : role;
+  const plans = configs[normalizedRole] || configs.tenant;
 
-  if (!PLANS[planName]) throw new AppError('Invalid plan selected', 400);
+  res.status(200).json({
+    success: true,
+    data: Object.values(plans),
+  });
+});
 
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: PLANS[planName].priceId || 'mock_price_id',
-        quantity: 1,
-      },
-    ],
-    mode: 'subscription',
-    success_url: successUrl || `${process.env.FRONTEND_URL}/settings/billing?success=true`,
-    cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/settings/billing?cancel=true`,
-    customer_email: owner.email,
-    metadata: {
-      ownerId: owner._id.toString(),
-      planName: planName
-    }
+/**
+ * POST /api/subscriptions/create-order
+ * Initiates Razorpay checkout order for a plan upgrade.
+ */
+export const createUpgradeOrder = asyncHandler(async (req, res) => {
+  const userId = req.user.userId || req.user._id || req.user.id;
+  const role = req.user.role;
+  const { planId, billingCycle } = req.body;
+
+  if (!planId) {
+    throw new AppError('planId is required for upgrade order', 400);
+  }
+
+  const order = await subscriptionService.createSubscriptionOrder(userId, role, planId, billingCycle || 'monthly');
+  res.status(201).json({
+    success: true,
+    message: 'Subscription upgrade order created successfully',
+    data: order,
+  });
+});
+
+/**
+ * POST /api/subscriptions/verify-payment
+ * Verifies Razorpay payment signature and activates the upgraded subscription.
+ */
+export const verifyUpgradePayment = asyncHandler(async (req, res) => {
+  const userId = req.user.userId || req.user._id || req.user.id;
+  const role = req.user.role;
+  const { planId, billingCycle, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+  if (!planId || !razorpayOrderId || !razorpayPaymentId) {
+    throw new AppError('Missing payment verification parameters', 400);
+  }
+
+  const updatedSub = await subscriptionService.verifySubscriptionPayment({
+    userId,
+    role,
+    targetPlanId: planId,
+    billingCycle: billingCycle || 'monthly',
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
   });
 
-  res.status(200).json({ success: true, url: session.url });
+  res.status(200).json({
+    success: true,
+    message: `Subscription successfully upgraded to ${updatedSub.subscription.planName}`,
+    data: updatedSub,
+  });
 });
 
+/**
+ * POST /api/subscriptions/cancel
+ * Cancels auto-renewal for the user's active paid subscription.
+ */
 export const cancelSubscription = asyncHandler(async (req, res) => {
-  const subscription = await Subscription.findOne({ owner: req.user.userId });
-  if (!subscription || !subscription.stripeSubscriptionId) {
-    throw new AppError('No active Stripe subscription found', 404);
+  const userId = req.user.userId || req.user._id || req.user.id;
+  const role = req.user.role;
+
+  const Subscription = (await import('../models/Subscription.js')).default;
+  const sub = await Subscription.findOne({ user: userId, role: role === 'admin' ? 'manager' : role });
+
+  if (!sub) {
+    throw new AppError('No subscription found to cancel', 404);
   }
 
-  const deletedSubscription = await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+  sub.autoRenew = false;
+  await sub.save();
 
-  subscription.status = 'canceled';
-  await subscription.save();
+  res.status(200).json({
+    success: true,
+    message: 'Subscription auto-renewal cancelled. Your current plan remains active until expiration.',
+    data: sub,
+  });
+});
 
-  res.status(200).json({ success: true, message: 'Subscription canceled successfully' });
+/**
+ * GET /api/subscriptions/admin/stats (Admin only)
+ */
+export const getAdminStats = asyncHandler(async (req, res) => {
+  const stats = await subscriptionService.getAdminSubscriptionStats();
+  res.status(200).json({
+    success: true,
+    data: stats,
+  });
+});
+
+/**
+ * PUT /api/subscriptions/admin/config (Admin only)
+ */
+export const updatePlanConfig = asyncHandler(async (req, res) => {
+  const adminUserId = req.user.userId || req.user._id || req.user.id;
+  const updatedConfigs = await subscriptionService.updateAdminPlanConfig(req.body, adminUserId);
+  res.status(200).json({
+    success: true,
+    message: 'Plan configurations updated successfully',
+    data: updatedConfigs,
+  });
 });

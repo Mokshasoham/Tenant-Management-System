@@ -18,6 +18,8 @@ import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../u
 import RazorpayPayment from '../components/RazorpayPayment';
 import PropertyModal from '../components/PropertyModal';
 import MaintenanceTermsModal from '../components/MaintenanceTermsModal';
+import TenantLeaseLimitModal from '../components/subscription/TenantLeaseLimitModal';
+
 
 
 import L from 'leaflet';
@@ -147,7 +149,9 @@ export default function PropertyDetailsPage() {
     const [includeMaintenance, setIncludeMaintenance] = useState(false);
     const [maintenanceTermsAccepted, setMaintenanceTermsAccepted] = useState(false);
     const [showMaintenanceTermsModal, setShowMaintenanceTermsModal] = useState(false);
+    const [showLeaseLimitModal, setShowLeaseLimitModal] = useState(false);
     const [maintenanceConfig, setMaintenanceConfig] = useState({ fee: 500, frequency: 'monthly', version: '1.0' });
+
 
     useEffect(() => {
         (async () => {
@@ -349,6 +353,13 @@ export default function PropertyDetailsPage() {
             const statusCode = err?.statusCode || err?.error?.statusCode;
             const errMsg = err?.message || err?.error?.message || '';
             console.error('[handleBooking] error:', statusCode, errMsg);
+
+            // 403 / Subscription limit reached
+            if (statusCode === 403 && (errMsg.includes('SUBSCRIPTION_LIMIT_REACHED') || errMsg.includes('limit') || errMsg.includes('subscription') || errMsg.includes('lease'))) {
+                setShowLeaseLimitModal(true);
+                setBookingError('You have reached the maximum active lease limit on your current Resident plan. Please upgrade to continue.');
+                return;
+            }
 
             // 409 = existing pending/approved booking exists — find it and display state
             if (statusCode === 409 || errMsg.includes('already booked') || errMsg.includes('pending request')) {
@@ -2167,6 +2178,13 @@ export default function PropertyDetailsPage() {
                     }}
                 />
             )}
+
+            {/* ══ TENANT LEASE LIMIT REACHED MODAL ══ */}
+            <TenantLeaseLimitModal
+                isOpen={showLeaseLimitModal}
+                onClose={() => setShowLeaseLimitModal(false)}
+            />
         </div>
     );
 }
+
