@@ -45,6 +45,7 @@ import NotificationCenterPage from './pages/NotificationCenterPage';
 import TechniciansPage from './pages/TechniciansPage';
 import WorkforceSchedulingPage from './pages/WorkforceSchedulingPage';
 import ActivateAccountPage from './pages/ActivateAccountPage';
+import PublicPropertyVerificationPage from './pages/public/PublicPropertyVerificationPage';
 import VerificationComponentGallery from './pages/internal/VerificationComponentGallery';
 
 // Manager Verification Portal Pages
@@ -183,6 +184,8 @@ function App() {
                 <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
                 <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
                 <Route path="/activate-account/:token" element={<ActivateAccountPage />} />
+                <Route path="/property/verify/:token" element={<PublicPropertyVerificationPage />} />
+                <Route path="/verify/property/:token" element={<PublicPropertyVerificationPage />} />
                 <Route path="/dev/verification-gallery" element={<VerificationComponentGallery />} />
 
                 {/* Technician Portal Unified TMS Workspace */}

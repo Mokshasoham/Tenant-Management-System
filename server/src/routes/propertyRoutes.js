@@ -6,11 +6,16 @@ import { uploadMemory } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
+// ══ PUBLIC (UNAUTHENTICATED) FOR MOBILE CAMERA SCANNING ══
+router.get('/public-verify/:token', propertyController.verifyPropertyByToken);
+router.get('/verify/:token', propertyController.verifyPropertyByToken);
+
 router.use(authenticate);
 
 // Public to all authenticated users (browse & details)
 router.get('/', propertyController.getAllProperties);
 router.get('/stats', managerOrAdmin, propertyController.getPropertyStats);
+router.get('/:id/qr-pass', propertyController.getPropertyQrPass);
 router.get('/:id', propertyController.getPropertyById);
 router.get('/:id/availability', propertyController.getAvailability);
 router.get('/:id/similar', propertyController.getSimilarProperties);
@@ -27,3 +32,4 @@ router.delete('/:id', managerOrAdmin, propertyController.deleteProperty);
 router.post('/:id/status', managerOrAdmin, propertyController.changePropertyStatus);
 
 export default router;
+

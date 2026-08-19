@@ -508,3 +508,41 @@ export const getSimilarProperties = asyncHandler(async (req, res) => {
     data: similarProps.map(p => resolvePropertyUrls(p, req)),
   });
 });
+
+// GET /api/properties/public-verify/:token (Public unauthenticated verification)
+export const verifyPropertyByToken = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { verifyPropertyPublic } = await import('../services/propertyQrService.js');
+  const data = await verifyPropertyPublic(token);
+  if (!data) {
+    throw new AppError('Property verification record not found or invalid verification token', 404);
+  }
+  res.status(200).json({ success: true, data });
+});
+
+// GET /api/properties/:id/qr-pass (Authenticated property QR pass)
+export const getPropertyQrPass = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { leaseId } = req.query;
+  const Lease = (await import('../models/Lease.js')).default;
+  const { getOrCreatePropertyQr } = await import('../services/propertyQrService.js');
+
+  let targetLease = null;
+  if (leaseId) {
+    targetLease = await Lease.findById(leaseId);
+  }
+  if (!targetLease) {
+    targetLease = await Lease.findOne({
+      property: id,
+      status: { $in: ['active', 'pending'] }
+    });
+  }
+  if (!targetLease) {
+    throw new AppError('No eligible lease found for this property', 404);
+  }
+
+  const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
+  const qrData = await getOrCreatePropertyQr(targetLease._id, origin);
+  res.status(200).json({ success: true, data: qrData });
+});
+

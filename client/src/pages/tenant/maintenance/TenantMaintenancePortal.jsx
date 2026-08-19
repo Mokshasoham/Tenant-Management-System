@@ -31,6 +31,7 @@ import TenantLeaseSelectModal from './TenantLeaseSelectModal';
 import TenantMaintenanceVerifyModal from './TenantMaintenanceVerifyModal';
 import TenantMaintenanceUnlockModal from './TenantMaintenanceUnlockModal';
 import TenantMaintenanceHowItWorksModal from './TenantMaintenanceHowItWorksModal';
+import TenantPropertyQrModal from './TenantPropertyQrModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
@@ -51,6 +52,7 @@ export default function TenantMaintenancePortal() {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
+  const [showPropertyQrModal, setShowPropertyQrModal] = useState(false);
   const [selectedLease, setSelectedLease] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
@@ -357,14 +359,25 @@ export default function TenantMaintenancePortal() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowUnlockModal(true)}
-                className="w-full px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Lock className="w-4 h-4 stroke-[2.5]" />
-                <span>Unlock Maintenance Feature</span>
-              </button>
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUnlockModal(true)}
+                  className="w-full px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Lock className="w-4 h-4 stroke-[2.5]" />
+                  <span>Unlock Maintenance Feature</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPropertyQrModal(true)}
+                  className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#0F172E] hover:bg-[#152244] border border-amber-500/30 text-amber-300 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-amber-500/10"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>View QR Code</span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-center">
                 <div className="flex flex-col items-center gap-1">
@@ -497,11 +510,11 @@ export default function TenantMaintenancePortal() {
 
                   <button
                     type="button"
-                    onClick={() => setShowVerifyModal(true)}
-                    className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#061A1C] hover:bg-[#0A262A] border border-emerald-500/30 text-emerald-300 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    onClick={() => setShowPropertyQrModal(true)}
+                    className="w-full px-4 py-2.5 rounded-xl font-bold text-xs bg-[#061A1C] hover:bg-[#0A262A] border border-emerald-500/40 text-emerald-300 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/10"
                   >
                     <QrCode className="w-3.5 h-3.5" />
-                    <span>Verify QR Code</span>
+                    <span>View QR Code</span>
                   </button>
                 </div>
 
@@ -637,6 +650,18 @@ export default function TenantMaintenancePortal() {
               setShowUnlockModal(false);
               fetchTenantData();
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ══ PROPERTY MAINTENANCE QR IDENTITY MODAL ══ */}
+      <AnimatePresence>
+        {showPropertyQrModal && currentLease && (
+          <TenantPropertyQrModal
+            isOpen={showPropertyQrModal}
+            lease={currentLease}
+            property={currentLease?.property}
+            onClose={() => setShowPropertyQrModal(false)}
           />
         )}
       </AnimatePresence>

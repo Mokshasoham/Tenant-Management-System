@@ -22,7 +22,7 @@ import {
   Building,
   Sparkles,
 } from 'lucide-react';
-import { technicianPortalService, maintenanceService } from '../services/api';
+import { technicianPortalService, maintenanceService, propertyService } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
 /**
@@ -343,6 +343,48 @@ export default function QRScannerPage() {
     setCompletionSuccess('');
 
     try {
+      // 0. Detect Property Verification QR Code (TMS-PROP-... or verification URL)
+      const isProp =
+        raw.includes('TMS-PROP') ||
+        raw.includes('/property/verify/') ||
+        raw.includes('/verify/property/');
+
+      if (isProp) {
+        let propToken = raw;
+        if (raw.includes('/property/verify/')) {
+          propToken = raw.split('/property/verify/')[1].split(/[?#]/)[0];
+        } else if (raw.includes('/verify/property/')) {
+          propToken = raw.split('/verify/property/')[1].split(/[?#]/)[0];
+        } else {
+          const match = raw.match(/TMS-PROP-[A-Z0-9]+/i);
+          if (match) propToken = match[0];
+        }
+
+        console.log('[QR Scanner] Looking up property verification:', propToken);
+        try {
+          const propRes = await propertyService.verifyPropertyPublic(propToken);
+          const pData = propRes?.data?.data || propRes?.data;
+          if (pData) {
+            setMaintenanceTicketData(null);
+            setAssetData({
+              isPropertyVerification: true,
+              propertyName: pData.propertyName,
+              property: pData.location || `${pData.address}, ${pData.city}`,
+              qrCode: pData.verificationId || propToken,
+              leaseStatus: pData.leaseStatus,
+              maintenanceEnabled: pData.maintenanceEnabled,
+              maintenancePlan: pData.maintenancePlan,
+              activeTicket: pData.activeTicket,
+              verifiedAt: pData.verifiedAt,
+            });
+            setLoadingLookup(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Property lookup failed:', e);
+        }
+      }
+
       // 1. Detect Maintenance Ticket QR Code payload (TMS_MAINTENANCE:..., TMS-MNT-..., URL, etc.)
       const isMaint =
         raw.includes('TMS_MAINTENANCE') ||
@@ -795,11 +837,99 @@ export default function QRScannerPage() {
         </div>
       )}
 
-      {/* ASSET HISTORY CARD */}
+      {/* ASSET OR PROPERTY VERIFICATION CARD */}
       {assetData && (
         <div className="space-y-6 animate-fade-in">
-          {/* Main Summary Header Card */}
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4">
+          {assetData.isPropertyVerification ? (
+            /* Property Verification Result Card */
+            <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
+                      PROPERTY VERIFIED
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-black text-white uppercase mt-0.5">
+                    {assetData.propertyName}
+                  </h2>
+                  <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1 font-mono">
+                    <Building className="w-3.5 h-3.5 text-cyan-400" />
+                    {assetData.property || 'Location Unspecified'}
+                    <span className="text-slate-600">|</span>
+                    <QrCode className="w-3.5 h-3.5 text-slate-500" />
+                    Pass: {assetData.qrCode}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/technician/jobs')}
+                    className="px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    View Maintenance Details
+                  </button>
+                </div>
+              </div>
+
+              {/* Maintenance & Lease Strip */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Maintenance Coverage</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {assetData.maintenanceEnabled ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        <CheckCircle2 className="w-3 h-3" />
+                        INCLUDED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        <ShieldAlert className="w-3 h-3" />
+                        NOT INCLUDED
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Lease Status</span>
+                  <p className="font-mono text-slate-200 font-bold uppercase">{assetData.leaseStatus || 'ACTIVE'}</p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase">Coverage Plan</span>
+                  <p className="text-slate-200 font-medium truncate">{assetData.maintenancePlan || 'Standard'}</p>
+                </div>
+              </div>
+
+              {/* Active Ticket Banner */}
+              {assetData.activeTicket && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-amber-400 block tracking-wider">
+                      ACTIVE MAINTENANCE TICKET
+                    </span>
+                    <p className="text-xs font-bold text-white mt-0.5">
+                      Ticket: {assetData.activeTicket.ticketCode} — {assetData.activeTicket.title}
+                    </p>
+                    <p className="text-[11px] text-slate-300">
+                      Status: <span className="font-bold text-amber-300 uppercase">{assetData.activeTicket.status.replace(/_/g, ' ')}</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/technician/jobs/${assetData.activeTicket.ticketCode}`)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold shrink-0"
+                  >
+                    Open Ticket
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Main Summary Header Card */}
+              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -943,6 +1073,8 @@ export default function QRScannerPage() {
               <p className="text-xs text-slate-400 py-4 text-center">No part replacements logged.</p>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
     </div>

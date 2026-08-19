@@ -53,10 +53,11 @@ export const propertyService = {
     apiClient.post(`/properties/${id}/status`, { status }),
   getPropertyStats: () => apiClient.get('/properties/stats'),
   saveProperty: (id) => apiClient.post(`/properties/${id}/save`),
-  unsaveProperty: (id) => apiClient.delete(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
   getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
   uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { timeout: 120000 }),
+  getPropertyQrPass: (id, leaseId) => apiClient.get(`/properties/${id}/qr-pass`, { params: { leaseId } }),
+  verifyPropertyPublic: (token) => apiClient.get(`/properties/public-verify/${token}`),
 };
 
 export const leaseService = {
