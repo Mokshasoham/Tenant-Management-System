@@ -17,55 +17,59 @@ const DEFAULT_PLAN_CONFIGS = {
   tenant: {
     free: {
       planId: 'free',
-      planName: 'TMS Resident Free',
+      planName: 'Resident Free',
+      description: 'For individual renters & single residences',
       maxLeases: 2,
       price: 0,
-      badge: 'Current Plan',
+      badge: 'CURRENT PLAN',
       features: [
-        'Manage up to 2 active/upcoming leases',
-        'Rent payments with instant receipt',
-        'Digital lease agreements & signing',
-        'Bills & utility invoices',
-        'Direct landlord & manager messaging',
-        'Real-time notifications & alerts',
-        'Maintenance access (via property plan)',
+        'Manage up to 2 active leases',
+        'Rent payments & receipts',
+        'Utility invoices & bills',
+        'Direct landlord messaging',
+        'Basic resident dashboard',
       ],
     },
     plus: {
       planId: 'plus',
-      planName: 'TMS Resident Plus',
+      planName: 'Resident Plus',
+      description: 'For residents managing multiple homes',
       maxLeases: 4,
       price: 499,
       badge: 'MOST POPULAR',
       features: [
-        'Everything in Resident Free',
-        'Manage up to 4 active/upcoming leases',
-        'Multi-property rental hub',
+        'Manage up to 4 active leases',
+        'Rent payments & receipts',
+        'Utility invoices & bills',
+        'Direct landlord messaging',
+        'Advanced tax & expense reports',
         'Priority resident support',
-        'Advanced payment analytics & export',
-        'Early access to new features',
       ],
     },
     pro: {
       planId: 'pro',
-      planName: 'TMS Resident Pro',
+      planName: 'Resident Pro',
+      description: 'For comprehensive multi-property residents',
       maxLeases: 999999,
       price: 999,
       badge: 'BEST VALUE',
       features: [
-        'Everything in Resident Plus',
-        'Unlimited active & upcoming leases (5+)',
-        'VIP resident priority assistance',
-        'Consolidated tax & expense reports',
-        'Dedicated property coordination tools',
-        'Lifetime digital document vault',
+        'Unlimited active leases (5+)',
+        'Rent payments & receipts',
+        'Utility invoices & bills',
+        'Direct landlord messaging',
+        'Advanced tax & expense reports',
+        'Priority resident support',
+        'Lifetime document vault',
+        'Early access to premium features',
       ],
     },
   },
   manager: {
     starter: {
       planId: 'starter',
-      planName: 'TMS Manager Starter',
+      planName: 'Manager Starter',
+      description: 'For independent landlords & property managers',
       maxProperties: 3,
       price: 0,
       badge: 'Current Plan',
@@ -80,7 +84,8 @@ const DEFAULT_PLAN_CONFIGS = {
     },
     plus: {
       planId: 'plus',
-      planName: 'TMS Manager Plus',
+      planName: 'Manager Plus',
+      description: 'For growing residential & commercial portfolios',
       maxProperties: 5,
       price: 1499,
       badge: 'MOST POPULAR',
@@ -95,7 +100,8 @@ const DEFAULT_PLAN_CONFIGS = {
     },
     pro: {
       planId: 'pro',
-      planName: 'TMS Manager Pro',
+      planName: 'Manager Pro',
+      description: 'For enterprise property management teams',
       maxProperties: 999999,
       price: 2999,
       badge: 'FOR GROWING PORTFOLIOS',
@@ -149,31 +155,42 @@ export async function getPlanConfigs() {
  * Excludes historical completed, terminated, or cancelled leases.
  */
 export async function getTenantActiveLeaseCount(userId) {
-  const user = await User.findById(userId);
-  if (!user) return 0;
+  try {
+    const user = await User.findById(userId);
+    const tenantIds = [];
+    if (user?.email) {
+      const tenants = await Tenant.find({ email: user.email });
+      tenants.forEach((t) => tenantIds.push(t._id));
+    }
+    if (userId) tenantIds.push(userId);
 
-  const tenants = await Tenant.find({ email: user.email });
-  const tenantIds = tenants.map((t) => t._id);
-  if (userId) tenantIds.push(userId);
+    // Count only active and pending/upcoming leases
+    const count = await Lease.countDocuments({
+      tenant: { $in: tenantIds },
+      status: { $in: ['active', 'pending'] },
+    });
 
-  // Count only active and pending/upcoming leases
-  const count = await Lease.countDocuments({
-    tenant: { $in: tenantIds },
-    status: { $in: ['active', 'pending'] },
-  });
-
-  return count;
+    return count;
+  } catch (err) {
+    logger.warn(`[Subscription] Error calculating tenant active lease count: ${err.message}`);
+    return 0;
+  }
 }
 
 /**
  * Compute the manager's current active property count.
  */
 export async function getManagerPropertyCount(userId) {
-  const count = await Property.countDocuments({
-    $or: [{ owner: userId }, { manager: userId }],
-    status: { $ne: 'deleted' },
-  });
-  return count;
+  try {
+    const count = await Property.countDocuments({
+      $or: [{ owner: userId }, { manager: userId }],
+      status: { $ne: 'deleted' },
+    });
+    return count;
+  } catch (err) {
+    logger.warn(`[Subscription] Error calculating manager property count: ${err.message}`);
+    return 0;
+  }
 }
 
 /**
@@ -184,51 +201,67 @@ export async function getUserSubscription(userId, role) {
   const planConfigs = await getPlanConfigs();
   const rolePlans = planConfigs[normalizedRole] || planConfigs.tenant;
 
-  let subscription = await Subscription.findOne({ user: userId, role: normalizedRole });
-
-  // Default initial plan
   const defaultPlanId = normalizedRole === 'tenant' ? 'free' : 'starter';
   const defaultPlanMeta = rolePlans[defaultPlanId] || Object.values(rolePlans)[0];
 
-  if (!subscription) {
-    subscription = await Subscription.create({
-      user: userId,
+  let subscription = null;
+  try {
+    subscription = await Subscription.findOne({
+      $or: [{ user: userId }, { owner: userId }],
       role: normalizedRole,
-      planId: defaultPlanId,
-      planName: defaultPlanMeta.planName,
-      status: 'active',
-      price: defaultPlanMeta.price || 0,
-      billingCycle: 'monthly',
-      maxLeases: defaultPlanMeta.maxLeases || 2,
-      maxProperties: defaultPlanMeta.maxProperties || 3,
-      features: defaultPlanMeta.features,
     });
-  }
 
-  // Handle plan expiration check (downgrade to free/starter if expired)
-  if (subscription.status === 'active' && subscription.expiresAt && new Date() > new Date(subscription.expiresAt)) {
-    if (!subscription.autoRenew) {
-      subscription.status = 'expired';
-      subscription.planId = defaultPlanId;
-      subscription.planName = defaultPlanMeta.planName;
-      subscription.price = 0;
-      subscription.maxLeases = defaultPlanMeta.maxLeases || 2;
-      subscription.maxProperties = defaultPlanMeta.maxProperties || 3;
-      await subscription.save();
+    if (!subscription) {
+      subscription = await Subscription.create({
+        user: userId,
+        owner: userId,
+        role: normalizedRole,
+        planId: defaultPlanId,
+        planName: defaultPlanMeta.planName,
+        status: 'active',
+        price: defaultPlanMeta.price || 0,
+        billingCycle: 'monthly',
+        maxLeases: defaultPlanMeta.maxLeases || 2,
+        maxProperties: defaultPlanMeta.maxProperties || 3,
+        features: defaultPlanMeta.features,
+      }).catch((createErr) => {
+        logger.warn(`[Subscription] Note: Auto-create in DB caught: ${createErr.message}`);
+        return null;
+      });
     }
+
+    // Expiration check
+    if (subscription && subscription.status === 'active' && subscription.expiresAt && new Date() > new Date(subscription.expiresAt)) {
+      if (!subscription.autoRenew) {
+        subscription.status = 'expired';
+        subscription.planId = defaultPlanId;
+        subscription.planName = defaultPlanMeta.planName;
+        subscription.price = 0;
+        subscription.maxLeases = defaultPlanMeta.maxLeases || 2;
+        subscription.maxProperties = defaultPlanMeta.maxProperties || 3;
+        await subscription.save().catch(() => {});
+      }
+    }
+  } catch (dbErr) {
+    logger.warn(`[Subscription] DB lookup error: ${dbErr.message}`);
   }
 
-  // Live capacity calculation
-  const currentPlanMeta = rolePlans[subscription.planId] || defaultPlanMeta;
+  // Active plan resolution
+  const activePlanId = subscription?.planId || defaultPlanId;
+  const currentPlanMeta = rolePlans[activePlanId] || defaultPlanMeta;
+
   let currentUsageCount = 0;
-  let maxCapacity = normalizedRole === 'tenant' ? (currentPlanMeta.maxLeases || 2) : (currentPlanMeta.maxProperties || 3);
-
-  if (normalizedRole === 'tenant') {
-    currentUsageCount = await getTenantActiveLeaseCount(userId);
-  } else {
-    currentUsageCount = await getManagerPropertyCount(userId);
+  try {
+    if (normalizedRole === 'tenant') {
+      currentUsageCount = await getTenantActiveLeaseCount(userId);
+    } else {
+      currentUsageCount = await getManagerPropertyCount(userId);
+    }
+  } catch (countErr) {
+    logger.warn(`[Subscription] Capacity count error: ${countErr.message}`);
   }
 
+  const maxCapacity = normalizedRole === 'tenant' ? (currentPlanMeta.maxLeases || 2) : (currentPlanMeta.maxProperties || 3);
   const isUnlimited = maxCapacity >= 999999;
   const remainingSlots = isUnlimited ? 999999 : Math.max(0, maxCapacity - currentUsageCount);
   const isAtLimit = !isUnlimited && currentUsageCount >= maxCapacity;
@@ -236,17 +269,17 @@ export async function getUserSubscription(userId, role) {
 
   return {
     subscription: {
-      id: subscription._id,
-      planId: subscription.planId,
-      planName: subscription.planName,
-      status: subscription.status,
-      price: subscription.price,
-      billingCycle: subscription.billingCycle,
-      maxLeases: subscription.maxLeases,
-      maxProperties: subscription.maxProperties,
-      startedAt: subscription.startedAt,
-      expiresAt: subscription.expiresAt,
-      autoRenew: subscription.autoRenew,
+      id: subscription?._id || 'free_sub',
+      planId: activePlanId,
+      planName: subscription?.planName || currentPlanMeta.planName,
+      status: subscription?.status || 'active',
+      price: subscription?.price !== undefined ? subscription.price : currentPlanMeta.price,
+      billingCycle: subscription?.billingCycle || 'monthly',
+      maxLeases: subscription?.maxLeases || currentPlanMeta.maxLeases || 2,
+      maxProperties: subscription?.maxProperties || currentPlanMeta.maxProperties || 3,
+      startedAt: subscription?.startedAt || new Date(),
+      expiresAt: subscription?.expiresAt || null,
+      autoRenew: subscription?.autoRenew !== undefined ? subscription.autoRenew : true,
     },
     usage: {
       role: normalizedRole,

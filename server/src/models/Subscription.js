@@ -5,13 +5,18 @@ const subscriptionSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      index: true,
+    },
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       index: true,
     },
     role: {
       type: String,
       enum: ['tenant', 'manager', 'admin'],
       required: true,
+      default: 'tenant',
       index: true,
     },
     planId: {
