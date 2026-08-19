@@ -621,7 +621,13 @@ export default function TenantDashboard({ user, navigate }) {
                                                         <Wallet className="w-3.5 h-3.5" /> {t('dashboard.payRent')}
                                                     </motion.button>
                                                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                                                        onClick={() => navigate('/maintenance', { state: { propertyId: activeLease.property?._id } })}
+                                                        onClick={() => navigate(`/maintenance?leaseId=${activeLease._id}&propertyId=${activeLease.property?._id || ''}`, {
+                                                            state: {
+                                                                leaseId: activeLease._id,
+                                                                propertyId: activeLease.property?._id,
+                                                                lease: activeLease
+                                                            }
+                                                        })}
                                                         disabled={activeLease.status === 'pending'}
                                                         className={cn("flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all", activeLease.status === 'pending' ? "opacity-40 cursor-not-allowed hover:bg-transparent" : "")}
                                                     >

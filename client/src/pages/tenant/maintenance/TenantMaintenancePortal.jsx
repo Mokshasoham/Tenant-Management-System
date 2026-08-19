@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   RefreshCw,
@@ -33,6 +34,12 @@ import TenantMaintenanceHowItWorksModal from './TenantMaintenanceHowItWorksModal
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const targetLeaseId = location.state?.leaseId || searchParams.get('leaseId');
+  const targetPropertyId = location.state?.propertyId || searchParams.get('propertyId');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -67,8 +74,16 @@ export default function TenantMaintenancePortal() {
       const eligible = Array.isArray(allActive) ? allActive.filter(l => ['active', 'pending'].includes(l.status)) : [];
       setLeases(eligible);
 
-      // Preserve currently selected lease if still present, otherwise default to first
+      // Prioritize targetLeaseId or targetPropertyId from navigation, then previous selection, then eligible[0]
       setActivePropertyLease(prev => {
+        if (targetLeaseId) {
+          const match = eligible.find(l => String(l._id || l.id) === String(targetLeaseId));
+          if (match) return match;
+        }
+        if (targetPropertyId) {
+          const match = eligible.find(l => String(l.property?._id || l.property?.id || l.property || '') === String(targetPropertyId));
+          if (match) return match;
+        }
         if (prev) {
           const match = eligible.find(l => (l._id || l.id) === (prev._id || prev.id));
           if (match) return match;
@@ -90,11 +105,29 @@ export default function TenantMaintenancePortal() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [targetLeaseId, targetPropertyId]);
 
   useEffect(() => {
     fetchTenantData();
   }, [fetchTenantData]);
+
+  // Synchronize when route params or state change
+  useEffect(() => {
+    if (leases.length === 0) return;
+    if (targetLeaseId) {
+      const match = leases.find(l => String(l._id || l.id) === String(targetLeaseId));
+      if (match) {
+        setActivePropertyLease(match);
+        return;
+      }
+    }
+    if (targetPropertyId) {
+      const match = leases.find(l => String(l.property?._id || l.property?.id || l.property || '') === String(targetPropertyId));
+      if (match) {
+        setActivePropertyLease(match);
+      }
+    }
+  }, [targetLeaseId, targetPropertyId, leases]);
 
   const currentLease = activePropertyLease || leases[0] || null;
   // If lease exists and maintenance is not enabled, mark as locked
