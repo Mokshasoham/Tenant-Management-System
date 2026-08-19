@@ -127,15 +127,15 @@ export async function getPlanConfigs() {
 
     if (setting) {
       if (setting.tenantPlans) {
-        if (setting.tenantPlans.free?.price !== undefined) configs.tenant.free.price = setting.tenantPlans.free.price;
-        if (setting.tenantPlans.free?.maxLeases !== undefined) configs.tenant.free.maxLeases = setting.tenantPlans.free.maxLeases;
+        if (setting.tenantPlans.free?.price !== undefined) configs.tenant.free.price = 0; // Free plan is always 0
+        configs.tenant.free.maxLeases = 2; // Strict invariant: Resident Free is always exactly 2 leases
         if (setting.tenantPlans.plus?.price !== undefined) configs.tenant.plus.price = setting.tenantPlans.plus.price;
         if (setting.tenantPlans.plus?.maxLeases !== undefined) configs.tenant.plus.maxLeases = setting.tenantPlans.plus.maxLeases;
         if (setting.tenantPlans.pro?.price !== undefined) configs.tenant.pro.price = setting.tenantPlans.pro.price;
         if (setting.tenantPlans.pro?.maxLeases !== undefined) configs.tenant.pro.maxLeases = setting.tenantPlans.pro.maxLeases;
       }
       if (setting.managerPlans) {
-        if (setting.managerPlans.starter?.price !== undefined) configs.manager.starter.price = setting.managerPlans.starter.price;
+        if (setting.managerPlans.starter?.price !== undefined) configs.manager.starter.price = 0;
         if (setting.managerPlans.starter?.maxProperties !== undefined) configs.manager.starter.maxProperties = setting.managerPlans.starter.maxProperties;
         if (setting.managerPlans.plus?.price !== undefined) configs.manager.plus.price = setting.managerPlans.plus.price;
         if (setting.managerPlans.plus?.maxProperties !== undefined) configs.manager.plus.maxProperties = setting.managerPlans.plus.maxProperties;
@@ -143,6 +143,11 @@ export async function getPlanConfigs() {
         if (setting.managerPlans.pro?.maxProperties !== undefined) configs.manager.pro.maxProperties = setting.managerPlans.pro.maxProperties;
       }
     }
+    // Hard invariants
+    configs.tenant.free.maxLeases = 2;
+    configs.tenant.free.price = 0;
+    configs.tenant.plus.maxLeases = configs.tenant.plus.maxLeases || 4;
+    configs.tenant.pro.maxLeases = 999999;
     return configs;
   } catch (err) {
     logger.warn(`[SubscriptionService] Error fetching plan configs: ${err.message}`);
@@ -151,23 +156,32 @@ export async function getPlanConfigs() {
 }
 
 /**
- * Compute the tenant's current ACTIVE / UPCOMING lease count.
- * Excludes historical completed, terminated, or cancelled leases.
+ * Compute the tenant's current ACTIVE lease count.
+ * Excludes pending/upcoming, historical completed, terminated, or cancelled leases.
  */
 export async function getTenantActiveLeaseCount(userId) {
   try {
-    const user = await User.findById(userId);
-    const tenantIds = [];
-    if (user?.email) {
-      const tenants = await Tenant.find({ email: user.email });
+    if (!userId) return 0;
+    const user = await User.findById(userId).select('email');
+    if (!user) return 0;
+
+    const email = (user.email || '').toLowerCase().trim();
+    const tenantIds = [userId];
+
+    if (email) {
+      const tenants = await Tenant.find({
+        email: { $regex: new RegExp(`^${email}$`, 'i') }
+      }).select('_id');
       tenants.forEach((t) => tenantIds.push(t._id));
     }
-    if (userId) tenantIds.push(userId);
 
-    // Count only active and pending/upcoming leases
+    // Count strictly ACTIVE leases according to the existing Lease status model
     const count = await Lease.countDocuments({
-      tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending'] },
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { tenantEmail: { $regex: new RegExp(`^${email}$`, 'i') } }
+      ],
+      status: { $in: ['active', 'ACTIVE'] },
     });
 
     return count;
@@ -221,13 +235,21 @@ export async function getUserSubscription(userId, role) {
         status: 'active',
         price: defaultPlanMeta.price || 0,
         billingCycle: 'monthly',
-        maxLeases: defaultPlanMeta.maxLeases || 2,
-        maxProperties: defaultPlanMeta.maxProperties || 3,
+        maxLeases: normalizedRole === 'tenant' ? 2 : 2,
+        maxProperties: 3,
         features: defaultPlanMeta.features,
       }).catch((createErr) => {
         logger.warn(`[Subscription] Note: Auto-create in DB caught: ${createErr.message}`);
         return null;
       });
+    }
+
+    // Self-heal corrupted legacy data if Free plan in DB had maxLeases !== 2
+    if (subscription && normalizedRole === 'tenant' && (subscription.planId === 'free' || !subscription.planId)) {
+      if (subscription.maxLeases !== 2) {
+        subscription.maxLeases = 2;
+        await subscription.save().catch(() => {});
+      }
     }
 
     // Expiration check
@@ -237,7 +259,7 @@ export async function getUserSubscription(userId, role) {
         subscription.planId = defaultPlanId;
         subscription.planName = defaultPlanMeta.planName;
         subscription.price = 0;
-        subscription.maxLeases = defaultPlanMeta.maxLeases || 2;
+        subscription.maxLeases = normalizedRole === 'tenant' ? 2 : 2;
         subscription.maxProperties = defaultPlanMeta.maxProperties || 3;
         await subscription.save().catch(() => {});
       }
@@ -261,11 +283,18 @@ export async function getUserSubscription(userId, role) {
     logger.warn(`[Subscription] Capacity count error: ${countErr.message}`);
   }
 
-  const maxCapacity = normalizedRole === 'tenant' ? (currentPlanMeta.maxLeases || 2) : (currentPlanMeta.maxProperties || 3);
+  // Strict tenant limit resolution: Free = 2, Plus = 4, Pro = 999999
+  const maxCapacity = normalizedRole === 'tenant'
+    ? (activePlanId === 'free' ? 2 : (activePlanId === 'plus' ? 4 : (currentPlanMeta.maxLeases || 999999)))
+    : (currentPlanMeta.maxProperties || 3);
+
   const isUnlimited = maxCapacity >= 999999;
   const remainingSlots = isUnlimited ? 999999 : Math.max(0, maxCapacity - currentUsageCount);
   const isAtLimit = !isUnlimited && currentUsageCount >= maxCapacity;
   const isExceeded = !isUnlimited && currentUsageCount > maxCapacity;
+  const usagePercentage = isUnlimited
+    ? 100
+    : Math.min(100, Math.round((currentUsageCount / Math.max(1, maxCapacity)) * 100));
 
   return {
     subscription: {
@@ -275,7 +304,7 @@ export async function getUserSubscription(userId, role) {
       status: subscription?.status || 'active',
       price: subscription?.price !== undefined ? subscription.price : currentPlanMeta.price,
       billingCycle: subscription?.billingCycle || 'monthly',
-      maxLeases: subscription?.maxLeases || currentPlanMeta.maxLeases || 2,
+      maxLeases: normalizedRole === 'tenant' ? (activePlanId === 'free' ? 2 : (activePlanId === 'plus' ? 4 : 999999)) : 2,
       maxProperties: subscription?.maxProperties || currentPlanMeta.maxProperties || 3,
       startedAt: subscription?.startedAt || new Date(),
       expiresAt: subscription?.expiresAt || null,
@@ -284,9 +313,13 @@ export async function getUserSubscription(userId, role) {
     usage: {
       role: normalizedRole,
       currentCount: currentUsageCount,
+      activeLeases: currentUsageCount,
       maxLimit: maxCapacity,
+      maxLeases: maxCapacity,
       isUnlimited,
       remainingSlots,
+      remainingLeases: remainingSlots,
+      percentage: usagePercentage,
       isAtLimit,
       isExceeded,
       warningMessage: isExceeded

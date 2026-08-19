@@ -30,7 +30,7 @@ import { subscriptionService } from '../../../services/api';
 import { useTheme } from '../../../context/ThemeContext';
 import { cn } from '../../../utils/cn';
 
-// Default static fallback plans to ensure UI is NEVER empty even during network outages
+// Strict static fallback plans matching the exact 2 / 4 / Unlimited business rules
 const FALLBACK_TENANT_PLANS = [
   {
     planId: 'free',
@@ -96,39 +96,55 @@ export default function TenantSubscriptionPage() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [successToast, setSuccessToast] = useState(null);
 
-  // Robust subscription data fetching with graceful fallbacks
+  // Synchronized subscription data fetcher
   const fetchSubscriptionData = useCallback(async (isRetry = false) => {
     if (isRetry) setRetrying(true);
     else setLoading(true);
     setErrorMessage(null);
 
     try {
-      // 1. Fetch authenticated user subscription
+      // 1. Fetch user subscription status
       const res = await subscriptionService.getMySubscription();
       
-      // Handle various response wrappers cleanly
+      // Unpack response safely
       const payload = res?.data?.data || res?.data || res;
 
       if (payload && (payload.subscription || payload.usage)) {
-        setSubData(payload);
-
-        // If backend returned availablePlans, use them; otherwise keep/fetch
-        if (payload.availablePlans && Array.isArray(payload.availablePlans) && payload.availablePlans.length > 0) {
-          setPlans(payload.availablePlans);
-        } else {
-          // Attempt fallback fetch to /plans
-          try {
-            const plansRes = await subscriptionService.getPlans('tenant');
-            const planList = plansRes?.data?.data || plansRes?.data || plansRes;
-            if (Array.isArray(planList) && planList.length > 0) {
-              setPlans(planList);
-            }
-          } catch (pErr) {
-            console.warn('[TenantSubscription] Using fallback plans config:', pErr);
+        // Enforce strict client-side data hygiene on Free tier capacity
+        const sanitizedPayload = {
+          ...payload,
+          subscription: {
+            ...payload.subscription,
+            planId: payload.subscription?.planId || 'free',
+            planName: payload.subscription?.planName || 'Resident Free',
+            maxLeases: payload.subscription?.planId === 'plus' ? 4 : (payload.subscription?.planId === 'pro' ? 999999 : 2),
+            price: payload.subscription?.planId === 'free' ? 0 : payload.subscription?.price,
+          },
+          usage: {
+            ...payload.usage,
+            currentCount: payload.usage?.activeLeases ?? payload.usage?.currentCount ?? 0,
+            maxLimit: payload.subscription?.planId === 'plus' ? 4 : (payload.subscription?.planId === 'pro' ? 999999 : 2),
+            remainingSlots: payload.subscription?.planId === 'pro'
+              ? 999999
+              : Math.max(0, (payload.subscription?.planId === 'plus' ? 4 : 2) - (payload.usage?.activeLeases ?? payload.usage?.currentCount ?? 0)),
           }
+        };
+
+        setSubData(sanitizedPayload);
+
+        // Synchronize available plan cards from API
+        if (payload.availablePlans && Array.isArray(payload.availablePlans) && payload.availablePlans.length > 0) {
+          const sanitizedPlans = payload.availablePlans.map((p) => ({
+            ...p,
+            maxLeases: p.planId === 'free' ? 2 : (p.planId === 'plus' ? 4 : (p.maxLeases || 999999)),
+            price: p.planId === 'free' ? 0 : p.price,
+          }));
+          setPlans(sanitizedPlans);
+        } else {
+          setPlans(FALLBACK_TENANT_PLANS);
         }
       } else {
-        // Fallback default state for new first-time tenant
+        // Default first-time tenant state
         setSubData({
           subscription: {
             planId: 'free',
@@ -146,6 +162,7 @@ export default function TenantSubscriptionPage() {
             maxLimit: 2,
             isUnlimited: false,
             remainingSlots: 2,
+            percentage: 0,
             isAtLimit: false,
             isExceeded: false,
           },
@@ -153,9 +170,9 @@ export default function TenantSubscriptionPage() {
         });
       }
     } catch (err) {
-      console.warn('[TenantSubscription] Subscription fetch issue, initializing resilient fallback:', err);
+      console.warn('[TenantSubscription] Subscription fetch fallback activated:', err);
       
-      // Default to Resident Free if network or endpoint was unavailable
+      // Default safely to 2-lease Free plan on network glitch
       setSubData((prev) => prev || {
         subscription: {
           planId: 'free',
@@ -173,14 +190,14 @@ export default function TenantSubscriptionPage() {
           maxLimit: 2,
           isUnlimited: false,
           remainingSlots: 2,
+          percentage: 0,
           isAtLimit: false,
           isExceeded: false,
         },
         availablePlans: FALLBACK_TENANT_PLANS,
       });
 
-      // Non-blocking user warning with retry action
-      setErrorMessage('Subscription live status sync is temporary unavailable. Displaying local plan defaults.');
+      setErrorMessage('Live subscription sync is currently offline. Displaying local plan defaults.');
     } finally {
       setLoading(false);
       setRetrying(false);
@@ -199,7 +216,7 @@ export default function TenantSubscriptionPage() {
     setErrorMessage(null);
 
     try {
-      // 1. Create order on backend
+      // 1. Create upgrade order on backend
       const orderRes = await subscriptionService.createOrder({
         planId: plan.planId,
         billingCycle,
@@ -270,14 +287,17 @@ export default function TenantSubscriptionPage() {
     }
   };
 
-  const currentPlanId = subData?.subscription?.planId || 'free';
+  const currentPlanId = (subData?.subscription?.planId || 'free').toLowerCase();
   const currentPlanName = subData?.subscription?.planName || 'Resident Free';
+  
+  // Real active usage metrics
   const usage = subData?.usage || { currentCount: 0, maxLimit: 2, isUnlimited: false, remainingSlots: 2 };
-
-  // Calculate capacity percentage for progress bar
+  const currentCount = usage.currentCount ?? 0;
+  const maxLimit = usage.isUnlimited ? 999999 : (usage.maxLimit || 2);
+  const remainingSlots = usage.isUnlimited ? 999999 : (usage.remainingSlots ?? Math.max(0, maxLimit - currentCount));
   const capacityPercent = usage.isUnlimited
-    ? 15
-    : Math.min(100, Math.round((usage.currentCount / Math.max(1, usage.maxLimit)) * 100));
+    ? 100
+    : Math.min(100, Math.round((currentCount / Math.max(1, maxLimit)) * 100));
 
   const planIcons = {
     free: Home,
@@ -346,7 +366,7 @@ export default function TenantSubscriptionPage() {
                 </span>
                 <div className="flex items-center gap-2 pt-0.5">
                   <span className="text-[11px] font-bold text-slate-400">
-                    {usage.isUnlimited ? 'Unlimited leases' : `${usage.maxLimit} lease capacity`}
+                    {usage.isUnlimited ? 'Unlimited leases' : `${maxLimit} lease capacity`}
                   </span>
                   <span className="inline-flex items-center px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-black tracking-wide border border-emerald-500/30">
                     ACTIVE
@@ -357,7 +377,7 @@ export default function TenantSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── Live Lease Capacity Bar ── */}
+        {/* ── Live Active Lease Capacity Bar ── */}
         <div className="p-6 rounded-2xl bg-[#061318]/90 border border-slate-800 space-y-3 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -366,7 +386,7 @@ export default function TenantSubscriptionPage() {
                 ACTIVE LEASE CAPACITY
               </span>
               <span className="text-xs font-mono font-bold text-slate-400">
-                ({usage.currentCount} / {usage.isUnlimited ? '∞ Unlimited' : `${usage.maxLimit} leases used`})
+                ({currentCount} / {usage.isUnlimited ? '∞ Unlimited' : `${maxLimit} leases used`})
               </span>
             </div>
 
@@ -376,16 +396,16 @@ export default function TenantSubscriptionPage() {
               </span>
             ) : usage.isAtLimit ? (
               <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> You're at your plan limit
+                <AlertTriangle className="w-3.5 h-3.5" /> 0 lease slots remaining (Limit reached)
               </span>
             ) : (
               <span className="text-xs font-bold text-emerald-400">
-                {usage.remainingSlots} lease slot{usage.remainingSlots > 1 ? 's' : ''} remaining
+                {remainingSlots} lease slot{remainingSlots === 1 ? '' : 's'} remaining
               </span>
             )}
           </div>
 
-          {/* Animated Progress Bar */}
+          {/* Animated Capacity Progress Bar */}
           <div className="w-full h-3.5 rounded-full bg-slate-900 border border-slate-800 p-0.5 overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
@@ -402,7 +422,7 @@ export default function TenantSubscriptionPage() {
             />
           </div>
 
-          {/* Warning Banner if exceeded */}
+          {/* Exceeded notice */}
           {usage.warningMessage && (
             <p className="text-xs text-amber-300 font-medium pt-1">
               {usage.warningMessage}
@@ -431,7 +451,7 @@ export default function TenantSubscriptionPage() {
         {/* ── THREE LARGE PREMIUM PLAN CARDS ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {plans.map((plan) => {
-            const isCurrent = plan.planId === currentPlanId;
+            const isCurrent = plan.planId.toLowerCase() === currentPlanId;
             const isPlus = plan.planId === 'plus';
             const isPro = plan.planId === 'pro';
             const PlanIcon = planIcons[plan.planId] || Home;
@@ -450,8 +470,8 @@ export default function TenantSubscriptionPage() {
                     : "bg-gradient-to-b from-[#0A161E] via-[#050E14] to-[#02060A] border-slate-800 hover:border-slate-700 shadow-lg"
                 )}
               >
-                {/* Badge */}
-                {plan.badge && (
+                {/* Plan Badge */}
+                {(isCurrent || plan.badge) && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                     <span
                       className={cn(
@@ -593,7 +613,7 @@ export default function TenantSubscriptionPage() {
                         </>
                       ) : (
                         <>
-                          <span>Upgrade to {plan.planId === 'plus' ? 'Plus' : 'Pro'}</span>
+                          <span>Upgrade to {plan.planId === 'plus' ? 'Plus' : (plan.planId === 'pro' ? 'Pro' : plan.planName)}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
