@@ -116,12 +116,9 @@ export default function TenantMaintenancePortal() {
       setShowUnlockModal(true);
       return;
     }
-    if (leases.length > 1) {
-      setShowLeaseSelectModal(true);
-    } else {
-      setSelectedLease(leases[0] || null);
-      setShowSubmitModal(true);
-    }
+    const targetLease = currentLease || leases[0] || null;
+    setSelectedLease(targetLease);
+    setShowSubmitModal(true);
   };
 
   const handleSelectLease = (lease) => {
