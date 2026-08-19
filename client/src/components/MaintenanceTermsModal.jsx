@@ -18,21 +18,22 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden text-slate-100 font-sans"
+          exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-[28px] bg-[#0A0F1D] border border-amber-500/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_-10px_rgba(245,158,11,0.12)] overflow-hidden text-slate-100 font-sans"
         >
           {/* Header */}
-          <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <div className="p-5 sm:p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-md shadow-amber-500/10 shrink-0">
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 tracking-tight">
                   Maintenance &amp; Repairs Terms
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-amber-400/90 font-mono font-medium">
                     v{version}
                   </span>
                 </h3>
@@ -42,16 +43,16 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-slate-800 transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Scrollable Terms Content */}
-          <div className="p-6 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed border-b border-slate-800 max-h-[50vh]">
-            <div className="p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-start gap-2.5 text-indigo-200">
-              <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+          <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed border-b border-slate-800/80 max-h-[50vh]">
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/25 flex items-start gap-2.5 text-amber-200/90">
+              <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs">
                 By including the <strong>Maintenance &amp; Repairs Add-On</strong> for ₹{fee}/month, your lease receives complete repair management, priority certified technician dispatch, and digital QR tracking.
               </p>
@@ -103,24 +104,26 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
           </div>
 
           {/* Agreement Checkbox & Actions */}
-          <div className="p-6 bg-slate-950/60 space-y-4">
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              />
-              <span className="text-xs text-slate-300">
-                I have read and agree to the <strong>Maintenance &amp; Repairs Terms &amp; Conditions</strong> and authorize the additional ₹{fee}/month coverage.
-              </span>
-            </label>
+          <div className="p-5 sm:p-6 bg-slate-950/70 space-y-4">
+            <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 transition-colors">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500/30 focus:ring-offset-0 accent-amber-500 cursor-pointer shrink-0"
+                />
+                <span className="text-xs text-slate-300 leading-relaxed">
+                  I have read and agree to the <strong>Maintenance &amp; Repairs Terms &amp; Conditions</strong> and authorize the additional ₹{fee}/month coverage.
+                </span>
+              </label>
+            </div>
 
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent hover:border-slate-700/50 transition-all cursor-pointer"
               >
                 Cancel
               </button>
@@ -128,7 +131,7 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
                 type="button"
                 disabled={!agreed}
                 onClick={handleContinue}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5"
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-200 disabled:opacity-40 disabled:grayscale disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Agree &amp; Continue
