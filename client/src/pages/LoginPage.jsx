@@ -25,6 +25,13 @@ export default function LoginPage() {
   const login = useAuthStore((state) => state.login);
   const verify2FALogin = useAuthStore((state) => state.verify2FALogin);
 
+  // Pre-warm backend on mount to eliminate cold-start delay
+  React.useEffect(() => {
+    import('../services/apiClient').then(({ default: apiClient }) => {
+      apiClient.get('/health').catch(() => {});
+    });
+  }, []);
+
   const onSubmit = async (data) => {
     setIsLoading(true);
     setError('');
@@ -55,7 +62,11 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
-      setError(err?.message || 'Login failed. Please try again.');
+      let msg = err?.message || 'Login failed. Please try again.';
+      if (msg.includes('timeout of') || msg.includes('Network Error')) {
+        msg = 'Cloud server was warming up. Please click Sign In again.';
+      }
+      setError(msg);
       setIsLoading(false);
     }
   };
