@@ -112,10 +112,20 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    throw new AppError('Please provide both email and password', 400);
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
   // Find user and include password
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
   if (!user) {
     throw new AppError('Invalid email or password', 401);
+  }
+
+  if (!user.password) {
+    throw new AppError('This account was registered with Google Sign-In. Please sign in using Google.', 401);
   }
 
   // Compare passwords
@@ -132,7 +142,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user.isActive) {
-    throw new AppError('Your account has been disabled', 403);
+    throw new AppError('Your account has been disabled. Please contact support.', 403);
   }
 
   // Update last login
@@ -154,7 +164,7 @@ export const login = asyncHandler(async (req, res) => {
 
   const token = generateToken(user._id, user.role);
 
-  logger.info(`User logged in: ${user.email}`);
+  logger.info(`User logged in: ${user.email} (${user.role})`);
 
   res.status(200).json({
     success: true,
@@ -537,44 +547,73 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 export const googleAuth = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
 
+  if (!idToken) {
+    throw new AppError('Google ID Token is required', 400);
+  }
+
+  const clientId = (config.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || '').replace(/^["']|["']$/g, '').trim();
+  const oauthClient = new OAuth2Client(clientId);
+
   // Verify the Google ID Token
-  const ticket = await client.verifyIdToken({
-    idToken: idToken,
-    audience: config.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
-  }).catch((err) => {
-    logger.error('Google token verification failed', err);
-    throw new AppError('Invalid Google Token', 401);
-  });
+  let payload;
+  try {
+    const ticket = await oauthClient.verifyIdToken({
+      idToken: idToken,
+      audience: clientId ? [clientId] : undefined,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    logger.error('Google token verification failed:', err);
+    throw new AppError(`Google authentication failed: ${err.message || 'Invalid Token'}`, 401);
+  }
 
-  const payload = ticket.getPayload();
-  const { sub: googleId, email, given_name, family_name, picture } = payload;
+  if (!payload || !payload.email) {
+    throw new AppError('Google authentication failed: Email address was not provided by Google.', 400);
+  }
 
-  let user = await User.findOne({ email });
+  const { sub: googleId, given_name, family_name, picture } = payload;
+  const normalizedEmail = payload.email.trim().toLowerCase();
+
+  let user = await User.findOne({ email: normalizedEmail }).select('+password');
 
   if (user) {
+    // Preserve existing account & role, attach googleId if missing
+    let shouldSave = false;
     if (!user.googleId) {
       user.googleId = googleId;
+      shouldSave = true;
+    }
+    if (!user.isEmailVerified && payload.email_verified) {
+      user.isEmailVerified = true;
+      shouldSave = true;
+    }
+    if (picture && !user.avatar) {
+      user.avatar = picture;
+      shouldSave = true;
+    }
+    if (shouldSave) {
       await user.save();
     }
   } else {
+    // New Google Signup
     const randomPassword = crypto.randomBytes(16).toString('hex');
     const hashedPassword = await hashPassword(randomPassword);
 
     user = await User.create({
       firstName: given_name || 'User',
       lastName: family_name || 'Name',
-      email: email,
+      email: normalizedEmail,
       password: hashedPassword,
-      role: 'user',
-      isEmailVerified: true,
+      role: 'tenant', // Default role for new users
+      isEmailVerified: Boolean(payload.email_verified),
       googleId: googleId,
       avatar: picture,
     });
-    logger.info(`New user registered via Google: ${user.email}`);
+    logger.info(`New user registered via Google: ${user.email} (tenant)`);
   }
 
   if (!user.isActive) {
-    throw new AppError('Your account has been disabled', 403);
+    throw new AppError('Your account has been disabled. Please contact support.', 403);
   }
 
   user.lastLogin = new Date();
@@ -584,7 +623,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
 
   const token = generateToken(user._id, user.role);
 
-  logger.info(`User logged in via Google: ${user.email}`);
+  logger.info(`User logged in via Google: ${user.email} (${user.role})`);
 
   res.status(200).json({
     success: true,

@@ -11,21 +11,28 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.login({ email, password });
+      const resData = response?.data || response;
       
-      if (response.data?.requires2FA) {
+      if (resData?.requires2FA) {
         set({ isLoading: false });
-        // Return this flag so the UI can redirect/show OTP modal
-        return { requires2FA: true, userId: response.data.userId };
+        return { requires2FA: true, userId: resData.userId };
       }
 
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      const token = resData?.token || response?.token;
+      const user = resData?.user || response?.user;
+
+      if (!token) {
+        throw new Error('Authentication succeeded but no token was returned.');
+      }
+
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user, token, isLoading: false, error: null });
       return response;
     } catch (error) {
-      const errorMsg = error?.message || 'Login failed';
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Login failed. Please try again.');
       set({ error: errorMsg, isLoading: false });
-      throw error;
+      throw new Error(errorMsg);
     }
   },
 
@@ -33,12 +40,16 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.verify2FALogin({ userId, token });
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      const resData = response?.data || response;
+      const authToken = resData?.token || response?.token;
+      const user = resData?.user || response?.user;
+
+      localStorage.setItem('authToken', authToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user, token: authToken, isLoading: false, error: null });
       return response;
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message || '2FA verification failed';
+      const errorMsg = error?.message || (typeof error === 'string' ? error : '2FA verification failed.');
       set({ error: errorMsg, isLoading: false });
       throw new Error(errorMsg);
     }
@@ -48,12 +59,20 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.googleAuth(idToken);
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      const resData = response?.data || response;
+      const token = resData?.token || response?.token;
+      const user = resData?.user || response?.user;
+
+      if (!token) {
+        throw new Error('Google authentication succeeded but no token was returned.');
+      }
+
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({ user, token, isLoading: false, error: null });
       return response;
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message || 'Google Login failed';
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Google Login failed. Please try again.');
       set({ error: errorMsg, isLoading: false });
       throw new Error(errorMsg);
     }
@@ -63,14 +82,22 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authService.register(data);
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      set({ user: response.data.user, token: response.data.token, isLoading: false });
+      const resData = response?.data || response;
+      const token = resData?.token || response?.token;
+      const user = resData?.user || response?.user;
+
+      if (token) {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ user, token, isLoading: false, error: null });
+      } else {
+        set({ isLoading: false, error: null });
+      }
       return response;
     } catch (error) {
-      const errorMsg = error?.message || 'Registration failed';
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Registration failed. Please try again.');
       set({ error: errorMsg, isLoading: false });
-      throw error;
+      throw new Error(errorMsg);
     }
   },
 

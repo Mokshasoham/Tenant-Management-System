@@ -3,7 +3,8 @@ import { GoogleLogin } from '@react-oauth/google';
 import useAuthStore from '../context/authStore';
 
 export default function GoogleSignInButton({ onError, setIsLoading, navigate, text = "Continue with Google" }) {
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const rawClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '416610039857-2deqh9j44nksus08k2jas62cj534267c.apps.googleusercontent.com';
+  const googleClientId = String(rawClientId).replace(/^["']|["']$/g, '').trim();
   const isConfigured = Boolean(
     googleClientId &&
     googleClientId.length > 10 &&
@@ -29,15 +30,29 @@ export default function GoogleSignInButton({ onError, setIsLoading, navigate, te
             onSuccess={async (credentialResponse) => {
               try {
                 if (setIsLoading) setIsLoading(true);
-                await useAuthStore.getState().googleLogin(credentialResponse.credential);
-                if (navigate) navigate('/dashboard');
+                if (!credentialResponse?.credential) {
+                  throw new Error('No credential token returned by Google Identity.');
+                }
+                const response = await useAuthStore.getState().googleLogin(credentialResponse.credential);
+                const resData = response?.data || response;
+                const loggedUser = resData?.user || JSON.parse(localStorage.getItem('user') || '{}');
+                
+                if (navigate) {
+                  if (loggedUser?.role === 'technician') {
+                    navigate('/technician/dashboard');
+                  } else {
+                    navigate('/dashboard');
+                  }
+                }
               } catch (err) {
-                if (onError) onError(err.message || 'Google authentication failed');
+                console.error('[GoogleSignIn] Auth failed:', err);
+                if (onError) onError(err.message || 'Google authentication failed. Please try again.');
                 if (setIsLoading) setIsLoading(false);
               }
             }}
             onError={() => {
-              if (onError) onError('Google Log In Failed');
+              console.error('[GoogleSignIn] Google component reported onError');
+              if (onError) onError('Google Log In Failed. Please check your browser popup settings and network connection.');
               setUseFallback(true);
             }}
             useOneTap={false}

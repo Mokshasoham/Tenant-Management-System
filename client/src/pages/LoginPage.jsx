@@ -211,15 +211,37 @@ export default function LoginPage() {
               transition={{ delay: 0.5 }}
               className="mt-8 flex justify-center gap-6"
             >
-              <div className="text-center group cursor-help">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Admin Demo</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const emailInput = document.querySelector('input[type="email"]');
+                  const passwordInput = document.querySelector('input[type="password"]');
+                  if (emailInput) emailInput.value = 'admin@gmail.com';
+                  if (passwordInput) passwordInput.value = 'Admin@1234';
+                  // trigger react hook form
+                  onSubmit({ email: 'admin@gmail.com', password: 'Admin@1234' });
+                }}
+                className="text-center group cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Admin Demo (Auto-Fill)</p>
                 <p className="text-xs font-bold text-foreground/50">admin@gmail.com</p>
-              </div>
+              </button>
               <div className="h-8 w-px bg-gray-200 dark:bg-white/10" />
-              <div className="text-center group cursor-help">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Manager Demo</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const emailInput = document.querySelector('input[type="email"]');
+                  const passwordInput = document.querySelector('input[type="password"]');
+                  if (emailInput) emailInput.value = 'manager@gmail.com';
+                  if (passwordInput) passwordInput.value = 'Manager@1234';
+                  // trigger react hook form
+                  onSubmit({ email: 'manager@gmail.com', password: 'Manager@1234' });
+                }}
+                className="text-center group cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Manager Demo (Auto-Fill)</p>
                 <p className="text-xs font-bold text-foreground/50">manager@gmail.com</p>
-              </div>
+              </button>
             </motion.div>
           </div>
         </div>

@@ -24,6 +24,11 @@ const config = {
   // CORS
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   
+  // Google OAuth
+  GOOGLE_CLIENT_ID: (process.env.GOOGLE_CLIENT_ID || '416610039857-2deqh9j44nksus08k2jas62cj534267c.apps.googleusercontent.com').replace(/^["']|["']$/g, '').trim(),
+  GOOGLE_CLIENT_SECRET: (process.env.GOOGLE_CLIENT_SECRET || '').replace(/^["']|["']$/g, '').trim(),
+  GOOGLE_CALLBACK_URL: (process.env.GOOGLE_CALLBACK_URL || '').replace(/^["']|["']$/g, '').trim(),
+  
   // Email
   SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),

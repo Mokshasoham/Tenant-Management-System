@@ -184,9 +184,12 @@ function App() {
     initializeAuth();
   }, [initializeAuth]);
 
+  const rawGoogleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '416610039857-2deqh9j44nksus08k2jas62cj534267c.apps.googleusercontent.com';
+  const googleClientId = String(rawGoogleClientId).replace(/^["']|["']$/g, '').trim();
+
   return (
     <HelmetProvider>
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '345345345345-dummy.apps.googleusercontent.com'}>
+      <GoogleOAuthProvider clientId={googleClientId}>
         <Router>
           <VerificationProvider>
             <ChatProvider>
