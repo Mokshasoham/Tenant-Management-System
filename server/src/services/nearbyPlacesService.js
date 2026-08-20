@@ -2,6 +2,12 @@
  * nearbyPlacesService.js
  * Production-grade service for discovering nearby amenities around a property,
  * calculating distances, and retrieving driving route geometry.
+ * Features:
+ * - Multi-tier OSM Provider: Multi-mirror Overpass API with adaptive radius + Nominatim POI fallback
+ * - Single normalized property coordinate extractor (rejects 0,0 Null Island and invalid ranges)
+ * - Robust category normalization across 8 standard categories
+ * - In-memory property-specific caching (20 min TTL)
+ * - OSRM driving route engine with graceful Haversine fallback
  */
 
 // In-memory cache with 20-minute TTL
@@ -17,6 +23,46 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+/**
+ * Extracts and validates geographical coordinates from any property object/document.
+ * Supports: property.location.lat/lng, property.location.latitude/longitude, property.geo.coordinates [lng, lat]
+ * Rejects: Null Island (0,0), non-numbers, out-of-range latitudes/longitudes.
+ */
+export function getPropertyCoordinates(property) {
+  if (!property) return { valid: false, reason: 'LOCATION_UNAVAILABLE' };
+
+  let lat = property.location?.lat ?? property.location?.latitude;
+  let lng = property.location?.lng ?? property.location?.longitude;
+
+  // Fallback to GeoJSON coordinates: [lng, lat]
+  if (
+    (lat === undefined || lng === undefined || lat === null || lng === null) &&
+    Array.isArray(property.geo?.coordinates) &&
+    property.geo.coordinates.length >= 2
+  ) {
+    lng = property.geo.coordinates[0];
+    lat = property.geo.coordinates[1];
+  }
+
+  lat = Number(lat);
+  lng = Number(lng);
+
+  if (isNaN(lat) || isNaN(lng)) {
+    return { valid: false, reason: 'LOCATION_UNAVAILABLE' };
+  }
+
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { valid: false, reason: 'LOCATION_UNAVAILABLE' };
+  }
+
+  // Reject Null Island (0, 0)
+  if (lat === 0 && lng === 0) {
+    return { valid: false, reason: 'LOCATION_UNAVAILABLE' };
+  }
+
+  return { valid: true, latitude: lat, longitude: lng };
+}
 
 /**
  * Calculates geographic distance in meters between two coordinates using the Haversine formula.
@@ -50,27 +96,31 @@ export function formatDistance(meters) {
  * Maps raw OpenStreetMap tags into standardized TMS categories.
  */
 function categorizeOsmPlace(tags = {}) {
-  const amenity = tags.amenity || '';
-  const railway = tags.railway || '';
-  const aeroway = tags.aeroway || '';
-  const shop = tags.shop || '';
-  const leisure = tags.leisure || '';
-  const tourism = tags.tourism || '';
-  const highway = tags.highway || '';
+  const amenity = (tags.amenity || '').toLowerCase();
+  const railway = (tags.railway || '').toLowerCase();
+  const aeroway = (tags.aeroway || '').toLowerCase();
+  const shop = (tags.shop || '').toLowerCase();
+  const leisure = (tags.leisure || '').toLowerCase();
+  const tourism = (tags.tourism || '').toLowerCase();
+  const highway = (tags.highway || '').toLowerCase();
 
   // 1. TRANSIT
   if (
     railway === 'station' ||
     railway === 'halt' ||
     railway === 'subway_entrance' ||
+    railway === 'stop' ||
     aeroway === 'aerodrome' ||
     aeroway === 'terminal' ||
+    aeroway === 'airport' ||
     amenity === 'bus_station' ||
+    amenity === 'ferry_terminal' ||
     highway === 'bus_stop'
   ) {
     let sub = 'transit_station';
     if (railway === 'station' || railway === 'halt') sub = 'railway_station';
-    else if (aeroway === 'aerodrome' || aeroway === 'terminal') sub = 'airport';
+    else if (railway === 'subway_entrance') sub = 'subway_station';
+    else if (aeroway === 'aerodrome' || aeroway === 'terminal' || aeroway === 'airport') sub = 'airport';
     else if (amenity === 'bus_station' || highway === 'bus_stop') sub = 'bus_station';
     return { category: 'transit', subcategory: sub };
   }
@@ -82,11 +132,13 @@ function categorizeOsmPlace(tags = {}) {
     amenity === 'pharmacy' ||
     amenity === 'doctors' ||
     amenity === 'dentist' ||
-    shop === 'chemist'
+    amenity === 'healthcare' ||
+    shop === 'chemist' ||
+    shop === 'medical_supply'
   ) {
     let sub = 'hospital';
     if (amenity === 'pharmacy' || shop === 'chemist') sub = 'pharmacy';
-    else if (amenity === 'clinic') sub = 'clinic';
+    else if (amenity === 'clinic' || amenity === 'doctors') sub = 'clinic';
     return { category: 'health', subcategory: sub };
   }
 
@@ -97,7 +149,10 @@ function categorizeOsmPlace(tags = {}) {
     amenity === 'fast_food' ||
     amenity === 'food_court' ||
     amenity === 'bar' ||
-    shop === 'bakery'
+    amenity === 'pub' ||
+    amenity === 'ice_cream' ||
+    shop === 'bakery' ||
+    shop === 'beverages'
   ) {
     let sub = 'restaurant';
     if (amenity === 'cafe') sub = 'cafe';
@@ -112,12 +167,15 @@ function categorizeOsmPlace(tags = {}) {
     shop === 'department_store' ||
     shop === 'convenience' ||
     shop === 'general' ||
-    amenity === 'marketplace'
+    shop === 'clothes' ||
+    shop === 'grocery' ||
+    amenity === 'marketplace' ||
+    amenity === 'market'
   ) {
     let sub = 'shopping';
     if (shop === 'mall') sub = 'shopping_mall';
-    else if (shop === 'supermarket') sub = 'supermarket';
-    else if (amenity === 'marketplace') sub = 'market';
+    else if (shop === 'supermarket' || shop === 'grocery') sub = 'supermarket';
+    else if (amenity === 'marketplace' || amenity === 'market') sub = 'market';
     return { category: 'shopping', subcategory: sub };
   }
 
@@ -127,7 +185,8 @@ function categorizeOsmPlace(tags = {}) {
     amenity === 'college' ||
     amenity === 'university' ||
     amenity === 'kindergarten' ||
-    amenity === 'library'
+    amenity === 'library' ||
+    amenity === 'music_school'
   ) {
     let sub = 'school';
     if (amenity === 'college' || amenity === 'university') sub = 'college';
@@ -136,7 +195,7 @@ function categorizeOsmPlace(tags = {}) {
   }
 
   // 6. FINANCE
-  if (amenity === 'bank' || amenity === 'atm') {
+  if (amenity === 'bank' || amenity === 'atm' || amenity === 'bureau_de_change') {
     return { category: 'finance', subcategory: amenity === 'atm' ? 'atm' : 'bank' };
   }
 
@@ -147,7 +206,9 @@ function categorizeOsmPlace(tags = {}) {
     amenity === 'post_office' ||
     amenity === 'place_of_worship' ||
     amenity === 'fire_station' ||
+    amenity === 'community_centre' ||
     leisure === 'fitness_centre' ||
+    leisure === 'sports_centre' ||
     leisure === 'park' ||
     tourism === 'hotel'
   ) {
@@ -155,132 +216,193 @@ function categorizeOsmPlace(tags = {}) {
     if (amenity === 'fuel') sub = 'fuel_station';
     else if (amenity === 'police') sub = 'police_station';
     else if (amenity === 'place_of_worship') sub = 'place_of_worship';
-    else if (leisure === 'fitness_centre') sub = 'gym';
+    else if (leisure === 'fitness_centre' || leisure === 'sports_centre') sub = 'gym';
     else if (leisure === 'park') sub = 'park';
     return { category: 'services', subcategory: sub };
   }
 
-  return null;
+  return { category: 'services', subcategory: 'local_amenity' };
 }
 
 /**
- * Fetches nearby places from OpenStreetMap Overpass API around given coordinates.
+ * Fetches nearby places using a resilient multi-tier strategy:
+ * Tier 1: Overpass API with multi-mirror failover and adaptive radius.
+ * Tier 2: OpenStreetMap Nominatim POI search fallback.
  */
-export async function fetchNearbyPlacesFromOverpass(propertyId, lat, lng, radius = 8000) {
-  const cacheKey = `${propertyId}_${Math.round(lat * 10000)}_${Math.round(lng * 10000)}`;
-  const cached = cache.get(cacheKey);
+export async function fetchNearbyPlaces(propertyId, lat, lng, category = 'all', requestedRadius = 8000) {
+  const normCategory = (category || 'all').toLowerCase();
+  const radius = Math.min(25000, Math.max(1000, Number(requestedRadius) || 8000));
+  const cacheKey = `nearby:${propertyId}:${Math.round(lat * 10000)}:${Math.round(lng * 10000)}:${normCategory}:${radius}`;
 
+  const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return cached.places;
   }
 
-  // High-efficiency regex-anchored Overpass QL Query
-  const query = `[out:json][timeout:15];
-(
-  node["amenity"~"^(hospital|clinic|pharmacy|bank|atm|school|college|university|restaurant|cafe|fast_food|fuel|police|bus_station|place_of_worship)$"](around:${radius},${lat},${lng});
-  node["railway"~"^(station|halt)$"](around:${Math.max(radius, 15000)},${lat},${lng});
-  node["shop"~"^(mall|supermarket|department_store|convenience|bakery)$"](around:${radius},${lat},${lng});
-  node["leisure"~"^(fitness_centre|park)$"](around:${radius},${lat},${lng});
-);
-out 50;`;
+  const places = [];
+  const seenKeys = new Set();
 
-  const overpassEndpoints = [
+  const overpassMirrors = [
+    'https://overpass.openstreetmap.fr/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   ];
 
-  let rawElements = [];
-  let lastError = null;
+  // Adaptive radius steps: start at 3500m (instant in dense cities), expand to 8000m if needed
+  const radiusSteps = [3500, radius];
 
-  for (const endpoint of overpassEndpoints) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+  for (const stepRadius of radiusSteps) {
+    const query = `[out:json][timeout:10];
+(
+  node["amenity"~"^(hospital|clinic|pharmacy|bank|atm|school|college|university|restaurant|cafe|fast_food|fuel|police|bus_station|place_of_worship)$"](around:${stepRadius},${lat},${lng});
+  node["railway"~"^(station|halt|subway_entrance)$"](around:${Math.max(stepRadius, 8000)},${lat},${lng});
+  node["aeroway"~"^(aerodrome|terminal)$"](around:45000,${lat},${lng});
+  node["shop"~"^(mall|supermarket|department_store|convenience|bakery)$"](around:${stepRadius},${lat},${lng});
+  node["leisure"~"^(fitness_centre|park)$"](around:${stepRadius},${lat},${lng});
+);
+out center 45;`;
 
-      const res = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`, {
-        headers: {
-          'User-Agent': 'TenantManagementSystem/2.0 (Property Neighborhood Explorer)',
-          Accept: 'application/json',
-        },
-        signal: controller.signal,
-      });
+    for (const mirror of overpassMirrors) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      clearTimeout(timeoutId);
+        const res = await fetch(`${mirror}?data=${encodeURIComponent(query)}`, {
+          headers: {
+            'User-Agent': 'TenantManagementSystem/2.0 (Property Neighborhood Explorer)',
+            Accept: 'application/json',
+          },
+          signal: controller.signal,
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.elements) && data.elements.length > 0) {
-          rawElements = data.elements;
-          break;
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.elements) && data.elements.length > 0) {
+            for (const el of data.elements) {
+              const tags = el.tags || {};
+              const name = tags.name || tags['name:en'] || tags.brand || tags.operator;
+              if (!name || name.trim().length === 0) continue;
+
+              const placeLat = el.lat ?? el.center?.lat;
+              const placeLng = el.lon ?? el.center?.lon;
+              if (typeof placeLat !== 'number' || typeof placeLng !== 'number') continue;
+
+              const dedupKey = `${name.toLowerCase().trim()}_${Math.round(placeLat * 1000)}_${Math.round(placeLng * 1000)}`;
+              if (seenKeys.has(dedupKey)) continue;
+              seenKeys.add(dedupKey);
+
+              const classification = categorizeOsmPlace(tags);
+              const distanceMeters = haversineDistance(lat, lng, placeLat, placeLng);
+
+              const street = tags['addr:street'] ? `${tags['addr:housenumber'] || ''} ${tags['addr:street']}`.trim() : '';
+              const suburb = tags['addr:suburb'] || tags['addr:neighbourhood'] || tags['addr:city'] || '';
+              const address = street && suburb ? `${street}, ${suburb}` : street || suburb || '';
+
+              places.push({
+                id: `osm_${el.type}_${el.id}`,
+                name: name.trim(),
+                category: classification.category,
+                subcategory: classification.subcategory,
+                latitude: placeLat,
+                longitude: placeLng,
+                distanceMeters,
+                distanceText: formatDistance(distanceMeters),
+                address: address.trim(),
+              });
+            }
+            break; // mirror succeeded
+          }
         }
+      } catch (err) {
+        // try next mirror
       }
-    } catch (err) {
-      lastError = err;
     }
+
+    if (places.length >= 8) break; // sufficient places found
   }
 
-  if (rawElements.length === 0 && lastError) {
-    console.warn(`[nearbyPlacesService] Overpass query notice: ${lastError.message}`);
+  // Tier 2 Fallback: Nominatim POI search if Overpass returned 0
+  if (places.length === 0) {
+    const categoriesToSearch = [
+      { cat: 'transit', q: 'station' },
+      { cat: 'health', q: 'hospital' },
+      { cat: 'food', q: 'restaurant' },
+      { cat: 'shopping', q: 'supermarket' },
+      { cat: 'education', q: 'school' },
+      { cat: 'finance', q: 'bank' },
+      { cat: 'services', q: 'fuel' },
+    ];
+
+    const viewbox = `${lng - 0.04},${lat + 0.04},${lng + 0.04},${lat - 0.04}`;
+
+    await Promise.all(
+      categoriesToSearch.map(async (item) => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(item.q)}&format=json&bounded=1&viewbox=${viewbox}&limit=5&addressdetails=1`;
+          const res = await fetch(url, {
+            headers: { 'User-Agent': 'TMS-Property-Explorer/2.0' },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              for (const p of data) {
+                const pLat = parseFloat(p.lat);
+                const pLng = parseFloat(p.lon);
+                if (isNaN(pLat) || isNaN(pLng)) continue;
+
+                const name = p.name || p.display_name?.split(',')[0];
+                if (!name || name.trim().length === 0) continue;
+
+                const dedupKey = `${name.toLowerCase().trim()}_${Math.round(pLat * 1000)}_${Math.round(pLng * 1000)}`;
+                if (seenKeys.has(dedupKey)) continue;
+                seenKeys.add(dedupKey);
+
+                const distanceMeters = haversineDistance(lat, lng, pLat, pLng);
+
+                places.push({
+                  id: `nom_${p.place_id}`,
+                  name: name.trim(),
+                  category: item.cat,
+                  subcategory: item.cat,
+                  latitude: pLat,
+                  longitude: pLng,
+                  distanceMeters,
+                  distanceText: formatDistance(distanceMeters),
+                  address: p.display_name?.split(',').slice(1, 3).join(',').trim() || '',
+                });
+              }
+            }
+          }
+        } catch (err) {
+          // ignore individual search failures
+        }
+      })
+    );
   }
 
-  // Parse and normalize elements
-  const seenIds = new Set();
-  const places = [];
-
-  for (const el of rawElements) {
-    const tags = el.tags || {};
-    const name = tags.name || tags['name:en'] || tags.brand || tags.operator || '';
-    if (!name || name.trim().length === 0) continue;
-
-    const classification = categorizeOsmPlace(tags);
-    if (!classification) continue;
-
-    const placeLat = el.lat ?? el.center?.lat;
-    const placeLng = el.lon ?? el.center?.lon;
-    if (typeof placeLat !== 'number' || typeof placeLng !== 'number') continue;
-
-    const placeId = `osm_${el.type}_${el.id}`;
-    if (seenIds.has(placeId)) continue;
-    seenIds.add(placeId);
-
-    const distanceMeters = haversineDistance(lat, lng, placeLat, placeLng);
-
-    // Build street address / location subtitle
-    const street = tags['addr:street'] ? `${tags['addr:housenumber'] || ''} ${tags['addr:street']}`.trim() : '';
-    const suburb = tags['addr:suburb'] || tags['addr:neighbourhood'] || tags['addr:city'] || '';
-    const address = street && suburb ? `${street}, ${suburb}` : street || suburb || tags.description || '';
-
-    places.push({
-      id: placeId,
-      name: name.trim(),
-      category: classification.category,
-      subcategory: classification.subcategory,
-      latitude: placeLat,
-      longitude: placeLng,
-      distanceMeters,
-      distanceText: formatDistance(distanceMeters),
-      address: address.trim(),
-      tags: {
-        amenity: tags.amenity,
-        railway: tags.railway,
-        shop: tags.shop,
-        cuisine: tags.cuisine,
-        phone: tags.phone || tags['contact:phone'],
-        website: tags.website || tags['contact:website'],
-      },
-    });
-  }
-
-  // Sort by nearest to farthest
+  // Sort strictly by numeric distanceMeters ascending
   places.sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-  // Store in cache
-  if (places.length > 0) {
-    cache.set(cacheKey, { timestamp: Date.now(), places });
+  // Filter by requested category if not 'all'
+  let filtered = places;
+  if (normCategory !== 'all') {
+    filtered = places.filter((p) => p.category === normCategory);
   }
 
-  return places;
+  // Cache normalized result set
+  if (places.length > 0) {
+    cache.set(cacheKey, { timestamp: Date.now(), places: filtered });
+  }
+
+  return filtered;
 }
 
 /**
@@ -288,12 +410,15 @@ out 50;`;
  * Uses OSRM driving engine with graceful Haversine fallback.
  */
 export async function getDrivingRoute(originLat, originLng, destLat, destLng) {
-  // Input validations
   if (
     typeof originLat !== 'number' ||
     typeof originLng !== 'number' ||
     typeof destLat !== 'number' ||
-    typeof destLng !== 'number'
+    typeof destLng !== 'number' ||
+    isNaN(originLat) ||
+    isNaN(originLng) ||
+    isNaN(destLat) ||
+    isNaN(destLng)
   ) {
     throw new Error('Valid numeric coordinates are required for route calculation.');
   }
@@ -332,7 +457,7 @@ export async function getDrivingRoute(originLat, originLng, destLat, destLng) {
               : `${(roadDistanceMeters / 1000).toFixed(1)} km by road`,
           durationSeconds: durationSec,
           durationText: mins < 60 ? `~${Math.max(1, mins)} min` : `~${(durationSec / 3600).toFixed(1)} hr`,
-          geometry: route.geometry, // GeoJSON LineString coordinates: [[lng, lat], ...]
+          geometry: route.geometry,
           isRoadRoute: true,
           mapsUrl,
         };

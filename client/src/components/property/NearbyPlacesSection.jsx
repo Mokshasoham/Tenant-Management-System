@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Loader2,
   Building2,
+  MapPinOff,
 } from 'lucide-react';
 import { nearbyService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
@@ -38,6 +39,7 @@ const CATEGORIES = [
 
 const SUBCATEGORY_LABELS = {
   railway_station: 'Railway Station',
+  subway_station: 'Subway Station',
   airport: 'Airport',
   bus_station: 'Bus Station',
   transit_station: 'Transit Hub',
@@ -60,6 +62,7 @@ const SUBCATEGORY_LABELS = {
   gym: 'Fitness & Gym',
   park: 'Park & Recreation',
   place_of_worship: 'Place of Worship',
+  local_amenity: 'Neighborhood Amenity',
 };
 
 const getCategoryIcon = (category) => {
@@ -92,32 +95,31 @@ export default function NearbyPlacesSection({ property }) {
   const [places, setPlaces] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAll, setShowAll] = useState(false);
+  const [statusReason, setStatusReason] = useState(null); // 'OK' | 'NO_RESULTS' | 'LOCATION_UNAVAILABLE' | 'PROVIDER_UNAVAILABLE'
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeRoutePlace, setActiveRoutePlace] = useState(null);
 
   const propertyId = property?._id || property?.id;
-  const hasCoordinates =
-    property?.location?.lat !== undefined &&
-    property?.location?.lng !== undefined &&
-    !isNaN(Number(property.location.lat)) &&
-    !isNaN(Number(property.location.lng));
 
-  // Reset when propertyId changes
+  // Strict property isolation: reset all state when property changes
   useEffect(() => {
     setIsExpanded(false);
+    setLoading(false);
     setPlaces([]);
     setSelectedCategory('all');
     setShowAll(false);
+    setStatusReason(null);
     setErrorMessage(null);
     setActiveRoutePlace(null);
   }, [propertyId]);
 
   // Fetch nearby places
   const fetchPlaces = useCallback(async () => {
-    if (!propertyId || !hasCoordinates) return;
+    if (!propertyId) return;
 
     setLoading(true);
     setErrorMessage(null);
+    setStatusReason(null);
 
     try {
       const res = await nearbyService.getNearbyPlaces(propertyId, {
@@ -126,27 +128,43 @@ export default function NearbyPlacesSection({ property }) {
       });
 
       const data = res?.data?.data || res?.data || res;
-      if (Array.isArray(data?.places)) {
+
+      if (data?.reason === 'LOCATION_UNAVAILABLE') {
+        setStatusReason('LOCATION_UNAVAILABLE');
+        setPlaces([]);
+      } else if (data?.reason === 'PROVIDER_UNAVAILABLE') {
+        setStatusReason('PROVIDER_UNAVAILABLE');
+        setPlaces([]);
+        setErrorMessage(data?.message || 'Nearby places service is temporarily unavailable. Please retry.');
+      } else if (Array.isArray(data?.places)) {
         setPlaces(data.places);
+        setStatusReason(data.places.length === 0 ? 'NO_RESULTS' : 'OK');
       } else {
         setPlaces([]);
+        setStatusReason('NO_RESULTS');
       }
     } catch (err) {
       console.warn('[NearbyPlacesSection] Error fetching nearby places:', err);
-      setErrorMessage(
-        err?.response?.data?.message ||
-          'Nearby places are temporarily unavailable. Please try again.'
-      );
+      const serverReason = err?.response?.data?.reason;
+      if (serverReason === 'LOCATION_UNAVAILABLE') {
+        setStatusReason('LOCATION_UNAVAILABLE');
+      } else {
+        setStatusReason('PROVIDER_UNAVAILABLE');
+        setErrorMessage(
+          err?.response?.data?.message ||
+            'Nearby places are temporarily unavailable. Please try again.'
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, [propertyId, hasCoordinates]);
+  }, [propertyId]);
 
   // Expand / Toggle Click
   const handleToggleExpand = () => {
     const nextState = !isExpanded;
     setIsExpanded(nextState);
-    if (nextState && places.length === 0 && !loading) {
+    if (nextState && places.length === 0 && !loading && statusReason !== 'LOCATION_UNAVAILABLE') {
       fetchPlaces();
     }
   };
@@ -168,10 +186,6 @@ export default function NearbyPlacesSection({ property }) {
 
   // Initial visible slice (top 6 unless showAll is true)
   const visiblePlaces = showAll ? filteredPlaces : filteredPlaces.slice(0, 6);
-
-  if (!hasCoordinates) {
-    return null; // Gracefully omit section if property has no location coordinates
-  }
 
   return (
     <div className="space-y-6 pt-4 border-t border-border/60">
@@ -303,8 +317,28 @@ export default function NearbyPlacesSection({ property }) {
               </div>
             </div>
 
-            {/* Error State Banner */}
-            {errorMessage && (
+            {/* Missing Property Location State */}
+            {statusReason === 'LOCATION_UNAVAILABLE' && (
+              <div
+                className={cn(
+                  "p-8 sm:p-10 rounded-3xl border text-center space-y-3 shadow-inner",
+                  isDark ? "bg-slate-950/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
+                )}
+              >
+                <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  <MapPinOff className="w-6 h-6" />
+                </div>
+                <h4 className={cn("text-base font-black tracking-tight", isDark ? "text-white" : "text-slate-900")}>
+                  Nearby places aren't available for this property yet
+                </h4>
+                <p className="text-xs max-w-md mx-auto">
+                  Property location coordinates are not configured or pending verification in the registry.
+                </p>
+              </div>
+            )}
+
+            {/* Provider Error / Unavailable Banner */}
+            {statusReason === 'PROVIDER_UNAVAILABLE' && errorMessage && (
               <div
                 className={cn(
                   "p-4 sm:p-5 rounded-2xl border text-xs font-bold flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md",
@@ -355,8 +389,8 @@ export default function NearbyPlacesSection({ property }) {
                   </div>
                 ))}
               </div>
-            ) : filteredPlaces.length === 0 ? (
-              /* Empty State */
+            ) : statusReason !== 'LOCATION_UNAVAILABLE' && filteredPlaces.length === 0 ? (
+              /* Empty State (Genuinely no places in category / area) */
               <div
                 className={cn(
                   "p-8 sm:p-12 rounded-3xl border text-center space-y-3 shadow-inner",
@@ -367,10 +401,14 @@ export default function NearbyPlacesSection({ property }) {
                   <Compass className="w-6 h-6" />
                 </div>
                 <h4 className={cn("text-base font-black tracking-tight", isDark ? "text-white" : "text-slate-900")}>
-                  Nothing nearby in this category yet
+                  {selectedCategory === 'all'
+                    ? 'No nearby places found in this area'
+                    : `No ${selectedCategory} places found in this area`}
                 </h4>
                 <p className="text-xs max-w-md mx-auto">
-                  We couldn't find registered places for this category within the neighborhood radius.
+                  {selectedCategory === 'all'
+                    ? 'No registered amenities were detected within the search radius for this location.'
+                    : 'Try selecting another category or viewing all places.'}
                 </p>
                 {selectedCategory !== 'all' && (
                   <button
@@ -382,7 +420,7 @@ export default function NearbyPlacesSection({ property }) {
                   </button>
                 )}
               </div>
-            ) : (
+            ) : statusReason !== 'LOCATION_UNAVAILABLE' ? (
               /* ── Place Cards Grid ── */
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -452,6 +490,7 @@ export default function NearbyPlacesSection({ property }) {
                           <button
                             type="button"
                             onClick={() => setActiveRoutePlace(place)}
+                            aria-label={`Navigate to ${place.name}`}
                             className={cn(
                               "w-full py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer",
                               isDark
@@ -492,7 +531,7 @@ export default function NearbyPlacesSection({ property }) {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>

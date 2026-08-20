@@ -1,61 +1,97 @@
 import asyncHandler from 'express-async-handler';
 import Property from '../models/Property.js';
-import { fetchNearbyPlacesFromOverpass, getDrivingRoute } from '../services/nearbyPlacesService.js';
+import {
+  getPropertyCoordinates,
+  fetchNearbyPlaces,
+  getDrivingRoute,
+} from '../services/nearbyPlacesService.js';
 
 /**
  * GET /api/properties/:id/nearby
  * Authenticated endpoint to retrieve nearby places around a specific property.
  */
 export const getNearbyPlaces = asyncHandler(async (req, res) => {
-  const property = await Property.findById(req.params.id).select('name address city location status');
+  const property = await Property.findById(req.params.id).select(
+    'name address city state country location geo status'
+  );
 
   if (!property) {
     return res.status(404).json({
       success: false,
+      reason: 'NOT_FOUND',
       message: 'Property not found.',
     });
   }
 
-  const lat = property.location?.lat;
-  const lng = property.location?.lng;
+  // Extract and validate property coordinates
+  const coords = getPropertyCoordinates(property);
 
-  if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
-    return res.status(400).json({
+  if (!coords.valid) {
+    return res.status(200).json({
       success: false,
-      message: 'Nearby places are unavailable because this property has no valid location coordinates.',
-    });
-  }
-
-  const category = (req.query.category || 'all').toLowerCase();
-  const radius = Math.min(25000, Math.max(1000, Number(req.query.radius) || 6000));
-
-  try {
-    const allPlaces = await fetchNearbyPlacesFromOverpass(property._id, lat, lng, radius);
-
-    let filtered = allPlaces;
-    if (category !== 'all') {
-      filtered = allPlaces.filter((p) => p.category === category);
-    }
-
-    res.status(200).json({
-      success: true,
+      reason: 'LOCATION_UNAVAILABLE',
+      message: 'Property location coordinates are missing or invalid.',
       property: {
         id: property._id,
         name: property.name,
         address: property.address,
         city: property.city,
-        latitude: lat,
-        longitude: lng,
+      },
+      total: 0,
+      places: [],
+    });
+  }
+
+  const category = (req.query.category || 'all').toLowerCase();
+  const radius = Math.min(25000, Math.max(1000, Number(req.query.radius) || 8000));
+
+  try {
+    const places = await fetchNearbyPlaces(
+      property._id,
+      coords.latitude,
+      coords.longitude,
+      category,
+      radius
+    );
+
+    // Development logging for observability
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(
+        `[NearbyPlaces] property="${property.name}" (${property._id}) lat=${coords.latitude} lng=${coords.longitude} category=${category} radius=${radius} results=${places.length}`
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      reason: places.length === 0 ? 'NO_RESULTS' : 'OK',
+      property: {
+        id: property._id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       },
       category,
-      total: filtered.length,
-      places: filtered,
+      total: places.length,
+      places,
     });
   } catch (err) {
     console.error(`[nearbyPlacesController] Error fetching nearby places for ${property._id}:`, err);
-    res.status(502).json({
+    res.status(200).json({
       success: false,
-      message: 'Nearby places service is temporarily unavailable. Please retry shortly.',
+      reason: 'PROVIDER_UNAVAILABLE',
+      message: 'Nearby places service is temporarily busy. Please retry.',
+      property: {
+        id: property._id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      },
+      total: 0,
+      places: [],
     });
   }
 });
@@ -65,21 +101,24 @@ export const getNearbyPlaces = asyncHandler(async (req, res) => {
  * Authenticated endpoint to compute driving route geometry and road distance to a destination.
  */
 export const getRoute = asyncHandler(async (req, res) => {
-  const property = await Property.findById(req.params.id).select('name address city location');
+  const property = await Property.findById(req.params.id).select(
+    'name address city state location geo'
+  );
 
   if (!property) {
     return res.status(404).json({
       success: false,
+      reason: 'NOT_FOUND',
       message: 'Property not found.',
     });
   }
 
-  const originLat = property.location?.lat;
-  const originLng = property.location?.lng;
+  const coords = getPropertyCoordinates(property);
 
-  if (typeof originLat !== 'number' || typeof originLng !== 'number' || isNaN(originLat) || isNaN(originLng)) {
+  if (!coords.valid) {
     return res.status(400).json({
       success: false,
+      reason: 'LOCATION_UNAVAILABLE',
       message: 'Property origin coordinates are missing or invalid.',
     });
   }
@@ -94,24 +133,31 @@ export const getRoute = asyncHandler(async (req, res) => {
     destLat < -90 ||
     destLat > 90 ||
     destLng < -180 ||
-    destLng > 180
+    destLng > 180 ||
+    (destLat === 0 && destLng === 0)
   ) {
     return res.status(400).json({
       success: false,
+      reason: 'INVALID_DESTINATION',
       message: 'Valid destination latitude (-90..90) and longitude (-180..180) are required.',
     });
   }
 
   try {
-    const routeResult = await getDrivingRoute(originLat, originLng, destLat, destLng);
+    const routeResult = await getDrivingRoute(
+      coords.latitude,
+      coords.longitude,
+      destLat,
+      destLng
+    );
 
     res.status(200).json({
       success: true,
       origin: {
         id: property._id,
         name: property.name,
-        latitude: originLat,
-        longitude: originLng,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       },
       destination: {
         name: destName,
@@ -124,6 +170,7 @@ export const getRoute = asyncHandler(async (req, res) => {
     console.error(`[nearbyPlacesController] Route calculation error:`, err);
     res.status(500).json({
       success: false,
+      reason: 'ROUTE_FAILED',
       message: 'Route calculation failed. Direct navigation is still available via maps.',
     });
   }
