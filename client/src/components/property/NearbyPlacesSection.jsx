@@ -65,6 +65,51 @@ const SUBCATEGORY_LABELS = {
   local_amenity: 'Neighborhood Amenity',
 };
 
+const CATEGORY_STYLES = {
+  finance: {
+    badgeDark: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    badgeLight: 'bg-blue-50 text-blue-700 border-blue-200',
+    iconBgDark: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    iconBgLight: 'bg-blue-50 text-blue-600 border-blue-100',
+  },
+  shopping: {
+    badgeDark: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    badgeLight: 'bg-purple-50 text-purple-700 border-purple-200',
+    iconBgDark: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    iconBgLight: 'bg-purple-50 text-purple-600 border-purple-100',
+  },
+  food: {
+    badgeDark: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    badgeLight: 'bg-amber-50 text-amber-700 border-amber-200',
+    iconBgDark: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    iconBgLight: 'bg-amber-50 text-amber-600 border-amber-100',
+  },
+  health: {
+    badgeDark: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    badgeLight: 'bg-rose-50 text-rose-700 border-rose-200',
+    iconBgDark: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    iconBgLight: 'bg-rose-50 text-rose-600 border-rose-100',
+  },
+  transit: {
+    badgeDark: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    badgeLight: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    iconBgDark: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    iconBgLight: 'bg-cyan-50 text-cyan-600 border-cyan-100',
+  },
+  education: {
+    badgeDark: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    badgeLight: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    iconBgDark: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    iconBgLight: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+  },
+  services: {
+    badgeDark: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    badgeLight: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    iconBgDark: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    iconBgLight: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  },
+};
+
 const getCategoryIcon = (category) => {
   switch (category) {
     case 'transit':
@@ -189,41 +234,33 @@ export default function NearbyPlacesSection({ property }) {
 
   return (
     <div className="space-y-6 pt-4 border-t border-border/60">
-      {/* ── 1. HERO EXPANDER BANNER ── */}
+      {/* ── 1. HERO EXPANDER BANNER (PREMIUM REAL ESTATE SAAS LOOK) ── */}
       <div
         className={cn(
-          "relative rounded-[28px] border p-6 sm:p-8 overflow-hidden transition-all duration-300 shadow-xl",
+          "relative rounded-2xl border p-6 sm:p-7 overflow-hidden transition-all duration-300",
           isDark
-            ? "bg-gradient-to-r from-[#061F1D] via-[#041416] to-[#020B0E] border-emerald-500/30 text-white shadow-[0_15px_35px_-10px_rgba(0,0,0,0.8)]"
-            : "bg-gradient-to-r from-emerald-50/95 via-teal-50/90 to-white border-emerald-200 text-slate-900 shadow-md"
+            ? "bg-[#09111E] border-slate-800/80 text-white shadow-lg"
+            : "bg-[#F8FAFC] border-slate-200 text-slate-900 shadow-xs"
         )}
       >
-        <div
-          className={cn(
-            "absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl pointer-events-none",
-            isDark ? "bg-emerald-500/10" : "bg-emerald-400/15"
-          )}
-        />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div
-              className={cn(
-                "inline-flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest uppercase shadow-sm",
-                isDark
-                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                  : "bg-emerald-100 border-emerald-300 text-emerald-800"
-              )}
-            >
-              <Compass className="w-3.5 h-3.5 text-emerald-500" />
-              <span>✦ EXPLORE THE NEIGHBORHOOD</span>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "text-[10px] font-bold tracking-[0.2em] uppercase",
+                  isDark ? "text-emerald-400" : "text-emerald-700"
+                )}
+              >
+                ✦ EXPLORE THE NEIGHBORHOOD
+              </span>
             </div>
 
-            <h3 className={cn("text-xl sm:text-2xl font-black tracking-tight", isDark ? "text-white" : "text-slate-900")}>
+            <h3 className={cn("text-xl sm:text-2xl font-bold tracking-tight", isDark ? "text-slate-100" : "text-slate-900")}>
               Explore Nearby Places
             </h3>
 
-            <p className={cn("text-xs sm:text-sm max-w-xl font-medium", isDark ? "text-slate-300" : "text-slate-600")}>
+            <p className={cn("text-xs sm:text-sm max-w-xl font-normal leading-relaxed", isDark ? "text-slate-400" : "text-slate-500")}>
               Discover transit stations, hospitals, markets, dining, and essential amenities around this property.
             </p>
           </div>
@@ -233,23 +270,25 @@ export default function NearbyPlacesSection({ property }) {
             type="button"
             onClick={handleToggleExpand}
             className={cn(
-              "inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-lg shrink-0",
+              "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer shrink-0 group",
               isExpanded
                 ? isDark
-                  ? "bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-slate-300"
-                  : "bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 shadow-sm"
-                : "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25 hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-slate-300"
+                  : "bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-xs"
+                : isDark
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm hover:shadow"
+                : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
             )}
           >
             {isExpanded ? (
               <>
                 <span>Hide Neighborhood</span>
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className="w-3.5 h-3.5" />
               </>
             ) : (
               <>
                 <span>Explore Nearby Places</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
               </>
             )}
           </button>
@@ -263,11 +302,11 @@ export default function NearbyPlacesSection({ property }) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6 overflow-hidden pt-2"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="space-y-5 overflow-hidden pt-1"
           >
             {/* Category Filter Chips */}
-            <div className="overflow-x-auto pb-2 -mx-2 px-2">
+            <div className="overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
               <div className="flex items-center gap-2 min-w-max">
                 {CATEGORIES.map((cat) => {
                   const CatIcon = cat.icon;
@@ -283,14 +322,14 @@ export default function NearbyPlacesSection({ property }) {
                         setShowAll(false);
                       }}
                       className={cn(
-                        "inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer border shadow-sm",
+                        "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer border",
                         isSelected
                           ? isDark
-                            ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-emerald-500/25"
-                            : "bg-emerald-600 text-white border-emerald-700 shadow-emerald-600/25"
+                            ? "bg-slate-800 border-emerald-500/40 text-emerald-400 font-semibold shadow-xs"
+                            : "bg-slate-900 border-slate-900 text-white font-semibold shadow-xs"
                           : isDark
-                          ? "bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
-                          : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+                          ? "bg-slate-900/80 hover:bg-slate-800/80 border-slate-800 text-slate-400 hover:text-slate-200"
+                          : "bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-xs"
                       )}
                     >
                       <CatIcon className="w-3.5 h-3.5 shrink-0" />
@@ -298,11 +337,11 @@ export default function NearbyPlacesSection({ property }) {
                       {places.length > 0 && count > 0 && (
                         <span
                           className={cn(
-                            "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                            "px-1.5 py-0.5 rounded-md text-[10px] font-mono font-medium",
                             isSelected
                               ? isDark
-                                ? "bg-slate-950/30 text-slate-950"
-                                : "bg-white/30 text-white"
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-white/20 text-white"
                               : isDark
                               ? "bg-slate-800 text-slate-400"
                               : "bg-slate-100 text-slate-600"
@@ -321,18 +360,18 @@ export default function NearbyPlacesSection({ property }) {
             {statusReason === 'LOCATION_UNAVAILABLE' && (
               <div
                 className={cn(
-                  "p-8 sm:p-10 rounded-3xl border text-center space-y-3 shadow-inner",
-                  isDark ? "bg-slate-950/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
+                  "p-7 rounded-2xl border text-center space-y-2.5",
+                  isDark ? "bg-slate-900/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
                 )}
               >
-                <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <MapPinOff className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  <MapPinOff className="w-5 h-5" />
                 </div>
-                <h4 className={cn("text-base font-black tracking-tight", isDark ? "text-white" : "text-slate-900")}>
+                <h4 className={cn("text-sm font-semibold", isDark ? "text-slate-200" : "text-slate-900")}>
                   Nearby places aren't available for this property yet
                 </h4>
-                <p className="text-xs max-w-md mx-auto">
-                  Property location coordinates are not configured or pending verification in the registry.
+                <p className="text-xs max-w-md mx-auto text-slate-400">
+                  Property location coordinates are not configured or pending verification.
                 </p>
               </div>
             )}
@@ -341,14 +380,14 @@ export default function NearbyPlacesSection({ property }) {
             {statusReason === 'PROVIDER_UNAVAILABLE' && errorMessage && (
               <div
                 className={cn(
-                  "p-4 sm:p-5 rounded-2xl border text-xs font-bold flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md",
+                  "p-4 rounded-xl border text-xs flex flex-col sm:flex-row items-center justify-between gap-3",
                   isDark
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-200"
-                    : "bg-amber-50 border-amber-200 text-amber-900"
+                    ? "bg-slate-900/80 border-slate-800 text-slate-300"
+                    : "bg-slate-50 border-slate-200 text-slate-700"
                 )}
               >
                 <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
                 <button
@@ -356,13 +395,13 @@ export default function NearbyPlacesSection({ property }) {
                   onClick={fetchPlaces}
                   disabled={loading}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 cursor-pointer transition-all shrink-0",
+                    "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 border",
                     isDark
-                      ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300"
-                      : "bg-amber-200 hover:bg-amber-300 text-amber-900"
+                      ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                      : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs"
                   )}
                 >
-                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                   <span>Retry</span>
                 </button>
               </div>
@@ -375,37 +414,38 @@ export default function NearbyPlacesSection({ property }) {
                   <div
                     key={idx}
                     className={cn(
-                      "p-5 rounded-2xl border space-y-3 animate-pulse",
-                      isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-100/80 border-slate-200"
+                      "p-5 rounded-2xl border space-y-3.5 animate-pulse",
+                      isDark ? "bg-[#0D1626] border-slate-800/80" : "bg-white border-slate-200"
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <div className={cn("w-10 h-10 rounded-xl", isDark ? "bg-slate-800" : "bg-slate-200")} />
-                      <div className={cn("w-16 h-5 rounded-full", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                      <div className={cn("w-9 h-9 rounded-xl", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                      <div className={cn("w-16 h-4 rounded-full", isDark ? "bg-slate-800" : "bg-slate-200")} />
                     </div>
-                    <div className={cn("w-3/4 h-5 rounded", isDark ? "bg-slate-800" : "bg-slate-200")} />
-                    <div className={cn("w-1/2 h-3.5 rounded", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                    <div className={cn("w-3/4 h-4 rounded mt-2", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                    <div className={cn("w-1/2 h-3 rounded", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                    <div className={cn("w-2/5 h-3 rounded", isDark ? "bg-slate-800" : "bg-slate-200")} />
                     <div className={cn("w-full h-9 rounded-xl pt-2", isDark ? "bg-slate-800" : "bg-slate-200")} />
                   </div>
                 ))}
               </div>
             ) : statusReason !== 'LOCATION_UNAVAILABLE' && filteredPlaces.length === 0 ? (
-              /* Empty State (Genuinely no places in category / area) */
+              /* Empty State */
               <div
                 className={cn(
-                  "p-8 sm:p-12 rounded-3xl border text-center space-y-3 shadow-inner",
-                  isDark ? "bg-slate-950/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
+                  "p-8 rounded-2xl border text-center space-y-2.5",
+                  isDark ? "bg-slate-900/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
                 )}
               >
-                <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  <Compass className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center bg-slate-800/60 text-slate-400 border border-slate-700">
+                  <Compass className="w-5 h-5" />
                 </div>
-                <h4 className={cn("text-base font-black tracking-tight", isDark ? "text-white" : "text-slate-900")}>
+                <h4 className={cn("text-sm font-semibold", isDark ? "text-slate-200" : "text-slate-900")}>
                   {selectedCategory === 'all'
                     ? 'No nearby places found in this area'
                     : `No ${selectedCategory} places found in this area`}
                 </h4>
-                <p className="text-xs max-w-md mx-auto">
+                <p className="text-xs max-w-md mx-auto text-slate-400">
                   {selectedCategory === 'all'
                     ? 'No registered amenities were detected within the search radius for this location.'
                     : 'Try selecting another category or viewing all places.'}
@@ -414,93 +454,97 @@ export default function NearbyPlacesSection({ property }) {
                   <button
                     type="button"
                     onClick={() => setSelectedCategory('all')}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-all cursor-pointer mt-2"
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer mt-2",
+                      isDark
+                        ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                        : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs"
+                    )}
                   >
                     <span>View All Categories</span>
                   </button>
                 )}
               </div>
             ) : statusReason !== 'LOCATION_UNAVAILABLE' ? (
-              /* ── Place Cards Grid ── */
-              <div className="space-y-6">
+              /* ── Place Cards Grid (Premium Real Estate SaaS Style) ── */
+              <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {visiblePlaces.map((place) => {
                     const PlaceIcon = getCategoryIcon(place.category);
                     const subLabel = SUBCATEGORY_LABELS[place.subcategory] || place.category.toUpperCase();
+                    const style = CATEGORY_STYLES[place.category] || CATEGORY_STYLES.services;
 
                     return (
                       <motion.div
                         key={place.id}
-                        whileHover={{ y: -3 }}
-                        transition={{ duration: 0.2 }}
+                        whileHover={{ y: -2 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
                         className={cn(
-                          "relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-md",
+                          "relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 h-full",
                           isDark
-                            ? "bg-slate-900/80 hover:bg-slate-900 border-slate-800 hover:border-emerald-500/40 text-white"
-                            : "bg-white hover:bg-slate-50/90 border-slate-200 hover:border-emerald-300 text-slate-900 shadow-slate-200/50"
+                            ? "bg-[#0D1626] hover:bg-[#101B2E] border-slate-800/80 hover:border-slate-700 text-white shadow-sm"
+                            : "bg-white hover:bg-slate-50/60 border-slate-200 hover:border-slate-300 text-slate-900 shadow-xs hover:shadow-sm"
                         )}
                       >
-                        <div className="space-y-3.5">
-                          {/* Header: Icon + Category Badge */}
+                        <div>
+                          {/* Top Row: Icon container + Category badge */}
                           <div className="flex items-center justify-between">
                             <div
                               className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner",
-                                isDark
-                                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                                  : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                                "w-9 h-9 rounded-xl flex items-center justify-center border",
+                                isDark ? style.iconBgDark : style.iconBgLight
                               )}
                             >
-                              <PlaceIcon className="w-5 h-5 stroke-[2.2]" />
+                              <PlaceIcon className="w-4 h-4 stroke-[2]" />
                             </div>
 
                             <span
                               className={cn(
-                                "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border",
-                                isDark
-                                  ? "bg-slate-800 border-slate-700 text-slate-300"
-                                  : "bg-slate-100 border-slate-200 text-slate-700"
+                                "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                                isDark ? style.badgeDark : style.badgeLight
                               )}
                             >
-                              {subLabel}
+                              {place.category.toUpperCase()}
                             </span>
                           </div>
 
                           {/* Place Name & Subtitle */}
-                          <div className="space-y-1">
-                            <h4 className={cn("text-base font-black truncate tracking-tight", isDark ? "text-white" : "text-slate-900")}>
+                          <div className="mt-3.5 space-y-1">
+                            <h4 className={cn("text-sm sm:text-base font-semibold truncate tracking-tight", isDark ? "text-slate-100" : "text-slate-900")}>
                               {place.name}
                             </h4>
-                            <p className={cn("text-xs font-medium truncate", isDark ? "text-slate-400" : "text-slate-500")}>
-                              {place.address || `${subLabel} in neighborhood`}
+                            <p className={cn("text-xs truncate", isDark ? "text-slate-400" : "text-slate-500")}>
+                              {place.address || `${subLabel} in area`}
                             </p>
                           </div>
 
                           {/* Distance Badge */}
-                          <div className="flex items-center gap-1.5 pt-1">
-                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className={cn("text-xs font-mono font-bold", isDark ? "text-emerald-400" : "text-emerald-700")}>
+                          <div className="flex items-center gap-1.5 mt-3 pt-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span className={cn("text-xs font-medium", isDark ? "text-slate-300" : "text-slate-600")}>
                               {place.distanceText}
                             </span>
                           </div>
                         </div>
 
                         {/* CTA Navigate Action Button */}
-                        <div className="pt-5 mt-2 border-t border-border/40">
+                        <div className="pt-4 mt-3 border-t border-slate-800/40 dark:border-slate-800/60">
                           <button
                             type="button"
                             onClick={() => setActiveRoutePlace(place)}
                             aria-label={`Navigate to ${place.name}`}
                             className={cn(
-                              "w-full py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer",
+                              "w-full py-2.5 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all group/btn cursor-pointer border",
                               isDark
-                                ? "bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 hover:text-white"
-                                : "bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 shadow-sm"
+                                ? "bg-slate-900/80 hover:bg-slate-800/90 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white"
+                                : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs"
                             )}
                           >
-                            <Navigation className="w-3.5 h-3.5" />
-                            <span>Navigate</span>
-                            <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+                            <div className="flex items-center gap-2">
+                              <Navigation className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-400" />
+                              <span>Navigate</span>
+                            </div>
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover/btn:text-emerald-400 group-hover/btn:translate-x-0.5 transition-transform" />
                           </button>
                         </div>
                       </motion.div>
@@ -515,18 +559,18 @@ export default function NearbyPlacesSection({ property }) {
                       type="button"
                       onClick={() => setShowAll(!showAll)}
                       className={cn(
-                        "inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl border text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm",
+                        "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-xs",
                         isDark
-                          ? "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white"
-                          : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+                          ? "bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white"
+                          : "bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700 shadow-xs"
                       )}
                     >
                       <span>
                         {showAll
-                          ? 'Show Less'
+                          ? 'Show Fewer Nearby Places'
                           : `View All ${filteredPlaces.length} Nearby Places`}
                       </span>
-                      {showAll ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {showAll ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 )}
