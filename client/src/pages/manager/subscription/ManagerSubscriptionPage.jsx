@@ -254,6 +254,9 @@ export default function ManagerSubscriptionPage() {
     pro: Crown,
   };
 
+  // Shared 4-Column Grid Definition for Perfect Comparison Matrix Alignment
+  const comparisonGridClass = "grid grid-cols-[minmax(260px,1.5fr)_repeat(3,minmax(160px,1fr))] gap-4 px-3 sm:px-4";
+
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-300 p-4 sm:p-6 lg:p-8 font-sans",
@@ -834,7 +837,7 @@ export default function ManagerSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── 5. COMPARE MANAGER PLAN FEATURES (High-End SaaS Comparison) ── */}
+        {/* ── 5. COMPARE MANAGER PLAN FEATURES (Shared 4-Column Grid System) ── */}
         <div className={cn(
           "relative rounded-[32px] border p-6 sm:p-10 overflow-hidden shadow-2xl transition-all duration-300",
           isDark
@@ -875,25 +878,25 @@ export default function ManagerSubscriptionPage() {
               </p>
             </div>
 
-            {/* Premium Table Container */}
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
-              <div className="min-w-[640px] pb-2">
-                {/* Column Headers Grid */}
-                <div className={cn(
-                  "grid grid-cols-12 gap-3 sm:gap-4 pb-4 items-end border-b",
-                  isDark ? "border-slate-800/80" : "border-slate-200"
-                )}>
+            {/* Comparison Matrix with Guaranteed Shared Grid */}
+            <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="min-w-[760px] sm:min-w-[820px] space-y-4">
+                
+                {/* ── HEADER ROW (SHARED GRID) ── */}
+                <div className={cn(comparisonGridClass, "pb-4 items-end border-b", isDark ? "border-slate-800/80" : "border-slate-200")}>
+                  {/* Col 1: Title */}
                   <div className={cn(
-                    "col-span-5 px-3 py-2 text-[10px] font-black uppercase tracking-widest",
+                    "text-[10px] font-black uppercase tracking-widest pb-3",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
                     FEATURE BREAKDOWN
                   </div>
 
-                  {/* STARTER Header Cell */}
-                  <div className="col-span-2 text-center">
+                  {/* Col 2: STARTER Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1" />
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1 shadow-sm",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 shadow-sm box-border",
                       isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-100 border-slate-200"
                     )}>
                       <span className={cn(
@@ -906,7 +909,7 @@ export default function ManagerSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹0 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
+                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-slate-400" : "text-slate-600")}>
                         3 properties
@@ -914,15 +917,15 @@ export default function ManagerSubscriptionPage() {
                     </div>
                   </div>
 
-                  {/* PLUS Header Cell (Emphasized) */}
-                  <div className="col-span-2 text-center relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  {/* Col 3: PLUS Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-indigo-300/40">
                         MOST POPULAR
                       </span>
                     </div>
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1 ring-1",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 ring-1 box-border",
                       isDark
                         ? "bg-gradient-to-b from-indigo-950/60 to-indigo-950/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)] ring-indigo-500/30"
                         : "bg-gradient-to-b from-indigo-100/70 to-indigo-50/40 border-indigo-300 shadow-md ring-indigo-400/20"
@@ -937,7 +940,7 @@ export default function ManagerSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹1,499 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-indigo-400/70" : "text-indigo-600")}>/mo</span>
+                        ₹1,499 <span className={cn("text-[10px] font-normal", isDark ? "text-indigo-400/70" : "text-indigo-600")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-indigo-300" : "text-indigo-800")}>
                         5 properties
@@ -945,15 +948,15 @@ export default function ManagerSubscriptionPage() {
                     </div>
                   </div>
 
-                  {/* PRO Header Cell */}
-                  <div className="col-span-3 text-center relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  {/* Col 4: PRO Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-violet-300/40">
                         GROWING PORTFOLIOS
                       </span>
                     </div>
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 box-border",
                       isDark
                         ? "bg-gradient-to-b from-violet-950/50 to-violet-950/20 border-violet-500/40 shadow-[0_0_15px_rgba(139,92,246,0.2)]"
                         : "bg-gradient-to-b from-violet-100/70 to-violet-50/40 border-violet-300 shadow-md"
@@ -968,7 +971,7 @@ export default function ManagerSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹2,999 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-violet-400/70" : "text-violet-600")}>/mo</span>
+                        ₹2,999 <span className={cn("text-[10px] font-normal", isDark ? "text-violet-400/70" : "text-violet-600")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-violet-300" : "text-violet-800")}>
                         Unlimited (6+)
@@ -977,17 +980,18 @@ export default function ManagerSubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Feature Rows */}
+                {/* ── FEATURE ROWS (SAME SHARED GRID) ── */}
                 <div className={cn(
                   "divide-y",
                   isDark ? "divide-slate-800/40" : "divide-slate-200/80"
                 )}>
                   {/* Row 1: Properties Managed */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-4 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -999,7 +1003,7 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3 py-1 rounded-full border font-mono font-bold text-xs shadow-inner",
                         isDark ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1008,7 +1012,7 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/35 text-indigo-300" : "bg-indigo-100 border-indigo-300 text-indigo-800"
@@ -1017,7 +1021,7 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3.5 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-violet-500/15 border-violet-500/35 text-violet-300" : "bg-violet-100 border-violet-300 text-violet-800"
@@ -1029,10 +1033,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 2: Tenant & Lease Directory */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1044,7 +1049,7 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1053,7 +1058,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1062,7 +1067,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1074,10 +1079,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 3: Maintenance Ticket Dispatch */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1089,7 +1095,7 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1098,7 +1104,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1107,7 +1113,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1119,10 +1125,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 4: Financial & Revenue Analytics */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1134,11 +1141,11 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1147,7 +1154,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1159,10 +1166,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 5: Enhanced PDF & CSV Audit Exports */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1174,11 +1182,11 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1187,7 +1195,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1199,10 +1207,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 6: Priority Support & Dispatch Assistance */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1214,11 +1223,11 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1227,7 +1236,7 @@ export default function ManagerSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-700"
@@ -1239,10 +1248,11 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Row 7: Enterprise Multi-Manager Delegation & API Access */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-indigo-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1254,15 +1264,15 @@ export default function ManagerSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border shadow-sm",
                         isDark ? "bg-violet-500/20 border-violet-400/40 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.25)]" : "bg-violet-100 border-violet-300 text-violet-800"
@@ -1276,7 +1286,7 @@ export default function ManagerSubscriptionPage() {
 
                 {/* Footer Subtitle */}
                 <div className={cn(
-                  "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2",
+                  "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2 px-3 sm:px-4",
                   isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600"
                 )}>
                   <span className="font-medium">Choose the plan that fits your property operations.</span>

@@ -305,6 +305,9 @@ export default function TenantSubscriptionPage() {
     pro: Crown,
   };
 
+  // Shared 4-Column Grid Definition for Perfect Comparison Matrix Alignment
+  const comparisonGridClass = "grid grid-cols-[minmax(260px,1.5fr)_repeat(3,minmax(160px,1fr))] gap-4 px-3 sm:px-4";
+
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-300 p-4 sm:p-6 lg:p-8 font-sans",
@@ -845,7 +848,7 @@ export default function TenantSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── REDESIGNED HIGH-END SAAS COMPARE PLAN FEATURES SECTION ── */}
+        {/* ── 5. COMPARE PLAN FEATURES (Shared 4-Column Grid System) ── */}
         <div className={cn(
           "relative rounded-[32px] border p-6 sm:p-10 overflow-hidden shadow-2xl transition-all duration-300",
           isDark
@@ -886,25 +889,25 @@ export default function TenantSubscriptionPage() {
               </p>
             </div>
 
-            {/* Premium Table Container */}
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
-              <div className="min-w-[620px] pb-2">
-                {/* Column Headers Grid */}
-                <div className={cn(
-                  "grid grid-cols-12 gap-3 sm:gap-4 pb-4 items-end border-b",
-                  isDark ? "border-slate-800/80" : "border-slate-200"
-                )}>
+            {/* Comparison Matrix with Guaranteed Shared Grid */}
+            <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="min-w-[760px] sm:min-w-[820px] space-y-4">
+                
+                {/* ── HEADER ROW (SHARED GRID) ── */}
+                <div className={cn(comparisonGridClass, "pb-4 items-end border-b", isDark ? "border-slate-800/80" : "border-slate-200")}>
+                  {/* Col 1: Title */}
                   <div className={cn(
-                    "col-span-5 px-3 py-2 text-[10px] font-black uppercase tracking-widest",
+                    "text-[10px] font-black uppercase tracking-widest pb-3",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
                     FEATURE BREAKDOWN
                   </div>
 
-                  {/* FREE Header Cell */}
-                  <div className="col-span-2 text-center">
+                  {/* Col 2: FREE Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1" />
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1 shadow-sm",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 shadow-sm box-border",
                       isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-100 border-slate-200"
                     )}>
                       <span className={cn(
@@ -917,7 +920,7 @@ export default function TenantSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹0 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
+                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-slate-400" : "text-slate-600")}>
                         2 leases
@@ -925,17 +928,17 @@ export default function TenantSubscriptionPage() {
                     </div>
                   </div>
 
-                  {/* PLUS Header Cell (Emphasized) */}
-                  <div className="col-span-2 text-center relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  {/* Col 3: PLUS Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-emerald-300/40">
                         MOST POPULAR
                       </span>
                     </div>
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1 ring-1",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 ring-1 box-border",
                       isDark
-                        ? "bg-gradient-to-b from-emerald-950/50 to-emerald-950/20 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-emerald-500/20"
+                        ? "bg-gradient-to-b from-emerald-950/60 to-emerald-950/20 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-emerald-500/20"
                         : "bg-gradient-to-b from-emerald-100/70 to-emerald-50/40 border-emerald-300 shadow-md ring-emerald-400/20"
                     )}>
                       <span className={cn(
@@ -948,7 +951,7 @@ export default function TenantSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹499 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-emerald-400/70" : "text-emerald-600")}>/mo</span>
+                        ₹499 <span className={cn("text-[10px] font-normal", isDark ? "text-emerald-400/70" : "text-emerald-600")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-emerald-300" : "text-emerald-800")}>
                         4 leases
@@ -956,15 +959,15 @@ export default function TenantSubscriptionPage() {
                     </div>
                   </div>
 
-                  {/* PRO Header Cell */}
-                  <div className="col-span-3 text-center relative">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  {/* Col 4: PRO Header Card */}
+                  <div className="flex flex-col h-full justify-end">
+                    <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-cyan-300/40">
                         BEST VALUE
                       </span>
                     </div>
                     <div className={cn(
-                      "p-3 sm:p-4 rounded-2xl border space-y-1",
+                      "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 box-border",
                       isDark
                         ? "bg-gradient-to-b from-cyan-950/50 to-cyan-950/20 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
                         : "bg-gradient-to-b from-cyan-100/70 to-cyan-50/40 border-cyan-300 shadow-md"
@@ -979,7 +982,7 @@ export default function TenantSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹999 <span className={cn("text-[10px] font-bold font-normal", isDark ? "text-cyan-400/70" : "text-cyan-600")}>/mo</span>
+                        ₹999 <span className={cn("text-[10px] font-normal", isDark ? "text-cyan-400/70" : "text-cyan-600")}>/mo</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-cyan-300" : "text-cyan-800")}>
                         Unlimited (5+)
@@ -988,17 +991,18 @@ export default function TenantSubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Feature Rows */}
+                {/* ── FEATURE ROWS (SAME SHARED GRID) ── */}
                 <div className={cn(
                   "divide-y",
                   isDark ? "divide-slate-800/40" : "divide-slate-200/80"
                 )}>
                   {/* Row 1: Active Leases */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-4 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1010,7 +1014,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3 py-1 rounded-full border font-mono font-bold text-xs shadow-inner",
                         isDark ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1019,7 +1023,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-300" : "bg-emerald-100 border-emerald-300 text-emerald-800"
@@ -1028,7 +1032,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn(
                         "px-3.5 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300" : "bg-cyan-100 border-cyan-300 text-cyan-800"
@@ -1040,10 +1044,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 2: Rent Payments & Receipts */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1055,7 +1060,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1064,7 +1069,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1073,7 +1078,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1085,10 +1090,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 3: Utility Invoices & Bills */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1100,7 +1106,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1109,7 +1115,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1118,7 +1124,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1130,10 +1136,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 4: Direct Landlord Messaging */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1145,7 +1152,7 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1154,7 +1161,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1163,7 +1170,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1175,10 +1182,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 5: Advanced Tax & Expense Reports */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1190,11 +1198,11 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1203,7 +1211,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1215,10 +1223,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 6: Priority Resident Support */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1230,11 +1239,11 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1243,7 +1252,7 @@ export default function TenantSubscriptionPage() {
                       </div>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center justify-center w-6 h-6 rounded-full border shadow-sm",
                         isDark ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-700"
@@ -1255,10 +1264,11 @@ export default function TenantSubscriptionPage() {
 
                   {/* Row 7: Lifetime Document Vault & Early Access */}
                   <div className={cn(
-                    "grid grid-cols-12 gap-3 sm:gap-4 py-3.5 px-3 items-center rounded-xl transition-colors duration-200",
+                    comparisonGridClass,
+                    "py-3.5 rounded-xl transition-colors duration-200",
                     isDark ? "hover:bg-slate-800/30" : "hover:bg-emerald-50/50"
                   )}>
-                    <div className="col-span-5 flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5">
                       <div className={cn(
                         "w-7 h-7 rounded-xl border flex items-center justify-center shrink-0 shadow-sm",
                         isDark ? "bg-slate-800/80 border-slate-700/70 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700"
@@ -1270,15 +1280,15 @@ export default function TenantSubscriptionPage() {
                       </span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-2 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <span className={cn("font-mono text-base select-none", isDark ? "text-slate-600" : "text-slate-400")}>—</span>
                     </div>
 
-                    <div className="col-span-3 text-center flex justify-center">
+                    <div className="text-center flex justify-center">
                       <div className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border shadow-sm",
                         isDark ? "bg-cyan-500/20 border-cyan-400/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]" : "bg-cyan-100 border-cyan-300 text-cyan-800"
@@ -1292,7 +1302,7 @@ export default function TenantSubscriptionPage() {
 
                 {/* Footer Subtitle */}
                 <div className={cn(
-                  "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2",
+                  "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2 px-3 sm:px-4",
                   isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600"
                 )}>
                   <span className="font-medium">Choose the plan that fits your rental portfolio.</span>
