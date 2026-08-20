@@ -58,6 +58,13 @@ export const propertyService = {
   uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { timeout: 120000 }),
   getPropertyQrPass: (id, leaseId) => apiClient.get(`/properties/${id}/qr-pass`, { params: { leaseId } }),
   verifyPropertyPublic: (token) => apiClient.get(`/properties/public-verify/${token}`),
+  getNearbyPlaces: (id, params) => apiClient.get(`/properties/${id}/nearby`, { params }),
+  getRoute: (id, params) => apiClient.get(`/properties/${id}/route`, { params }),
+};
+
+export const nearbyService = {
+  getNearbyPlaces: (id, params) => apiClient.get(`/properties/${id}/nearby`, { params }),
+  getRoute: (id, params) => apiClient.get(`/properties/${id}/route`, { params }),
 };
 
 export const leaseService = {

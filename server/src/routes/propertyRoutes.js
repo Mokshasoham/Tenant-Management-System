@@ -1,5 +1,6 @@
 import express from 'express';
 import * as propertyController from '../controllers/propertyController.js';
+import * as nearbyController from '../controllers/nearbyPlacesController.js';
 import { authenticate, managerOrAdmin } from '../middleware/auth.js';
 import { validationMiddleware, validatePropertyCreation } from '../middleware/validation.js';
 import { uploadMemory } from '../middleware/uploadMiddleware.js';
@@ -19,6 +20,10 @@ router.get('/:id/qr-pass', propertyController.getPropertyQrPass);
 router.get('/:id', propertyController.getPropertyById);
 router.get('/:id/availability', propertyController.getAvailability);
 router.get('/:id/similar', propertyController.getSimilarProperties);
+
+// Explore Nearby Places & Driving Route (Authenticated)
+router.get('/:id/nearby', nearbyController.getNearbyPlaces);
+router.get('/:id/route', nearbyController.getRoute);
 
 // Toggle save/unsave (all authenticated)
 router.post('/:id/save', propertyController.saveProperty);

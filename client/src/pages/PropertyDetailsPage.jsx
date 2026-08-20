@@ -19,6 +19,7 @@ import RazorpayPayment from '../components/RazorpayPayment';
 import PropertyModal from '../components/PropertyModal';
 import MaintenanceTermsModal from '../components/MaintenanceTermsModal';
 import TenantLeaseLimitModal from '../components/subscription/TenantLeaseLimitModal';
+import NearbyPlacesSection from '../components/property/NearbyPlacesSection';
 
 
 
@@ -1012,6 +1013,9 @@ export default function PropertyDetailsPage() {
                             </div>
                             <PropertyDetailMap location={property.location} name={property.name} address={property.address} city={property.city} />
                         </div>
+
+                        {/* Explore Nearby Places Section */}
+                        <NearbyPlacesSection property={property} />
                     </div>
                 </div>
 
