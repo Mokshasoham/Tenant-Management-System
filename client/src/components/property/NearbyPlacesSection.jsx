@@ -206,13 +206,25 @@ export default function NearbyPlacesSection({ property }) {
   }, [propertyId]);
 
   // Expand / Toggle Click
-  const handleToggleExpand = () => {
+  const handleToggleExpand = useCallback(() => {
     const nextState = !isExpanded;
     setIsExpanded(nextState);
     if (nextState && places.length === 0 && !loading && statusReason !== 'LOCATION_UNAVAILABLE') {
       fetchPlaces();
     }
-  };
+  }, [isExpanded, places.length, loading, statusReason, fetchPlaces]);
+
+  // Listen for external trigger from Top Nearby Places CTA
+  useEffect(() => {
+    const handleOpenNearby = () => {
+      setIsExpanded(true);
+      if (places.length === 0 && !loading && statusReason !== 'LOCATION_UNAVAILABLE') {
+        fetchPlaces();
+      }
+    };
+    window.addEventListener('open-nearby-places', handleOpenNearby);
+    return () => window.removeEventListener('open-nearby-places', handleOpenNearby);
+  }, [places.length, loading, statusReason, fetchPlaces]);
 
   // Filter places by active category
   const filteredPlaces = useMemo(() => {
@@ -233,7 +245,7 @@ export default function NearbyPlacesSection({ property }) {
   const visiblePlaces = showAll ? filteredPlaces : filteredPlaces.slice(0, 6);
 
   return (
-    <div className="space-y-6 pt-4 border-t border-border/60">
+    <div id="explore-nearby-places" className="space-y-6 pt-4 border-t border-border/60 scroll-mt-28 rounded-2xl transition-all duration-300">
       {/* ── 1. HERO EXPANDER BANNER (PREMIUM REAL ESTATE SAAS LOOK) ── */}
       <div
         className={cn(

@@ -20,6 +20,7 @@ import PropertyModal from '../components/PropertyModal';
 import MaintenanceTermsModal from '../components/MaintenanceTermsModal';
 import TenantLeaseLimitModal from '../components/subscription/TenantLeaseLimitModal';
 import NearbyPlacesSection from '../components/property/NearbyPlacesSection';
+import TopNearbyPlacesCTA from '../components/property/TopNearbyPlacesCTA';
 
 
 
@@ -611,6 +612,18 @@ export default function PropertyDetailsPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [activeImage, totalMediaCount, isFullscreen]);
 
+    const handleExploreNearbyClick = () => {
+        window.dispatchEvent(new CustomEvent('open-nearby-places'));
+        const target = document.getElementById('explore-nearby-places');
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.classList.add('ring-1', 'ring-emerald-500/40');
+            setTimeout(() => {
+                target.classList.remove('ring-1', 'ring-emerald-500/40');
+            }, 1200);
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
             <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -945,6 +958,9 @@ export default function PropertyDetailsPage() {
                                 <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-widest">Per Month + ₹{property.depositAmount?.toLocaleString('en-IN')} Deposit</p>
                             </div>
                         </div>
+
+                        {/* Top Explore Nearby Places CTA */}
+                        <TopNearbyPlacesCTA onExploreClick={handleExploreNearbyClick} />
 
                         {/* Quick Specs */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
