@@ -70,57 +70,81 @@ const CATEGORY_STYLES = {
     accent: 'emerald',
     badgeDark: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
     badgeLight: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    iconBgDark: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    iconBgDark: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.12)]',
     iconBgLight: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#0a1d17]/40 via-[#0c1427] to-[#090e1b] border-emerald-500/20 hover:border-emerald-500/40',
+    navBtnDark: 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 shadow-sm shadow-emerald-950/40',
+    chipActiveDark: 'bg-emerald-600 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30',
   },
   transit: {
     accent: 'cyan',
     badgeDark: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25',
     badgeLight: 'bg-cyan-50 text-cyan-800 border-cyan-200',
-    iconBgDark: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    iconBgDark: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.12)]',
     iconBgLight: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#0a1824]/40 via-[#0c1427] to-[#090e1b] border-cyan-500/20 hover:border-cyan-500/40',
+    navBtnDark: 'bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-500/40 shadow-sm shadow-cyan-950/40',
+    chipActiveDark: 'bg-cyan-600 border-cyan-500 text-white shadow-sm ring-1 ring-cyan-500/30',
   },
   health: {
     accent: 'rose',
     badgeDark: 'bg-rose-500/10 text-rose-300 border-rose-500/25',
     badgeLight: 'bg-rose-50 text-rose-800 border-rose-200',
-    iconBgDark: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+    iconBgDark: 'bg-rose-500/15 text-rose-300 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.12)]',
     iconBgLight: 'bg-rose-50 text-rose-700 border-rose-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#1c0d13]/40 via-[#0c1427] to-[#090e1b] border-rose-500/20 hover:border-rose-500/40',
+    navBtnDark: 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-500/40 shadow-sm shadow-rose-950/40',
+    chipActiveDark: 'bg-rose-600 border-rose-500 text-white shadow-sm ring-1 ring-rose-500/30',
   },
   food: {
     accent: 'amber',
     badgeDark: 'bg-amber-500/10 text-amber-300 border-amber-500/25',
     badgeLight: 'bg-amber-50 text-amber-800 border-amber-200',
-    iconBgDark: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    iconBgDark: 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.12)]',
     iconBgLight: 'bg-amber-50 text-amber-700 border-amber-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#1b150c]/40 via-[#0c1427] to-[#090e1b] border-amber-500/20 hover:border-amber-500/40',
+    navBtnDark: 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-500/40 shadow-sm shadow-amber-950/40',
+    chipActiveDark: 'bg-amber-600 border-amber-500 text-white shadow-sm ring-1 ring-amber-500/30',
   },
   shopping: {
     accent: 'purple',
     badgeDark: 'bg-purple-500/10 text-purple-300 border-purple-500/25',
     badgeLight: 'bg-purple-50 text-purple-800 border-purple-200',
-    iconBgDark: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+    iconBgDark: 'bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.12)]',
     iconBgLight: 'bg-purple-50 text-purple-700 border-purple-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#190e24]/40 via-[#0c1427] to-[#090e1b] border-purple-500/20 hover:border-purple-500/40',
+    navBtnDark: 'bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/40 shadow-sm shadow-purple-950/40',
+    chipActiveDark: 'bg-purple-600 border-purple-500 text-white shadow-sm ring-1 ring-purple-500/30',
   },
   education: {
     accent: 'indigo',
     badgeDark: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/25',
     badgeLight: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-    iconBgDark: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+    iconBgDark: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-[0_0_12px_rgba(99,102,241,0.12)]',
     iconBgLight: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#101026]/40 via-[#0c1427] to-[#090e1b] border-indigo-500/20 hover:border-indigo-500/40',
+    navBtnDark: 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/40 shadow-sm shadow-indigo-950/40',
+    chipActiveDark: 'bg-indigo-600 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-500/30',
   },
   finance: {
     accent: 'emerald',
     badgeDark: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
     badgeLight: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    iconBgDark: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    iconBgDark: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.12)]',
     iconBgLight: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#0a1d17]/40 via-[#0c1427] to-[#090e1b] border-emerald-500/20 hover:border-emerald-500/40',
+    navBtnDark: 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/40 shadow-sm shadow-emerald-950/40',
+    chipActiveDark: 'bg-emerald-600 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30',
   },
   services: {
     accent: 'teal',
     badgeDark: 'bg-teal-500/10 text-teal-300 border-teal-500/25',
     badgeLight: 'bg-teal-50 text-teal-800 border-teal-200',
-    iconBgDark: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+    iconBgDark: 'bg-teal-500/15 text-teal-300 border-teal-500/30 shadow-[0_0_12px_rgba(20,184,166,0.12)]',
     iconBgLight: 'bg-teal-50 text-teal-700 border-teal-200',
+    cardDarkBg: 'bg-gradient-to-b from-[#091a1a]/40 via-[#0c1427] to-[#090e1b] border-teal-500/20 hover:border-teal-500/40',
+    navBtnDark: 'bg-teal-600 hover:bg-teal-500 text-white border border-teal-500/40 shadow-sm shadow-teal-950/40',
+    chipActiveDark: 'bg-teal-600 border-teal-500 text-white shadow-sm ring-1 ring-teal-500/30',
   },
 };
 
@@ -349,14 +373,14 @@ export default function NearbyPlacesSection({ property }) {
                         setShowAll(false);
                       }}
                       className={cn(
-                        "inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer border shadow-2xs group shrink-0 active:scale-[0.98]",
+                        "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer border shadow-2xs group shrink-0 active:scale-[0.98]",
                         isSelected
                           ? isDark
-                            ? "bg-slate-800/95 border-emerald-500/50 text-white shadow-xs ring-1 ring-emerald-500/30"
+                            ? style.chipActiveDark
                             : "bg-slate-900 border-slate-900 text-white shadow-xs"
                           : isDark
                           ? "bg-[#0c1427]/80 hover:bg-slate-800/80 border-slate-800/90 text-slate-300 hover:text-white"
-                          : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 shadow-2xs"
+                          : "bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs"
                       )}
                     >
                       {/* Category Icon Bubble */}
@@ -365,7 +389,7 @@ export default function NearbyPlacesSection({ property }) {
                           "w-5 h-5 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 border shrink-0",
                           isSelected
                             ? isDark
-                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              ? "bg-white/20 text-white border-white/30"
                               : "bg-white/20 text-white border-white/30"
                             : isDark
                             ? style.iconBgDark
@@ -384,8 +408,8 @@ export default function NearbyPlacesSection({ property }) {
                             "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-tight transition-colors",
                             isSelected
                               ? isDark
-                                ? "bg-emerald-500/25 text-emerald-200"
-                                : "bg-white/25 text-white"
+                                ? "bg-white/20 text-white"
+                                : "bg-white/20 text-white"
                               : isDark
                               ? "bg-slate-800 text-slate-400 group-hover:text-slate-200"
                               : "bg-slate-100 text-slate-600 group-hover:text-slate-900"
@@ -520,6 +544,10 @@ export default function NearbyPlacesSection({ property }) {
                     const subLabel = SUBCATEGORY_LABELS[place.subcategory] || place.category.toUpperCase();
                     const style = CATEGORY_STYLES[place.category] || CATEGORY_STYLES.services;
 
+                    const formattedDist = place.distance
+                      ? (place.distance < 1000 ? `${place.distance} m` : `${(place.distance / 1000).toFixed(1)} km`)
+                      : place.distanceText?.replace(/\s*from property/i, '').trim() || place.distanceText;
+
                     return (
                       <motion.div
                         key={place.id}
@@ -528,7 +556,7 @@ export default function NearbyPlacesSection({ property }) {
                         className={cn(
                           "relative rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 h-full group shadow-xs hover:shadow-md",
                           isDark
-                            ? "bg-[#0c1427] hover:bg-[#101b33] border-slate-800/90 hover:border-slate-700 text-white"
+                            ? cn(style.cardDarkBg, "text-white")
                             : "bg-white hover:bg-slate-50/80 border-slate-200/90 hover:border-slate-300 text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_20px_rgba(0,0,0,0.06)]"
                         )}
                       >
@@ -560,7 +588,7 @@ export default function NearbyPlacesSection({ property }) {
                             <h4
                               title={place.name}
                               className={cn(
-                                "text-base font-bold truncate tracking-tight transition-colors group-hover:text-emerald-500 dark:group-hover:text-emerald-400",
+                                "text-base font-bold truncate tracking-tight transition-colors group-hover:text-emerald-400 dark:group-hover:text-emerald-300",
                                 isDark ? "text-slate-100" : "text-slate-900"
                               )}
                             >
@@ -571,20 +599,22 @@ export default function NearbyPlacesSection({ property }) {
                             </p>
                           </div>
 
-                          {/* Distance Pill */}
-                          <div className="mt-auto pt-4 flex items-center">
+                          {/* Distance Capsule */}
+                          <div className="mt-auto pt-4">
                             <div
                               className={cn(
-                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold",
+                                "w-full px-3 py-2 rounded-xl border flex items-center justify-between transition-colors",
                                 isDark
-                                  ? "bg-slate-900/90 border-slate-800 text-slate-300"
+                                  ? "bg-slate-900/80 border-slate-800/80 text-slate-300"
                                   : "bg-slate-100 border-slate-200 text-slate-700"
                               )}
                             >
-                              <MapPin className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                              <span className={cn("font-bold", isDark ? "text-slate-200" : "text-slate-900")}>
-                                {place.distanceText}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                                <span className={cn("font-bold text-xs", isDark ? "text-slate-200" : "text-slate-900")}>
+                                  {formattedDist}
+                                </span>
+                              </div>
                               <span className={cn("font-normal text-[11px]", isDark ? "text-slate-400" : "text-slate-500")}>
                                 from property
                               </span>
@@ -593,23 +623,23 @@ export default function NearbyPlacesSection({ property }) {
                         </div>
 
                         {/* Bottom Divider & FULLY FILLED Navigate Action Button */}
-                        <div className="pt-4 mt-3.5 border-t border-slate-200/60 dark:border-slate-800/70">
+                        <div className="pt-3.5 mt-3 border-t border-slate-200/60 dark:border-slate-800/70">
                           <button
                             type="button"
                             onClick={() => setActiveRoutePlace(place)}
                             aria-label={`Navigate to ${place.name}`}
                             className={cn(
-                              "w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-150 cursor-pointer shadow-xs active:scale-[0.98] group/btn border",
+                              "w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-150 cursor-pointer shadow-xs active:scale-[0.98] group/btn",
                               isDark
-                                ? "bg-slate-800 hover:bg-slate-700/90 border-slate-700/80 hover:border-slate-600 text-slate-100 hover:text-white shadow-xs"
-                                : "bg-slate-900 hover:bg-slate-800 border-slate-900 text-white shadow-xs hover:shadow"
+                                ? style.navBtnDark
+                                : "bg-slate-900 hover:bg-slate-800 border border-slate-900 text-white shadow-xs hover:shadow"
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <Navigation className="w-3.5 h-3.5 fill-current text-emerald-400 dark:text-emerald-400 group-hover/btn:rotate-12 transition-transform" />
+                              <Navigation className="w-3.5 h-3.5 fill-current group-hover/btn:rotate-12 transition-transform" />
                               <span className="font-semibold tracking-wide">Navigate</span>
                             </div>
-                            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover/btn:text-white group-hover/btn:translate-x-1 transition-all" />
+                            <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover/btn:text-white group-hover/btn:translate-x-1 transition-all" />
                           </button>
                         </div>
                       </motion.div>
@@ -626,7 +656,7 @@ export default function NearbyPlacesSection({ property }) {
                       className={cn(
                         "inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-[0.98]",
                         isDark
-                          ? "bg-slate-800 hover:bg-slate-700/90 border-slate-700/80 hover:border-slate-600 text-slate-200 hover:text-white"
+                          ? "bg-slate-800/95 hover:bg-slate-700/95 border-slate-700/80 text-slate-200 hover:text-white"
                           : "bg-slate-900 hover:bg-slate-800 border-slate-900 text-white shadow-xs"
                       )}
                     >
