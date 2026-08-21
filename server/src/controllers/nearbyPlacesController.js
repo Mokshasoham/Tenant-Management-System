@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import {
   getPropertyCoordinates,
   fetchNearbyPlaces,
+  fetchCityPlaces,
   getDrivingRoute,
 } from '../services/nearbyPlacesService.js';
 
@@ -135,7 +136,7 @@ export const getCityPlaces = asyncHandler(async (req, res) => {
   const radius = Math.min(30000, Math.max(5000, Number(req.query.radius) || 15000));
 
   try {
-    const places = await fetchNearbyPlaces(
+    const places = await fetchCityPlaces(
       property._id,
       coords.latitude,
       coords.longitude,
