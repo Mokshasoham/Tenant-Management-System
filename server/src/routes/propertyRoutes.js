@@ -21,8 +21,9 @@ router.get('/:id', propertyController.getPropertyById);
 router.get('/:id/availability', propertyController.getAvailability);
 router.get('/:id/similar', propertyController.getSimilarProperties);
 
-// Explore Nearby Places & Driving Route (Authenticated)
+// Explore Nearby Places & Driving Route & City Discovery (Authenticated)
 router.get('/:id/nearby', nearbyController.getNearbyPlaces);
+router.get('/:id/city-places', nearbyController.getCityPlaces);
 router.get('/:id/route', nearbyController.getRoute);
 
 // Toggle save/unsave (all authenticated)

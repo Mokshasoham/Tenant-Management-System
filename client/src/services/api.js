@@ -59,11 +59,13 @@ export const propertyService = {
   getPropertyQrPass: (id, leaseId) => apiClient.get(`/properties/${id}/qr-pass`, { params: { leaseId } }),
   verifyPropertyPublic: (token) => apiClient.get(`/properties/public-verify/${token}`),
   getNearbyPlaces: (id, params) => apiClient.get(`/properties/${id}/nearby`, { params }),
+  getCityPlaces: (id, params) => apiClient.get(`/properties/${id}/city-places`, { params }),
   getRoute: (id, params) => apiClient.get(`/properties/${id}/route`, { params }),
 };
 
 export const nearbyService = {
   getNearbyPlaces: (id, params) => apiClient.get(`/properties/${id}/nearby`, { params }),
+  getCityPlaces: (id, params) => apiClient.get(`/properties/${id}/city-places`, { params }),
   getRoute: (id, params) => apiClient.get(`/properties/${id}/route`, { params }),
 };
 

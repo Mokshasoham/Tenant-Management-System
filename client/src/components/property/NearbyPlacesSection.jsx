@@ -25,6 +25,7 @@ import { nearbyService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import { cn } from '../../utils/cn';
 import NearbyRouteModal from './NearbyRouteModal';
+import CityPlacesExplorerModal from './CityPlacesExplorerModal';
 
 const CATEGORIES = [
   { id: 'all', label: 'All', icon: Sparkles },
@@ -148,6 +149,63 @@ const CATEGORY_STYLES = {
   },
 };
 
+const EXPLORE_MORE_BTN_STYLES = {
+  all: {
+    dark: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_16px_rgba(16,185,129,0.12)]',
+    light: 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border-emerald-200 hover:border-emerald-300 shadow-xs',
+  },
+  transit: {
+    dark: 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30 hover:border-cyan-500/50 shadow-[0_0_16px_rgba(6,182,212,0.12)]',
+    light: 'bg-cyan-50 hover:bg-cyan-100/80 text-cyan-800 border-cyan-200 hover:border-cyan-300 shadow-xs',
+  },
+  health: {
+    dark: 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30 hover:border-rose-500/50 shadow-[0_0_16px_rgba(244,63,94,0.12)]',
+    light: 'bg-rose-50 hover:bg-rose-100/80 text-rose-800 border-rose-200 hover:border-rose-300 shadow-xs',
+  },
+  food: {
+    dark: 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 hover:border-amber-500/50 shadow-[0_0_16px_rgba(245,158,11,0.12)]',
+    light: 'bg-amber-50 hover:bg-amber-100/80 text-amber-800 border-amber-200 hover:border-amber-300 shadow-xs',
+  },
+  shopping: {
+    dark: 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30 hover:border-purple-500/50 shadow-[0_0_16px_rgba(168,85,247,0.12)]',
+    light: 'bg-purple-50 hover:bg-purple-100/80 text-purple-800 border-purple-200 hover:border-purple-300 shadow-xs',
+  },
+  education: {
+    dark: 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30 hover:border-indigo-500/50 shadow-[0_0_16px_rgba(99,102,241,0.12)]',
+    light: 'bg-indigo-50 hover:bg-indigo-100/80 text-indigo-800 border-indigo-200 hover:border-indigo-300 shadow-xs',
+  },
+  finance: {
+    dark: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_16px_rgba(16,185,129,0.12)]',
+    light: 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border-emerald-200 hover:border-emerald-300 shadow-xs',
+  },
+  services: {
+    dark: 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border-teal-500/30 hover:border-teal-500/50 shadow-[0_0_16px_rgba(20,184,166,0.12)]',
+    light: 'bg-teal-50 hover:bg-teal-100/80 text-teal-800 border-teal-200 hover:border-teal-300 shadow-xs',
+  },
+};
+
+const getExploreMoreLabel = (catKey) => {
+  switch (catKey) {
+    case 'transit':
+      return 'Explore More Transit';
+    case 'health':
+      return 'Explore More Health';
+    case 'food':
+      return 'Explore More Food';
+    case 'shopping':
+      return 'Explore More Shopping';
+    case 'education':
+      return 'Explore More Education';
+    case 'finance':
+      return 'Explore More Finance';
+    case 'services':
+      return 'Explore More Essentials';
+    case 'all':
+    default:
+      return 'Explore More Around the City';
+  }
+};
+
 const getCategoryIcon = (category) => {
   switch (category) {
     case 'transit':
@@ -181,6 +239,7 @@ export default function NearbyPlacesSection({ property }) {
   const [statusReason, setStatusReason] = useState(null); // 'OK' | 'NO_RESULTS' | 'LOCATION_UNAVAILABLE' | 'PROVIDER_UNAVAILABLE'
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeRoutePlace, setActiveRoutePlace] = useState(null);
+  const [isCityExplorerOpen, setIsCityExplorerOpen] = useState(false);
 
   const propertyId = property?._id || property?.id;
 
@@ -194,6 +253,7 @@ export default function NearbyPlacesSection({ property }) {
     setStatusReason(null);
     setErrorMessage(null);
     setActiveRoutePlace(null);
+    setIsCityExplorerOpen(false);
   }, [propertyId]);
 
   // Fetch nearby places
@@ -423,6 +483,36 @@ export default function NearbyPlacesSection({ property }) {
                 })}
               </div>
             </div>
+
+            {/* ── 2. CONTEXTUAL "EXPLORE MORE" CITY DISCOVERY CTA ── */}
+            {statusReason !== 'LOCATION_UNAVAILABLE' && (
+              <div className="flex items-center justify-between flex-wrap gap-3 pt-1 pb-1">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-xs font-semibold tracking-wide", isDark ? "text-slate-400" : "text-slate-500")}>
+                    {selectedCategory === 'all'
+                      ? 'Wider city discovery:'
+                      : `Want to see more ${selectedCategory} options in ${property?.city || 'the city'}?`}
+                  </span>
+                </div>
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsCityExplorerOpen(true)}
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer group shadow-xs",
+                    isDark
+                      ? (EXPLORE_MORE_BTN_STYLES[selectedCategory]?.dark || EXPLORE_MORE_BTN_STYLES.all.dark)
+                      : (EXPLORE_MORE_BTN_STYLES[selectedCategory]?.light || EXPLORE_MORE_BTN_STYLES.all.light)
+                  )}
+                >
+                  <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform duration-200" />
+                  <span>{getExploreMoreLabel(selectedCategory)}</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
+                </motion.button>
+              </div>
+            )}
 
             {/* Missing Property Location State */}
             {statusReason === 'LOCATION_UNAVAILABLE' && (
@@ -675,7 +765,22 @@ export default function NearbyPlacesSection({ property }) {
         )}
       </AnimatePresence>
 
-      {/* ── 3. ROUTE MODAL (LEAFLET ROUTE ENGINE) ── */}
+      {/* ── 3. CITY-WIDE PLACES EXPLORER MODAL ── */}
+      <AnimatePresence>
+        {isCityExplorerOpen && (
+          <CityPlacesExplorerModal
+            isOpen={isCityExplorerOpen}
+            onClose={() => setIsCityExplorerOpen(false)}
+            property={property}
+            category={selectedCategory}
+            onNavigatePlace={(place) => {
+              setActiveRoutePlace(place);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── 4. ROUTE MODAL (LEAFLET ROUTE ENGINE) ── */}
       <AnimatePresence>
         {activeRoutePlace && (
           <NearbyRouteModal

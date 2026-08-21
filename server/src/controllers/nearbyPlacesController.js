@@ -97,6 +97,95 @@ export const getNearbyPlaces = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/properties/:id/city-places
+ * Endpoint to retrieve wider city-level places for a specific category (radius up to 25km).
+ */
+export const getCityPlaces = asyncHandler(async (req, res) => {
+  const property = await Property.findById(req.params.id).select(
+    'name address city state country location geo status'
+  );
+
+  if (!property) {
+    return res.status(404).json({
+      success: false,
+      reason: 'NOT_FOUND',
+      message: 'Property not found.',
+    });
+  }
+
+  const coords = getPropertyCoordinates(property);
+
+  if (!coords.valid) {
+    return res.status(200).json({
+      success: false,
+      reason: 'LOCATION_UNAVAILABLE',
+      message: 'Property location coordinates are missing or invalid.',
+      property: {
+        id: property._id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+      },
+      total: 0,
+      places: [],
+    });
+  }
+
+  const category = (req.query.category || 'all').toLowerCase();
+  const radius = Math.min(30000, Math.max(5000, Number(req.query.radius) || 15000));
+
+  try {
+    const places = await fetchNearbyPlaces(
+      property._id,
+      coords.latitude,
+      coords.longitude,
+      category,
+      radius
+    );
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(
+        `[CityPlaces] property="${property.name}" (${property._id}) category=${category} radius=${radius} results=${places.length}`
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      reason: places.length === 0 ? 'NO_RESULTS' : 'OK',
+      property: {
+        id: property._id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      },
+      category,
+      radius,
+      total: places.length,
+      places,
+    });
+  } catch (err) {
+    console.error(`[nearbyPlacesController] Error fetching city places for ${property._id}:`, err);
+    res.status(200).json({
+      success: false,
+      reason: 'PROVIDER_UNAVAILABLE',
+      message: 'City discovery service is temporarily busy. Please retry.',
+      property: {
+        id: property._id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      },
+      total: 0,
+      places: [],
+    });
+  }
+});
+
+/**
  * GET /api/properties/:id/route
  * Authenticated endpoint to compute driving route geometry and road distance to a destination.
  */
