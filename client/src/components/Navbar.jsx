@@ -7,6 +7,7 @@ import { notificationService, propertyService, paymentService, tenantService, ma
 import { LogOut, Menu, Bell, Search, CheckCircle2, X, ArrowRight, ArrowLeft, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../utils/cn';
 import NavbarNotificationBell from '../modules/lease-renewal/notifications/components/NavbarNotificationBell';
+import ThemeSwitch from './ThemeSwitch';
 
 const ROLE_THEME = {
   admin: {
@@ -322,7 +323,7 @@ export default function Navbar({ toggleSidebar }) {
         role === 'technician' && "hover:border-cyan-500/30",
         isExpanded
           ? "w-full max-w-full rounded-2xl px-4 py-2 h-[64px] min-h-[64px] shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.25)] gap-4"
-          : "w-full max-w-[420px] sm:max-w-[460px] rounded-full px-3 py-1.5 h-[56px] min-h-[56px] shadow-xl dark:shadow-[0_12px_36px_rgba(0,0,0,0.45)] ring-1 ring-white/10 gap-2 sm:gap-3"
+          : "w-full max-w-[480px] sm:max-w-[530px] rounded-full px-3.5 py-1.5 h-[56px] min-h-[56px] shadow-xl dark:shadow-[0_12px_36px_rgba(0,0,0,0.45)] ring-1 ring-white/10 gap-2 sm:gap-3"
       )}
     >
       {/* Glossy Reflection Overlay */}
@@ -386,6 +387,11 @@ export default function Navbar({ toggleSidebar }) {
 
         {/* Notification Bell */}
         <NavbarNotificationBell />
+
+        {/* Light/Dark Theme Switch */}
+        <div className="flex items-center px-1">
+          <ThemeSwitch />
+        </div>
 
         {/* User Avatar */}
         <button 
