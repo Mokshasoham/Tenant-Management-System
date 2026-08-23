@@ -48,24 +48,31 @@ export const resolveLeaseUrls = (lease, req) => {
 // Tenant-scoped: get the current user's own lease
 export const getMyLease = asyncHandler(async (req, res) => {
   const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId).select('email phone');
+  const user = await User.findById(actualUserId).select('email phone firstName lastName');
   if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
   const cleanEmail = (user.email || '').trim();
   const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  const cleanPhone = (user.phone || '').trim();
+  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+
   const tenants = await Tenant.find({
     $or: [
       ...(emailRegex ? [{ email: emailRegex }] : []),
       { user: actualUserId },
       { userId: actualUserId },
-      ...(user.phone ? [{ phone: user.phone }] : [])
+      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
+      ...(user.firstName && user.lastName ? [{
+        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
+        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
+      }] : [])
     ]
   });
   const allUsersWithEmail = await User.find({
     $or: [
       ...(emailRegex ? [{ email: emailRegex }] : []),
       { _id: actualUserId },
-      ...(user.phone ? [{ phone: user.phone }] : [])
+      ...(phoneRegex ? [{ phone: phoneRegex }] : [])
     ]
   }).select('_id');
   const tenantIds = Array.from(new Set([
