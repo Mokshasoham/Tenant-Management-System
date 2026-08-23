@@ -4,17 +4,17 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import useAuthStore from '../context/authStore';
-import { Mail, Lock, Building2, ArrowRight } from 'lucide-react';
-import { Card, Button, Input } from '../components/PremiumUI';
+import { Mail, Lock, Building2, ArrowRight, ShieldCheck, Sparkles, Check } from 'lucide-react';
+import { Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
 import PublicNavbar from '../components/PublicNavbar';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
-const BACKGROUND_URL = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop";
+const LOGIN_BG_IMAGE = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -73,53 +73,52 @@ export default function LoginPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-background flex flex-col pt-20 relative overflow-hidden">
+      <div className="min-h-screen bg-[#060B13] text-foreground flex flex-col relative overflow-x-hidden">
         <PublicNavbar />
 
-        {/* Real Estate Background Image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={BACKGROUND_URL}
-            alt="TMS Background"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-[4px]" />
-        </div>
+        <div className="flex-1 max-w-7xl w-full mx-auto pt-24 pb-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+          <div className="w-full grid lg:grid-cols-12 gap-8 items-stretch rounded-[2.5rem] bg-[#0c172c]/90 border border-emerald-500/20 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden">
+            
+            {/* Left Column: Form */}
+            <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-between text-left space-y-8">
+              <div>
+                {/* Brand Header */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-xl font-black text-white">TMS</span>
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400 block">
+                      Smart Rental Management
+                    </span>
+                  </div>
+                </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 relative z-10">
-          <div className="w-full max-w-lg relative">
-            {/* Logo Section */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center mb-10"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-4">
-                <Building2 className="w-10 h-10 text-white" />
+                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                  Welcome back.
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1.5">
+                  Continue managing your home with confidence.
+                </p>
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-white dark:text-foreground drop-shadow-lg">TMS</h1>
-              <p className="text-white/80 dark:text-muted-foreground font-medium mt-1">Tenant Management System</p>
-            </motion.div>
 
-            {/* Login Card */}
-            <Card className="p-10 border-border bg-card shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-colors">
-              <h2 className="text-3xl font-black text-foreground mb-2">Welcome Back</h2>
-              <p className="text-muted-foreground mb-8 font-medium">Please enter your details to sign in.</p>
-
+              {/* Error Banner */}
               {error && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl mb-8 text-sm font-semibold"
+                  className="bg-rose-500/10 border border-rose-500/25 text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold"
                 >
                   {error}
                 </motion.div>
               )}
 
-              <form onSubmit={requires2FA ? (e) => { e.preventDefault(); onSubmit(); } : handleSubmit(onSubmit)} className="space-y-6">
+              {/* Form */}
+              <form onSubmit={requires2FA ? (e) => { e.preventDefault(); onSubmit(); } : handleSubmit(onSubmit)} className="space-y-5">
                 {requires2FA ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <p className="text-sm text-muted-foreground mb-4 font-semibold">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <p className="text-xs text-slate-300 font-semibold">
                       Please enter the 6-digit authentication code from your authenticator app.
                     </p>
                     <Input
@@ -166,7 +165,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setIsForgotModalOpen(true)}
-                          className="text-sm font-bold text-primary hover:text-primary/80 transition-colors"
+                          className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
                         >
                           Forgot password?
                         </button>
@@ -175,24 +174,25 @@ export default function LoginPage() {
                   </>
                 )}
 
-                <Button
+                <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-4 text-lg flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isLoading ? 'Verifying...' : (requires2FA ? 'Verify Code' : 'Sign In')}
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </form>
 
+              {/* Google Sign-in */}
               {!requires2FA && (
-                <>
-                  <div className="relative my-8">
+                <div className="space-y-4">
+                  <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-border"></div>
+                      <div className="w-full border-t border-white/10" />
                     </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <span className="px-3 bg-[#0c172c]">Or continue with</span>
                     </div>
                   </div>
 
@@ -202,67 +202,82 @@ export default function LoginPage() {
                     navigate={navigate}
                     text="Continue with Google"
                   />
-                </>
+                </div>
               )}
 
-              <div className="mt-10 pt-8 border-t border-gray-100 dark:border-white/5 text-center">
-                <p className="text-muted-foreground font-medium">
+              {/* Sign up Link */}
+              <div className="pt-4 border-t border-white/10 text-center">
+                <p className="text-xs text-slate-400 font-medium">
                   New to the platform?{' '}
-                  <Link to="/register" className="text-primary font-black hover:underline underline-offset-4">
+                  <Link to="/register" className="text-emerald-400 font-black hover:underline underline-offset-4">
                     Create Account
                   </Link>
                 </p>
               </div>
-            </Card>
 
-            {/* Demo Info */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="mt-8 flex justify-center gap-6"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  const emailInput = document.querySelector('input[type="email"]');
-                  const passwordInput = document.querySelector('input[type="password"]');
-                  if (emailInput) emailInput.value = 'admin@gmail.com';
-                  if (passwordInput) passwordInput.value = 'Admin@1234';
-                  // trigger react hook form
-                  onSubmit({ email: 'admin@gmail.com', password: 'Admin@1234' });
-                }}
-                className="text-center group cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Admin Demo (Auto-Fill)</p>
-                <p className="text-xs font-bold text-foreground/50">admin@gmail.com</p>
-              </button>
-              <div className="h-8 w-px bg-gray-200 dark:bg-white/10" />
-              <button
-                type="button"
-                onClick={() => {
-                  const emailInput = document.querySelector('input[type="email"]');
-                  const passwordInput = document.querySelector('input[type="password"]');
-                  if (emailInput) emailInput.value = 'manager@gmail.com';
-                  if (passwordInput) passwordInput.value = 'Manager@1234';
-                  // trigger react hook form
-                  onSubmit({ email: 'manager@gmail.com', password: 'Manager@1234' });
-                }}
-                className="text-center group cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-black group-hover:text-primary transition-colors">Manager Demo (Auto-Fill)</p>
-                <p className="text-xs font-bold text-foreground/50">manager@gmail.com</p>
-              </button>
-            </motion.div>
+              {/* Demo Auto-Fill shortcuts */}
+              <div className="flex items-center justify-center gap-4 pt-2 text-slate-500 text-[11px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue('email', 'admin@gmail.com');
+                    setValue('password', 'Admin@1234');
+                    onSubmit({ email: 'admin@gmail.com', password: 'Admin@1234' });
+                  }}
+                  className="hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Admin Demo
+                </button>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue('email', 'manager@gmail.com');
+                    setValue('password', 'Manager@1234');
+                    onSubmit({ email: 'manager@gmail.com', password: 'Manager@1234' });
+                  }}
+                  className="hover:text-teal-400 transition-colors cursor-pointer"
+                >
+                  Manager Demo
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Architectural Imagery */}
+            <div className="hidden lg:block lg:col-span-6 relative min-h-[580px]">
+              <img
+                src={LOGIN_BG_IMAGE}
+                alt="Luxury Property"
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#060B13] via-[#060B13]/60 to-transparent" />
+              <div className="absolute inset-0 bg-emerald-950/20 mix-blend-overlay" />
+
+              <div className="absolute bottom-10 left-10 right-10 p-8 rounded-3xl bg-[#060B13]/80 backdrop-blur-xl border border-white/15 shadow-2xl text-left space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Welcome Home</span>
+                </div>
+                <h3 className="text-2xl font-black text-white tracking-tight">
+                  Your space. Your experience.
+                </h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  Access your rental agreements, rent payments, maintenance requests, and direct manager messaging from any device.
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
 
-      <ForgotPasswordModal
-        isOpen={isForgotModalOpen}
-        onClose={() => setIsForgotModalOpen(false)}
-      />
+        <ForgotPasswordModal
+          isOpen={isForgotModalOpen}
+          onClose={() => setIsForgotModalOpen(false)}
+        />
+      </div>
     </PageTransition>
   );
 }
+
 

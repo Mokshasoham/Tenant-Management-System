@@ -1,78 +1,206 @@
-import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Building2, Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Building2, Menu, X, ArrowRight, ShieldCheck, Compass, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from './PremiumUI';
+import { cn } from '../utils/cn';
 
 export default function PublicNavbar() {
     const navigate = useNavigate();
-    const [isOpen, setIsOpen] = React.useState(false);
+    const location = useLocation();
+    const [isOpen, setIsOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToSection = (id) => {
+        setIsOpen(false);
+        if (location.pathname !== '/') {
+            navigate(`/#${id}`);
+            return;
+        }
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
-            <div className="max-w-7xl mx-auto">
-                <div className="glass px-6 py-3 rounded-2xl flex items-center justify-between border-white/20 shadow-2xl overflow-hidden">
-                    {/* Logo */}
-                    <Link to="/" className="flex items-center gap-2 group">
-                        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                            <Building2 className="w-6 h-6 text-white" />
+        <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 py-3.5 transition-all duration-300 pointer-events-none">
+            <div className="max-w-7xl mx-auto pointer-events-auto">
+                <div
+                    className={cn(
+                        "rounded-[1.75rem] px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between transition-all duration-500",
+                        scrolled
+                            ? "bg-[#060B13]/90 backdrop-blur-2xl border border-emerald-500/20 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7),0_0_24px_rgba(16,185,129,0.12)]"
+                            : "bg-[#060B13]/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+                    )}
+                >
+                    {/* Brand Logo */}
+                    <Link to="/" className="flex items-center gap-3 group select-none">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 group-hover:shadow-emerald-500/40 transition-all">
+                            <Building2 className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-2xl font-black tracking-tighter text-foreground">TMS</span>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-xl font-black tracking-tight text-white font-sans">TMS</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            </div>
+                            <span className="text-[8px] font-black tracking-[0.2em] text-emerald-400 uppercase leading-none">
+                                Smart Rental Management
+                            </span>
+                        </div>
                     </Link>
 
-                    {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-8">
-                        <Link to="/" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Home</Link>
-                        <Link to="/features" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Features</Link>
-                        <Link to="/pricing" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
-                        <div className="h-6 w-px bg-gray-200 dark:bg-white/10 mx-2" />
-                        <div className="flex items-center gap-3">
-                            <Button
-                                variant="ghost"
-                                onClick={() => navigate('/login')}
-                                className="text-sm font-bold px-4"
-                            >
-                                Login
-                            </Button>
-                            <Button
-                                onClick={() => navigate('/register')}
-                                className="text-sm font-bold px-6 shadow-xl shadow-primary/20"
-                            >
-                                Sign Up
-                            </Button>
-                        </div>
+                    {/* Desktop Navigation Links */}
+                    <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+                        <button
+                            onClick={() => scrollToSection('home')}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            Home
+                        </button>
+                        <Link
+                            to="/browse"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                            Properties
+                        </Link>
+                        <button
+                            onClick={() => scrollToSection('how-it-works')}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            How It Works
+                        </button>
+                        <button
+                            onClick={() => scrollToSection('features')}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            Features
+                        </button>
+                        <button
+                            onClick={() => scrollToSection('tenants')}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            For Tenants
+                        </button>
+                        <button
+                            onClick={() => scrollToSection('managers')}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                            For Managers
+                        </button>
+                    </nav>
+
+                    {/* Desktop Action Buttons */}
+                    <div className="hidden sm:flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate('/login')}
+                            className="px-4 py-2 rounded-xl text-xs font-extrabold text-white/90 hover:text-white hover:bg-white/10 transition-all border border-white/10 cursor-pointer"
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/register')}
+                            className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <span>Get Started</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
                     </div>
 
-                    {/* Mobile Toggle */}
+                    {/* Mobile Hamburger Button */}
                     <button
-                        className="md:hidden p-2 text-foreground"
+                        type="button"
+                        className="lg:hidden p-2 rounded-xl text-white/90 hover:bg-white/10 transition-colors cursor-pointer"
                         onClick={() => setIsOpen(!isOpen)}
+                        aria-label="Toggle navigation menu"
                     >
                         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile Dropdown Menu */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="md:hidden absolute top-24 left-6 right-6 p-6 glass rounded-2xl border-white/20 shadow-2xl z-50"
+                        initial={{ opacity: 0, y: -15, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -15, scale: 0.98 }}
+                        transition={{ duration: 0.2 }}
+                        className="lg:hidden max-w-7xl mx-auto mt-2 pointer-events-auto"
                     >
-                        <div className="flex flex-col gap-6 text-center">
-                            <Link to="/" onClick={() => setIsOpen(false)} className="text-lg font-bold text-foreground">Home</Link>
-                            <Link to="/features" onClick={() => setIsOpen(false)} className="text-lg font-bold text-foreground">Features</Link>
-                            <Link to="/pricing" onClick={() => setIsOpen(false)} className="text-lg font-bold text-foreground">Pricing</Link>
-                            <div className="h-px w-full bg-gray-200 dark:bg-white/10" />
-                            <Button variant="outline" onClick={() => { navigate('/login'); setIsOpen(false); }}>Login</Button>
-                            <Button onClick={() => { navigate('/register'); setIsOpen(false); }}>Sign Up</Button>
+                        <div className="p-6 rounded-[2rem] bg-[#060B13]/95 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-4">
+                            <div className="flex flex-col gap-1.5 text-left">
+                                <button
+                                    onClick={() => scrollToSection('home')}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    Home
+                                </button>
+                                <Link
+                                    to="/browse"
+                                    onClick={() => setIsOpen(false)}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors"
+                                >
+                                    Properties
+                                </Link>
+                                <button
+                                    onClick={() => scrollToSection('how-it-works')}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    How It Works
+                                </button>
+                                <button
+                                    onClick={() => scrollToSection('features')}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    Features
+                                </button>
+                                <button
+                                    onClick={() => scrollToSection('tenants')}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    For Tenants
+                                </button>
+                                <button
+                                    onClick={() => scrollToSection('managers')}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    For Managers
+                                </button>
+                            </div>
+
+                            <div className="h-px bg-white/10 my-2" />
+
+                            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { navigate('/login'); setIsOpen(false); }}
+                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white border border-white/15 hover:bg-white/10 transition-all text-center"
+                                >
+                                    Sign In
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { navigate('/register'); setIsOpen(false); }}
+                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30 text-center"
+                                >
+                                    Get Started
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </nav>
+        </header>
     );
 }

@@ -4,13 +4,12 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import useAuthStore from '../context/authStore';
-import { Mail, Lock, User, Phone, Building2, ArrowRight } from 'lucide-react';
-
-import { Card, Button, Input } from '../components/PremiumUI';
+import { Building2, ArrowRight, Sparkles, ShieldCheck, Check } from 'lucide-react';
+import { Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
 import PublicNavbar from '../components/PublicNavbar';
 
-const BACKGROUND_URL = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop";
+const REGISTER_BG_IMAGE = "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -41,48 +40,46 @@ export default function RegisterPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-background flex flex-col pt-20 relative overflow-hidden">
+      <div className="min-h-screen bg-[#060B13] text-foreground flex flex-col relative overflow-x-hidden">
         <PublicNavbar />
 
-        {/* Real Estate Background Image */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src={BACKGROUND_URL}
-            alt="TMS Background"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-[4px]" />
-        </div>
-        {/* Animated Background Elements Removed */}
+        <div className="flex-1 max-w-7xl w-full mx-auto pt-24 pb-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+          <div className="w-full grid lg:grid-cols-12 gap-8 items-stretch rounded-[2.5rem] bg-[#0c172c]/90 border border-emerald-500/20 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden">
+            
+            {/* Left Column: Form */}
+            <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-between text-left space-y-8">
+              <div>
+                {/* Brand Header */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-xl font-black text-white">TMS</span>
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400 block">
+                      Smart Rental Management
+                    </span>
+                  </div>
+                </div>
 
-        <div className="flex-1 flex items-center justify-center p-6 relative z-10 py-20">
-          <div className="w-full max-w-2xl relative">
-            {/* Logo Section */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center mb-10"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-4">
-                <Building2 className="w-10 h-10 text-white" />
+                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                  Create your account.
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1.5">
+                  Start your smart rental journey with confidence.
+                </p>
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-white dark:text-foreground drop-shadow-lg">TMS</h1>
-              <p className="text-white/80 dark:text-muted-foreground font-medium mt-1">Join the future of property management</p>
-            </motion.div>
 
-            {/* Register Card */}
-            <Card className="p-10 border-border bg-card shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] transition-colors">
-              <h2 className="text-3xl font-black text-foreground mb-2">Create Account</h2>
-              <p className="text-muted-foreground mb-8 font-medium">Please fill in the details to get started.</p>
-
+              {/* Error Banner */}
               {error && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl mb-8 text-sm font-semibold">
+                <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Registration Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="First Name"
                     placeholder="John"
@@ -103,7 +100,7 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Email Address"
                     type="email"
@@ -120,7 +117,7 @@ export default function RegisterPage() {
                   <Input
                     label="Phone Number"
                     type="tel"
-                    placeholder="+1 234 567 8900"
+                    placeholder="+91 98765 43210"
                     error={errors.phone?.message}
                     {...register('phone', {
                       required: 'Phone is required',
@@ -128,7 +125,7 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Password"
                     type="password"
@@ -136,10 +133,10 @@ export default function RegisterPage() {
                     error={errors.password?.message}
                     {...register('password', {
                       required: 'Password is required',
-                      minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                      minLength: { value: 8, message: 'At least 8 characters' },
                       pattern: {
                         value: /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-                        message: 'Must contain uppercase, lowercase, number and special character',
+                        message: 'Need uppercase, lowercase, number & symbol',
                       },
                     })}
                   />
@@ -154,41 +151,71 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                <Button
+                <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-4 text-lg flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
                 >
                   {isLoading ? 'Creating Account...' : 'Get Started'}
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </form>
 
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
+              {/* Google Sign-in */}
+              <div className="space-y-4">
+                <div className="relative my-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <span className="px-3 bg-[#0c172c]">Or continue with</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
-                </div>
+
+                <GoogleSignInButton
+                  onError={setError}
+                  setIsLoading={setIsLoading}
+                  navigate={navigate}
+                  text="Sign up with Google"
+                />
               </div>
 
-              <GoogleSignInButton
-                onError={setError}
-                setIsLoading={setIsLoading}
-                navigate={navigate}
-                text="Sign up with Google"
-              />
-
-              <div className="mt-10 pt-8 border-t border-gray-100 dark:border-white/5 text-center">
-                <p className="text-muted-foreground font-medium">
+              {/* Log In Link */}
+              <div className="pt-4 border-t border-white/10 text-center">
+                <p className="text-xs text-slate-400 font-medium">
                   Already have an account?{' '}
-                  <Link to="/login" className="text-primary font-black hover:underline underline-offset-4">
+                  <Link to="/login" className="text-emerald-400 font-black hover:underline underline-offset-4">
                     Log In
                   </Link>
                 </p>
               </div>
-            </Card>
+            </div>
+
+            {/* Right Column: Architectural Imagery */}
+            <div className="hidden lg:block lg:col-span-6 relative min-h-[580px]">
+              <img
+                src={REGISTER_BG_IMAGE}
+                alt="Luxury Interior"
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#060B13] via-[#060B13]/60 to-transparent" />
+              <div className="absolute inset-0 bg-emerald-950/20 mix-blend-overlay" />
+
+              <div className="absolute bottom-10 left-10 right-10 p-8 rounded-3xl bg-[#060B13]/80 backdrop-blur-xl border border-white/15 shadow-2xl text-left space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Start Your Journey</span>
+                </div>
+                <h3 className="text-2xl font-black text-white tracking-tight">
+                  Find your place. Live smarter.
+                </h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                  Join hundreds of verified tenants and property managers managing their homes effortlessly with zero paperwork.
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
