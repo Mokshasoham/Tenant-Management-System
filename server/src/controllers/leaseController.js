@@ -162,6 +162,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
   res.status(200).json({ 
     success: true, 
     data: primaryActiveLease, 
+    leases: enrichedActiveLeases,
     activeLeases: enrichedActiveLeases, 
     pastLeases: pastLeases.map(l => resolveLeaseUrls(l, req)),
     monthlyRent: primaryActiveLease?.rentAmount || null,

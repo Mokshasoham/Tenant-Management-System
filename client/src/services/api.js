@@ -73,6 +73,7 @@ export const leaseService = {
   getAllLeases: (params) => apiClient.get('/leases', { params }),
   getLeaseById: (id) => apiClient.get(`/leases/${id}`),
   getMyLease: () => apiClient.get('/leases/my-lease'),
+  getMyActiveLeases: () => apiClient.get('/leases/my-active'),
   createLease: (data) => apiClient.post('/leases', data),
   updateLease: (id, data) => apiClient.put(`/leases/${id}`, data),
   terminateLease: (id) => apiClient.post(`/leases/${id}/terminate`),

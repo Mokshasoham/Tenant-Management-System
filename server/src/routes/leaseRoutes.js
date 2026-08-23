@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // Tenant-accessible routes
+router.get('/my-active', leaseController.getMyLease);
 router.get('/my-lease', leaseController.getMyLease);
 router.get('/:id', leaseController.getLeaseById);
 router.post('/:id/sign', leaseController.signLease);

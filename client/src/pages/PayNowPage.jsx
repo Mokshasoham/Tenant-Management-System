@@ -666,19 +666,26 @@ export default function PayNowPage() {
                 // 2. Fetch authenticated tenant's active leases
                 let userLeases = [];
                 try {
-                    const leaseRes = await leaseService.getMyLease();
+                    const leaseRes = await leaseService.getMyActiveLeases();
                     if (leaseRes) {
-                        const rawRes = leaseRes.data || leaseRes || {};
-                        const activeArray = Array.isArray(rawRes.activeLeases)
-                            ? rawRes.activeLeases
-                            : (Array.isArray(rawRes.data?.activeLeases)
-                                ? rawRes.data.activeLeases
-                                : (Array.isArray(rawRes.data) ? rawRes.data : (rawRes.data ? [rawRes.data] : [])));
+                        const candidates = Array.isArray(leaseRes.activeLeases)
+                            ? leaseRes.activeLeases
+                            : (Array.isArray(leaseRes.leases)
+                                ? leaseRes.leases
+                                : (Array.isArray(leaseRes.data?.activeLeases)
+                                    ? leaseRes.data.activeLeases
+                                    : (Array.isArray(leaseRes.data?.leases)
+                                        ? leaseRes.data.leases
+                                        : (Array.isArray(leaseRes.data)
+                                            ? leaseRes.data
+                                            : (Array.isArray(leaseRes)
+                                                ? leaseRes
+                                                : (leaseRes.data ? [leaseRes.data] : []))))));
                         
-                        userLeases = activeArray.filter(Boolean);
+                        userLeases = candidates.filter(Boolean);
                     }
                 } catch (lErr) {
-                    console.warn('[PayNowPage] getMyLease warning:', lErr);
+                    console.warn('[PayNowPage] getMyActiveLeases warning:', lErr);
                 }
 
                 // If specific leaseIdParam is given and not in userLeases, fetch and add only if valid
