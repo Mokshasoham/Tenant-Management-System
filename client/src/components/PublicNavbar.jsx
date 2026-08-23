@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Building2, Menu, X, ArrowRight, ShieldCheck, Compass, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+import ThemeSwitch from './ThemeSwitch';
 
 export default function PublicNavbar() {
     const navigate = useNavigate();
@@ -37,8 +38,8 @@ export default function PublicNavbar() {
                     className={cn(
                         "rounded-[1.75rem] px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between transition-all duration-500",
                         scrolled
-                            ? "bg-[#060B13]/90 backdrop-blur-2xl border border-emerald-500/20 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7),0_0_24px_rgba(16,185,129,0.12)]"
-                            : "bg-[#060B13]/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+                            ? "bg-[#F5F8F7]/90 dark:bg-[#060B13]/90 backdrop-blur-2xl border border-slate-200/80 dark:border-emerald-500/20 shadow-lg dark:shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7),0_0_24px_rgba(16,185,129,0.12)]"
+                            : "bg-white/80 dark:bg-[#060B13]/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 shadow-md dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
                     )}
                 >
                     {/* Brand Logo */}
@@ -46,12 +47,12 @@ export default function PublicNavbar() {
                         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 group-hover:shadow-emerald-500/40 transition-all">
                             <Building2 className="w-5 h-5 text-white" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col text-left">
                             <div className="flex items-center gap-1.5">
-                                <span className="text-xl font-black tracking-tight text-white font-sans">TMS</span>
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white font-sans">TMS</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             </div>
-                            <span className="text-[8px] font-black tracking-[0.2em] text-emerald-400 uppercase leading-none">
+                            <span className="text-[8px] font-black tracking-[0.2em] text-emerald-600 dark:text-emerald-400 uppercase leading-none">
                                 Smart Rental Management
                             </span>
                         </div>
@@ -61,48 +62,49 @@ export default function PublicNavbar() {
                     <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
                         <button
                             onClick={() => scrollToSection('home')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             Home
                         </button>
                         <Link
                             to="/browse"
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                         >
                             Properties
                         </Link>
                         <button
                             onClick={() => scrollToSection('how-it-works')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             How It Works
                         </button>
                         <button
                             onClick={() => scrollToSection('features')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             Features
                         </button>
                         <button
                             onClick={() => scrollToSection('tenants')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             For Tenants
                         </button>
                         <button
                             onClick={() => scrollToSection('managers')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-white/80 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             For Managers
                         </button>
                     </nav>
 
-                    {/* Desktop Action Buttons */}
+                    {/* Desktop Action Buttons + Theme Switch */}
                     <div className="hidden sm:flex items-center gap-3">
+                        <ThemeSwitch />
                         <button
                             type="button"
                             onClick={() => navigate('/login')}
-                            className="px-4 py-2 rounded-xl text-xs font-extrabold text-white/90 hover:text-white hover:bg-white/10 transition-all border border-white/10 cursor-pointer"
+                            className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-700 dark:text-white/90 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10 cursor-pointer"
                         >
                             Sign In
                         </button>
@@ -116,15 +118,30 @@ export default function PublicNavbar() {
                         </button>
                     </div>
 
-                    {/* Mobile Hamburger Button */}
-                    <button
-                        type="button"
-                        className="lg:hidden p-2 rounded-xl text-white/90 hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => setIsOpen(!isOpen)}
-                        aria-label="Toggle navigation menu"
-                    >
-                        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                    </button>
+                    {/* Mobile Controls (Theme Switch + Hamburger) */}
+                    <div className="sm:hidden flex items-center gap-2">
+                        <ThemeSwitch />
+                        <button
+                            type="button"
+                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            onClick={() => setIsOpen(!isOpen)}
+                            aria-label="Toggle navigation menu"
+                        >
+                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+                    </div>
+
+                    {/* Desktop/Tablet Hamburger Button for Medium Screens */}
+                    <div className="hidden sm:flex lg:hidden items-center gap-2">
+                        <button
+                            type="button"
+                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            onClick={() => setIsOpen(!isOpen)}
+                            aria-label="Toggle navigation menu"
+                        >
+                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -138,54 +155,54 @@ export default function PublicNavbar() {
                         transition={{ duration: 0.2 }}
                         className="lg:hidden max-w-7xl mx-auto mt-2 pointer-events-auto"
                     >
-                        <div className="p-6 rounded-[2rem] bg-[#060B13]/95 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-4">
+                        <div className="p-6 rounded-[2rem] bg-white/95 dark:bg-[#060B13]/95 backdrop-blur-2xl border border-slate-200 dark:border-white/15 shadow-2xl space-y-4">
                             <div className="flex flex-col gap-1.5 text-left">
                                 <button
                                     onClick={() => scrollToSection('home')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                                 >
                                     Home
                                 </button>
                                 <Link
                                     to="/browse"
                                     onClick={() => setIsOpen(false)}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                                 >
                                     Properties
                                 </Link>
                                 <button
                                     onClick={() => scrollToSection('how-it-works')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                                 >
                                     How It Works
                                 </button>
                                 <button
                                     onClick={() => scrollToSection('features')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                                 >
                                     Features
                                 </button>
                                 <button
                                     onClick={() => scrollToSection('tenants')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                                 >
                                     For Tenants
                                 </button>
                                 <button
                                     onClick={() => scrollToSection('managers')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-colors text-left"
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
                                 >
                                     For Managers
                                 </button>
                             </div>
 
-                            <div className="h-px bg-white/10 my-2" />
+                            <div className="h-px bg-slate-200 dark:bg-white/10 my-2" />
 
                             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
                                 <button
                                     type="button"
                                     onClick={() => { navigate('/login'); setIsOpen(false); }}
-                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white border border-white/15 hover:bg-white/10 transition-all text-center"
+                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-center"
                                 >
                                     Sign In
                                 </button>
