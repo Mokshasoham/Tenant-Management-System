@@ -104,6 +104,7 @@ const useAuthStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('tms_compare_properties');
     set({ user: null, token: null, error: null });
   },
 

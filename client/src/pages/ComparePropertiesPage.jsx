@@ -36,30 +36,34 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Read compareList from navigation state, fallback to localStorage, then fallback to props
+    // Read compareList strictly from active navigation state, fallback to props, then fallback to empty array
     const [selected, setSelected] = useState(() => {
         if (location.state?.compareList && Array.isArray(location.state.compareList) && location.state.compareList.length > 0) {
-            try {
-                localStorage.setItem('tms_compare_properties', JSON.stringify(location.state.compareList));
-            } catch (e) {}
             return location.state.compareList;
         }
-        try {
-            const saved = localStorage.getItem('tms_compare_properties');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            }
-        } catch (e) {}
         return compareList || [];
     });
+
+    // Clean up temporary compare state on unmount
+    useEffect(() => {
+        return () => {
+            try {
+                localStorage.removeItem('tms_compare_properties');
+            } catch (e) {}
+        };
+    }, []);
+
+    const handleBack = () => {
+        setSelected([]);
+        try {
+            localStorage.removeItem('tms_compare_properties');
+        } catch (e) {}
+        navigate(-1);
+    };
 
     const remove = (id) => {
         setSelected(prev => {
             const updated = prev.filter(p => p._id !== id);
-            try {
-                localStorage.setItem('tms_compare_properties', JSON.stringify(updated));
-            } catch (e) {}
             return updated;
         });
         if (onRemove) onRemove(id);
@@ -87,8 +91,8 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
                 {/* Header */}
                 <div className="flex items-center gap-6 mb-10">
                     <button
-                        onClick={() => navigate(-1)}
-                        className="p-3 rounded-2xl bg-card border border-border text-foreground hover:bg-muted transition-all shadow-sm group"
+                        onClick={handleBack}
+                        className="p-3 rounded-2xl bg-card border border-border text-foreground hover:bg-muted transition-all shadow-sm group cursor-pointer"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                     </button>
