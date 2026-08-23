@@ -659,12 +659,16 @@ export default function PayNowPage() {
                     }
                 }
 
-                // 2. Fetch all of the tenant's leases
+                // 2. Fetch all of the tenant's leases & bookings
                 let allLeases = [];
                 try {
-                    const leaseRes = await leaseService.getMyLease();
-                    if (leaseRes) {
-                        const rawRes = leaseRes.data || leaseRes || {};
+                    const [leaseRes, bookingRes] = await Promise.allSettled([
+                        leaseService.getMyLease(),
+                        bookingService.getMyBookings()
+                    ]);
+
+                    if (leaseRes.status === 'fulfilled' && leaseRes.value) {
+                        const rawRes = leaseRes.value.data || leaseRes.value || {};
                         const activeArray = Array.isArray(rawRes.activeLeases)
                             ? rawRes.activeLeases
                             : (Array.isArray(rawRes.data?.activeLeases)
@@ -678,10 +682,35 @@ export default function PayNowPage() {
                             ...pastArray
                         ];
 
-                        allLeases = candidateList.filter(Boolean);
+                        allLeases.push(...candidateList.filter(Boolean));
+                    }
+
+                    if (bookingRes.status === 'fulfilled' && bookingRes.value) {
+                        const bookings = bookingRes.value.data?.data || bookingRes.value.data || (Array.isArray(bookingRes.value) ? bookingRes.value : []);
+                        for (const b of (Array.isArray(bookings) ? bookings : [])) {
+                            if (b && b.property) {
+                                const propName = b.property?.name || b.propertyName || 'Property';
+                                const rentAmt = b.agreedRent || b.property?.rentAmount || b.totalAmount || 0;
+                                const bLeaseId = b.lease?._id || b.lease || b._id;
+                                const candidateLease = {
+                                    _id: bLeaseId,
+                                    id: bLeaseId,
+                                    leaseNumber: b.lease?.leaseNumber || `BOOK-${String(b._id).slice(-6)}`,
+                                    rentAmount: rentAmt,
+                                    status: 'active',
+                                    property: {
+                                        _id: b.property?._id || b.property,
+                                        name: propName
+                                    },
+                                    startDate: b.startDate,
+                                    endDate: b.endDate
+                                };
+                                allLeases.push(candidateLease);
+                            }
+                        }
                     }
                 } catch (lErr) {
-                    console.warn('[PayNowPage] getMyLease warning:', lErr);
+                    console.warn('[PayNowPage] getMyLease/booking fetch warning:', lErr);
                 }
 
                 // If specific leaseIdParam is given and not in allLeases, fetch directly and add
@@ -698,13 +727,16 @@ export default function PayNowPage() {
                     }
                 }
 
-                // Deduplicate leases by ID
+                // Deduplicate leases by ID and by Property ID/Name to prevent duplicates
                 const uniqueLeases = [];
                 const seenIds = new Set();
+                const seenProps = new Set();
                 for (const l of allLeases.filter(Boolean)) {
                     const lid = String(l._id || l.id || l.leaseNumber || '');
+                    const pKey = String(l.property?._id || l.property?.name || l.propertyName || '').toLowerCase().trim();
                     if (lid && !seenIds.has(lid)) {
                         seenIds.add(lid);
+                        if (pKey) seenProps.add(pKey);
                         uniqueLeases.push(l);
                     }
                 }
