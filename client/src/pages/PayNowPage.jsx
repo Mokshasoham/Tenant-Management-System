@@ -667,35 +667,22 @@ export default function PayNowPage() {
             setLoadingLease(true);
             setLeaseNotFound(false);
             try {
+                // 1. Fetch Bill details if billIdParam is present
                 if (billIdParam) {
-                    const res = await billService.getBillById(billIdParam);
-                    const bill = res.data?.data || res.data;
-                    if (!isMounted) return;
-                    setBillDetails(bill);
-                    
-                    const leaseRes = await leaseService.getMyLease();
-                    const rawRes = leaseRes?.data || leaseRes || {};
-                    const activeArray = Array.isArray(rawRes.activeLeases)
-                        ? rawRes.activeLeases
-                        : (Array.isArray(rawRes.data?.activeLeases) ? rawRes.data.activeLeases : []);
-                    const primary = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
-                    const allL = (activeArray.length > 0 ? activeArray : (primary ? [primary] : (Array.isArray(rawRes.data) ? rawRes.data : [])))
-                        .filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
-                    if (!isMounted) return;
-                    setAvailableLeases(allL);
-                    const currentL = primary || allL[0] || null;
-                    setLease(currentL);
-
-                    if (currentL?._id) {
-                        const sumRes = await paymentService.getRentSummary({ leaseId: currentL._id, billId: billIdParam });
-                        if (isMounted) setRentSummary(sumRes.data?.data || sumRes.data);
+                    try {
+                        const res = await billService.getBillById(billIdParam);
+                        const bill = res.data?.data || res.data;
+                        if (isMounted) setBillDetails(bill);
+                    } catch (bErr) {
+                        console.warn('[PayNowPage] Bill fetch warning:', bErr);
                     }
-                } else {
-                    const leaseRes = await leaseService.getMyLease();
-                    if (!isMounted) return;
+                }
 
-                    let allLeases = [];
-                    let primaryLease = null;
+                // 2. Fetch all of the tenant's leases
+                let allLeases = [];
+                let primaryLease = null;
+                try {
+                    const leaseRes = await leaseService.getMyLease();
                     if (leaseRes) {
                         const rawRes = leaseRes.data || leaseRes || {};
                         const activeArray = Array.isArray(rawRes.activeLeases)
@@ -705,46 +692,96 @@ export default function PayNowPage() {
                                 : (Array.isArray(rawRes.data) ? rawRes.data : []));
                         
                         primaryLease = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
-                        
-                        const candidateList = activeArray.length > 0
-                            ? activeArray
-                            : (primaryLease ? [primaryLease] : []);
+                        const pastArray = Array.isArray(rawRes.pastLeases) ? rawRes.pastLeases : [];
+                        const candidateList = [
+                            ...(activeArray.length > 0 ? activeArray : (primaryLease ? [primaryLease] : [])),
+                            ...pastArray
+                        ];
 
-                        allLeases = candidateList.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
+                        allLeases = candidateList.filter(Boolean);
                     }
-                    setAvailableLeases(allLeases);
+                } catch (lErr) {
+                    console.warn('[PayNowPage] getMyLease warning:', lErr);
+                }
 
-                    let targetLease = null;
-                    if (leaseIdParam) {
-                        const cleanParam = String(leaseIdParam).trim();
-                        const matched = allLeases.find(l => {
-                            const lid = l._id ? String(l._id) : (l.id ? String(l.id) : '');
-                            return lid === cleanParam;
-                        });
+                if (!isMounted) return;
 
-                        if (matched) {
-                            targetLease = matched;
-                        } else {
-                            setLease(null);
-                            setRentSummary(null);
-                            setLeaseNotFound(true);
-                            setLoadingLease(false);
-                            return;
+                // 3. Resolve Target Lease
+                let targetLease = null;
+                const cleanParam = leaseIdParam ? String(leaseIdParam).trim() : null;
+
+                if (cleanParam) {
+                    targetLease = allLeases.find(l => {
+                        const lid = l._id ? String(l._id) : (l.id ? String(l.id) : '');
+                        const lnum = l.leaseNumber ? String(l.leaseNumber) : '';
+                        return lid === cleanParam || lnum === cleanParam;
+                    });
+
+                    // Direct lease lookup by ID if not in myLease list
+                    if (!targetLease) {
+                        try {
+                            const directRes = await leaseService.getLeaseById(cleanParam);
+                            targetLease = directRes?.data?.data || directRes?.data || directRes;
+                            if (targetLease && !allLeases.some(l => (l._id || l.id) === (targetLease._id || targetLease.id))) {
+                                allLeases.push(targetLease);
+                            }
+                        } catch (dErr) {
+                            console.warn('[PayNowPage] direct getLeaseById warning:', dErr);
                         }
-                    } else {
-                        targetLease = allLeases[0] || primaryLease || null;
-                    }
-
-                    setLease(targetLease);
-                    setLeaseNotFound(false);
-
-                    if (targetLease?._id) {
-                        const sumRes = await paymentService.getRentSummary({ leaseId: targetLease._id });
-                        if (isMounted) setRentSummary(sumRes.data?.data || sumRes.data);
                     }
                 }
+
+                // If no specific lease was requested or matched, default to primary/first lease
+                if (!targetLease && !cleanParam) {
+                    targetLease = allLeases[0] || primaryLease || null;
+                }
+
+                // 4. Fetch Authoritative Rent Payment Summary from Single Source of Truth
+                let summary = null;
+                try {
+                    const sumRes = await paymentService.getRentSummary({
+                        leaseId: targetLease?._id || cleanParam || undefined,
+                        billId: billIdParam || undefined
+                    });
+                    summary = sumRes.data?.data || sumRes.data;
+                } catch (sErr) {
+                    console.warn('[PayNowPage] getRentSummary warning:', sErr);
+                }
+
+                if (!isMounted) return;
+
+                if (summary) {
+                    setRentSummary(summary);
+                    if (!targetLease) {
+                        targetLease = {
+                            _id: summary.leaseId,
+                            leaseNumber: summary.leaseNumber,
+                            rentAmount: summary.monthlyRent,
+                            property: {
+                                _id: summary.propertyId,
+                                name: summary.propertyName
+                            }
+                        };
+                        if (!allLeases.some(l => (l._id || l.id) === summary.leaseId)) {
+                            allLeases.push(targetLease);
+                        }
+                    }
+                }
+
+                setAvailableLeases(allLeases.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase())));
+
+                if (!targetLease && !summary) {
+                    setLease(null);
+                    setRentSummary(null);
+                    setLeaseNotFound(true);
+                } else {
+                    setLease(targetLease);
+                    setLeaseNotFound(false);
+                }
+
             } catch (err) {
                 console.error('[PayNowPage] Error loading lease/payment context:', err);
+                if (isMounted) setLeaseNotFound(true);
             } finally {
                 if (isMounted) setLoadingLease(false);
             }

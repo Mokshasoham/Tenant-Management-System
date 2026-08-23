@@ -172,13 +172,37 @@ export const getAllLeases = asyncHandler(async (req, res) => {
 });
 
 export const getLeaseById = asyncHandler(async (req, res) => {
-  const lease = await Lease.findById(req.params.id)
-    .populate('property')
-    .populate('tenant')
-    .populate('createdBy', 'firstName lastName email');
+  const { id } = req.params;
+  let lease = null;
+
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    lease = await Lease.findById(id)
+      .populate('property')
+      .populate('tenant')
+      .populate('createdBy', 'firstName lastName email');
+  }
+
+  if (!lease) {
+    lease = await Lease.findOne({ leaseNumber: id })
+      .populate('property')
+      .populate('tenant')
+      .populate('createdBy', 'firstName lastName email');
+  }
 
   if (!lease) {
     throw new AppError('Lease not found', 404);
+  }
+
+  // Tenant authorization: verify tenant ownership
+  if (req.user.role === 'tenant') {
+    const user = await User.findById(req.user.userId).select('email');
+    const tenants = user ? await Tenant.find({ email: user.email }) : [];
+    const tenantIds = [String(req.user.userId), ...tenants.map(t => String(t._id))];
+    const leaseTenantId = lease.tenant?._id ? String(lease.tenant._id) : (lease.tenant ? String(lease.tenant) : '');
+
+    if (leaseTenantId && !tenantIds.includes(leaseTenantId)) {
+      throw new AppError('Access denied. You do not own this lease.', 403);
+    }
   }
 
   const payments = await Payment.find({ lease: lease._id }).sort({ dueDate: -1 });

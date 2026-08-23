@@ -498,13 +498,26 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)];
 
   if (leaseId) {
-    targetLease = await Lease.findById(leaseId).populate('property tenant');
+    if (mongoose.Types.ObjectId.isValid(leaseId)) {
+      targetLease = await Lease.findById(leaseId).populate('property tenant');
+    }
+    if (!targetLease) {
+      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
   } else if (billId) {
-    const bill = await Bill.findById(billId).populate('lease property tenant');
+    let bill = null;
+    if (mongoose.Types.ObjectId.isValid(billId)) {
+      bill = await Bill.findById(billId).populate('lease property tenant');
+    }
+    if (!bill) {
+      bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
+    }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
     }
-  } else {
+  }
+
+  if (!targetLease) {
     targetLease = await Lease.findOne({
       tenant: { $in: tenantIds },
       status: { $in: ['active', 'pending'] }
@@ -512,7 +525,13 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   }
 
   if (!targetLease) {
-    throw new AppError('No active lease found for payment calculation', 404);
+    targetLease = await Lease.findOne({
+      tenant: { $in: tenantIds }
+    }).sort({ createdAt: -1 }).populate('property tenant');
+  }
+
+  if (!targetLease) {
+    throw new AppError('No lease found for payment calculation', 404);
   }
 
   const targetProperty = targetLease.property;
@@ -594,17 +613,36 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
 
   let targetLease = null;
   if (leaseId) {
-    targetLease = await Lease.findById(leaseId).populate('property tenant');
+    if (mongoose.Types.ObjectId.isValid(leaseId)) {
+      targetLease = await Lease.findById(leaseId).populate('property tenant');
+    }
+    if (!targetLease) {
+      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
   } else if (billId) {
-    const bill = await Bill.findById(billId).populate('lease property tenant');
+    let bill = null;
+    if (mongoose.Types.ObjectId.isValid(billId)) {
+      bill = await Bill.findById(billId).populate('lease property tenant');
+    }
+    if (!bill) {
+      bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
+    }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
     }
-  } else {
+  }
+
+  if (!targetLease) {
     targetLease = await Lease.findOne({
       tenant: { $in: tenantIds },
       status: { $in: ['active', 'pending'] }
     }).populate('property tenant');
+  }
+
+  if (!targetLease) {
+    targetLease = await Lease.findOne({
+      tenant: { $in: tenantIds }
+    }).sort({ createdAt: -1 }).populate('property tenant');
   }
 
   if (!targetLease) {
