@@ -635,7 +635,6 @@ export default function PayNowPage() {
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
     const [rentSummary, setRentSummary] = useState(null);
-    const [leaseDropdownOpen, setLeaseDropdownOpen] = useState(false);
 
     // Custom amount mode
     const [customAmount, setCustomAmount] = useState('');
@@ -775,7 +774,6 @@ export default function PayNowPage() {
         setCustomAmount('');
         setUseCustom(false);
         setAmountError('');
-        setLeaseDropdownOpen(false);
         navigate(`/pay-now?leaseId=${selectedL._id || selectedL.id}`, { replace: true, state: { leaseId: selectedL._id || selectedL.id } });
     };
 
@@ -827,103 +825,6 @@ export default function PayNowPage() {
                 </h1>
             </motion.div>
 
-            {/* ══ LEASE SELECTOR DROPDOWN ══ */}
-            {!isBooking && !billIdParam && (
-                <div className="relative">
-                    <button
-                        type="button"
-                        onClick={() => setLeaseDropdownOpen(prev => !prev)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-card border border-border/80 hover:border-emerald-500/50 hover:bg-card/90 transition-all shadow-sm cursor-pointer group text-left"
-                    >
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 group-hover:scale-105 transition-transform">
-                                <Building2 className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Selected Lease</p>
-                                <p className="text-sm font-black text-foreground truncate">
-                                    {lease?.property?.name || rentSummary?.propertyName || 'Selected Property'}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2.5 flex-shrink-0">
-                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                ₹{(lease?.rentAmount || rentSummary?.monthlyRent || 0).toLocaleString('en-IN')}<span className="text-[10px] text-muted-foreground font-normal">/mo</span>
-                            </span>
-                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", leaseDropdownOpen && "rotate-180")} />
-                        </div>
-                    </button>
-
-                    <AnimatePresence>
-                        {leaseDropdownOpen && (
-                            <>
-                                {/* Click-outside Backdrop */}
-                                <div
-                                    className="fixed inset-0 z-40"
-                                    onClick={() => setLeaseDropdownOpen(false)}
-                                />
-
-                                {/* Dropdown Menu */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                                    transition={{ duration: 0.15 }}
-                                    className="absolute left-0 right-0 top-full mt-2 z-50 p-2 rounded-2xl bg-card/95 backdrop-blur-xl border border-border shadow-2xl space-y-1 max-h-72 overflow-y-auto"
-                                >
-                                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 border-b border-border/40 mb-1">
-                                        Your Leases
-                                    </div>
-                                    {(availableLeases.length > 0 ? availableLeases : (lease ? [lease] : [])).map((l) => {
-                                        const isSelected = (lease?._id || lease?.id) === (l._id || l.id);
-                                        const propName = l.property?.name || l.propertyName || 'Property';
-                                        const rAmt = l.rentAmount || l.monthlyRent || 0;
-                                        return (
-                                            <button
-                                                key={l._id || l.id}
-                                                type="button"
-                                                onClick={() => handleSelectLease(l)}
-                                                className={cn(
-                                                    "w-full flex items-center justify-between p-3 rounded-xl transition-all text-left cursor-pointer",
-                                                    isSelected
-                                                        ? "bg-emerald-500/10 border border-emerald-500/30 text-foreground"
-                                                        : "hover:bg-muted/70 text-muted-foreground hover:text-foreground border border-transparent"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    <div className={cn(
-                                                        "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px]",
-                                                        isSelected ? "bg-emerald-500 text-white shadow-sm" : "border border-border text-transparent"
-                                                    )}>
-                                                        <Check className="w-3 h-3 stroke-[3]" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className={cn("text-xs font-black truncate", isSelected ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
-                                                            {propName}
-                                                        </p>
-                                                        <p className="text-[10px] text-muted-foreground/60 font-medium">
-                                                            Lease #{l.leaseNumber || String(l._id || l.id || '').slice(-6)}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right flex-shrink-0 pl-2">
-                                                    <p className="text-xs font-bold text-foreground">
-                                                        ₹{rAmt.toLocaleString('en-IN')}
-                                                    </p>
-                                                    <p className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-wider">
-                                                        / month
-                                                    </p>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </motion.div>
-                            </>
-                        )}
-                    </AnimatePresence>
-                </div>
-            )}
-
             <AnimatePresence mode="wait">
                 {success ? (
                     <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -937,9 +838,32 @@ export default function PayNowPage() {
                             style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' }}>
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
-                                <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em]">
+                                <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em] flex items-center gap-1.5">
                                     {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
                                 </p>
+
+                                {availableLeases.length > 1 && !isBooking && !billIdParam && (
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {availableLeases.map((l) => {
+                                            const isSelected = (lease?._id || lease?.id) === (l._id || l.id);
+                                            return (
+                                                <button
+                                                    key={l._id || l.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectLease(l)}
+                                                    className={cn(
+                                                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border cursor-pointer",
+                                                        isSelected
+                                                            ? "bg-white/20 border-white/40 text-white font-black shadow-sm ring-1 ring-white/30"
+                                                            : "bg-white/5 border-white/10 text-emerald-100/60 hover:text-white hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    {l.property?.name || l.propertyName || 'Lease'}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
 
                             {loadingLease ? (
