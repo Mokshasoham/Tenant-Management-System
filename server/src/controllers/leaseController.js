@@ -57,29 +57,6 @@ export const getMyLease = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
-  // Self-healing: if there are multiple active/pending leases for the same property, keep only the newest one active, mark others as terminated
-  const activeLeasesRaw = await Lease.find({
-    tenant: { $in: tenantIds },
-    status: { $in: ['active', 'pending'] },
-  }).sort({ createdAt: -1 });
-
-  const seenProperties = new Set();
-  for (const lease of activeLeasesRaw) {
-    if (!lease.property) continue;
-    const propId = lease.property.toString();
-    if (seenProperties.has(propId)) {
-      lease.status = 'terminated';
-      await lease.save();
-    } else {
-      seenProperties.add(propId);
-      // If a lease has not been digitally signed by the tenant, ensure it remains in pending status
-      if ((!lease.signature || !lease.signedBy || !lease.signedAt) && lease.status === 'active') {
-        lease.status = 'pending';
-        await lease.save();
-      }
-    }
-  }
-
   const [activeLeases, pastLeases, tenantPayments] = await Promise.all([
     Lease.find({
       tenant: { $in: tenantIds },
