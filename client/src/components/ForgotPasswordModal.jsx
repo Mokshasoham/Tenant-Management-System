@@ -50,27 +50,28 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="w-full max-w-md relative z-10"
                     >
-                        <Card className="p-8 border-white/20 shadow-2xl overflow-hidden relative">
+                        <div className="p-8 rounded-3xl bg-white dark:bg-[#0B1424] border border-slate-200 dark:border-white/15 shadow-2xl overflow-hidden relative text-left transition-colors duration-300">
                             <button
                                 onClick={handleClose}
-                                className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
+                                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                                aria-label="Close modal"
                             >
                                 <X className="w-5 h-5" />
                             </button>
 
                             {!isSubmitted ? (
                                 <>
-                                    <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary mb-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-6">
                                         <Mail className="w-6 h-6" />
                                     </div>
 
-                                    <h2 className="text-2xl font-black mb-2 text-foreground">Forgot Password?</h2>
-                                    <p className="text-muted-foreground mb-8 font-medium">
+                                    <h2 className="text-2xl font-black mb-2 text-slate-900 dark:text-white">Forgot Password?</h2>
+                                    <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium text-xs">
                                         Enter your email address and we'll send you a link to reset your password.
                                     </p>
 
                                     {error && (
-                                        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl mb-6 text-sm font-semibold">
+                                        <div className="bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 px-4 py-3 rounded-2xl mb-6 text-xs font-bold">
                                             {error}
                                         </div>
                                     )}
@@ -90,34 +91,34 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                                             })}
                                         />
 
-                                        <Button
+                                        <button
                                             type="submit"
                                             disabled={isLoading}
-                                            className="w-full py-4 flex items-center justify-center gap-2"
+                                            className="w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                                         >
                                             {isLoading ? 'Sending Link...' : 'Send Reset Link'}
                                             <Send className="w-4 h-4" />
-                                        </Button>
+                                        </button>
                                     </form>
                                 </>
                             ) : (
                                 <div className="text-center py-4">
-                                    <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 mx-auto mb-6">
+                                    <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-6">
                                         <CheckCircle2 className="w-10 h-10" />
                                     </div>
-                                    <h2 className="text-2xl font-black mb-4 text-foreground">Check Your Email</h2>
-                                    <p className="text-muted-foreground mb-8 font-medium">
+                                    <h2 className="text-2xl font-black mb-3 text-slate-900 dark:text-white">Check Your Email</h2>
+                                    <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium text-xs leading-relaxed">
                                         We've sent a password reset link to your email. Please check your inbox and follow the instructions.
                                     </p>
-                                    <Button
+                                    <button
                                         onClick={handleClose}
-                                        className="w-full py-4"
+                                        className="w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 cursor-pointer"
                                     >
                                         Back to Login
-                                    </Button>
+                                    </button>
                                 </div>
                             )}
-                        </Card>
+                        </div>
                     </motion.div>
                 </div>
             )}

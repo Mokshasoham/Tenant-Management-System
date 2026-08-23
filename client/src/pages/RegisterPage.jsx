@@ -40,11 +40,11 @@ export default function RegisterPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#060B13] text-foreground flex flex-col relative overflow-x-hidden">
+      <div className="min-h-screen bg-[#F5F8F7] dark:bg-[#060B13] text-slate-900 dark:text-slate-50 flex flex-col relative overflow-x-hidden transition-colors duration-300 font-sans">
         <PublicNavbar />
 
         <div className="flex-1 max-w-7xl w-full mx-auto pt-24 pb-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-          <div className="w-full grid lg:grid-cols-12 gap-8 items-stretch rounded-[2.5rem] bg-[#0c172c]/90 border border-emerald-500/20 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden">
+          <div className="w-full grid lg:grid-cols-12 gap-8 items-stretch rounded-[2.5rem] bg-white dark:bg-[#0B1424]/95 border border-slate-200/80 dark:border-emerald-500/20 shadow-xl dark:shadow-[0_24px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden transition-colors duration-300">
             
             {/* Left Column: Form */}
             <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-between text-left space-y-8">
@@ -55,24 +55,24 @@ export default function RegisterPage() {
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <span className="text-xl font-black text-white">TMS</span>
-                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400 block">
+                    <span className="text-xl font-black text-slate-900 dark:text-white">TMS</span>
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 block">
                       Smart Rental Management
                     </span>
                   </div>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
                   Create your account.
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1.5">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
                   Start your smart rental journey with confidence.
                 </p>
               </div>
 
               {/* Error Banner */}
               {error && (
-                <div className="bg-rose-500/10 border border-rose-500/25 text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold">
+                <div className="bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold">
                   {error}
                 </div>
               )}
@@ -165,10 +165,10 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div className="relative my-3">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10" />
+                    <div className="w-full border-t border-slate-200 dark:border-white/10" />
                   </div>
-                  <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <span className="px-3 bg-[#0c172c]">Or continue with</span>
+                  <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    <span className="px-3 bg-white dark:bg-[#0B1424]">Or continue with</span>
                   </div>
                 </div>
 
@@ -181,10 +181,10 @@ export default function RegisterPage() {
               </div>
 
               {/* Log In Link */}
-              <div className="pt-4 border-t border-white/10 text-center">
-                <p className="text-xs text-slate-400 font-medium">
+              <div className="pt-4 border-t border-slate-200 dark:border-white/10 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   Already have an account?{' '}
-                  <Link to="/login" className="text-emerald-400 font-black hover:underline underline-offset-4">
+                  <Link to="/login" className="text-emerald-600 dark:text-emerald-400 font-black hover:underline underline-offset-4">
                     Log In
                   </Link>
                 </p>
@@ -199,18 +199,18 @@ export default function RegisterPage() {
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#060B13] via-[#060B13]/60 to-transparent" />
-              <div className="absolute inset-0 bg-emerald-950/20 mix-blend-overlay" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 dark:from-[#060B13] via-black/40 dark:via-[#060B13]/60 to-transparent" />
+              <div className="absolute inset-0 bg-emerald-950/10 dark:bg-emerald-950/20 mix-blend-overlay" />
 
-              <div className="absolute bottom-10 left-10 right-10 p-8 rounded-3xl bg-[#060B13]/80 backdrop-blur-xl border border-white/15 shadow-2xl text-left space-y-3">
-                <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+              <div className="absolute bottom-10 left-10 right-10 p-8 rounded-3xl bg-white/90 dark:bg-[#060B13]/80 backdrop-blur-xl border border-white/60 dark:border-white/15 shadow-2xl text-left space-y-3 transition-colors duration-300">
+                <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
                   <Sparkles className="w-3 h-3" />
                   <span>Start Your Journey</span>
                 </div>
-                <h3 className="text-2xl font-black text-white tracking-tight">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                   Find your place. Live smarter.
                 </h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                   Join hundreds of verified tenants and property managers managing their homes effortlessly with zero paperwork.
                 </p>
               </div>

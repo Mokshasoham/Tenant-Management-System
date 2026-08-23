@@ -44,9 +44,9 @@ export const Input = React.forwardRef(({ className, label, error, type, ...props
     const togglePassword = () => setShowPassword(!showPassword);
 
     return (
-        <div className="w-full space-y-1.5">
+        <div className="w-full space-y-1.5 text-left">
             {label && (
-                <label className="text-sm font-semibold text-muted-foreground ml-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 ml-1">
                     {label}
                 </label>
             )}
@@ -55,9 +55,9 @@ export const Input = React.forwardRef(({ className, label, error, type, ...props
                     ref={ref}
                     type={isPassword ? (showPassword ? "text" : "password") : type}
                     className={cn(
-                        "input-premium w-full",
+                        "w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all",
                         isPassword && "pr-10",
-                        error && "border-destructive focus:ring-destructive/50",
+                        error && "border-rose-500 focus:ring-rose-500/50",
                         className
                     )}
                     {...props}
@@ -66,7 +66,8 @@ export const Input = React.forwardRef(({ className, label, error, type, ...props
                     <button
                         type="button"
                         onClick={togglePassword}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                         {showPassword ? (
                             <EyeOff className="w-4 h-4" />
@@ -76,7 +77,7 @@ export const Input = React.forwardRef(({ className, label, error, type, ...props
                     </button>
                 )}
             </div>
-            {error && <p className="text-xs text-destructive ml-1">{error}</p>}
+            {error && <p className="text-xs text-rose-500 dark:text-rose-400 ml-1 font-semibold">{error}</p>}
         </div>
     );
 });
