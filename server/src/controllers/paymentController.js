@@ -494,8 +494,24 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   const user = await User.findById(actualUserId);
 
   let targetLease = null;
-  const tenantRecords = user ? await Tenant.find({ email: user.email }) : [];
-  const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)];
+  const cleanEmail = user ? (user.email || '').trim() : '';
+  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  const tenantRecords = emailRegex ? await Tenant.find({ email: emailRegex }) : [];
+  const allUsersWithEmail = emailRegex ? await User.find({ email: emailRegex }).select('_id') : [];
+  const tenantIds = Array.from(new Set([
+    actualUserId,
+    ...(user ? [user._id] : []),
+    ...tenantRecords.map(t => t._id),
+    ...allUsersWithEmail.map(u => u._id)
+  ].filter(Boolean).map(id => id.toString())));
+
+  // Collect embedded lease IDs
+  const embeddedLeaseIds = [];
+  for (const t of tenantRecords) {
+    if (Array.isArray(t.leases)) {
+      embeddedLeaseIds.push(...t.leases);
+    }
+  }
 
   if (leaseId) {
     if (mongoose.Types.ObjectId.isValid(leaseId)) {
@@ -519,14 +535,22 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
 
   if (!targetLease) {
     targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending'] }
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { _id: { $in: embeddedLeaseIds } },
+        { user: { $in: tenantIds } }
+      ],
+      status: { $nin: ['terminated', 'expired', 'cancelled'] }
     }).populate('property tenant');
   }
 
   if (!targetLease) {
     targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds }
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { _id: { $in: embeddedLeaseIds } },
+        { user: { $in: tenantIds } }
+      ]
     }).sort({ createdAt: -1 }).populate('property tenant');
   }
 

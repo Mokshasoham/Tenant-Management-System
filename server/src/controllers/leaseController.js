@@ -51,21 +51,37 @@ export const getMyLease = asyncHandler(async (req, res) => {
   const user = await User.findById(actualUserId).select('email');
   if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
-  const tenants = await Tenant.find({ email: user.email });
-  const allUsersWithEmail = await User.find({ email: user.email }).select('_id');
-  const tenantIds = [
+  const cleanEmail = (user.email || '').trim();
+  const emailRegex = new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  const tenants = await Tenant.find({ email: emailRegex });
+  const allUsersWithEmail = await User.find({ email: emailRegex }).select('_id');
+  const tenantIds = Array.from(new Set([
     actualUserId,
+    user._id,
     ...tenants.map(t => t._id),
     ...allUsersWithEmail.map(u => u._id)
-  ].filter(Boolean);
-  if (tenantIds.length === 0) {
+  ].filter(Boolean).map(id => id.toString())));
+
+  // Collect lease IDs embedded in tenant documents
+  const embeddedLeaseIds = [];
+  for (const t of tenants) {
+    if (Array.isArray(t.leases)) {
+      embeddedLeaseIds.push(...t.leases);
+    }
+  }
+
+  if (tenantIds.length === 0 && embeddedLeaseIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
   const [activeLeases, pastLeases, tenantPayments] = await Promise.all([
     Lease.find({
-      tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending'] },
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { _id: { $in: embeddedLeaseIds } },
+        { user: { $in: tenantIds } }
+      ],
+      status: { $nin: ['terminated', 'expired', 'cancelled'] },
     })
       .sort({ createdAt: -1 })
       .populate({
@@ -76,8 +92,12 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .populate('tenant', 'firstName lastName email phone'),
 
     Lease.find({
-      tenant: { $in: tenantIds },
-      status: { $nin: ['active', 'pending'] },
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { _id: { $in: embeddedLeaseIds } },
+        { user: { $in: tenantIds } }
+      ],
+      status: { $in: ['terminated', 'expired', 'cancelled'] },
     })
       .sort({ createdAt: -1 })
       .populate({

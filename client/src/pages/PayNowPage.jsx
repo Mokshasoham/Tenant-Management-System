@@ -857,7 +857,7 @@ export default function PayNowPage() {
                                 {!isBooking && !billIdParam && displayLeases.length > 0 && (
                                     <div className="flex flex-wrap items-center gap-1.5">
                                         {displayLeases.map((l) => {
-                                            const isSelected = (lease?._id || lease?.id) === (l._id || l.id);
+                                            const isSelected = String(lease?._id || lease?.id || rentSummary?.leaseId || '') === String(l._id || l.id || '');
                                             return (
                                                 <button
                                                     key={l._id || l.id || l.leaseNumber}
