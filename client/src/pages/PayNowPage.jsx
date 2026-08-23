@@ -629,8 +629,8 @@ export default function PayNowPage() {
 
     const [method, setMethod] = useState('card'); // 'card' | 'upi'
     const [success, setSuccess] = useState(false);
-    const [lease, setLease] = useState(null);
-    const [availableLeases, setAvailableLeases] = useState([]);
+    const [leases, setLeases] = useState([]);
+    const [selectedLeaseId, setSelectedLeaseId] = useState(leaseIdParam || null);
     const [leaseNotFound, setLeaseNotFound] = useState(false);
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
@@ -641,6 +641,7 @@ export default function PayNowPage() {
     const [amountError, setAmountError] = useState('');
     const [useCustom, setUseCustom] = useState(false);
 
+    // Initial mount: fetch all eligible leases belonging to tenant
     useEffect(() => {
         let isMounted = true;
         (async () => {
@@ -660,7 +661,6 @@ export default function PayNowPage() {
 
                 // 2. Fetch all of the tenant's leases
                 let allLeases = [];
-                let primaryLease = null;
                 try {
                     const leaseRes = await leaseService.getMyLease();
                     if (leaseRes) {
@@ -671,7 +671,7 @@ export default function PayNowPage() {
                                 ? rawRes.data.activeLeases
                                 : (Array.isArray(rawRes.data) ? rawRes.data : []));
                         
-                        primaryLease = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
+                        const primaryLease = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
                         const pastArray = Array.isArray(rawRes.pastLeases) ? rawRes.pastLeases : [];
                         const candidateList = [
                             ...(activeArray.length > 0 ? activeArray : (primaryLease ? [primaryLease] : [])),
@@ -684,88 +684,63 @@ export default function PayNowPage() {
                     console.warn('[PayNowPage] getMyLease warning:', lErr);
                 }
 
-                if (!isMounted) return;
-
-                // 3. Resolve Target Lease
-                let targetLease = null;
+                // If specific leaseIdParam is given and not in allLeases, fetch directly and add
                 const cleanParam = leaseIdParam ? String(leaseIdParam).trim() : null;
-
-                if (cleanParam) {
-                    targetLease = allLeases.find(l => {
-                        const lid = l._id ? String(l._id) : (l.id ? String(l.id) : '');
-                        const lnum = l.leaseNumber ? String(l.leaseNumber) : '';
-                        return lid === cleanParam || lnum === cleanParam;
-                    });
-
-                    // Direct lease lookup by ID if not in myLease list
-                    if (!targetLease) {
-                        try {
-                            const directRes = await leaseService.getLeaseById(cleanParam);
-                            targetLease = directRes?.data?.data || directRes?.data || directRes;
-                            if (targetLease && !allLeases.some(l => (l._id || l.id) === (targetLease._id || targetLease.id))) {
-                                allLeases.push(targetLease);
-                            }
-                        } catch (dErr) {
-                            console.warn('[PayNowPage] direct getLeaseById warning:', dErr);
+                if (cleanParam && !allLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)) {
+                    try {
+                        const directRes = await leaseService.getLeaseById(cleanParam);
+                        const directL = directRes?.data?.data || directRes?.data || directRes;
+                        if (directL) {
+                            allLeases.unshift(directL);
                         }
+                    } catch (dErr) {
+                        console.warn('[PayNowPage] direct getLeaseById warning:', dErr);
                     }
                 }
 
-                // If no specific lease was requested or matched, default to primary/first lease
-                if (!targetLease && !cleanParam) {
-                    targetLease = allLeases[0] || primaryLease || null;
-                }
-
-                // 4. Fetch Authoritative Rent Payment Summary from Single Source of Truth
-                let summary = null;
-                try {
-                    const sumRes = await paymentService.getRentSummary({
-                        leaseId: targetLease?._id || cleanParam || undefined,
-                        billId: billIdParam || undefined
-                    });
-                    summary = sumRes.data?.data || sumRes.data;
-                } catch (sErr) {
-                    console.warn('[PayNowPage] getRentSummary warning:', sErr);
-                }
-
-                if (!isMounted) return;
-
-                if (summary) {
-                    setRentSummary(summary);
-                    if (!targetLease) {
-                        targetLease = {
-                            _id: summary.leaseId,
-                            leaseNumber: summary.leaseNumber,
-                            rentAmount: summary.monthlyRent,
-                            property: {
-                                _id: summary.propertyId,
-                                name: summary.propertyName
-                            }
-                        };
-                        if (!allLeases.some(l => (l._id || l.id) === summary.leaseId)) {
-                            allLeases.push(targetLease);
-                        }
-                    }
-                }
-
-                const candidateLeases = allLeases.filter(Boolean);
+                // Deduplicate leases by ID
                 const uniqueLeases = [];
                 const seenIds = new Set();
-                for (const l of candidateLeases) {
+                for (const l of allLeases.filter(Boolean)) {
                     const lid = String(l._id || l.id || l.leaseNumber || '');
                     if (lid && !seenIds.has(lid)) {
                         seenIds.add(lid);
                         uniqueLeases.push(l);
                     }
                 }
-                setAvailableLeases(uniqueLeases);
 
-                if (!targetLease && !summary) {
-                    setLease(null);
-                    setRentSummary(null);
+                if (!isMounted) return;
+
+                if (uniqueLeases.length === 0 && !isBooking) {
+                    try {
+                        const sumRes = await paymentService.getRentSummary({ leaseId: cleanParam || undefined, billId: billIdParam || undefined });
+                        const summary = sumRes.data?.data || sumRes.data;
+                        if (summary) {
+                            const syntheticLease = {
+                                _id: summary.leaseId,
+                                leaseNumber: summary.leaseNumber,
+                                rentAmount: summary.monthlyRent,
+                                property: {
+                                    _id: summary.propertyId,
+                                    name: summary.propertyName
+                                }
+                            };
+                            uniqueLeases.push(syntheticLease);
+                            setRentSummary(summary);
+                        }
+                    } catch (sErr) {
+                        console.warn('[PayNowPage] fallback summary error:', sErr);
+                    }
+                }
+
+                if (uniqueLeases.length === 0 && !isBooking) {
                     setLeaseNotFound(true);
                 } else {
-                    setLease(targetLease);
+                    setLeases(uniqueLeases);
+                    const initialId = cleanParam && uniqueLeases.some(l => String(l._id || l.id) === cleanParam)
+                        ? cleanParam
+                        : (uniqueLeases[0]?._id || uniqueLeases[0]?.id || null);
+                    setSelectedLeaseId(initialId);
                     setLeaseNotFound(false);
                 }
 
@@ -777,19 +752,44 @@ export default function PayNowPage() {
             }
         })();
         return () => { isMounted = false; };
-    }, [leaseIdParam, searchParams, billIdParam]);
+    }, [billIdParam]);
+
+    // ─── Fetch Rent Summary whenever selectedLeaseId changes (No Route Transition) ───
+    useEffect(() => {
+        if (!selectedLeaseId) return;
+        let isMounted = true;
+        (async () => {
+            try {
+                const sumRes = await paymentService.getRentSummary({
+                    leaseId: selectedLeaseId,
+                    billId: billIdParam || undefined
+                });
+                const summary = sumRes.data?.data || sumRes.data;
+                if (isMounted && summary) {
+                    setRentSummary(summary);
+                }
+            } catch (err) {
+                console.warn('[PayNowPage] getRentSummary error for leaseId', selectedLeaseId, err);
+            }
+        })();
+        return () => { isMounted = false; };
+    }, [selectedLeaseId, billIdParam]);
 
     const handleSelectLease = (selectedL) => {
         if (!selectedL) return;
+        const targetId = selectedL._id || selectedL.id;
+        if (!targetId || targetId === selectedLeaseId) return;
+        setSelectedLeaseId(targetId);
         setCustomAmount('');
         setUseCustom(false);
         setAmountError('');
-        navigate(`/pay-now?leaseId=${selectedL._id || selectedL.id}`, { replace: true, state: { leaseId: selectedL._id || selectedL.id } });
     };
 
-    // ─── Authoritative Amounts from Single Source of Truth ───────────────────
+    // ─── Authoritative Amounts Derived from Selected Lease & Rent Summary ─────
+    const selectedLease = leases.find(l => String(l._id || l.id) === String(selectedLeaseId)) || leases[0] || null;
+
     const isOverdue = rentSummary?.isOverdue ?? (rentSummary?.status === 'overdue');
-    const monthlyRent = rentSummary?.monthlyRent ?? (lease?.rentAmount || 0);
+    const monthlyRent = rentSummary?.monthlyRent ?? (selectedLease?.rentAmount || 0);
     const lateFee = rentSummary?.lateFee ?? 0;
     const daysOverdue = rentSummary?.daysOverdue ?? 0;
     const platformFee = rentSummary?.platformFee ?? Math.round((monthlyRent + lateFee) * 0.01);
@@ -808,8 +808,10 @@ export default function PayNowPage() {
             ? customTotalPayable
             : authoritativeTotalDue;
 
-    const propertyId = bookingData.propertyId || billDetails?.property?._id || lease?.property?._id || rentSummary?.propertyId;
+    const propertyName = selectedLease?.property?.name || rentSummary?.propertyName || selectedLease?.propertyName || 'Property';
+    const propertyId = bookingData.propertyId || billDetails?.property?._id || selectedLease?.property?._id || rentSummary?.propertyId;
     const isAutoPayActive = Boolean(rentSummary?.autoPay?.enabled);
+    const dueDate = rentSummary?.dueDate || rentSummary?.nextDueDate || selectedLease?.endDate || selectedLease?.nextPaymentDueAt;
 
     const validateCustom = () => {
         if (parsedCustom < 1) { setAmountError('Enter a valid amount'); return false; }
@@ -819,8 +821,6 @@ export default function PayNowPage() {
     };
 
     const handleSuccess = () => setSuccess(true);
-
-    const displayLeases = availableLeases.length > 0 ? availableLeases : (lease ? [lease] : []);
 
     return (
         <div className="max-w-lg mx-auto space-y-5 pb-10">
@@ -854,13 +854,15 @@ export default function PayNowPage() {
                                     {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
                                 </p>
 
-                                {!isBooking && !billIdParam && displayLeases.length > 0 && (
+                                {!isBooking && !billIdParam && leases.length > 0 && (
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        {displayLeases.map((l) => {
-                                            const isSelected = String(lease?._id || lease?.id || rentSummary?.leaseId || '') === String(l._id || l.id || '');
+                                        {leases.map((l) => {
+                                            const lid = l._id || l.id || l.leaseNumber;
+                                            const isSelected = String(l._id || l.id) === String(selectedLeaseId) || String(l.leaseNumber) === String(selectedLeaseId);
+                                            const propName = l.property?.name || l.propertyName || 'Lease';
                                             return (
                                                 <button
-                                                    key={l._id || l.id || l.leaseNumber}
+                                                    key={lid}
                                                     type="button"
                                                     onClick={() => handleSelectLease(l)}
                                                     className={cn(
@@ -870,7 +872,7 @@ export default function PayNowPage() {
                                                             : "bg-white/5 border-white/10 text-emerald-100/60 hover:text-white hover:bg-white/10"
                                                     )}
                                                 >
-                                                    {l.property?.name || l.propertyName || 'Lease'}
+                                                    {propName}
                                                 </button>
                                             );
                                         })}
@@ -920,14 +922,19 @@ export default function PayNowPage() {
                                     </div>
 
                                     <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 font-mono">
-                                        {isBooking
-                                            ? <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {bookingData.propertyName}</span>
-                                            : (lease && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {lease.property?.name || rentSummary?.propertyName}</span>)
-                                        }
-                                        {!isBooking && (rentSummary?.dueDate || lease?.nextPaymentDueAt || lease?.startDate) && (
+                                        {isBooking ? (
+                                            <span className="flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {bookingData.propertyName}
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {propertyName}
+                                            </span>
+                                        )}
+                                        {!isBooking && dueDate && (
                                             <span className="flex items-center gap-1.5">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> 
-                                                Due: {new Date(rentSummary?.dueDate || lease?.nextPaymentDueAt || lease?.startDate).toLocaleDateString('en-IN')}
+                                                Due: {new Date(dueDate).toLocaleDateString('en-GB')}
                                             </span>
                                         )}
                                     </div>
@@ -948,13 +955,16 @@ export default function PayNowPage() {
                                                 <Field label="Custom Amount (₹)" error={amountError}>
                                                     <div className="relative">
                                                         <span className="absolute left-4 top-3.5 text-foreground/40 font-black text-sm">₹</span>
-                                                        <Input value={customAmount}
-                                                            onChange={e => setCustomAmount(e.target.value.replace(/\D/g, ''))}
-                                                            onBlur={validateCustom}
-                                                            placeholder="0.00"
-                                                            inputMode="numeric"
-                                                            className="pl-8 !bg-card border-emerald-500/20"
-                                                            error={amountError}
+                                                        <input
+                                                            type="text"
+                                                            value={customAmount}
+                                                            onChange={e => {
+                                                                const val = e.target.value.replace(/[^\d]/g, '');
+                                                                setCustomAmount(val ? Number(val).toLocaleString('en-IN') : '');
+                                                                setAmountError('');
+                                                            }}
+                                                            placeholder="0"
+                                                            className="w-full pl-9 pr-4 py-3 rounded-xl bg-card border border-border focus:border-emerald-500 text-foreground font-black text-lg transition-colors outline-none"
                                                         />
                                                     </div>
                                                 </Field>
@@ -1084,7 +1094,7 @@ export default function PayNowPage() {
                                                     onSuccess={handleSuccess}
                                                     propertyId={propertyId}
                                                     billId={billIdParam}
-                                                    leaseId={lease?._id}
+                                                    leaseId={selectedLease?._id || selectedLeaseId}
                                                     user={user}
                                                     isBooking={isBooking}
                                                     bookingData={bookingData}
@@ -1098,7 +1108,7 @@ export default function PayNowPage() {
                                                     onSuccess={handleSuccess}
                                                     propertyId={propertyId}
                                                     billId={billIdParam}
-                                                    leaseId={lease?._id}
+                                                    leaseId={selectedLease?._id || selectedLeaseId}
                                                     user={user}
                                                     isBooking={isBooking}
                                                     bookingData={bookingData}
