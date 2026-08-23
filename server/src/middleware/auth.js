@@ -19,6 +19,22 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   }
 });
 
+export const optionalAuthenticate = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = verifyToken(token);
+      req.user = decoded;
+    } catch (err) {
+      req.user = null;
+    }
+  } else {
+    req.user = null;
+  }
+  next();
+});
+
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -40,3 +56,4 @@ export const adminOnly = authorize('admin');
 export const managerOrAdmin = authorize('manager', 'admin');
 export const authorizeRoles = authorize;
 export const protect = authenticate;
+

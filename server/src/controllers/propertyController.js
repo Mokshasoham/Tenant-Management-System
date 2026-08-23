@@ -91,19 +91,19 @@ export const getAllProperties = asyncHandler(async (req, res) => {
   const filter = {};
 
   // Visibility Logic
-  if (req.user.role === 'manager') {
+  if (req.user?.role === 'manager') {
     // Managers see their own properties by default, unless searching available ones
     if (status === 'available') {
       filter.status = 'available';
     } else {
       filter.$or = [{ owner: req.user.userId }, { manager: req.user.userId }];
     }
-  } else if (req.user.role === 'tenant' || req.user.role === 'user') {
-    // Tenants/Users see available, occupied, or rented properties (so they see Sold Out & Available From)
-    filter.status = { $in: ['available', 'occupied', 'rented'] };
-  } else if (req.user.role === 'admin') {
+  } else if (req.user?.role === 'admin') {
     if (owner) filter.owner = owner;
     if (status) filter.status = status;
+  } else {
+    // Tenants/Users/Public visitors see available, occupied, or rented properties (so they see Sold Out & Available From)
+    filter.status = { $in: ['available', 'occupied', 'rented'] };
   }
 
   // Common Filters
@@ -123,7 +123,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     const amenArr = amenities.split(',').map(a => a.trim());
     filter.amenities = { $all: amenArr };
   }
-  if (savedOnly === 'true') {
+  if (savedOnly === 'true' && req.user?.userId) {
     filter.savedBy = req.user.userId;
   }
 

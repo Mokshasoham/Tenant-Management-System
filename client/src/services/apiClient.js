@@ -35,6 +35,19 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Public route prefixes where 401 errors should NEVER trigger an automatic redirect to /login
+const PUBLIC_ROUTE_PREFIXES = [
+  '/',
+  '/login',
+  '/register',
+  '/reset-password',
+  '/verify-email',
+  '/activate-account',
+  '/property/verify',
+  '/verify/property',
+  '/dev/verification-gallery',
+];
+
 // Handle responses
 apiClient.interceptors.response.use(
   (response) => response.data,
@@ -44,14 +57,26 @@ apiClient.interceptors.response.use(
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/google') ||
       requestUrl.includes('/auth/register') ||
-      requestUrl.includes('/auth/login/2fa');
+      requestUrl.includes('/auth/login/2fa') ||
+      requestUrl.includes('/health');
 
-    // Only redirect to /login for session expiration on protected app routes
+    // Only redirect to /login for session expiration on PROTECTED app routes
     if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      
+      if (typeof window !== 'undefined' && window.location) {
+        const rawPath = window.location.pathname || '/';
+        const currentPath = rawPath.replace(/\/+$/, '') || '/';
+        
+        const isPublicPath = PUBLIC_ROUTE_PREFIXES.some(prefix => {
+          if (prefix === '/') return currentPath === '/';
+          return currentPath.startsWith(prefix);
+        });
+
+        if (!isPublicPath) {
+          window.location.href = '/login';
+        }
       }
     }
 

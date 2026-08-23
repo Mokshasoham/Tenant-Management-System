@@ -1,7 +1,7 @@
 import express from 'express';
 import * as propertyController from '../controllers/propertyController.js';
 import * as nearbyController from '../controllers/nearbyPlacesController.js';
-import { authenticate, managerOrAdmin } from '../middleware/auth.js';
+import { authenticate, optionalAuthenticate, managerOrAdmin } from '../middleware/auth.js';
 import { validationMiddleware, validatePropertyCreation } from '../middleware/validation.js';
 import { uploadMemory } from '../middleware/uploadMiddleware.js';
 
@@ -11,15 +11,17 @@ const router = express.Router();
 router.get('/public-verify/:token', propertyController.verifyPropertyByToken);
 router.get('/verify/:token', propertyController.verifyPropertyByToken);
 
+// Public / Optional Auth (Landing page discovery, public search & details)
+router.get('/', optionalAuthenticate, propertyController.getAllProperties);
+router.get('/:id', optionalAuthenticate, propertyController.getPropertyById);
+router.get('/:id/availability', optionalAuthenticate, propertyController.getAvailability);
+router.get('/:id/similar', optionalAuthenticate, propertyController.getSimilarProperties);
+
 router.use(authenticate);
 
-// Public to all authenticated users (browse & details)
-router.get('/', propertyController.getAllProperties);
+// Authenticated Property Routes
 router.get('/stats', managerOrAdmin, propertyController.getPropertyStats);
 router.get('/:id/qr-pass', propertyController.getPropertyQrPass);
-router.get('/:id', propertyController.getPropertyById);
-router.get('/:id/availability', propertyController.getAvailability);
-router.get('/:id/similar', propertyController.getSimilarProperties);
 
 // Explore Nearby Places & Driving Route & City Discovery (Authenticated)
 router.get('/:id/nearby', nearbyController.getNearbyPlaces);
