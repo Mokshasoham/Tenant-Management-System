@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { paymentService, leaseService, bookingService, billService, platformService } from '../services/api';
+import { paymentService, leaseService, bookingService, billService, platformService, autoPayService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
@@ -10,6 +10,22 @@ import {
 } from 'lucide-react';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule';
 import { cn } from '../utils/cn';
+
+// ─── Razorpay Script Loader ────────────────────────────────────────────────
+const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+        if (typeof window !== 'undefined' && window.Razorpay) {
+            resolve(true);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+};
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 const fmtCard = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
@@ -53,11 +69,11 @@ function Input({ className, error, ...props }) {
 }
 
 // ─── Debit Card Form ────────────────────────────────────────────────────────
-function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) {
+function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId, user, isBooking, bookingData }) {
     const [cardNum, setCardNum] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
-    const [name, setName] = useState('');
+    const [name, setName] = useState(user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '');
     const [showCvv, setShowCvv] = useState(false);
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -76,29 +92,146 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, lease
         e.preventDefault();
         if (!validate()) return;
         setLoading(true);
+        setErrors({});
         
         try {
-            await bookingService.processMockPayment({
-                propertyId: propertyId,
-                amount: amount,
-                method: 'debit_card',
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                billId: billId,
+            if (isBooking) {
+                // Booking payment flow
+                const isRzpLoaded = await loadRazorpayScript();
+                const orderRes = await bookingService.createRazorpayOrder({
+                    propertyId: propertyId || bookingData?.propertyId,
+                    bookingId: bookingData?.bookingId
+                });
+                const order = orderRes.data?.data || orderRes.data;
+
+                if (isRzpLoaded && window.Razorpay && order?.keyId && !order.keyId.includes('placeholder') && !String(order.razorpayOrderId).startsWith('order_sim_')) {
+                    const options = {
+                        key: order.keyId,
+                        amount: order.amount,
+                        currency: order.currency || 'INR',
+                        name: 'Tenant Management System',
+                        description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
+                        order_id: order.razorpayOrderId,
+                        prefill: {
+                            name: name || `${user?.firstName || ''} ${user?.lastName || ''}`,
+                            email: user?.email || '',
+                            contact: user?.phone || ''
+                        },
+                        theme: { color: '#059669' },
+                        handler: async function (response) {
+                            try {
+                                await bookingService.verifyRazorpayPayment({
+                                    bookingId: bookingData?.bookingId || order.bookingId,
+                                    propertyId: propertyId,
+                                    razorpayOrderId: response.razorpay_order_id,
+                                    razorpayPaymentId: response.razorpay_payment_id,
+                                    razorpaySignature: response.razorpay_signature
+                                });
+                                setLoading(false);
+                                onSuccess();
+                            } catch (vErr) {
+                                setLoading(false);
+                                setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
+                            }
+                        },
+                        modal: {
+                            ondismiss: () => setLoading(false)
+                        }
+                    };
+                    const rzp = new window.Razorpay(options);
+                    rzp.on('payment.failed', (resp) => {
+                        setLoading(false);
+                        setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
+                    });
+                    rzp.open();
+                    return;
+                }
+
+                // Fallback simulation for booking
+                await bookingService.processMockPayment({
+                    propertyId: propertyId,
+                    amount: amount,
+                    method: 'debit_card',
+                    startDate: new Date(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    billId: billId,
+                    leaseId: leaseId,
+                });
+                setTimeout(() => {
+                    setLoading(false);
+                    onSuccess();
+                }, 1000);
+                return;
+            }
+
+            // Rent Payment Flow via Authoritative Razorpay Integration
+            const isRzpLoaded = await loadRazorpayScript();
+            const orderRes = await paymentService.createRentOrder({
                 leaseId: leaseId,
+                billId: billId
+            });
+            const orderData = orderRes.data?.data || orderRes.data;
+
+            if (isRzpLoaded && window.Razorpay && orderData?.keyId && !orderData.keyId.includes('placeholder') && !String(orderData.orderId).startsWith('order_sim_')) {
+                const options = {
+                    key: orderData.keyId,
+                    amount: orderData.amount, // in paise
+                    currency: orderData.currency || 'INR',
+                    name: 'Tenant Management System',
+                    description: `Rent Payment — Lease #${String(leaseId).slice(-6)}`,
+                    order_id: orderData.orderId,
+                    prefill: {
+                        name: name || `${user?.firstName || ''} ${user?.lastName || ''}`,
+                        email: user?.email || '',
+                        contact: user?.phone || ''
+                    },
+                    theme: { color: '#059669' },
+                    handler: async function (response) {
+                        try {
+                            const verifyRes = await paymentService.verifyRazorpayPayment({
+                                leaseId: leaseId,
+                                billId: billId,
+                                razorpayOrderId: response.razorpay_order_id,
+                                razorpayPaymentId: response.razorpay_payment_id,
+                                razorpaySignature: response.razorpay_signature
+                            });
+                            setLoading(false);
+                            onSuccess(verifyRes.data?.data || verifyRes.data);
+                        } catch (vErr) {
+                            setLoading(false);
+                            setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
+                        }
+                    },
+                    modal: {
+                        ondismiss: () => setLoading(false)
+                    }
+                };
+                const rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', (resp) => {
+                    setLoading(false);
+                    setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+                });
+                rzp.open();
+                return;
+            }
+
+            // Server-verified fallback for development / simulated environments
+            const verifyRes = await paymentService.verifyRazorpayPayment({
+                leaseId: leaseId,
+                billId: billId,
+                razorpayOrderId: orderData?.orderId || `order_sim_${Date.now()}`,
+                razorpayPaymentId: `pay_sim_${Date.now()}`,
+                razorpaySignature: 'sig_sim_valid'
             });
 
             setTimeout(() => {
                 setLoading(false);
-                if (typeof onSuccess === 'function') {
-                    onSuccess();
-                } else if (onSuccess && onSuccess.callback) {
-                    onSuccess.callback();
-                }
-            }, 1000);
+                onSuccess(verifyRes.data?.data || verifyRes.data);
+            }, 900);
+
         } catch (err) {
-            console.error(err);
-            setErrors({ submit: err?.message || err?.submit || String(err) || 'Payment failed.' });
+            console.error('[DebitCardForm] Payment error:', err);
+            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment failed. Please try again.' });
             setLoading(false);
         }
     };
@@ -176,7 +309,7 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, lease
             )}
 
             <button type="submit" disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm disabled:opacity-50 hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-sm disabled:opacity-50 hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer">
                 {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</> : <><Lock className="w-4 h-4" /> Pay ₹{amount.toLocaleString('en-IN')} Securely</>}
             </button>
 
@@ -188,7 +321,7 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, lease
 }
 
 // ─── UPI Form ───────────────────────────────────────────────────────────────
-function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) {
+function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId, user, isBooking, bookingData }) {
     const [upiId, setUpiId] = useState('');
     const [verifying, setVerifying] = useState(false);
     const [verified, setVerified] = useState(false);
@@ -204,7 +337,7 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) 
         }
         setErrors({});
         setVerifying(true);
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 600));
         setVerifying(false);
         setVerified(true);
     };
@@ -213,29 +346,142 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) 
         e.preventDefault();
         if (!verified) { handleVerify(); return; }
         setLoading(true);
+        setErrors({});
 
         try {
-            await bookingService.processMockPayment({
-                propertyId: propertyId,
-                amount: amount,
-                method: 'upi',
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                billId: billId,
+            if (isBooking) {
+                const isRzpLoaded = await loadRazorpayScript();
+                const orderRes = await bookingService.createRazorpayOrder({
+                    propertyId: propertyId || bookingData?.propertyId,
+                    bookingId: bookingData?.bookingId
+                });
+                const order = orderRes.data?.data || orderRes.data;
+
+                if (isRzpLoaded && window.Razorpay && order?.keyId && !order.keyId.includes('placeholder') && !String(order.razorpayOrderId).startsWith('order_sim_')) {
+                    const options = {
+                        key: order.keyId,
+                        amount: order.amount,
+                        currency: order.currency || 'INR',
+                        name: 'Tenant Management System',
+                        description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
+                        order_id: order.razorpayOrderId,
+                        prefill: {
+                            name: `${user?.firstName || ''} ${user?.lastName || ''}`,
+                            email: user?.email || '',
+                            contact: user?.phone || '',
+                            vpa: upiId
+                        },
+                        theme: { color: '#7c3aed' },
+                        handler: async function (response) {
+                            try {
+                                await bookingService.verifyRazorpayPayment({
+                                    bookingId: bookingData?.bookingId || order.bookingId,
+                                    propertyId: propertyId,
+                                    razorpayOrderId: response.razorpay_order_id,
+                                    razorpayPaymentId: response.razorpay_payment_id,
+                                    razorpaySignature: response.razorpay_signature
+                                });
+                                setLoading(false);
+                                onSuccess();
+                            } catch (vErr) {
+                                setLoading(false);
+                                setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
+                            }
+                        },
+                        modal: { ondismiss: () => setLoading(false) }
+                    };
+                    const rzp = new window.Razorpay(options);
+                    rzp.on('payment.failed', (resp) => {
+                        setLoading(false);
+                        setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
+                    });
+                    rzp.open();
+                    return;
+                }
+
+                await bookingService.processMockPayment({
+                    propertyId: propertyId,
+                    amount: amount,
+                    method: 'upi',
+                    startDate: new Date(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    billId: billId,
+                    leaseId: leaseId,
+                });
+                setTimeout(() => {
+                    setLoading(false);
+                    onSuccess();
+                }, 1000);
+                return;
+            }
+
+            // Rent Payment via Razorpay
+            const isRzpLoaded = await loadRazorpayScript();
+            const orderRes = await paymentService.createRentOrder({
                 leaseId: leaseId,
+                billId: billId
+            });
+            const orderData = orderRes.data?.data || orderRes.data;
+
+            if (isRzpLoaded && window.Razorpay && orderData?.keyId && !orderData.keyId.includes('placeholder') && !String(orderData.orderId).startsWith('order_sim_')) {
+                const options = {
+                    key: orderData.keyId,
+                    amount: orderData.amount,
+                    currency: orderData.currency || 'INR',
+                    name: 'Tenant Management System',
+                    description: `Rent Payment (UPI) — Lease #${String(leaseId).slice(-6)}`,
+                    order_id: orderData.orderId,
+                    prefill: {
+                        name: `${user?.firstName || ''} ${user?.lastName || ''}`,
+                        email: user?.email || '',
+                        contact: user?.phone || '',
+                        vpa: upiId
+                    },
+                    theme: { color: '#7c3aed' },
+                    handler: async function (response) {
+                        try {
+                            const verifyRes = await paymentService.verifyRazorpayPayment({
+                                leaseId: leaseId,
+                                billId: billId,
+                                razorpayOrderId: response.razorpay_order_id,
+                                razorpayPaymentId: response.razorpay_payment_id,
+                                razorpaySignature: response.razorpay_signature
+                            });
+                            setLoading(false);
+                            onSuccess(verifyRes.data?.data || verifyRes.data);
+                        } catch (vErr) {
+                            setLoading(false);
+                            setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
+                        }
+                    },
+                    modal: { ondismiss: () => setLoading(false) }
+                };
+                const rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', (resp) => {
+                    setLoading(false);
+                    setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+                });
+                rzp.open();
+                return;
+            }
+
+            // Fallback for simulation
+            const verifyRes = await paymentService.verifyRazorpayPayment({
+                leaseId: leaseId,
+                billId: billId,
+                razorpayOrderId: orderData?.orderId || `order_sim_${Date.now()}`,
+                razorpayPaymentId: `pay_sim_${Date.now()}`,
+                razorpaySignature: 'sig_sim_valid'
             });
 
             setTimeout(() => {
                 setLoading(false);
-                if (typeof onSuccess === 'function') {
-                    onSuccess();
-                } else if (onSuccess && onSuccess.callback) {
-                    onSuccess.callback();
-                }
-            }, 1000);
+                onSuccess(verifyRes.data?.data || verifyRes.data);
+            }, 900);
+
         } catch (err) {
-            console.error(err);
-            setErrors({ submit: err?.message || err?.submit || String(err) || 'Payment failed.' });
+            console.error('[UpiForm] Payment error:', err);
+            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment failed. Please try again.' });
             setLoading(false);
         }
     };
@@ -268,7 +514,7 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) 
                     />
                     <button type="button" onClick={handleVerify} disabled={verifying || !upiId}
                         className={cn(
-                            'flex-shrink-0 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border',
+                            'flex-shrink-0 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border cursor-pointer',
                             verified
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                                 : 'bg-muted border-border text-foreground/50 hover:bg-muted/80 disabled:opacity-40'
@@ -284,7 +530,7 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) 
                     {quickHandles.map(h => (
                         <button key={h} type="button"
                             onClick={() => { const base = upiId.split('@')[0]; setUpiId(base + h); setVerified(false); }}
-                            className="px-3.5 py-1.5 rounded-xl bg-muted border border-border text-[10px] font-black text-muted-foreground hover:text-foreground hover:border-violet-500/30 hover:bg-violet-500/5 transition-all">
+                            className="px-3.5 py-1.5 rounded-xl bg-muted border border-border text-[10px] font-black text-muted-foreground hover:text-foreground hover:border-violet-500/30 hover:bg-violet-500/5 transition-all cursor-pointer">
                             {h}
                         </button>
                     ))}
@@ -304,7 +550,7 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId }) 
             )}
 
             <button type="submit" disabled={loading || !verified}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 flex items-center justify-center gap-2">
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-violet-500/20 flex items-center justify-center gap-2 cursor-pointer">
                 {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</> : <><Lock className="w-4 h-4" /> Pay ₹{amount.toLocaleString('en-IN')} via UPI</>}
             </button>
 
@@ -356,7 +602,7 @@ function SuccessScreen({ amount, method, navigate, type }) {
                 <h2 className="text-3xl font-black text-foreground tracking-tight">
                     {type === 'booking' ? 'Booking Requested! 🏠' : 'Payment Successful! 🎉'}
                 </h2>
-                <p className="text-muted-foreground mt-2 text-sm max-w-xs mx-auto">Your payment of <span className="font-black text-emerald-600 dark:text-emerald-400">₹{amount.toLocaleString('en-IN')}</span> has been received.</p>
+                <p className="text-muted-foreground mt-2 text-sm max-w-xs mx-auto">Your payment of <span className="font-black text-emerald-600 dark:text-emerald-400">₹{amount.toLocaleString('en-IN')}</span> has been received and verified.</p>
                 <p className="text-muted-foreground/40 mt-3 text-[10px] font-black uppercase tracking-[0.15em]">via {method === 'upi' ? 'UPI' : 'Debit Card'} · {new Date().toLocaleString('en-IN')}</p>
             </div>
             <div className="w-full p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300/70 relative z-10">
@@ -364,20 +610,20 @@ function SuccessScreen({ amount, method, navigate, type }) {
                 {type === 'booking' ? (
                     <p>The owner has been notified. Your status is now "Pending Approval". You can track it in your dashboard.</p>
                 ) : (
-                    <p>Your property manager has been notified. A receipt will be generated in your payment history.</p>
+                    <p>Your payment is recorded as PAID. The updated receipt is available in your payment history.</p>
                 )}
             </div>
             <div className="flex gap-3 w-full relative z-10">
                 {type === 'booking' ? (
-                    <button onClick={() => navigate('/dashboard')} className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-black text-sm hover:opacity-90 transition-all shadow-xl shadow-primary/20">
+                    <button onClick={() => navigate('/dashboard')} className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-black text-sm hover:opacity-90 transition-all shadow-xl shadow-primary/20 cursor-pointer">
                         Back to Dashboard
                     </button>
                 ) : (
                     <>
-                        <button onClick={() => navigate('/my-lease')} className="flex-1 py-4 rounded-2xl border border-border text-foreground/50 font-black text-xs uppercase tracking-widest hover:bg-muted transition-colors">
+                        <button onClick={() => navigate('/my-lease')} className="flex-1 py-4 rounded-2xl border border-border text-foreground/50 font-black text-xs uppercase tracking-widest hover:bg-muted transition-colors cursor-pointer">
                             View Lease
                         </button>
-                        <button onClick={() => navigate('/payments')} className="flex-1 py-4 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl shadow-primary/20">
+                        <button onClick={() => navigate('/payments')} className="flex-1 py-4 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl shadow-primary/20 cursor-pointer">
                             Payment History
                         </button>
                     </>
@@ -406,10 +652,9 @@ export default function PayNowPage() {
     const [lease, setLease] = useState(null);
     const [availableLeases, setAvailableLeases] = useState([]);
     const [leaseNotFound, setLeaseNotFound] = useState(false);
-    const [pendingPayment, setPendingPayment] = useState(null);
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
-    const [feeBreakdown, setFeeBreakdown] = useState(null);
+    const [rentSummary, setRentSummary] = useState(null);
 
     // Custom amount mode
     const [customAmount, setCustomAmount] = useState('');
@@ -438,19 +683,21 @@ export default function PayNowPage() {
                         .filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase()));
                     if (!isMounted) return;
                     setAvailableLeases(allL);
-                    setLease(primary || allL[0] || null);
-                } else {
-                    const [leaseRes, payRes] = await Promise.allSettled([
-                        leaseService.getMyLease(),
-                        paymentService.getMyPayments(),
-                    ]);
+                    const currentL = primary || allL[0] || null;
+                    setLease(currentL);
 
+                    if (currentL?._id) {
+                        const sumRes = await paymentService.getRentSummary({ leaseId: currentL._id, billId: billIdParam });
+                        if (isMounted) setRentSummary(sumRes.data?.data || sumRes.data);
+                    }
+                } else {
+                    const leaseRes = await leaseService.getMyLease();
                     if (!isMounted) return;
 
                     let allLeases = [];
                     let primaryLease = null;
-                    if (leaseRes.status === 'fulfilled') {
-                        const rawRes = leaseRes.value || {};
+                    if (leaseRes) {
+                        const rawRes = leaseRes.data || leaseRes || {};
                         const activeArray = Array.isArray(rawRes.activeLeases)
                             ? rawRes.activeLeases
                             : (Array.isArray(rawRes.data?.activeLeases)
@@ -479,7 +726,7 @@ export default function PayNowPage() {
                             targetLease = matched;
                         } else {
                             setLease(null);
-                            setPendingPayment(null);
+                            setRentSummary(null);
                             setLeaseNotFound(true);
                             setLoadingLease(false);
                             return;
@@ -491,24 +738,9 @@ export default function PayNowPage() {
                     setLease(targetLease);
                     setLeaseNotFound(false);
 
-                    if (payRes.status === 'fulfilled' && targetLease) {
-                        const allPayments = payRes.value?.data || [];
-                        const statePaymentId = location.state?.paymentId;
-                        const targetLeaseIdStr = targetLease._id ? targetLease._id.toString() : '';
-                        
-                        const leasePayments = allPayments.filter(p => {
-                            const pLeaseId = p.lease?._id ? p.lease._id.toString() : (p.lease ? p.lease.toString() : '');
-                            const pPropId = p.property?._id ? p.property._id.toString() : (p.property ? p.property.toString() : '');
-                            const tPropId = targetLease.property?._id ? targetLease.property._id.toString() : (targetLease.property ? targetLease.property.toString() : '');
-                            return (pLeaseId && pLeaseId === targetLeaseIdStr) || (pPropId && pPropId === tPropId);
-                        });
-
-                        const pending = statePaymentId
-                            ? allPayments.find(p => p._id === statePaymentId || p.id === statePaymentId)
-                            : leasePayments.find(p => ['pending', 'overdue', 'partially_paid'].includes(p.status));
-                        setPendingPayment(pending || null);
-                    } else {
-                        setPendingPayment(null);
+                    if (targetLease?._id) {
+                        const sumRes = await paymentService.getRentSummary({ leaseId: targetLease._id });
+                        if (isMounted) setRentSummary(sumRes.data?.data || sumRes.data);
                     }
                 }
             } catch (err) {
@@ -518,7 +750,7 @@ export default function PayNowPage() {
             }
         })();
         return () => { isMounted = false; };
-    }, [leaseIdParam, location.state?.paymentId, searchParams, billIdParam]);
+    }, [leaseIdParam, searchParams, billIdParam]);
 
     const handleSelectLease = (selectedL) => {
         if (!selectedL || (lease?._id === selectedL._id)) return;
@@ -528,52 +760,29 @@ export default function PayNowPage() {
         navigate(`/pay-now?leaseId=${selectedL._id}`, { replace: true, state: { leaseId: selectedL._id } });
     };
 
-    const computedSchedule = lease ? calculateNextPaymentDue(lease, pendingPayment ? [pendingPayment] : []) : null;
-    const isOverdue = computedSchedule?.isOverdue || pendingPayment?.status === 'overdue';
-    const rentAmount = computedSchedule?.rentAmount || lease?.rentAmount || 0;
-    const lateFee = computedSchedule?.lateFee || (pendingPayment?.lateFee || 0);
-    const daysLate = computedSchedule?.daysLate || (pendingPayment?.daysLate || 0);
-    const scheduleTotalDue = computedSchedule?.totalDue || (rentAmount + lateFee);
-
-    const pendingAmount = pendingPayment
-        ? ((pendingPayment.amountDue !== undefined ? pendingPayment.amountDue : (pendingPayment.amount || scheduleTotalDue)) - (pendingPayment.amountPaid || 0))
-        : scheduleTotalDue;
+    // ─── Authoritative Amounts from Single Source of Truth ───────────────────
+    const isOverdue = rentSummary?.isOverdue ?? (rentSummary?.status === 'overdue');
+    const monthlyRent = rentSummary?.monthlyRent ?? (lease?.rentAmount || 0);
+    const lateFee = rentSummary?.lateFee ?? 0;
+    const daysOverdue = rentSummary?.daysOverdue ?? 0;
+    const platformFee = rentSummary?.platformFee ?? Math.round((monthlyRent + lateFee) * 0.01);
+    const platformFeePercentage = rentSummary?.platformFeePercentage ?? 1;
+    const taxAmount = rentSummary?.taxAmount ?? 0;
+    const authoritativeTotalDue = rentSummary?.totalDue ?? (monthlyRent + lateFee + platformFee + taxAmount);
 
     const parsedCustom = parseInt(customAmount.replace(/[^\d]/g, '')) || 0;
+    const customPlatformFee = Math.round(parsedCustom * 0.01);
+    const customTotalPayable = parsedCustom + customPlatformFee;
 
-    const baseAmount = bookingData.amount !== undefined 
-        ? bookingData.amount 
-        : billDetails 
-            ? (billDetails.amountDue - billDetails.amountPaid)
-            : pendingAmount;
+    // Single unified authoritative payable amount
+    const finalTotalPayable = isBooking
+        ? (bookingData.amount || 0)
+        : useCustom
+            ? customTotalPayable
+            : authoritativeTotalDue;
 
-    const payAmount = useCustom ? parsedCustom : baseAmount;
-    const paymentId = billDetails ? (billDetails.payment?._id || billDetails.payment) : (pendingPayment?._id || pendingPayment?.id);
-    const propertyId = bookingData.propertyId || billDetails?.property?._id || lease?.property?._id;
-
-    useEffect(() => {
-        let isMounted = true;
-        const base = useCustom ? parsedCustom : baseAmount;
-        if (base > 0) {
-            platformService.getFeePreview(base).then(res => {
-                const raw = res?.data || res;
-                if (isMounted && raw) setFeeBreakdown(raw);
-            }).catch(() => {
-                if (isMounted) {
-                    setFeeBreakdown({
-                        rentAmount: base,
-                        platformFee: Math.round(base * 0.01),
-                        platformFeePercentage: 1,
-                        taxAmount: 0,
-                        totalPayable: base + Math.round(base * 0.01)
-                    });
-                }
-            });
-        }
-        return () => { isMounted = false; };
-    }, [baseAmount, customAmount, useCustom, parsedCustom]);
-
-    const finalTotalPayable = feeBreakdown?.totalPayable || (payAmount + Math.round(payAmount * 0.01));
+    const propertyId = bookingData.propertyId || billDetails?.property?._id || lease?.property?._id || rentSummary?.propertyId;
+    const isAutoPayActive = Boolean(rentSummary?.autoPay?.enabled);
 
     const validateCustom = () => {
         if (parsedCustom < 1) { setAmountError('Enter a valid amount'); return false; }
@@ -587,7 +796,7 @@ export default function PayNowPage() {
     return (
         <div className="max-w-lg mx-auto space-y-5 pb-10">
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
-                <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-muted-foreground/50 hover:text-foreground mb-6 transition-colors group">
+                <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-muted-foreground/50 hover:text-foreground mb-6 transition-colors group cursor-pointer">
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back
                 </button>
                 <div className="flex items-center gap-2 mb-1">
@@ -613,7 +822,7 @@ export default function PayNowPage() {
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em]">
-                                    {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : (pendingPayment ? 'Pending Rent' : 'Monthly Rent'))}
+                                    {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
                                 </p>
 
                                 {availableLeases.length > 1 && !isBooking && !billIdParam && (
@@ -659,24 +868,24 @@ export default function PayNowPage() {
                                     <div className="bg-black/20 rounded-2xl p-3 mb-4 space-y-1.5 text-xs text-emerald-100/80">
                                         <div className="flex justify-between">
                                             <span>Monthly Rent</span>
-                                            <span className="font-bold text-white">₹{(useCustom ? payAmount : rentAmount).toLocaleString('en-IN')}</span>
+                                            <span className="font-bold text-white">₹{(useCustom ? parsedCustom : monthlyRent).toLocaleString('en-IN')}</span>
                                         </div>
                                         {!useCustom && lateFee > 0 && (
                                             <div className="flex justify-between text-rose-300">
-                                                <span>Late Fee ({daysLate} day{daysLate !== 1 ? 's' : ''} overdue)</span>
+                                                <span>Late Fee ({daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue)</span>
                                                 <span className="font-bold text-rose-200">+₹{lateFee.toLocaleString('en-IN')}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between">
-                                            <span>TMS Platform Fee ({feeBreakdown?.platformFeePercentage || 1}%)</span>
+                                            <span>TMS Platform Fee ({platformFeePercentage}%)</span>
                                             <span className="font-bold text-emerald-300">
-                                                ₹{(feeBreakdown?.platformFee || Math.round(payAmount * 0.01)).toLocaleString('en-IN')}
+                                                ₹{(useCustom ? customPlatformFee : platformFee).toLocaleString('en-IN')}
                                             </span>
                                         </div>
-                                        {(feeBreakdown?.taxAmount > 0) && (
+                                        {(taxAmount > 0) && (
                                             <div className="flex justify-between">
                                                 <span>Applicable Tax</span>
-                                                <span className="font-bold text-white">₹{feeBreakdown.taxAmount.toLocaleString('en-IN')}</span>
+                                                <span className="font-bold text-white">₹{taxAmount.toLocaleString('en-IN')}</span>
                                             </div>
                                         )}
                                     </div>
@@ -684,12 +893,12 @@ export default function PayNowPage() {
                                     <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 font-mono">
                                         {isBooking
                                             ? <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {bookingData.propertyName}</span>
-                                            : (lease && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {lease.property?.name}</span>)
+                                            : (lease && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {lease.property?.name || rentSummary?.propertyName}</span>)
                                         }
-                                        {!isBooking && (pendingPayment?.dueDate || lease?.nextPaymentDueAt || lease?.startDate) && (
+                                        {!isBooking && (rentSummary?.dueDate || lease?.nextPaymentDueAt || lease?.startDate) && (
                                             <span className="flex items-center gap-1.5">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> 
-                                                Due: {new Date(pendingPayment?.dueDate || lease?.nextPaymentDueAt || lease?.startDate).toLocaleDateString('en-IN')}
+                                                Due: {new Date(rentSummary?.dueDate || lease?.nextPaymentDueAt || lease?.startDate).toLocaleDateString('en-IN')}
                                             </span>
                                         )}
                                     </div>
@@ -699,9 +908,9 @@ export default function PayNowPage() {
                             {!isBooking && !leaseNotFound && (
                                 <div className="mt-6 pt-6 border-t border-white/10">
                                     <button type="button" onClick={() => setUseCustom(v => !v)}
-                                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 hover:text-emerald-100 transition-colors">
+                                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/40 hover:text-emerald-100 transition-colors cursor-pointer">
                                         <Info className="w-4 h-4" />
-                                        {useCustom ? 'Use pending amount instead' : 'Pay a different amount'}
+                                        {useCustom ? 'Use calculated total due instead' : 'Pay a different amount'}
                                     </button>
                                     <AnimatePresence>
                                         {useCustom && (
@@ -723,7 +932,7 @@ export default function PayNowPage() {
                                                 <div className="flex gap-2 mt-3 flex-wrap">
                                                     {[500, 1000, 2000, 5000].map(a => (
                                                         <button key={a} type="button" onClick={() => setCustomAmount(String(a))}
-                                                            className="px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/20 hover:text-white transition-all">
+                                                            className="px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/60 hover:bg-white/20 hover:text-white transition-all cursor-pointer">
                                                             +₹{a.toLocaleString('en-IN')}
                                                         </button>
                                                     ))}
@@ -745,14 +954,14 @@ export default function PayNowPage() {
                                     <button
                                         type="button"
                                         onClick={() => navigate('/my-lease')}
-                                        className="px-4 py-2.5 rounded-xl border border-border text-foreground text-xs font-bold hover:bg-muted transition-colors"
+                                        className="px-4 py-2.5 rounded-xl border border-border text-foreground text-xs font-bold hover:bg-muted transition-colors cursor-pointer"
                                     >
                                         View My Leases
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => navigate('/dashboard')}
-                                        className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+                                        className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer"
                                     >
                                         Go to Dashboard
                                     </button>
@@ -760,25 +969,50 @@ export default function PayNowPage() {
                             </motion.div>
                         ) : (
                             <>
-                                {/* Auto-Pay Info / Setup Link for Rent */}
+                                {/* Lease-Specific Auto-Pay Status Banner */}
                                 {!isBooking && (
-                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                        className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
-                                        <div className="flex items-center gap-2.5">
-                                            <Zap className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                                            <div>
-                                                <p className="font-bold text-foreground">Want Hassle-Free Rent Payments?</p>
-                                                <p className="text-[10px] text-muted-foreground">Manage automatic monthly payments on the Payments page.</p>
+                                    isAutoPayActive ? (
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                            className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-xs shadow-sm">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-400">
+                                                    <Zap className="w-4 h-4 text-emerald-400 flex-shrink-0 animate-pulse" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-extrabold text-foreground flex items-center gap-1.5">
+                                                        <span>Auto-Pay Active</span>
+                                                        <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">Enabled</span>
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground">Automatic monthly rent is enabled for this lease.</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate('/payments')}
-                                            className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
-                                        >
-                                            View Auto-Pay
-                                        </button>
-                                    </motion.div>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/payments')}
+                                                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
+                                            >
+                                                Manage Auto-Pay
+                                            </button>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                            className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
+                                            <div className="flex items-center gap-2.5">
+                                                <Zap className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                                <div>
+                                                    <p className="font-bold text-foreground">Want Hassle-Free Rent Payments?</p>
+                                                    <p className="text-[10px] text-muted-foreground">Manage automatic monthly payments on the Payments page.</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate('/payments')}
+                                                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex-shrink-0"
+                                            >
+                                                View Auto-Pay
+                                            </button>
+                                        </motion.div>
+                                    )
                                 )}
 
                                 {/* Method Selector */}
@@ -794,7 +1028,7 @@ export default function PayNowPage() {
                                             <motion.button key={m.id} type="button" onClick={() => setMethod(m.id)}
                                                 whileHover={{ y: -3 }} whileTap={{ scale: 0.98 }}
                                                 className={cn(
-                                                    'flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all',
+                                                    'flex flex-col items-center gap-3 p-6 rounded-[2rem] border-2 transition-all cursor-pointer',
                                                     active
                                                         ? cn('bg-gradient-to-br text-white shadow-xl border-transparent ring-2 ring-offset-2 ring-offset-background', m.color, m.glow)
                                                         : 'border-border bg-card text-muted-foreground/40 hover:bg-muted hover:text-foreground hover:border-border/80'
@@ -816,23 +1050,29 @@ export default function PayNowPage() {
                                         {method === 'card' ? (
                                             <motion.div key="card" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
                                                 <DebitCardForm
-                                                    amount={payAmount}
-                                                    paymentId={paymentId || 'manual'}
+                                                    amount={finalTotalPayable}
+                                                    paymentId={billDetails?.payment?._id || 'manual'}
                                                     onSuccess={handleSuccess}
                                                     propertyId={propertyId}
                                                     billId={billIdParam}
                                                     leaseId={lease?._id}
+                                                    user={user}
+                                                    isBooking={isBooking}
+                                                    bookingData={bookingData}
                                                 />
                                             </motion.div>
                                         ) : (
                                             <motion.div key="upi" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
                                                 <UpiForm
-                                                    amount={payAmount}
-                                                    paymentId={paymentId || 'manual'}
+                                                    amount={finalTotalPayable}
+                                                    paymentId={billDetails?.payment?._id || 'manual'}
                                                     onSuccess={handleSuccess}
                                                     propertyId={propertyId}
                                                     billId={billIdParam}
                                                     leaseId={lease?._id}
+                                                    user={user}
+                                                    isBooking={isBooking}
+                                                    bookingData={bookingData}
                                                 />
                                             </motion.div>
                                         )}
