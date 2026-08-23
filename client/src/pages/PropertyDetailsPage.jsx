@@ -1088,7 +1088,7 @@ export default function PropertyDetailsPage() {
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <span className="text-muted-foreground/70 font-semibold">Managed By</span>
-                                            <span className="font-bold text-foreground">{property.manager?.firstName ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim() : 'The Manager'}</span>
+                                            <span className="font-bold text-foreground">{property.manager?.firstName ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim() : 'Manager not assigned'}</span>
                                         </div>
                                     </div>
 
@@ -1708,22 +1708,59 @@ export default function PropertyDetailsPage() {
                         <div className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-6">
                             <div className="flex items-center gap-4">
                                 <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center text-2xl font-black text-white shadow-lg">
-                                    {property.manager?.firstName?.[0] || 'A'}
+                                    {property.manager?.firstName?.[0] || '?'}
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-foreground">{property.manager?.firstName} {property.manager?.lastName}</h3>
-                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
-                                        <Shield className="w-3 h-3" /> VERIFIED MANAGER
-                                    </div>
+                                    <h3 className="text-lg font-black text-foreground">
+                                        {property.manager?.firstName 
+                                            ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim() 
+                                            : 'Manager not assigned'}
+                                    </h3>
+                                    {property.manager?.firstName ? (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
+                                            <Shield className="w-3 h-3" /> VERIFIED MANAGER
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-muted border border-border text-muted-foreground text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
+                                            UNASSIGNED
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleChat}
-                                className="w-full py-3.5 rounded-2xl bg-muted border border-border text-foreground font-black hover:bg-muted/80 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                <MessageSquare className="w-4 h-4 text-primary" /> Chat with Manager
-                            </button>
+                            {(() => {
+                                const hasActiveBooking = Boolean(
+                                    existingBooking && (
+                                        existingBooking.status === 'active' ||
+                                        existingBooking.status === 'confirmed' ||
+                                        existingBooking.status === 'approved' ||
+                                        existingBooking.paymentStatus === 'paid'
+                                    )
+                                );
+                                const hasActiveLeaseOnProp = Boolean(activeLease);
+                                const isChatAvailable = Boolean(property.manager?._id && (hasActiveBooking || hasActiveLeaseOnProp));
+
+                                return isChatAvailable ? (
+                                    <button
+                                        onClick={handleChat}
+                                        className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-black hover:opacity-90 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                                    >
+                                        <MessageSquare className="w-4 h-4" /> Chat with Manager
+                                    </button>
+                                ) : (
+                                    <div className="space-y-1.5 text-center">
+                                        <button
+                                            disabled
+                                            className="w-full py-3.5 rounded-2xl bg-muted/50 border border-border text-muted-foreground/60 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-not-allowed"
+                                        >
+                                            <MessageSquare className="w-4 h-4 text-muted-foreground/40" /> Chat with Manager
+                                        </button>
+                                        <p className="text-[10px] text-muted-foreground font-medium">
+                                            Chat becomes available after you book this property.
+                                        </p>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Social Proof */}

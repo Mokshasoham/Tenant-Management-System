@@ -23,6 +23,17 @@ export const ChatProvider = ({ children }) => {
         activeChatRef.current = activeChat;
     }, [activeChat]);
 
+    // Reset state on user logout or user switch
+    const currentUserId = user?._id || user?.id;
+    useEffect(() => {
+        setConversations([]);
+        setMessages([]);
+        setActiveChat(null);
+        setAvailableUsers([]);
+        setTypingUsers({});
+        setOnlineUsers({});
+    }, [currentUserId, token]);
+
     // Initialize Socket
     useEffect(() => {
         if (token) {

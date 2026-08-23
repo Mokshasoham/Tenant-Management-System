@@ -419,12 +419,16 @@ export default function MessagesPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <p className="font-black text-sm text-foreground/75">No chats yet</p>
-                                        <p className="text-[10px] text-muted-foreground/40 uppercase tracking-widest font-black">Search users to start a chat</p>
+                                        <p className="text-[10px] text-muted-foreground/60 font-medium">
+                                            {role === 'manager' 
+                                                ? "Tenants who book your properties will appear here." 
+                                                : "Book a property to connect with its manager."}
+                                        </p>
                                     </div>
                                     <motion.button
                                         whileHover={{ y: -2 }}
                                         whileTap={{ scale: 0.95 }}
-                                        onClick={() => setShowNewChat(true)}
+                                        onClick={() => { setShowNewChat(true); fetchAvailableUsers(); }}
                                         className={cn('flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-[10px] font-black text-white transition-all uppercase tracking-wider shadow-md bg-gradient-to-r', myTheme.bubble)}
                                     >
                                         <Plus className="w-3.5 h-3.5" /> Start Conversation
@@ -467,7 +471,12 @@ export default function MessagesPage() {
                                                             {formatTime(conv.lastMessage?.createdAt)}
                                                         </span>
                                                     </div>
-                                                    <div className="flex justify-between items-center mt-1">
+                                                    {conv.property?.name && (
+                                                        <p className="text-[9px] font-bold text-primary/80 truncate">
+                                                            {conv.property.name}
+                                                        </p>
+                                                    )}
+                                                    <div className="flex justify-between items-center mt-0.5">
                                                         <p className={cn('text-[11px] truncate flex-1 pr-2', unread ? 'text-foreground font-black' : 'text-muted-foreground/50')}>
                                                             {conv.lastMessage?.content || 'Start a conversation'}
                                                         </p>
@@ -922,7 +931,16 @@ export default function MessagesPage() {
                                 </div>
                                 <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border">
                                     {filteredAvailable.length === 0 ? (
-                                        <div className="text-center py-10 opacity-30 italic text-sm text-foreground">No contacts found</div>
+                                        <div className="text-center py-10 space-y-1 text-muted-foreground/60">
+                                            <p className="font-bold text-xs text-foreground">
+                                                {role === 'manager' ? "No active tenant conversations" : "No active conversations"}
+                                            </p>
+                                            <p className="text-[10px]">
+                                                {role === 'manager' 
+                                                    ? "Tenants who book your properties will appear here." 
+                                                    : "Book a property to connect with its manager."}
+                                            </p>
+                                        </div>
                                     ) : filteredAvailable.map((u) => (
                                         <button
                                             key={u._id || u.id}
@@ -930,9 +948,23 @@ export default function MessagesPage() {
                                             className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-2xl hover:bg-muted/30 transition-all text-left border border-transparent hover:border-border/40"
                                         >
                                             <Avatar name={`${u.firstName} ${u.lastName}`} role={u.role} size="md" isOnline={onlineUsers[u._id || u.id]} />
-                                            <div>
-                                                <p className="text-sm font-black text-foreground">{u.firstName} {u.lastName}</p>
-                                                <p className={cn('text-[9px] font-black uppercase tracking-widest mt-1', ROLE_COLORS[u.role]?.text || 'text-muted-foreground/40')}>{u.role}</p>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-black text-foreground truncate">{u.firstName} {u.lastName}</p>
+                                                    {u.bookingStatus && (
+                                                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase tracking-wider">
+                                                            {u.bookingStatus}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <p className={cn('text-[9px] font-black uppercase tracking-widest', ROLE_COLORS[u.role]?.text || 'text-muted-foreground/40')}>{u.role}</p>
+                                                    {u.propertyName && (
+                                                        <p className="text-[9px] text-muted-foreground truncate max-w-[150px]">
+                                                            • {u.propertyName}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </button>
                                     ))}

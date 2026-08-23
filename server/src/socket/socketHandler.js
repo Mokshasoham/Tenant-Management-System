@@ -8,6 +8,8 @@ import config from '../config/config.js';
 import { setIoInstance } from './socketEmitter.js';
 import EventService from '../services/eventService.js';
 
+import messagingAuthService from '../services/messagingAuthService.js';
+
 const socketHandler = (server) => {
     const io = new Server(server, {
         cors: {
@@ -36,6 +38,7 @@ const socketHandler = (server) => {
 
     io.on('connection', async (socket) => {
         const userId = socket.user.userId;
+        const userRole = socket.user.role;
         onlineUsers.set(userId, socket.id);
         
         logger.info(`User connected: ${userId} (Socket: ${socket.id})`);
@@ -54,12 +57,28 @@ const socketHandler = (server) => {
             const { receiverId, content, attachments, propertyId } = data;
             
             try {
+                // Authorize relationship: Tenant <-> Booking/Lease <-> Property <-> Manager
+                const authCheck = await messagingAuthService.verifyRelationship(
+                    userId,
+                    receiverId,
+                    propertyId,
+                    userRole
+                );
+
+                if (!authCheck.isAuthorized) {
+                    logger.warn(`Unauthorized socket message attempt from ${userId} to ${receiverId}`);
+                    return socket.emit('error', {
+                        message: authCheck.reason || 'Forbidden: You can only message users connected through a confirmed property booking or lease.'
+                    });
+                }
+
                 const message = await Message.create({
                     sender: userId,
                     receiver: receiverId,
                     content,
                     attachments,
-                    property: propertyId
+                    property: authCheck.propertyId || propertyId,
+                    booking: authCheck.bookingId
                 });
 
                 // Confirm back to sender

@@ -370,6 +370,40 @@ export const getPeople = asyncHandler(async (req, res) => {
   const { role, search, status, city, page = 1, limit = 25, sort = '-createdAt' } = req.query;
 
   const filter = {};
+
+  if (req.user && req.user.role === 'manager') {
+    const managerId = req.user.userId || req.user._id || req.user.id;
+    const isValidOid = mongoose.Types.ObjectId.isValid(String(managerId));
+    const managerIds = [managerId, isValidOid ? new mongoose.Types.ObjectId(String(managerId)) : null].filter(Boolean);
+
+    // Get manager's technicians
+    const techs = await User.find({
+      role: { $in: ['technician', 'Technician'] },
+      $or: [
+        { 'technicianProfile.managerId': { $in: managerIds } },
+        { 'technicianProfile.createdBy': { $in: managerIds } },
+        { createdBy: { $in: managerIds } }
+      ]
+    }).select('_id').lean();
+    const techIds = techs.map(t => t._id);
+
+    // Get manager's booked/leased tenants
+    const { default: messagingAuthService } = await import('../services/messagingAuthService.js');
+    const partners = await messagingAuthService.getAuthorizedPartners(managerId, 'manager');
+    const tenantUserIds = partners.map(p => p._id);
+
+    const allowedUserIds = [...techIds, ...tenantUserIds];
+    if (allowedUserIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: parseInt(limit) || 25, total: 0, totalPages: 1 }
+      });
+    }
+
+    filter._id = { $in: allowedUserIds };
+  }
+
   if (role) {
     const roleLower = String(role).toLowerCase();
     if (roleLower === 'tenant' || roleLower === 'user') {

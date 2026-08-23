@@ -25,6 +25,10 @@ const messageSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Property',
         },
+        booking: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Booking',
+        },
         attachments: [
             {
                 fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
