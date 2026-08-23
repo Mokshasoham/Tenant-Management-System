@@ -62,6 +62,8 @@ export const resolvePropertyUrls = (property, req) => {
   return propObj;
 };
 
+import { getAuthenticatedUserId } from '../utils/managerHelper.js';
+
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -78,6 +80,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     furnishing,
     amenities,
     savedOnly,
+    scope,
+    isPublic,
     sortBy = 'createdAt',
     sortOrder = 'desc',
     // Bounding box (map viewport) geo search
@@ -87,32 +91,27 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     west,
   } = req.query;
 
-
   const filter = {};
+  const userId = getAuthenticatedUserId(req);
 
   // Visibility Logic
-  if (req.user?.role === 'manager') {
-    // Managers see their own properties by default, unless searching available ones
-    if (status === 'available') {
-      filter.status = 'available';
-    } else {
-      filter.$or = [{ owner: req.user.userId }, { manager: req.user.userId }];
+  if (req.user?.role === 'manager' && scope !== 'public' && isPublic !== 'true') {
+    // Managers see only their own properties in manager portal
+    filter.$or = [{ owner: userId }, { manager: userId }];
+    if (status) {
+      filter.status = status;
     }
   } else if (req.user?.role === 'admin') {
     if (owner) filter.owner = owner;
     if (status) filter.status = status;
   } else {
-    // Tenants/Users/Public visitors see available, occupied, or rented properties (so they see Sold Out & Available From)
-    filter.status = { $in: ['available', 'occupied', 'rented'] };
+    // Tenants/Users/Public visitors see available, occupied, or rented properties
+    if (status) {
+      filter.status = status;
+    } else {
+      filter.status = { $in: ['available', 'occupied', 'rented'] };
+    }
   }
-
-  // Common Filters
-  if (type) filter.type = type;
-  if (city) filter.city = { $regex: city, $options: 'i' };
-
-  if (minPrice || maxPrice) {
-    filter.rentAmount = {};
-    if (minPrice) filter.rentAmount.$gte = Number(minPrice);
     if (maxPrice) filter.rentAmount.$lte = Number(maxPrice);
   }
 
@@ -284,7 +283,17 @@ export const createProperty = asyncHandler(async (req, res) => {
 
 export const updateProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
   const { manager, location, ...rest } = req.body;
+
+  const existing = await Property.findById(id);
+  if (!existing) {
+    throw new AppError('Property not found', 404);
+  }
+
+  if (req.user?.role !== 'admin' && existing.owner?.toString() !== userId && existing.manager?.toString() !== userId) {
+    throw new AppError('Forbidden: You do not have permission to update this property', 403);
+  }
 
   // Use the spread payload but sanitize manager ID & sync geo coordinates
   const updateData = { ...rest };
@@ -304,10 +313,6 @@ export const updateProperty = asyncHandler(async (req, res) => {
     .populate('owner', 'firstName lastName')
     .populate('manager', 'firstName lastName');
 
-  if (!property) {
-    throw new AppError('Property not found', 404);
-  }
-
   logger.info(`Property updated: ${property.name}`);
 
   res.status(200).json({
@@ -319,11 +324,16 @@ export const updateProperty = asyncHandler(async (req, res) => {
 
 export const deleteProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
 
   const property = await Property.findById(id);
 
   if (!property) {
     throw new AppError('Property not found', 404);
+  }
+
+  if (req.user?.role !== 'admin' && property.owner?.toString() !== userId && property.manager?.toString() !== userId) {
+    throw new AppError('Forbidden: You do not have permission to delete this property', 403);
   }
 
   await property.deleteOne();
@@ -339,18 +349,23 @@ export const deleteProperty = asyncHandler(async (req, res) => {
 export const changePropertyStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const userId = getAuthenticatedUserId(req);
 
   if (!['available', 'occupied', 'maintenance', 'rented'].includes(status)) {
     throw new AppError('Invalid status', 400);
   }
 
-  const property = await Property.findByIdAndUpdate(id, { status }, {
-    new: true,
-  });
-
+  const property = await Property.findById(id);
   if (!property) {
     throw new AppError('Property not found', 404);
   }
+
+  if (req.user?.role !== 'admin' && property.owner?.toString() !== userId && property.manager?.toString() !== userId) {
+    throw new AppError('Forbidden: You do not have permission to modify this property status', 403);
+  }
+
+  property.status = status;
+  await property.save();
 
   logger.info(`Property status changed: ${property.name} - ${status}`);
 
@@ -362,9 +377,10 @@ export const changePropertyStatus = asyncHandler(async (req, res) => {
 });
 
 export const getPropertyStats = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
   let filter = {};
-  if (req.user.role !== 'admin') {
-    filter.owner = req.user.userId;
+  if (req.user?.role !== 'admin') {
+    filter.$or = [{ owner: userId }, { manager: userId }];
   }
 
   const totalProperties = await Property.countDocuments(filter);

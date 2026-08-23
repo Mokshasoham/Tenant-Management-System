@@ -103,9 +103,18 @@ export const getMyVisits = asyncHandler(async (req, res) => {
     });
 });
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 // Manager gets visit requests
 export const getManagerVisits = asyncHandler(async (req, res) => {
-    const visits = await PropertyVisit.find({ manager: req.user.userId })
+    const userId = getAuthenticatedUserId(req);
+    const propIds = await getManagerPropertyIds(userId);
+    const visits = await PropertyVisit.find({
+        $or: [
+            { manager: userId },
+            { property: { $in: propIds } }
+        ]
+    })
         .populate('property', 'name address media')
         .populate('tenant', 'firstName lastName email')
         .sort({ createdAt: -1 });
@@ -119,11 +128,20 @@ export const getManagerVisits = asyncHandler(async (req, res) => {
 // Manager updates visit status (approve, reject, reschedule, mark completed)
 export const updateVisitStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const userId = getAuthenticatedUserId(req);
     const { status, visitDate, timeSlot } = req.body;
 
     const visit = await PropertyVisit.findById(id).populate('property');
     if (!visit) {
         throw new AppError('Property visit not found', 404);
+    }
+
+    if (req.user?.role === 'manager') {
+        const propIds = await getManagerPropertyIds(userId);
+        const isManager = visit.manager?.toString() === userId?.toString() || propIds.map(String).includes(visit.property?._id?.toString());
+        if (!isManager && req.user.role !== 'admin') {
+            throw new AppError('Forbidden: Access denied to update this visit', 403);
+        }
     }
 
     if (status) visit.status = status;

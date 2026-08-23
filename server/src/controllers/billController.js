@@ -56,9 +56,12 @@ const generateBillNumber = async (type) => {
   return `BILL-${type.substring(0, 4).toUpperCase()}-${dateStr}-${seqStr}`;
 };
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 // GET /api/bills (Paginated & Filtered, Manager/Admin only)
 export const getAllBills = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, type, leaseId, tenantId, propertyId } = req.query;
+  const userId = getAuthenticatedUserId(req);
   const skip = (page - 1) * limit;
 
   const filter = {};
@@ -67,6 +70,38 @@ export const getAllBills = asyncHandler(async (req, res) => {
   if (leaseId) filter.lease = leaseId;
   if (tenantId) filter.tenant = tenantId;
   if (propertyId) filter.property = propertyId;
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0
+        }
+      });
+    }
+    if (filter.property) {
+      if (!propIds.map(String).includes(String(filter.property))) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+    } else {
+      filter.property = { $in: propIds };
+    }
+  }
 
   const bills = await Bill.find(filter)
     .sort({ createdAt: -1 })
@@ -445,22 +480,43 @@ export const getBillDownload = asyncHandler(async (req, res) => {
 
 // GET /api/bills/analytics (Revenue metrics, Manager/Admin only)
 export const getBillAnalytics = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
+  let matchStage = { status: { $ne: 'voided' } };
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalInvoiced: 0,
+          totalCollected: 0,
+          outstandingAmount: 0,
+          collectionsByType: [],
+          statusCounts: []
+        }
+      });
+    }
+    matchStage.property = { $in: propIds };
+  }
+
   const totalInvoiced = await Bill.aggregate([
-    { $match: { status: { $ne: 'voided' } } },
+    { $match: matchStage },
     { $group: { _id: null, total: { $sum: '$amountDue' } } }
   ]);
 
   const totalCollected = await Bill.aggregate([
-    { $match: { status: { $ne: 'voided' } } },
+    { $match: matchStage },
     { $group: { _id: null, total: { $sum: '$amountPaid' } } }
   ]);
 
   const collectionsByType = await Bill.aggregate([
-    { $match: { status: { $ne: 'voided' } } },
+    { $match: matchStage },
     { $group: { _id: '$type', totalDue: { $sum: '$amountDue' }, totalPaid: { $sum: '$amountPaid' } } }
   ]);
 
   const statusCounts = await Bill.aggregate([
+    { $match: req.user?.role === 'manager' ? { property: matchStage.property } : {} },
     { $group: { _id: '$status', count: { $sum: 1 } } }
   ]);
 
@@ -479,9 +535,20 @@ export const getBillAnalytics = asyncHandler(async (req, res) => {
 // GET /api/bills/export (Export CSV data, Manager/Admin only)
 export const exportBillsCSV = asyncHandler(async (req, res) => {
   const { status, type } = req.query;
+  const userId = getAuthenticatedUserId(req);
   const filter = {};
   if (status) filter.status = status;
   if (type) filter.type = type;
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=billing_report_${Date.now()}.csv`);
+      return res.status(200).send('Bill Number,Type,Property,Tenant,Due Date,Amount Due,Amount Paid,Balance,Status\n');
+    }
+    filter.property = { $in: propIds };
+  }
 
   const bills = await Bill.find(filter)
     .populate('tenant', 'firstName lastName email')

@@ -23,17 +23,39 @@ function getRequestMeta(req) {
   };
 }
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 export const getAllRequests = asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, status, priority, category, emergencyOnly, slaBreached, search } = req.query;
     const user = req.user;
     const filter = {};
 
-    const userId = user.userId || user._id || user.id;
+    const userId = getAuthenticatedUserId(req);
 
     if (user.role === 'tenant') {
         filter.requestedBy = userId;
     } else if (user.role === 'technician') {
         filter.assignedTo = userId;
+    } else if (user.role === 'manager') {
+        const propIds = await getManagerPropertyIds(userId);
+        if (propIds.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 },
+            });
+        }
+        if (filter.property) {
+            if (!propIds.map(String).includes(String(filter.property))) {
+                return res.status(200).json({
+                    success: true,
+                    data: [],
+                    pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 },
+                });
+            }
+        } else {
+            filter.property = { $in: propIds };
+        }
     }
 
     if (req.query.assignedTechnicianId) {
@@ -85,6 +107,15 @@ export const getAllRequests = asyncHandler(async (req, res) => {
 export const getRequestById = asyncHandler(async (req, res) => {
     const request = await maintenanceRepository.findById(req.params.id);
     if (!request) throw new AppError('Maintenance request not found', 404);
+
+    if (req.user?.role === 'manager') {
+        const propIds = await getManagerPropertyIds(getAuthenticatedUserId(req));
+        const reqPropId = request.property?._id ? request.property._id.toString() : request.property?.toString();
+        if (reqPropId && !propIds.map(String).includes(reqPropId)) {
+            throw new AppError('Forbidden: Access denied to this maintenance request', 403);
+        }
+    }
+
     res.status(200).json({ success: true, data: request });
 });
 
@@ -300,12 +331,12 @@ export const updateChecklist = asyncHandler(async (req, res) => {
 });
 
 export const getManagerDashboard = asyncHandler(async (req, res) => {
-    const userId = req.user.userId || req.user._id || req.user.id;
+    const userId = getAuthenticatedUserId(req);
     
     await eventBus.publish('manager.dashboard.viewed', { userId, timestamp: new Date().toISOString() }).catch(() => {});
     await eventBus.publish('maintenance.dashboard.loaded', { userId, timestamp: new Date().toISOString() }).catch(() => {});
 
-    const metrics = await maintenanceReportService.getManagerDashboardMetrics(req.query);
+    const metrics = await maintenanceReportService.getManagerDashboardMetrics(req.query, userId, req.user?.role);
 
     res.status(200).json({
         success: true,

@@ -1,38 +1,42 @@
 /**
  * Property Verification Data Transformation Mapper
- * Standardizes raw API or mock responses into clean, UI-ready domain models for Property verification.
- * Decouples property views from backend schema changes.
+ * Standardizes raw API responses into clean, UI-ready domain models for Property verification.
+ * Decouples property views from backend schema changes and prevents mock data leakage.
  */
-
-import {
-  MOCK_PROPERTY_VERIFICATION,
-  MOCK_PROPERTY_TIMELINE,
-  MOCK_PROPERTY_TRUST,
-  MOCK_PROPERTY_SUMMARY,
-  MOCK_PROPERTY_DOCUMENTS,
-  MOCK_PROPERTY_PHOTOS,
-  MOCK_PROPERTY_RENEWAL,
-  MOCK_PROPERTY_LEVELS,
-  MOCK_PROPERTY_HEALTH,
-} from '../mocks/propertyVerificationMock';
 
 /**
  * Maps raw property verification record to standardized UI verification state.
  */
 export function mapVerification(raw) {
-  const v = raw || MOCK_PROPERTY_VERIFICATION;
+  if (!raw) {
+    return {
+      id: null,
+      verificationNumber: 'N/A',
+      status: 'NOT_SUBMITTED',
+      entityType: 'PROPERTY',
+      entityId: null,
+      currentReviewLevel: 0,
+      trustScore: 0,
+      badge: 'UNVERIFIED',
+      propertyLevel: 'Unverified Property',
+      submittedAt: null,
+      updatedAt: null,
+      remarks: null,
+    };
+  }
+  const v = raw;
   return {
-    id: v._id || v.id || 'vrf_prop_demo_001',
-    verificationNumber: v.verificationNumber || 'VRF-2026-P00419',
-    status: v.status || 'APPROVED',
+    id: v._id || v.id || null,
+    verificationNumber: v.verificationNumber || 'N/A',
+    status: v.status || 'PENDING',
     entityType: v.entityType || 'PROPERTY',
-    entityId: v.entityId || 'property_oakwood_4b',
-    currentReviewLevel: v.currentReviewLevel || 3,
-    trustScore: v.trustScore ?? 88,
-    badge: v.verificationBadge || 'GOLD_PROPERTY',
-    propertyLevel: v.propertyLevel || 'Verified Property',
+    entityId: v.entityId || null,
+    currentReviewLevel: v.currentReviewLevel || 1,
+    trustScore: v.trustScore ?? 0,
+    badge: v.verificationBadge || (v.trustScore >= 80 ? 'GOLD_PROPERTY' : 'UNVERIFIED'),
+    propertyLevel: v.propertyLevel || (v.trustScore >= 80 ? 'Verified Property' : 'Unverified Property'),
     submittedAt: v.submittedAt || null,
-    updatedAt: v.updatedAt || new Date().toISOString(),
+    updatedAt: v.updatedAt || null,
     remarks: v.verificationRemarks || null,
   };
 }
@@ -41,20 +45,31 @@ export function mapVerification(raw) {
  * Maps property trust score data.
  */
 export function mapTrustScore(rawScore) {
-  const scoreData = rawScore || MOCK_PROPERTY_TRUST;
-  const scoreVal = scoreData.score ?? 88;
+  if (!rawScore) {
+    return {
+      score: 0,
+      badge: 'UNVERIFIED',
+      statusTitle: 'Unverified Property',
+      percentileText: 'Verification not initiated',
+      breakdown: [],
+      penalties: [],
+      netScore: 0,
+      tips: [],
+    };
+  }
+  const scoreData = rawScore;
+  const scoreVal = scoreData.score ?? 0;
 
-  let statusTitle = 'Verified Property';
+  let statusTitle = 'Unverified Property';
   if (scoreVal >= 90) statusTitle = 'Certified Property';
   else if (scoreVal >= 80) statusTitle = 'Verified Property';
   else if (scoreVal >= 60) statusTitle = 'Basic Verified';
-  else statusTitle = 'Unverified Property';
 
   return {
     score: scoreVal,
-    badge: scoreData.badge || 'GOLD_PROPERTY',
+    badge: scoreData.badge || (scoreVal >= 80 ? 'GOLD_PROPERTY' : 'UNVERIFIED'),
     statusTitle,
-    percentileText: scoreData.percentileText || 'Top Rated Property',
+    percentileText: scoreData.percentileText || '',
     breakdown: scoreData.breakdown || [],
     penalties: scoreData.penalties || [],
     netScore: scoreData.netScore || scoreVal,
@@ -66,10 +81,10 @@ export function mapTrustScore(rawScore) {
  * Maps audit trail logs to color-coded timeline items.
  */
 export function mapTimeline(rawLogs) {
-  const events = rawLogs && rawLogs.length > 0 ? rawLogs : MOCK_PROPERTY_TIMELINE;
+  const events = rawLogs && Array.isArray(rawLogs) ? rawLogs : [];
   return events.map((item, index) => {
     let colorType = item.colorType || 'info';
-    const actionLower = (item.action || '').toLowerCase();
+    const actionLower = (item.action || item.event || '').toLowerCase();
     if (actionLower.includes('approved') || actionLower.includes('passed') || actionLower.includes('verified')) {
       colorType = 'success';
     } else if (actionLower.includes('submitted') || actionLower.includes('scheduled') || actionLower.includes('pending')) {
@@ -79,9 +94,9 @@ export function mapTimeline(rawLogs) {
     }
     return {
       id: item._id || `evt_prop_${index}`,
-      action: item.action || 'System Event',
-      timestamp: item.timestamp || new Date().toISOString(),
-      remarks: item.remarks || '',
+      action: item.action || item.event || 'System Event',
+      timestamp: item.timestamp || item.performedAt || new Date().toISOString(),
+      remarks: item.remarks || item.note || '',
       colorType,
     };
   });
@@ -91,14 +106,14 @@ export function mapTimeline(rawLogs) {
  * Maps document list.
  */
 export function mapDocuments(rawDocs) {
-  const docs = rawDocs && rawDocs.length > 0 ? rawDocs : MOCK_PROPERTY_DOCUMENTS;
+  const docs = rawDocs && Array.isArray(rawDocs) ? rawDocs : [];
   return docs.map((d) => ({
     id: d._id || d.id || `doc_prop_${Date.now()}_${Math.random()}`,
-    documentType: d.documentType || 'SALE_DEED',
-    filename: d.filename || 'oakwood_4b_document.pdf',
+    documentType: d.documentType || 'DOCUMENT',
+    filename: d.filename || d.label || 'Document',
     category: d.category || 'OWNERSHIP',
-    status: d.status || 'VERIFIED',
-    uploadedAt: d.uploadedAt || new Date().toISOString(),
+    status: d.status || d.reviewStatus || 'PENDING',
+    uploadedAt: d.uploadedAt || null,
     expiresAt: d.expiresAt || null,
   }));
 }
@@ -107,43 +122,82 @@ export function mapDocuments(rawDocs) {
  * Maps property photos repository.
  */
 export function mapPropertyPhotos(rawPhotos) {
-  return rawPhotos && rawPhotos.length > 0 ? rawPhotos : MOCK_PROPERTY_PHOTOS;
+  return rawPhotos && Array.isArray(rawPhotos) ? rawPhotos : [];
 }
 
 /**
  * Maps property summary specs.
  */
 export function mapPropertySummary(raw) {
-  return raw || MOCK_PROPERTY_SUMMARY;
+  if (!raw) {
+    return {
+      title: 'No property selected',
+      unit: '',
+      type: 'N/A',
+      sqft: 0,
+      bedrooms: 0,
+      bathrooms: 0,
+      address: '',
+      furnishing: 'N/A',
+      parking: 'N/A',
+      builtYear: 'N/A',
+    };
+  }
+  return raw;
 }
 
 /**
- * Maps renewal status and renewal history array (Enhancement #1).
+ * Maps renewal status and renewal history array.
  */
 export function mapRenewalStatus(raw) {
-  const r = raw || MOCK_PROPERTY_RENEWAL;
+  if (!raw) {
+    return {
+      expiresOn: 'N/A',
+      daysRemaining: 0,
+      renewalRequired: false,
+      statusLabel: 'Not Applicable',
+      lastRenewal: 'N/A',
+      renewalHistory: [],
+    };
+  }
+  const r = raw;
   return {
-    expiresOn: r.expiresOn || '15 Nov 2027',
-    daysRemaining: r.daysRemaining ?? 648,
+    expiresOn: r.expiresOn || 'N/A',
+    daysRemaining: r.daysRemaining ?? 0,
     renewalRequired: r.renewalRequired || false,
-    statusLabel: r.statusLabel || 'Not Required (Valid)',
-    lastRenewal: r.lastRenewal || '15 Nov 2025',
+    statusLabel: r.statusLabel || 'Not Required',
+    lastRenewal: r.lastRenewal || 'N/A',
     renewalHistory: r.renewalHistory || [],
   };
 }
 
 /**
- * Maps property level progression requirements (Enhancement #3).
+ * Maps property level progression requirements.
  */
 export function mapPropertyLevels(raw) {
-  return raw || MOCK_PROPERTY_LEVELS;
+  if (!raw) {
+    return {
+      currentLevel: 'Unverified',
+      nextLevel: 'Level 1: Basic Identity',
+      progressPercent: 0,
+      remainingRequirements: ['Add Property Details', 'Upload Title Deed'],
+    };
+  }
+  return raw;
 }
 
 /**
- * Maps property health score completeness metrics (Enhancement #4).
+ * Maps property health score completeness metrics.
  */
 export function mapPropertyHealth(raw) {
-  return raw || MOCK_PROPERTY_HEALTH;
+  if (!raw) {
+    return {
+      healthScore: 0,
+      status: 'Incomplete',
+      checks: [],
+    };
+  }
+  return raw;
 }
 
 export default {

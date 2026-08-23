@@ -173,13 +173,48 @@ export const getMyLease = asyncHandler(async (req, res) => {
 });
 
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 export const getAllLeases = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, status, propertyId, tenantId } = req.query;
+  const userId = getAuthenticatedUserId(req);
 
   const filter = {};
   if (status) filter.status = status;
   if (propertyId) filter.property = propertyId;
   if (tenantId) filter.tenant = tenantId;
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0,
+        },
+      });
+    }
+    if (filter.property) {
+      if (!propIds.map(String).includes(String(filter.property))) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    } else {
+      filter.property = { $in: propIds };
+    }
+  }
 
   const skip = (page - 1) * limit;
 
@@ -207,6 +242,7 @@ export const getAllLeases = asyncHandler(async (req, res) => {
 
 export const getLeaseById = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
   let lease = null;
 
   if (mongoose.Types.ObjectId.isValid(id)) {
@@ -227,11 +263,20 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     throw new AppError('Lease not found', 404);
   }
 
+  // Manager authorization: verify manager owns property
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    const leasePropId = lease.property?._id ? lease.property._id.toString() : lease.property?.toString();
+    if (!propIds.map(String).includes(leasePropId)) {
+      throw new AppError('Forbidden: Access denied to this lease', 403);
+    }
+  }
+
   // Tenant authorization: verify tenant ownership
-  if (req.user.role === 'tenant') {
-    const user = await User.findById(req.user.userId).select('email');
+  if (req.user?.role === 'tenant') {
+    const user = await User.findById(userId).select('email');
     const tenants = user ? await Tenant.find({ email: user.email }) : [];
-    const tenantIds = [String(req.user.userId), ...tenants.map(t => String(t._id))];
+    const tenantIds = [String(userId), ...tenants.map(t => String(t._id))];
     const leaseTenantId = lease.tenant?._id ? String(lease.tenant._id) : (lease.tenant ? String(lease.tenant) : '');
 
     if (leaseTenantId && !tenantIds.includes(leaseTenantId)) {
@@ -323,7 +368,21 @@ export const createLease = asyncHandler(async (req, res) => {
 
 export const updateLease = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
   const { rentAmount, depositAmount, utilities, terms, status } = req.body;
+
+  const existingLease = await Lease.findById(id);
+  if (!existingLease) {
+    throw new AppError('Lease not found', 404);
+  }
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    const leasePropId = existingLease.property?._id ? existingLease.property._id.toString() : existingLease.property?.toString();
+    if (!propIds.map(String).includes(leasePropId)) {
+      throw new AppError('Forbidden: Access denied to update this lease', 403);
+    }
+  }
 
   const lease = await Lease.findByIdAndUpdate(
     id,
@@ -332,10 +391,6 @@ export const updateLease = asyncHandler(async (req, res) => {
   )
     .populate('property', 'name')
     .populate('tenant', 'firstName lastName');
-
-  if (!lease) {
-    throw new AppError('Lease not found', 404);
-  }
 
   logger.info(`Lease updated: ${lease.leaseNumber}`);
 
@@ -348,10 +403,19 @@ export const updateLease = asyncHandler(async (req, res) => {
 
 export const terminateLease = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
 
   const lease = await Lease.findById(id);
   if (!lease) {
     throw new AppError('Lease not found', 404);
+  }
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    const leasePropId = lease.property?._id ? lease.property._id.toString() : lease.property?.toString();
+    if (!propIds.map(String).includes(leasePropId)) {
+      throw new AppError('Forbidden: Access denied to terminate this lease', 403);
+    }
   }
 
   lease.status = 'terminated';
@@ -376,6 +440,7 @@ export const terminateLease = asyncHandler(async (req, res) => {
 
 export const uploadLeaseDocument = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
   const { name, url } = req.body;
 
   if (!name || !url) {
@@ -385,6 +450,14 @@ export const uploadLeaseDocument = asyncHandler(async (req, res) => {
   const lease = await Lease.findById(id);
   if (!lease) {
     throw new AppError('Lease not found', 404);
+  }
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    const leasePropId = lease.property?._id ? lease.property._id.toString() : lease.property?.toString();
+    if (!propIds.map(String).includes(leasePropId)) {
+      throw new AppError('Forbidden: Access denied to modify this lease', 403);
+    }
   }
 
   lease.documents.push({
@@ -405,12 +478,33 @@ export const uploadLeaseDocument = asyncHandler(async (req, res) => {
 });
 
 export const getLeaseStats = asyncHandler(async (req, res) => {
-  const totalLeases = await Lease.countDocuments();
-  const activeLeases = await Lease.countDocuments({ status: 'active' });
-  const pendingLeases = await Lease.countDocuments({ status: 'pending' });
-  const terminatedLeases = await Lease.countDocuments({ status: 'terminated' });
+  const userId = getAuthenticatedUserId(req);
+  let filter = {};
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalLeases: 0,
+          activeLeases: 0,
+          pendingLeases: 0,
+          terminatedLeases: 0,
+          avgRent: 0,
+        },
+      });
+    }
+    filter.property = { $in: propIds };
+  }
+
+  const totalLeases = await Lease.countDocuments(filter);
+  const activeLeases = await Lease.countDocuments({ ...filter, status: 'active' });
+  const pendingLeases = await Lease.countDocuments({ ...filter, status: 'pending' });
+  const terminatedLeases = await Lease.countDocuments({ ...filter, status: 'terminated' });
 
   const avgRent = await Lease.aggregate([
+    { $match: filter },
     { $group: { _id: null, avgRent: { $avg: '$rentAmount' } } },
   ]);
 

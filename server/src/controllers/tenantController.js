@@ -8,16 +8,21 @@ import logger from '../utils/logger.js';
 import { resolveLeaseUrls } from './leaseController.js';
 import { resolvePropertyUrls } from './propertyController.js';
 
+import { getAuthenticatedUserId } from '../utils/managerHelper.js';
+
 export const getAllTenants = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status, managedBy } = req.query;
+  const userId = getAuthenticatedUserId(req);
 
   const filter = {};
   
-  // Admin can see all tenants, others see only their own
-  if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-    filter.managedBy = req.user.userId;
-  } else if (managedBy) {
-    filter.managedBy = managedBy;
+  // Scoping Logic: Managers only see their own managed tenants; Admin sees all (or filtered by managedBy)
+  if (req.user?.role === 'manager') {
+    filter.managedBy = userId;
+  } else if (req.user?.role === 'admin') {
+    if (managedBy) filter.managedBy = managedBy;
+  } else {
+    filter.managedBy = userId;
   }
 
   if (status) filter.status = status;
@@ -52,6 +57,7 @@ export const getAllTenants = asyncHandler(async (req, res) => {
 });
 
 export const getTenantById = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
   const tenant = await Tenant.findById(req.params.id)
     .populate('managedBy', 'firstName lastName email')
     .populate({
@@ -63,6 +69,13 @@ export const getTenantById = asyncHandler(async (req, res) => {
     throw new AppError('Tenant not found', 404);
   }
 
+  if (req.user?.role === 'manager') {
+    const tenantMgr = tenant.managedBy?._id ? tenant.managedBy._id.toString() : tenant.managedBy?.toString();
+    if (tenantMgr !== userId) {
+      throw new AppError('Forbidden: Access denied to this tenant', 403);
+    }
+  }
+
   res.status(200).json({
     success: true,
     data: tenant,
@@ -70,6 +83,7 @@ export const getTenantById = asyncHandler(async (req, res) => {
 });
 
 export const createTenant = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
   const {
     firstName,
     lastName,
@@ -98,7 +112,7 @@ export const createTenant = asyncHandler(async (req, res) => {
     occupationStatus,
     monthlyIncome,
     emergencyContact,
-    managedBy: req.user.userId,
+    managedBy: userId,
     status: 'active',
   });
 
@@ -113,16 +127,25 @@ export const createTenant = asyncHandler(async (req, res) => {
 
 export const updateTenant = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
   const updateData = req.body;
+
+  const existingTenant = await Tenant.findById(id);
+  if (!existingTenant) {
+    throw new AppError('Tenant not found', 404);
+  }
+
+  if (req.user?.role === 'manager') {
+    const tenantMgr = existingTenant.managedBy?._id ? existingTenant.managedBy._id.toString() : existingTenant.managedBy?.toString();
+    if (tenantMgr !== userId) {
+      throw new AppError('Forbidden: Access denied to update this tenant', 403);
+    }
+  }
 
   const tenant = await Tenant.findByIdAndUpdate(id, updateData, {
     new: true,
     runValidators: true,
   }).populate('managedBy', 'firstName lastName');
-
-  if (!tenant) {
-    throw new AppError('Tenant not found', 404);
-  }
 
   logger.info(`Tenant updated: ${tenant.email}`);
 
@@ -135,12 +158,22 @@ export const updateTenant = asyncHandler(async (req, res) => {
 
 export const deleteTenant = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const userId = getAuthenticatedUserId(req);
 
-  const tenant = await Tenant.findByIdAndDelete(id);
+  const tenant = await Tenant.findById(id);
 
   if (!tenant) {
     throw new AppError('Tenant not found', 404);
   }
+
+  if (req.user?.role === 'manager') {
+    const tenantMgr = tenant.managedBy?._id ? tenant.managedBy._id.toString() : tenant.managedBy?.toString();
+    if (tenantMgr !== userId) {
+      throw new AppError('Forbidden: Access denied to delete this tenant', 403);
+    }
+  }
+
+  await tenant.deleteOne();
 
   logger.info(`Tenant deleted: ${tenant.email}`);
 
@@ -153,20 +186,26 @@ export const deleteTenant = asyncHandler(async (req, res) => {
 export const changeTenantStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const userId = getAuthenticatedUserId(req);
 
   if (!['active', 'inactive', 'banned'].includes(status)) {
     throw new AppError('Invalid status', 400);
   }
 
-  const tenant = await Tenant.findByIdAndUpdate(
-    id,
-    { status },
-    { new: true }
-  );
-
+  const tenant = await Tenant.findById(id);
   if (!tenant) {
     throw new AppError('Tenant not found', 404);
   }
+
+  if (req.user?.role === 'manager') {
+    const tenantMgr = tenant.managedBy?._id ? tenant.managedBy._id.toString() : tenant.managedBy?.toString();
+    if (tenantMgr !== userId) {
+      throw new AppError('Forbidden: Access denied to modify this tenant status', 403);
+    }
+  }
+
+  tenant.status = status;
+  await tenant.save();
 
   logger.info(`Tenant status changed: ${tenant.email} - ${status}`);
 
@@ -178,9 +217,10 @@ export const changeTenantStatus = asyncHandler(async (req, res) => {
 });
 
 export const getTenantStats = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
   let filter = {};
-  if (req.user.role !== 'admin') {
-    filter.managedBy = req.user.userId;
+  if (req.user?.role !== 'admin') {
+    filter.managedBy = userId;
   }
 
   const totalTenants = await Tenant.countDocuments(filter);

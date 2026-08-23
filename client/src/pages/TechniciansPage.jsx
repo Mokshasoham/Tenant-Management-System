@@ -347,11 +347,11 @@ export default function TechniciansPage() {
                     training: technicians.filter(t => t.technicianProfile?.availabilityStatus === 'training').length,
                     total: technicians.length,
                     avgRating: technicians.length > 0 
-                        ? (technicians.reduce((acc, t) => acc + (t.technicianProfile?.rating || 4.8), 0) / technicians.length).toFixed(1) 
-                        : '4.8',
+                        ? (technicians.reduce((acc, t) => acc + (t.technicianProfile?.rating || 0), 0) / technicians.length).toFixed(1) 
+                        : '0.0',
                     avgUtilization: technicians.length > 0
-                        ? Math.round(technicians.reduce((acc, t) => acc + (t.workload?.utilizationPercent || 60), 0) / technicians.length)
-                        : 60
+                        ? Math.round(technicians.reduce((acc, t) => acc + (t.workload?.utilizationPercent || 0), 0) / technicians.length)
+                        : 0
                 };
                 return (
                     <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">

@@ -93,8 +93,12 @@ export class VerificationRepository {
 
   // ── Admin Queue & Analytics Queries ─────────────────────────────
 
-  async findPendingQueue({ status, entityType, isOverdue, slaStatus, search, page = 1, limit = 20 }) {
+  async findPendingQueue({ status, entityType, entityIds, isOverdue, slaStatus, search, page = 1, limit = 20 }) {
     const filter = { isDeleted: false };
+
+    if (entityIds && Array.isArray(entityIds)) {
+      filter.entityId = { $in: entityIds };
+    }
 
     if (status) {
       filter.status = status;

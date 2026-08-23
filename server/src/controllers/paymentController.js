@@ -155,18 +155,54 @@ export const getMyPayments = asyncHandler(async (req, res) => {
 });
 
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 export const getAllPayments = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, status, leaseId, tenantId } = req.query;
+  const { page = 1, limit = 10, status, leaseId, tenantId, propertyId } = req.query;
+  const userId = getAuthenticatedUserId(req);
 
   const filter = {};
   if (status) filter.status = status;
   if (leaseId) filter.lease = leaseId;
   if (tenantId) filter.tenant = tenantId;
+  if (propertyId) filter.property = propertyId;
   if (req.query.bill === 'null') {
     filter.$or = [
       { bill: null },
       { bill: { $exists: false } }
     ];
+  }
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0,
+        },
+      });
+    }
+    if (filter.property) {
+      if (!propIds.map(String).includes(String(filter.property))) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+    } else {
+      filter.property = { $in: propIds };
+    }
   }
 
   const skip = (page - 1) * limit;
@@ -194,6 +230,7 @@ export const getAllPayments = asyncHandler(async (req, res) => {
 });
 
 export const getPaymentById = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
   const payment = await Payment.findById(req.params.id)
     .populate('lease')
     .populate('tenant')
@@ -203,10 +240,19 @@ export const getPaymentById = asyncHandler(async (req, res) => {
     throw new AppError('Payment not found', 404);
   }
 
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    const paymentPropId = payment.property?._id ? payment.property._id.toString() : payment.property?.toString();
+    if (paymentPropId && !propIds.map(String).includes(paymentPropId)) {
+      throw new AppError('Forbidden: Access denied to this payment record', 403);
+    }
+  }
+
   res.status(200).json({
     success: true,
     data: resolveInvoiceUrl(payment, req),
   });
+});
 });
 
 export const getPaymentInvoice = asyncHandler(async (req, res) => {
@@ -447,19 +493,41 @@ export const updatePaymentStatus = asyncHandler(async (req, res) => {
 });
 
 export const getPaymentStats = asyncHandler(async (req, res) => {
-  const totalPayments = await Payment.countDocuments();
-  const paidPayments = await Payment.countDocuments({ status: 'paid' });
-  const pendingPayments = await Payment.countDocuments({ status: 'pending' });
-  const overduePayments = await Payment.countDocuments({ status: 'overdue' });
+  const userId = getAuthenticatedUserId(req);
+  let filter = {};
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalPayments: 0,
+          paidPayments: 0,
+          pendingPayments: 0,
+          overduePayments: 0,
+          totalCollected: 0,
+          totalOutstanding: 0,
+        },
+      });
+    }
+    filter.property = { $in: propIds };
+  }
+
+  const totalPayments = await Payment.countDocuments(filter);
+  const paidPayments = await Payment.countDocuments({ ...filter, status: 'paid' });
+  const pendingPayments = await Payment.countDocuments({ ...filter, status: 'pending' });
+  const overduePayments = await Payment.countDocuments({ ...filter, status: 'overdue' });
 
   const totalCollected = await Payment.aggregate([
-    { $match: { status: 'paid' } },
+    { $match: { ...filter, status: 'paid' } },
     { $group: { _id: null, total: { $sum: '$amountPaid' } } },
   ]);
 
   const totalOutstanding = await Payment.aggregate([
     {
       $match: {
+        ...filter,
         status: { $in: ['pending', 'partially_paid', 'overdue'] },
       },
     },

@@ -7,7 +7,7 @@ import {
     Activity, Check, FileText, UserCheck, RefreshCw, AlertTriangle, Eye, Download, Search, Bell
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { bookingService, visitService, maintenanceService } from '../../services/api';
+import { bookingService, visitService, maintenanceService, analyticsService, technicianService } from '../../services/api';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
@@ -38,55 +38,70 @@ function RingChart({ percentage, color, size = 100 }) {
     return (
         <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
-                <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="currentColor" className="text-muted-foreground/10" strokeWidth="10" />
+                <circle
+                    cx="50"
+                    cy="50"
+                    r={RADIUS}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    className="text-muted/20"
+                />
                 <motion.circle
-                    cx="50" cy="50" r={RADIUS}
-                    fill="none" stroke={color} strokeWidth="10"
+                    cx="50"
+                    cy="50"
+                    r={RADIUS}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="8"
                     strokeLinecap="round"
                     strokeDasharray={`0 ${CIRCUM}`}
                     animate={{ strokeDasharray: `${dash} ${CIRCUM - dash}` }}
-                    transition={{ delay: 0.5, duration: 1.2, ease: 'easeOut' }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
                 />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xl font-black text-foreground">{percentage}%</span>
-                <span className="text-[9px] text-muted-foreground font-bold">Occupied</span>
+                <span className="text-[8px] text-muted-foreground uppercase font-black tracking-wider">Occupied</span>
             </div>
         </div>
     );
 }
 
-// Bar chart
+// Bar chart placeholder
 function BarChartComp({ data, color }) {
-    const max = Math.max(...data);
+    const max = Math.max(...data, 1);
     return (
-        <div className="flex items-end gap-1 h-16">
+        <div className="flex items-end gap-1.5 h-28 pt-4">
             {data.map((v, i) => (
-                <motion.div
-                    key={i}
-                    className="flex-1 rounded-t-md"
-                    style={{ backgroundColor: color, opacity: 0.3 + (v / max) * 0.7 }}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${(v / max) * 100}%` }}
-                    transition={{ delay: 0.7 + i * 0.05, duration: 0.4, ease: 'easeOut' }}
-                />
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                    <div className="w-full bg-muted/40 rounded-t-sm relative overflow-hidden h-24 flex items-end">
+                        <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: `${(v / max) * 100}%` }}
+                            transition={{ delay: i * 0.04, duration: 0.6 }}
+                            className="w-full rounded-t-sm"
+                            style={{ backgroundColor: color }}
+                        />
+                    </div>
+                </div>
             ))}
         </div>
     );
 }
 
-// Stat card as a proper sub-component so hooks are at top level
 function ManagerStatCard({ card }) {
-    const Icon = card.icon;
     const count = useCounter(card.value);
+    const Icon = card.icon;
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: card.delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative group overflow-hidden rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 hover:border-blue-500/30 transition-all duration-300"
+            transition={{ delay: card.delay, duration: 0.4 }}
+            className="p-5 rounded-2xl border border-border bg-card/40 backdrop-blur-sm relative overflow-hidden group hover:border-blue-500/30 transition-all shadow-sm"
         >
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
                 <div className={cn('p-2.5 rounded-xl', card.color)}>
                     <Icon className="w-5 h-5 text-white dark:text-foreground" />
                 </div>
@@ -112,9 +127,11 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [bookingLoading, setBookingLoading] = useState(true);
     const [bookingTab, setBookingTab] = useState('pending');
     const [renewals, setRenewals] = useState([]);
+    const [maintenanceList, setMaintenanceList] = useState([]);
+    const [revenueMonths, setRevenueMonths] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
-    const occupied = stats?.occupiedProperties !== undefined ? stats.occupiedProperties : 46;
-    const vacant = stats?.availableProperties !== undefined ? stats.availableProperties : 6;
+    const occupied = stats?.occupiedProperties || 0;
+    const vacant = stats?.availableProperties || 0;
     const total = occupied + vacant;
     const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
@@ -130,7 +147,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         const fetchBookings = async () => {
             try {
                 const res = await bookingService.getManagerBookings();
-                setBookings(res.data);
+                setBookings(res.data || []);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -141,7 +158,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         const fetchVisits = async () => {
             try {
                 const res = await visitService.getManagerVisits();
-                setVisits(res.data);
+                setVisits(res.data || []);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -151,27 +168,57 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
 
         const fetchRenewals = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
                 const res = await axios.get('/api/renewals', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setRenewals(res.data.data || res.data || []);
+                setRenewals(res.data?.data || res.data || []);
             } catch (e) {
                 console.error('Error fetching renewals:', e);
+            }
+        };
+
+        const fetchMaintenance = async () => {
+            try {
+                const res = await maintenanceService.getAllRequests({ limit: 5 });
+                const list = res?.data?.data || res?.data || [];
+                setMaintenanceList(Array.isArray(list) ? list : []);
+            } catch (e) {
+                console.error('Error fetching maintenance tickets:', e);
+            }
+        };
+
+        const fetchRevenue = async () => {
+            try {
+                const res = await analyticsService.getRevenue(12);
+                const data = res?.data?.data || res?.data || [];
+                if (Array.isArray(data) && data.length > 0) {
+                    const monthsData = new Array(12).fill(0);
+                    data.forEach(item => {
+                        const m = item._id?.month;
+                        if (m && m >= 1 && m <= 12) {
+                            monthsData[m - 1] = item.total || 0;
+                        }
+                    });
+                    setRevenueMonths(monthsData);
+                } else {
+                    setRevenueMonths([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                }
+            } catch (e) {
+                console.error('Error fetching revenue analytics:', e);
             }
         };
 
         fetchBookings();
         fetchVisits();
         fetchRenewals();
+        fetchMaintenance();
+        fetchRevenue();
     }, []);
 
     const handleUpdateBooking = async (id, status, reason = '') => {
         try {
             await bookingService.updateBookingStatus(id, { status, rejectionReason: reason });
-            // Optimistically remove from pending list since we only show pending ones here
-            // If we just mapped it to 'approved', it would stay in the list but with wrong status if the list filters by pending.
-            // The logic below maps it.
             setBookings(prev => prev.map(b => b._id === id ? { ...b, status } : b));
         } catch (e) {
             console.error(e);
@@ -206,20 +253,11 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const approvedVisits = visits.filter(v => v.status === 'approved');
     const completedVisits = visits.filter(v => v.status === 'completed' || v.status === 'rejected');
 
-    const maintenanceData = [
-        { id: 'MT-1342', title: 'Leaking Faucet — Unit 4B', priority: 'high', status: 'open', time: '2h ago' },
-        { id: 'MT-1341', title: 'AC Malfunction — Unit 12A', priority: 'medium', status: 'in_progress', time: '5h ago' },
-        { id: 'MT-1340', title: 'Power Outage — Lobby', priority: 'emergency', status: 'in_progress', time: '8h ago' },
-        { id: 'MT-1339', title: 'Window Repair — Unit 7C', priority: 'low', status: 'resolved', time: '1d ago' },
-    ];
-
-    const revenueMonths = [55, 70, 62, 88, 75, 95, 82, 108, 91, 115, 98, 124];
-
     const statCards = [
-        { title: 'Managed Units', value: stats?.totalProperties || 52, icon: Building2, trend: '+2', color: 'bg-blue-500', delay: 0 },
-        { title: 'Active Tenants', value: stats?.totalTenants || 88, icon: Users, trend: '+3', color: 'bg-cyan-500', delay: 0.1 },
+        { title: 'Managed Units', value: stats?.totalProperties || 0, icon: Building2, trend: stats?.totalProperties > 0 ? `+${stats.totalProperties}` : '', color: 'bg-blue-500', delay: 0 },
+        { title: 'Active Tenants', value: stats?.totalTenants || 0, icon: Users, trend: stats?.totalTenants > 0 ? `+${stats.totalTenants}` : '', color: 'bg-cyan-500', delay: 0.1 },
         { title: 'Booking Requests', value: pendingBookings.length, icon: CalendarDays, trend: pendingBookings.length > 0 ? '↑ New' : '', color: 'bg-indigo-500', delay: 0.2 },
-        { title: 'Pending Payments', value: stats?.pendingPayments || 14, icon: CreditCard, color: 'bg-rose-500', delay: 0.3 },
+        { title: 'Pending Payments', value: stats?.pendingPayments || 0, icon: CreditCard, color: 'bg-rose-500', delay: 0.3 },
     ];
 
     const getPriorityStyle = (priority) => ({
@@ -316,6 +354,31 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
 
             {view === 'overview' ? (
                 <>
+                    {/* Brand-new Manager Portfolio Setup / Empty State Banner */}
+                    {(!stats?.totalProperties || stats.totalProperties === 0) && !loading && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-6 rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-card to-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm"
+                        >
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-black uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded-full">Getting Started</span>
+                                </div>
+                                <h2 className="text-xl font-black text-foreground">Welcome to your Property Operations Hub 👋</h2>
+                                <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+                                    You currently have 0 managed properties. Add your first property to start receiving tenant bookings, managing leases, tracking rent collections in ₹ (INR), and resolving maintenance requests.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => navigate('/properties')}
+                                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all shrink-0 cursor-pointer"
+                            >
+                                <Plus className="w-4 h-4" /> Add Your First Property
+                            </button>
+                        </motion.div>
+                    )}
+
                     {/* Stat Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((card) => (
@@ -335,7 +398,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Collections</p>
-                            <p className="text-2xl font-black text-foreground">$47,820 <span className="text-sm text-emerald-500 font-bold">↑ 8%</span></p>
+                            <p className="text-2xl font-black text-foreground">₹{Number(stats?.totalRevenue || 0).toLocaleString('en-IN')}</p>
                         </div>
                         <div className="p-2 rounded-xl bg-blue-500/20">
                             <BarChart3 className="w-5 h-5 text-blue-400" />
@@ -1010,28 +1073,35 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     </button>
                 </div>
                 <div className="space-y-2">
-                    {maintenanceData.map((ticket, i) => (
-                        <motion.div
-                            key={ticket.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.8 + i * 0.08 }}
-                            className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={cn('px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase', getPriorityStyle(ticket.priority))}>
-                                    {ticket.priority === 'emergency' ? '⚡ URGENT' : ticket.priority}
+                    {maintenanceList.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground/50 text-xs font-medium">
+                            No maintenance tickets reported yet.
+                        </div>
+                    ) : (
+                        maintenanceList.map((ticket, i) => (
+                            <motion.div
+                                key={ticket._id || ticket.id || i}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.8 + i * 0.08 }}
+                                className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer group"
+                                onClick={() => navigate('/maintenance', { state: { searchId: ticket._id } })}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={cn('px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase', getPriorityStyle(ticket.priority))}>
+                                        {ticket.priority === 'emergency' ? '⚡ URGENT' : (ticket.priority || 'medium')}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-foreground/80 group-hover:text-foreground transition-colors">{ticket.title || 'Maintenance Request'}</p>
+                                        <p className="text-[10px] text-muted-foreground">{ticket.ticketNumber || String(ticket._id).substring(0, 8)} • {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : 'Recent'}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold text-foreground/80 group-hover:text-foreground transition-colors">{ticket.title}</p>
-                                    <p className="text-[10px] text-muted-foreground">{ticket.id} • {ticket.time}</p>
-                                </div>
-                            </div>
-                            <span className={cn('text-xs font-bold', getStatusStyle(ticket.status))}>
-                                {getStatusLabel(ticket.status)}
-                            </span>
-                        </motion.div>
-                    ))}
+                                <span className={cn('text-xs font-bold', getStatusStyle(ticket.status))}>
+                                    {getStatusLabel(ticket.status || 'open')}
+                                </span>
+                            </motion.div>
+                        ))
+                    )}
                 </div>
             </motion.div>
 
@@ -1231,33 +1301,22 @@ function ManagerMaintenanceView({ navigate }) {
     const [bulkTech, setBulkTech] = useState('');
     const [previewTicket, setPreviewTicket] = useState(null);
     const [assigningTicket, setAssigningTicket] = useState(null);
-
-    // Mock operational inbox messages (Enhancement 10)
-    const [inboxMessages, setInboxMessages] = useState([
-        { id: 1, title: 'Tenant Replied', text: 'Tenant Apt 4B added photo attachment', time: '5m ago', icon: '💬' },
-        { id: 2, title: 'Technician Delayed', text: 'Mike reported traffic delay for Visit #302', time: '12m ago', icon: '⚠️' },
-        { id: 3, title: '🚨 Emergency Created', text: 'Pipe Burst in Unit 12A - SLA set 30m', time: '18m ago', icon: '🚨' },
-        { id: 4, title: 'Visit Confirmed', text: 'Inspection scheduled tomorrow 10:00 AM', time: '45m ago', icon: '✅' },
-    ]);
-
-    // Smart Technician Recommendations (Enhancement 14)
-    const mockTechs = [
-        { id: 'tech1', name: 'Mike Johnson', rating: 4.9, jobs: 2, distance: '1.2 km', eta: '15m', match: '98%', status: 'Available' },
-        { id: 'tech2', name: 'Alex Rivera', rating: 4.8, jobs: 3, distance: '3.4 km', eta: '25m', match: '91%', status: 'Busy' },
-        { id: 'tech3', name: 'Sarah Connor', rating: 4.9, jobs: 1, distance: '0.8 km', eta: '10m', match: '95%', status: 'Available' },
-    ];
+    const [availableTechs, setAvailableTechs] = useState([]);
 
     const fetchDashboardData = useCallback(async () => {
         setRefreshing(true);
         try {
-            const [mRes, qRes, emgRes] = await Promise.all([
+            const [mRes, qRes, emgRes, tRes] = await Promise.all([
                 maintenanceService.getManagerDashboard(filters),
                 maintenanceService.getAllRequests({ ...filters, search: searchQuery, limit: 100 }),
-                maintenanceService.getAllRequests({ emergencyOnly: true, limit: 10 })
+                maintenanceService.getAllRequests({ emergencyOnly: true, limit: 10 }),
+                technicianService.getAllTechnicians().catch(() => ({ data: [] }))
             ]);
             setMetrics(mRes?.data || mRes);
             setQueue(qRes?.data?.data || qRes?.data || []);
             setEmergencies(emgRes?.data?.data || emgRes?.data || []);
+            const tList = tRes?.data || tRes || [];
+            setAvailableTechs(Array.isArray(tList) ? tList : []);
         } catch (err) {
             console.error('Failed to load Manager Maintenance Dashboard:', err);
         } finally {
@@ -1265,6 +1324,14 @@ function ManagerMaintenanceView({ navigate }) {
             setRefreshing(false);
         }
     }, [filters, searchQuery]);
+
+    const inboxMessages = emergencies.slice(0, 4).map(emg => ({
+        id: emg._id,
+        title: `🚨 Emergency: ${emg.title}`,
+        text: `Unit ${emg.unit || 'N/A'} - ${emg.category || 'General'}`,
+        time: emg.createdAt ? new Date(emg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+        icon: '🚨'
+    }));
 
     useEffect(() => {
         fetchDashboardData();
@@ -1669,21 +1736,27 @@ function ManagerMaintenanceView({ navigate }) {
                             </div>
 
                             <div className="space-y-2">
-                                {mockTechs.map(tech => (
-                                    <div key={tech.id} className="p-3.5 rounded-2xl border border-border bg-muted/20 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="text-xs font-black text-foreground">{tech.name} <span className="text-amber-400 font-bold">★ {tech.rating}</span></h4>
-                                            <p className="text-[10px] text-muted-foreground">{tech.jobs} Jobs • Distance {tech.distance} • ETA {tech.eta}</p>
-                                        </div>
-                                        <button onClick={async () => {
-                                            await maintenanceService.updateRequest(assigningTicket._id, { assignedTo: tech.id, status: 'technician_assigned' });
-                                            setAssigningTicket(null);
-                                            fetchDashboardData();
-                                        }} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-all">
-                                            {tech.match} Match
-                                        </button>
+                                {availableTechs.length === 0 ? (
+                                    <div className="text-center py-6 text-muted-foreground/60 text-xs">
+                                        No registered technicians found for your properties. Go to Workforce to invite technicians.
                                     </div>
-                                ))}
+                                ) : (
+                                    availableTechs.map(tech => (
+                                        <div key={tech._id || tech.id} className="p-3.5 rounded-2xl border border-border bg-muted/20 flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-xs font-black text-foreground">{tech.firstName} {tech.lastName} <span className="text-amber-400 font-bold">★ {tech.technicianProfile?.rating || '5.0'}</span></h4>
+                                                <p className="text-[10px] text-muted-foreground">{tech.technicianProfile?.specialties?.join(', ') || 'General Maintenance'} • Status: {tech.technicianProfile?.availabilityStatus || 'Available'}</p>
+                                            </div>
+                                            <button onClick={async () => {
+                                                await maintenanceService.updateRequest(assigningTicket._id, { assignedTo: tech._id || tech.id, status: 'technician_assigned' });
+                                                setAssigningTicket(null);
+                                                fetchDashboardData();
+                                            }} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-all cursor-pointer">
+                                                Assign
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </motion.div>
                     </motion.div>

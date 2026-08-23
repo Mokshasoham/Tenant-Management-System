@@ -7,7 +7,11 @@ import technicianService from '../services/technicianService.js';
 import { asyncHandler, AppError } from '../utils/errorHandling.js';
 
 export const getAllTechnicians = asyncHandler(async (req, res) => {
-  const result = await technicianService.getAllTechnicians(req.query);
+  const query = { ...req.query };
+  if (req.user?.role === 'manager') {
+    query.managerId = req.user.userId || req.user._id || req.user.id;
+  }
+  const result = await technicianService.getAllTechnicians(query);
   res.status(200).json({
     success: true,
     data: result.technicians,

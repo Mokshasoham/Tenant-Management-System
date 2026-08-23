@@ -12,15 +12,25 @@ const ALLOWED_ENTITY_TYPES = ['TENANT', 'MANAGER', 'PROPERTY', 'TECHNICIAN', 'VE
  * Enforces strict request validation, role boundaries, and delegates all business logic to verificationService.
  */
 
+import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
+
 // 1. GET /api/verifications (Admin Queue / Filtered List)
 export const getVerifications = asyncHandler(async (req, res) => {
   const { status, entityType, isOverdue, slaStatus, search, page = 1, limit = 20 } = req.query;
 
   const parsedOverdue = isOverdue === 'true' ? true : isOverdue === 'false' ? false : undefined;
+  const userId = getAuthenticatedUserId(req);
+
+  let entityIds = undefined;
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    entityIds = [userId, ...propIds];
+  }
 
   const result = await verificationService.getPendingQueue({
     status,
     entityType,
+    entityIds,
     isOverdue: parsedOverdue,
     slaStatus,
     search,

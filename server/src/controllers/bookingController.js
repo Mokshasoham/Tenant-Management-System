@@ -1039,9 +1039,18 @@ export const getMyBookings = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: bookings });
 });
 
+import { getManagerPropertyIds } from '../utils/managerHelper.js';
+
 // GET /api/bookings/manager
 export const getManagerBookings = asyncHandler(async (req, res) => {
-    const bookings = await Booking.find({ manager: req.user.userId })
+    const userId = req.user.userId || req.user._id || req.user.id;
+    const propIds = await getManagerPropertyIds(userId);
+    const bookings = await Booking.find({
+        $or: [
+            { manager: userId },
+            { property: { $in: propIds } }
+        ]
+    })
         .populate('property', 'name address city')
         .populate('user', 'firstName lastName email')
         .sort({ createdAt: -1 });
