@@ -8,6 +8,7 @@ import {
     ChevronRight, Lock, RefreshCw, ArrowLeft, IndianRupee,
     Shield, Eye, EyeOff, Info, Coins, Zap
 } from 'lucide-react';
+import { calculateNextPaymentDue } from '../utils/paymentSchedule';
 import { cn } from '../utils/cn';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -527,10 +528,16 @@ export default function PayNowPage() {
         navigate(`/pay-now?leaseId=${selectedL._id}`, { replace: true, state: { leaseId: selectedL._id } });
     };
 
-    const rentAmount = lease?.rentAmount || 0;
+    const computedSchedule = lease ? calculateNextPaymentDue(lease, pendingPayment ? [pendingPayment] : []) : null;
+    const isOverdue = computedSchedule?.isOverdue || pendingPayment?.status === 'overdue';
+    const rentAmount = computedSchedule?.rentAmount || lease?.rentAmount || 0;
+    const lateFee = computedSchedule?.lateFee || (pendingPayment?.lateFee || 0);
+    const daysLate = computedSchedule?.daysLate || (pendingPayment?.daysLate || 0);
+    const scheduleTotalDue = computedSchedule?.totalDue || (rentAmount + lateFee);
+
     const pendingAmount = pendingPayment
-        ? (pendingPayment.amount - (pendingPayment.amountPaid || 0))
-        : rentAmount;
+        ? ((pendingPayment.amountDue !== undefined ? pendingPayment.amountDue : (pendingPayment.amount || scheduleTotalDue)) - (pendingPayment.amountPaid || 0))
+        : scheduleTotalDue;
 
     const parsedCustom = parseInt(customAmount.replace(/[^\d]/g, '')) || 0;
 
@@ -606,7 +613,7 @@ export default function PayNowPage() {
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em]">
-                                    {isBooking ? 'Total Payable' : (pendingPayment ? (pendingPayment.status === 'overdue' ? '⚠️ Overdue Payment' : 'Pending Rent') : 'Monthly Rent')}
+                                    {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : (pendingPayment ? 'Pending Rent' : 'Monthly Rent'))}
                                 </p>
 
                                 {availableLeases.length > 1 && !isBooking && !billIdParam && (
@@ -651,9 +658,15 @@ export default function PayNowPage() {
                                     {/* Breakdown items */}
                                     <div className="bg-black/20 rounded-2xl p-3 mb-4 space-y-1.5 text-xs text-emerald-100/80">
                                         <div className="flex justify-between">
-                                            <span>Base Rent</span>
-                                            <span className="font-bold text-white">₹{payAmount.toLocaleString('en-IN')}</span>
+                                            <span>Monthly Rent</span>
+                                            <span className="font-bold text-white">₹{(useCustom ? payAmount : rentAmount).toLocaleString('en-IN')}</span>
                                         </div>
+                                        {!useCustom && lateFee > 0 && (
+                                            <div className="flex justify-between text-rose-300">
+                                                <span>Late Fee ({daysLate} day{daysLate !== 1 ? 's' : ''} overdue)</span>
+                                                <span className="font-bold text-rose-200">+₹{lateFee.toLocaleString('en-IN')}</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between">
                                             <span>TMS Platform Fee ({feeBreakdown?.platformFeePercentage || 1}%)</span>
                                             <span className="font-bold text-emerald-300">

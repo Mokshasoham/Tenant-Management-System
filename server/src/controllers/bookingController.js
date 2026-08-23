@@ -1274,10 +1274,16 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
 
         const actualRent = lease.rentAmount || property.rentAmount || 1;
         const amountPaid = Number(amount) || booking.totalAmount;
+        const lateFee = Math.max(0, amountPaid - actualRent);
 
         const Bill = mongoose.model('Bill');
         const billNumber = `BILL-RENT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
         const billStatus = amountPaid >= actualRent ? 'paid' : 'partially_paid';
+
+        const breakdownItems = [{ label: 'Base Rent', amount: actualRent }];
+        if (lateFee > 0) {
+            breakdownItems.push({ label: 'Late Fee', amount: lateFee });
+        }
 
         const bill = await Bill.create({
             billNumber,
@@ -1289,30 +1295,55 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             dueDate: new Date(),
             billingPeriodStart: booking.startDate,
             billingPeriodEnd: new Date(new Date(booking.startDate).setMonth(new Date(booking.startDate).getMonth() + 1)),
-            breakdown: [
-                { label: 'Base Rent', amount: actualRent }
-            ],
-            amountDue: actualRent,
+            breakdown: breakdownItems,
+            amountDue: actualRent + lateFee,
             amountPaid: amountPaid,
+            lateFeeApplied: lateFee > 0,
             timeline: [
                 { status: 'generated', note: 'Rent Invoice generated automatically.' },
-                { status: billStatus, note: `Paid ₹${amountPaid} via Mock ${safeMethod}.` }
+                { status: billStatus, note: `Paid ₹${amountPaid} via Mock ${safeMethod}${lateFee > 0 ? ` (Includes ₹${lateFee} late fee)` : ''}.` }
             ]
         });
 
-        const payment = await Payment.create({
+        // Check if there is an existing pending/overdue Payment record for this lease
+        let payment = await Payment.findOne({
             lease: lease._id,
-            tenant: tenant._id,
-            property: propertyId,
-            amount: actualRent, // Actual monthly rent amount
-            amountPaid: amountPaid, // The actual custom paid amount
-            status: amountPaid >= actualRent ? 'paid' : 'partially_paid',
-            paymentDate: new Date(),
-            dueDate: new Date(),
-            paymentMethod: safeMethod,
-            reference: booking.paymentReference,
-            bill: bill._id
+            status: { $in: ['pending', 'overdue', 'partially_paid', 'generated'] }
         });
+
+        if (payment) {
+            payment.status = billStatus;
+            payment.amountPaid = (payment.amountPaid || 0) + amountPaid;
+            payment.paymentDate = new Date();
+            payment.paidAt = new Date();
+            payment.paymentMethod = safeMethod;
+            payment.reference = booking.paymentReference || payment.reference;
+            if (lateFee > 0) {
+                payment.lateFee = lateFee;
+                payment.lateFeeApplied = true;
+            }
+            if (!payment.bill) {
+                payment.bill = bill._id;
+            }
+            await payment.save();
+        } else {
+            payment = await Payment.create({
+                lease: lease._id,
+                tenant: tenant._id,
+                property: propertyId,
+                amount: actualRent,
+                amountPaid: amountPaid,
+                lateFee: lateFee,
+                lateFeeApplied: lateFee > 0,
+                status: billStatus,
+                paymentDate: new Date(),
+                paidAt: new Date(),
+                dueDate: new Date(),
+                paymentMethod: safeMethod,
+                reference: booking.paymentReference,
+                bill: bill._id
+            });
+        }
 
         bill.payment = payment._id;
         await bill.save();

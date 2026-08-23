@@ -256,19 +256,23 @@ export default function TenantDashboard({ user, navigate }) {
         return activeLeases.map(activeLease => {
             const schedule = calculateNextPaymentDue(activeLease, payments);
             if (!schedule || !schedule.nextPaymentDueAt) return null;
-            const dueTime = new Date(schedule.nextPaymentDueAt).getTime();
-            const now = Date.now();
             const leaseIdStr = activeLease._id ? activeLease._id.toString() : '';
             return {
                 id: schedule.paymentId || activeLease._id,
                 leaseId: activeLease._id ? activeLease._id.toString() : (activeLease.id || ''),
                 propertyId: activeLease.property?._id ? activeLease.property._id.toString() : (activeLease.property ? activeLease.property.toString() : ''),
                 dueDate: schedule.nextPaymentDueAt,
-                amount: schedule.amount ?? activeLease.rentAmount,
+                amount: schedule.totalDue ?? schedule.amount ?? activeLease.rentAmount,
+                rentAmount: schedule.rentAmount ?? activeLease.rentAmount,
+                lateFee: schedule.lateFee ?? 0,
+                daysLate: schedule.daysLate ?? 0,
+                totalDue: schedule.totalDue ?? schedule.amount ?? activeLease.rentAmount,
+                lateFeePerDay: schedule.lateFeePerDay ?? (activeLease.lateFeePerDay || 100),
                 propertyName: activeLease.property?.name || 'TMS Rental',
                 isEstimate: schedule.isEstimate,
                 isConfirmed: !schedule.isEstimate,
-                isOverdue: schedule.status === 'overdue' || (dueTime < now && !schedule.isEstimate),
+                isOverdue: schedule.isOverdue || schedule.status === 'overdue',
+                isDueToday: schedule.isDueToday || schedule.status === 'due',
                 isAutoPayActive: activeAutoPayMap.has(leaseIdStr),
                 status: schedule.status
             };
@@ -764,6 +768,14 @@ export default function TenantDashboard({ user, navigate }) {
                                         <NextPaymentCard
                                             dueDate={activePaymentsToShow[activePaymentIndex].dueDate}
                                             amount={activePaymentsToShow[activePaymentIndex].amount}
+                                            rentAmount={activePaymentsToShow[activePaymentIndex].rentAmount}
+                                            lateFee={activePaymentsToShow[activePaymentIndex].lateFee}
+                                            daysLate={activePaymentsToShow[activePaymentIndex].daysLate}
+                                            totalDue={activePaymentsToShow[activePaymentIndex].totalDue}
+                                            lateFeePerDay={activePaymentsToShow[activePaymentIndex].lateFeePerDay}
+                                            status={activePaymentsToShow[activePaymentIndex].status}
+                                            isOverdue={activePaymentsToShow[activePaymentIndex].isOverdue}
+                                            isDueToday={activePaymentsToShow[activePaymentIndex].isDueToday}
                                             isEstimate={activePaymentsToShow[activePaymentIndex].isEstimate}
                                             propertyName={activePaymentsToShow[activePaymentIndex].propertyName}
                                             isAutoPayActive={activePaymentsToShow[activePaymentIndex].isAutoPayActive}
@@ -800,6 +812,14 @@ export default function TenantDashboard({ user, navigate }) {
                         <NextPaymentCard 
                             dueDate={activePaymentsToShow[0].dueDate} 
                             amount={activePaymentsToShow[0].amount} 
+                            rentAmount={activePaymentsToShow[0].rentAmount}
+                            lateFee={activePaymentsToShow[0].lateFee}
+                            daysLate={activePaymentsToShow[0].daysLate}
+                            totalDue={activePaymentsToShow[0].totalDue}
+                            lateFeePerDay={activePaymentsToShow[0].lateFeePerDay}
+                            status={activePaymentsToShow[0].status}
+                            isOverdue={activePaymentsToShow[0].isOverdue}
+                            isDueToday={activePaymentsToShow[0].isDueToday}
                             isEstimate={activePaymentsToShow[0].isEstimate}
                             propertyName={activePaymentsToShow[0].propertyName}
                             isAutoPayActive={activePaymentsToShow[0].isAutoPayActive}

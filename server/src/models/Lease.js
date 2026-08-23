@@ -35,6 +35,11 @@ const leaseSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    lateFeePerDay: {
+      type: Number,
+      default: 100,
+      min: 0,
+    },
     utilities: {
       water: Boolean,
       electricity: Boolean,

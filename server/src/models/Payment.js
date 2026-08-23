@@ -122,6 +122,27 @@ const paymentSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    lateFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    lateFeePerDay: {
+      type: Number,
+      default: 100,
+      min: 0,
+    },
+    daysLate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalDue: {
+      type: Number,
+    },
+    paymentPeriodStart: Date,
+    paymentPeriodEnd: Date,
+    paidAt: Date,
     receipts: [
       {
         amount: Number,

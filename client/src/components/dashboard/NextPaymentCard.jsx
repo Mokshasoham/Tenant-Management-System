@@ -7,6 +7,14 @@ import { useLanguage } from '../../context/LanguageContext';
 export default function NextPaymentCard({
   dueDate,
   amount,
+  rentAmount,
+  lateFee,
+  daysLate,
+  totalDue,
+  lateFeePerDay = 100,
+  status,
+  isOverdue: isOverdueProp,
+  isDueToday: isDueTodayProp,
   isEstimate = false,
   isConfirmed = false,
   propertyName = '',
@@ -28,7 +36,7 @@ export default function NextPaymentCard({
   }, []);
 
   // Safe Handling for Missing Data
-  if (!dueDate && (amount === undefined || amount === null)) {
+  if (!dueDate && (amount === undefined || amount === null) && (rentAmount === undefined || rentAmount === null)) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center rounded-[2rem] bg-card/60 backdrop-blur-xl border border-border/80 shadow-[0_20px_50px_rgba(0,0,0,0.2)] h-full min-h-[340px]">
         <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/80">
@@ -57,25 +65,36 @@ export default function NextPaymentCard({
   }
 
   const dueObj = new Date(dueDate);
-  // Calculate end-of-day deadline in UTC to prevent timezone drifting
-  const dueDeadline = Date.UTC(
-    dueObj.getUTCFullYear(),
-    dueObj.getUTCMonth(),
-    dueObj.getUTCDate(),
-    23, 59, 59, 999
-  );
+  const nowObj = new Date(now);
 
+  const dueStart = Date.UTC(dueObj.getUTCFullYear(), dueObj.getUTCMonth(), dueObj.getUTCDate(), 0, 0, 0, 0);
+  const dueDeadline = Date.UTC(dueObj.getUTCFullYear(), dueObj.getUTCMonth(), dueObj.getUTCDate(), 23, 59, 59, 999);
+  const todayStart = Date.UTC(nowObj.getUTCFullYear(), nowObj.getUTCMonth(), nowObj.getUTCDate(), 0, 0, 0, 0);
+
+  // Exact lifecycle evaluation
+  const isOverdue = isOverdueProp ?? (status === 'overdue' || todayStart > dueStart);
+  const isDueToday = !isOverdue && (isDueTodayProp ?? (status === 'due' || todayStart === dueStart));
+
+  const calculatedDaysLate = daysLate !== undefined 
+    ? daysLate 
+    : (isOverdue ? Math.max(1, Math.floor((todayStart - dueStart) / (1000 * 60 * 60 * 24))) : 0);
+
+  const baseRent = rentAmount ?? amount ?? 0;
+  const calculatedLateFee = lateFee !== undefined 
+    ? lateFee 
+    : (isOverdue ? calculatedDaysLate * lateFeePerDay : 0);
+
+  const finalTotalDue = totalDue !== undefined 
+    ? totalDue 
+    : (baseRent + (isOverdue ? calculatedLateFee : 0));
+
+  // Time component calculations for upcoming countdown
   const diff = dueDeadline - now;
-  const isOverdue = diff < 0 && !isEstimate;
-  const isDueToday = !isOverdue && diff >= 0 && diff <= 86400000;
-
-  // Time component calculations
   const absoluteDiff = Math.abs(diff);
   const days = Math.floor(absoluteDiff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((absoluteDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((absoluteDiff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((absoluteDiff % (1000 * 60)) / 1000);
-  const overdueDays = Math.floor(absoluteDiff / (1000 * 60 * 60 * 24)) + 1;
 
   // Circular progress math (assuming 30-day billing cycle)
   const RADIUS = 42;
@@ -87,6 +106,7 @@ export default function NextPaymentCard({
   // Status Styling Variants
   const statusConfig = isOverdue
     ? {
+        headerTitle: 'OVERDUE PAYMENT',
         badge: 'OVERDUE',
         badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-500 dark:text-rose-400',
         ringColor: 'stroke-rose-500',
@@ -97,9 +117,11 @@ export default function NextPaymentCard({
         textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(244,63,94,0.45)]',
         backplateHover: 'group-hover/ring:border-rose-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(244,63,94,0.15)]',
         icon: AlertTriangle,
+        btnGradient: 'from-rose-600 via-rose-500 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-rose-500/25',
       }
     : isDueToday
     ? {
+        headerTitle: 'PAYMENT DUE TODAY',
         badge: 'DUE TODAY',
         badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-500 dark:text-amber-400',
         ringColor: 'stroke-amber-500',
@@ -110,8 +132,10 @@ export default function NextPaymentCard({
         textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(245,158,11,0.45)]',
         backplateHover: 'group-hover/ring:border-amber-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(245,158,11,0.15)]',
         icon: Clock,
+        btnGradient: 'from-amber-500 via-amber-600 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/25',
       }
     : {
+        headerTitle: t('dashboard.nextPayment', 'Next Payment'),
         badge: isEstimate ? 'ESTIMATED' : 'CONFIRMED',
         badgeBg: isEstimate
           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
@@ -124,6 +148,7 @@ export default function NextPaymentCard({
         textGlow: 'group-hover/ring:drop-shadow-[0_0_8px_rgba(16,185,129,0.45)]',
         backplateHover: 'group-hover/ring:border-emerald-500/30 group-hover/ring:bg-card/75 group-hover/ring:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
         icon: Clock,
+        btnGradient: 'from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/25',
       };
 
   const StatusIcon = statusConfig.icon;
@@ -152,8 +177,11 @@ export default function NextPaymentCard({
             <StatusIcon className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-foreground/90">
-              {t('dashboard.nextPayment', 'Upcoming Payment')}
+            <h3 className={cn(
+              "text-xs font-black uppercase tracking-widest",
+              isOverdue ? "text-rose-500 dark:text-rose-400" : "text-foreground/90"
+            )}>
+              {statusConfig.headerTitle}
             </h3>
             {propertyName && (
               <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider truncate max-w-[130px]" title={propertyName}>
@@ -184,7 +212,7 @@ export default function NextPaymentCard({
         </div>
       </div>
 
-      {/* Centerpiece: Premium Animated Progress Ring with Interactive Hover Effect */}
+      {/* Centerpiece: Animated Progress Ring */}
       <div className="relative z-10 flex flex-col items-center justify-center my-2">
         <div
           onMouseEnter={() => {
@@ -196,7 +224,7 @@ export default function NextPaymentCard({
           }}
           className="group/ring relative w-36 h-36 flex items-center justify-center cursor-pointer select-none transition-transform duration-300 ease-out hover:scale-[1.045]"
         >
-          {/* Subtle Outer Radiating Ambient Aura Ring */}
+          {/* Ambient Aura Ring */}
           <div
             className={cn(
               "absolute -inset-2.5 rounded-full border border-transparent opacity-0 group-hover/ring:opacity-100 blur-sm scale-95 group-hover/ring:scale-105 transition-all duration-500 ease-out pointer-events-none",
@@ -230,7 +258,7 @@ export default function NextPaymentCard({
               className="text-muted-foreground/10 group-hover/ring:text-muted-foreground/20 transition-colors duration-300"
               strokeWidth="7"
             />
-            {/* Active Animated Progress Stroke with Hover Draw Effect */}
+            {/* Active Animated Progress Stroke */}
             <motion.circle
               key={`progress-stroke-${hoverKey}`}
               cx="50"
@@ -261,14 +289,18 @@ export default function NextPaymentCard({
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 z-20">
             {isOverdue ? (
               <>
-                <span className={cn("text-3xl font-black tracking-tight leading-none transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>!</span>
+                <span className={cn("text-3xl font-black tracking-tight leading-none transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>
+                  !
+                </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 mt-1">
                   OVERDUE
                 </span>
               </>
             ) : isDueToday ? (
               <>
-                <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>0</span>
+                <span className={cn("text-3xl font-black tracking-tight leading-none tabular-nums transition-all duration-300", statusConfig.accentText, statusConfig.textGlow)}>
+                  0
+                </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 mt-1">
                   DUE TODAY
                 </span>
@@ -287,7 +319,7 @@ export default function NextPaymentCard({
         </div>
 
         {/* Live Sub-Timer (Hours, Minutes, Seconds Bar) */}
-        {!isOverdue && (
+        {!isOverdue && !isDueToday && (
           <motion.div
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -309,32 +341,73 @@ export default function NextPaymentCard({
             </div>
           </motion.div>
         )}
+
         {isOverdue && (
-          <div className="mt-3 px-3.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold text-[10px] tracking-wider uppercase">
-            {overdueDays === 1 ? '1 DAY OVERDUE' : `${overdueDays} DAYS OVERDUE`}
+          <div className="mt-3 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-500 dark:text-rose-400 font-black text-[10px] tracking-wider uppercase flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+            <span>{calculatedDaysLate === 1 ? '1 DAY OVERDUE' : `${calculatedDaysLate} DAYS OVERDUE`}</span>
+          </div>
+        )}
+
+        {isDueToday && (
+          <div className="mt-3 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-400 font-black text-[10px] tracking-wider uppercase flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>PAYMENT DUE TODAY</span>
           </div>
         )}
       </div>
 
-      {/* Meta Information & Rent Details */}
-      <div className="relative z-10 my-3 grid grid-cols-2 gap-2 text-center">
-        <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
-          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-            {isEstimate ? 'Estimated Due' : t('dashboard.due', 'Due Date')}
-          </p>
-          <p className="text-xs font-black text-foreground truncate">
-            {formattedDueDate}
-          </p>
+      {/* Meta Information & Financial Breakdown */}
+      {isOverdue ? (
+        <div className="relative z-10 my-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
+                Monthly Rent
+              </p>
+              <p className="text-xs font-black text-foreground truncate">
+                ₹{baseRent.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 backdrop-blur-sm">
+              <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/80 mb-0.5">
+                Late Fee ({calculatedDaysLate}d)
+              </p>
+              <p className="text-xs font-black text-rose-500 dark:text-rose-400 truncate">
+                +₹{calculatedLateFee.toLocaleString('en-IN')}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-center flex items-center justify-between px-4">
+            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-300">
+              Total Due:
+            </span>
+            <span className="text-sm font-black text-rose-600 dark:text-rose-300">
+              ₹{finalTotalDue.toLocaleString('en-IN')}
+            </span>
+          </div>
         </div>
-        <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
-          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-            {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue', 'Amount')}
-          </p>
-          <p className="text-xs font-black text-emerald-500 dark:text-emerald-400 truncate">
-            ₹{(amount || 0).toLocaleString('en-IN')}
-          </p>
+      ) : (
+        <div className="relative z-10 my-3 grid grid-cols-2 gap-2 text-center">
+          <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
+              {isEstimate ? 'Estimated Due' : t('dashboard.due', 'Due Date')}
+            </p>
+            <p className="text-xs font-black text-foreground truncate">
+              {isDueToday ? 'Today' : formattedDueDate}
+            </p>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
+              {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue', 'Amount')}
+            </p>
+            <p className="text-xs font-black text-emerald-500 dark:text-emerald-400 truncate">
+              ₹{baseRent.toLocaleString('en-IN')}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Pay Rent CTA Button */}
       <div className="relative z-10 pt-1">
@@ -342,11 +415,18 @@ export default function NextPaymentCard({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onPayRent}
-          className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-sm tracking-wide shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all duration-300 group/btn border border-white/20 cursor-pointer"
+          className={cn(
+            "w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r text-white font-black text-sm tracking-wide shadow-lg flex items-center justify-center gap-2 transition-all duration-300 group/btn border border-white/20 cursor-pointer",
+            statusConfig.btnGradient
+          )}
         >
-          <CreditCard className="w-4 h-4 text-emerald-100 group-hover/btn:rotate-12 transition-transform duration-300" />
-          <span>{t('dashboard.payRentNow', 'Pay Rent Now')}</span>
-          <ArrowRight className="w-4 h-4 text-emerald-100 group-hover/btn:translate-x-1 transition-transform duration-300" />
+          <CreditCard className="w-4 h-4 text-white group-hover/btn:rotate-12 transition-transform duration-300" />
+          <span>
+            {isOverdue 
+              ? `Pay Rent Now (₹${finalTotalDue.toLocaleString('en-IN')})` 
+              : t('dashboard.payRentNow', 'Pay Rent Now')}
+          </span>
+          <ArrowRight className="w-4 h-4 text-white group-hover/btn:translate-x-1 transition-transform duration-300" />
         </motion.button>
       </div>
     </div>

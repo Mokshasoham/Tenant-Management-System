@@ -1,15 +1,15 @@
 /**
- * Payment Schedule & Next Rent Date Calculation Engine
+ * Payment Schedule & Next Rent Date Calculation Engine (Server)
  * 
  * Provides deterministic, calendar-accurate payment cycle calculations anchored to
  * the active lease start date and real payment history.
  * 
  * Rules:
- * 1. Payment due date is anchored to the lease start date's day of month (or activation day).
- * 2. Handles months with fewer days via calendar clamping (e.g. Jan 31 -> Feb 28 -> Mar 31).
- * 3. Incorporates existing pending/overdue DB payments as authoritative (CONFIRMED).
- * 4. Counts paid rent cycles to project the next unpaid scheduled monthly date (ESTIMATED).
- * 5. Prevents any reliance on `today + 30 days` or midnight shifts.
+ * 1. Payment due date is anchored to the lease start date's day of month.
+ * 2. Unpaid rent cycles NEVER disappear or get skipped when due date passes.
+ * 3. Lifecycle progression per cycle: UPCOMING -> DUE TODAY -> OVERDUE (daily late fee) -> PAID.
+ * 4. Advances to cycle N+1 ONLY after cycle N is confirmed PAID.
+ * 5. Overdue and late fees are calculated dynamically in real-time from the exact currentDate.
  */
 
 /**
@@ -43,96 +43,138 @@ export function getLeaseCycleDate(startDateInput, cycleIndex) {
  * Calculates the authoritative next payment due for a lease based on active records and payment history.
  * @param {Object} lease - The lease object
  * @param {Array} leasePayments - Array of payments associated with the tenant / lease
- * @returns {Object|null} Object containing nextPaymentDueAt, amount, status, isEstimate, isConfirmed
+ * @param {Date|string} currentDate - Optional current reference date (defaults to now)
+ * @returns {Object|null} Object containing nextPaymentDueAt, rentAmount, lateFee, totalDue, status, etc.
  */
-export function calculateNextPaymentDue(lease, leasePayments = []) {
+export function calculateNextPaymentDue(lease, leasePayments = [], currentDate = new Date()) {
   if (!lease || !lease.startDate) {
     return null;
   }
 
-  const leaseIdStr = lease._id ? lease._id.toString() : '';
+  const leaseIdStr = lease._id ? lease._id.toString() : (lease.id ? lease.id.toString() : '');
   const payments = Array.isArray(leasePayments) ? leasePayments.filter(p => {
     if (!p) return false;
     const pLeaseId = p.lease?._id ? p.lease._id.toString() : (p.lease ? p.lease.toString() : '');
-    return pLeaseId === leaseIdStr;
+    return !leaseIdStr || !pLeaseId || pLeaseId === leaseIdStr;
   }) : [];
 
+  const lateFeePerDay = Number(lease.lateFeePerDay) || 100;
+  const rentAmount = Number(lease.rentAmount) || 0;
+  const startDate = new Date(lease.startDate);
+  const now = new Date(currentDate);
+
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+
   // 1. Check for active pending, overdue, generated, or partially_paid payment in DB
-  const pendingPayment = payments.find(p => 
-    ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status) && p.dueDate
+  const activeDbPayment = payments.find(p => 
+    ['pending', 'overdue', 'partially_paid', 'generated'].includes(p.status)
   );
 
-  if (pendingPayment && pendingPayment.dueDate) {
-    const dueTime = new Date(pendingPayment.dueDate).getTime();
-    const isOverdue = dueTime < Date.now() || pendingPayment.status === 'overdue';
-    const amountDue = pendingPayment.amountDue !== undefined
-      ? (pendingPayment.amountDue - (pendingPayment.amountPaid || 0))
-      : (pendingPayment.amount || lease.rentAmount || 0);
+  if (activeDbPayment && activeDbPayment.dueDate) {
+    const dueDate = new Date(activeDbPayment.dueDate);
+    const dueStart = new Date(Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate(), 0, 0, 0, 0));
+    const baseRent = Number(activeDbPayment.rentAmount || activeDbPayment.amount || rentAmount);
+
+    let status = 'upcoming';
+    let daysLate = 0;
+    let daysLeft = 0;
+    let lateFee = 0;
+
+    if (todayStart.getTime() > dueStart.getTime()) {
+      status = 'overdue';
+      daysLate = Math.floor((todayStart.getTime() - dueStart.getTime()) / (1000 * 60 * 60 * 24));
+      lateFee = daysLate * lateFeePerDay;
+    } else if (todayStart.getTime() === dueStart.getTime()) {
+      status = 'due';
+      daysLate = 0;
+      lateFee = 0;
+    } else {
+      status = 'upcoming';
+      daysLeft = Math.ceil((dueStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    const totalDue = baseRent + lateFee;
 
     return {
-      nextPaymentDueAt: new Date(pendingPayment.dueDate).toISOString(),
-      amount: amountDue,
-      status: isOverdue ? 'overdue' : (pendingPayment.status || 'pending'),
-      isEstimate: false, // CONFIRMED because an explicit DB payment record exists
+      nextPaymentDueAt: dueDate.toISOString(),
+      amount: totalDue,
+      rentAmount: baseRent,
+      lateFeePerDay,
+      daysLate,
+      daysLeft,
+      lateFee,
+      totalDue,
+      status,
+      isOverdue: status === 'overdue',
+      isDueToday: status === 'due',
+      isUpcoming: status === 'upcoming',
+      isEstimate: false,
       isConfirmed: true,
-      paymentId: pendingPayment._id
+      paymentId: activeDbPayment._id || activeDbPayment.id || null,
+      billingPeriodStart: activeDbPayment.billingPeriodStart ? new Date(activeDbPayment.billingPeriodStart).toISOString() : null,
+      billingPeriodEnd: activeDbPayment.billingPeriodEnd ? new Date(activeDbPayment.billingPeriodEnd).toISOString() : null,
     };
   }
 
-  // 2. Determine next cycle from paid rent records and lease start date
+  // 2. Determine active cycle from paid rent records
   const paidRentPayments = payments.filter(p => 
     p.status === 'paid' && (!p.type || p.type === 'rent')
   );
 
-  const startDate = new Date(lease.startDate);
-  const endDate = lease.endDate ? new Date(lease.endDate) : null;
-  const now = new Date();
+  const activeCycleIndex = paidRentPayments.length;
+  const dueDate = getLeaseCycleDate(startDate, activeCycleIndex);
+  if (!dueDate) return null;
 
-  let targetCycle = 0;
+  const dueStart = new Date(Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate(), 0, 0, 0, 0));
+  const periodStart = dueDate;
+  const periodEnd = getLeaseCycleDate(startDate, activeCycleIndex + 1);
 
-  if (paidRentPayments.length > 0) {
-    // If tenant already paid N months of rent, next cycle is cycle N
-    targetCycle = paidRentPayments.length;
-  } else {
-    // If no paid rent payments exist:
-    // If lease start date is in the future, the next payment is cycle 0 (move-in rent)
-    if (startDate.getTime() > now.getTime()) {
-      targetCycle = 0;
-    } else {
-      // Start date is in the past.
-      // Move-in / initial period was cycle 0.
-      // Advance month by month until we find the first cycle that is upcoming (>= start of today in UTC)
-      let c = 0;
-      while (c < 120) {
-        const cycleDate = getLeaseCycleDate(startDate, c);
-        const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-        if (cycleDate.getTime() >= todayStart.getTime()) {
-          targetCycle = c;
-          break;
-        }
-        c++;
-      }
-      // If start date was in the past and no cycle found >= today, default to cycle 1 (the next upcoming cycle)
-      if (targetCycle === 0 && startDate.getTime() < now.getTime()) {
-        targetCycle = 1;
-      }
+  // If lease is completed (all cycles within duration are paid AND current date past end date)
+  if (lease.endDate) {
+    const endDate = new Date(lease.endDate);
+    if (dueDate.getTime() >= endDate.getTime() && now.getTime() >= endDate.getTime() && paidRentPayments.length > 0) {
+      return null; // Completed lease
     }
   }
 
-  const nextDueDate = getLeaseCycleDate(startDate, targetCycle);
-  if (!nextDueDate) return null;
+  let status = 'upcoming';
+  let daysLate = 0;
+  let daysLeft = 0;
+  let lateFee = 0;
 
-  // If the computed due date is beyond the lease end date and current time is past end date
-  if (endDate && nextDueDate.getTime() > endDate.getTime() && now.getTime() > endDate.getTime()) {
-    return null; // Lease completed
+  if (todayStart.getTime() > dueStart.getTime()) {
+    status = 'overdue';
+    daysLate = Math.floor((todayStart.getTime() - dueStart.getTime()) / (1000 * 60 * 60 * 24));
+    lateFee = daysLate * lateFeePerDay;
+  } else if (todayStart.getTime() === dueStart.getTime()) {
+    status = 'due';
+    daysLate = 0;
+    lateFee = 0;
+  } else {
+    status = 'upcoming';
+    daysLeft = Math.ceil((dueStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
   }
 
+  const totalDue = rentAmount + lateFee;
+
   return {
-    nextPaymentDueAt: nextDueDate.toISOString(),
-    amount: lease.rentAmount || 0,
-    status: 'scheduled',
-    isEstimate: true, // ESTIMATED because derived from lease cycle
+    nextPaymentDueAt: dueDate.toISOString(),
+    amount: totalDue,
+    rentAmount,
+    lateFeePerDay,
+    daysLate,
+    daysLeft,
+    lateFee,
+    totalDue,
+    status,
+    isOverdue: status === 'overdue',
+    isDueToday: status === 'due',
+    isUpcoming: status === 'upcoming',
+    isEstimate: true,
     isConfirmed: false,
-    paymentId: null
+    paymentId: null,
+    billingPeriodStart: periodStart.toISOString(),
+    billingPeriodEnd: periodEnd ? periodEnd.toISOString() : null,
+    cycleIndex: activeCycleIndex
   };
 }

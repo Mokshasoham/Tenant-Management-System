@@ -181,9 +181,20 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     throw new AppError('Lease not found', 404);
   }
 
+  const payments = await Payment.find({ lease: lease._id }).sort({ dueDate: -1 });
+  const schedule = calculateNextPaymentDue(lease, payments);
+  const resolved = resolveLeaseUrls(lease, req);
+
   res.status(200).json({
     success: true,
-    data: resolveLeaseUrls(lease, req),
+    data: {
+      ...resolved,
+      nextPaymentDueAt: schedule?.nextPaymentDueAt || null,
+      nextPaymentAmount: schedule?.totalDue ?? schedule?.amount ?? lease.rentAmount,
+      nextPaymentStatus: schedule?.status || 'scheduled',
+      nextPaymentIsEstimate: schedule?.isEstimate ?? true,
+      nextPaymentSchedule: schedule
+    },
   });
 });
 

@@ -337,7 +337,8 @@ export const recordPayment = asyncHandler(async (req, res) => {
   // Update status
   if (payment.amountPaid >= payment.amount) {
     payment.status = 'paid';
-    payment.paymentDate = paymentDate;
+    payment.paymentDate = paymentDate || new Date();
+    payment.paidAt = paymentDate || new Date();
   } else if (payment.amountPaid > 0) {
     payment.status = 'partially_paid';
   }
