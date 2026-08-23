@@ -1,3 +1,7 @@
+/**
+ * PayNowPage - Unified Multi-Active-Lease Rent & Booking Payment Page
+ * Manages all active tenant leases in a single component state with in-place pill switching.
+ */
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
