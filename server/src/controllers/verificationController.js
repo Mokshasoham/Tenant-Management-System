@@ -54,12 +54,18 @@ export const getVerificationById = asyncHandler(async (req, res) => {
 
   const verification = await verificationService.getVerificationById(id);
 
-  // Ownership Guard: Non-admin users can only view their own verification
+  // Ownership Guard: Non-admin users can only view their own verification or their own managed properties
   const requesterId = (req.user.userId || req.user._id || req.user.id).toString();
-  const isOwner = verification.entityId.toString() === requesterId;
-  const isAdminOrManager = ['admin', 'manager'].includes(req.user.role);
+  const isOwner = verification.entityId?.toString() === requesterId || verification.requestedBy?.toString() === requesterId;
+  const isAdmin = req.user.role === 'admin';
 
-  if (!isOwner && !isAdminOrManager) {
+  if (req.user.role === 'manager') {
+    const propIds = await getManagerPropertyIds(requesterId);
+    const isManagerEntity = isOwner || propIds.map(String).includes(verification.entityId?.toString());
+    if (!isManagerEntity) {
+      throw new AppError('Forbidden: Access denied to this verification record', 403);
+    }
+  } else if (!isOwner && !isAdmin) {
     throw new AppError('Forbidden: You can only view your own verification records', 403);
   }
 
@@ -420,12 +426,21 @@ export const unlockIdentity = asyncHandler(async (req, res) => {
 
 // ── Phase 3.6.2 Property Verification Handlers ─────────────────
 
-const checkPropertyVerificationAccess = (verification, user) => {
+const checkPropertyVerificationAccess = async (verification, user) => {
   const requesterId = (user.userId || user._id || user.id).toString();
-  const isOwner = verification.entityId?.toString() === requesterId;
-  const isAdminOrManager = ['admin', 'manager'].includes(user.role);
-
-  if (!isOwner && !isAdminOrManager) {
+  if (user.role === 'admin') return;
+  if (user.role === 'manager') {
+    const propIds = await getManagerPropertyIds(requesterId);
+    const isOwned = propIds.map(String).includes(verification.entityId?.toString()) ||
+                    verification.requestedBy?.toString() === requesterId ||
+                    verification.entityId?.toString() === requesterId;
+    if (!isOwned) {
+      throw new AppError('Forbidden: Access denied to this property verification record', 403);
+    }
+    return;
+  }
+  const isOwner = verification.entityId?.toString() === requesterId || verification.requestedBy?.toString() === requesterId;
+  if (!isOwner) {
     throw new AppError('Forbidden: You can only access property verification records for authorized properties', 403);
   }
 };
@@ -440,7 +455,7 @@ export const startPropertyVerification = asyncHandler(async (req, res) => {
   }
 
   const existing = await verificationService.getVerificationById(id);
-  checkPropertyVerificationAccess(existing, req.user);
+  await checkPropertyVerificationAccess(existing, req.user);
 
   const updated = await verificationService.verifyProperty(id, req.body, requesterId);
 
@@ -462,7 +477,7 @@ export const uploadPropertyDocument = asyncHandler(async (req, res) => {
   }
 
   const existing = await verificationService.getVerificationById(id);
-  checkPropertyVerificationAccess(existing, req.user);
+  await checkPropertyVerificationAccess(existing, req.user);
 
   const fileData = {
     fileId: req.body.fileId || null,
@@ -489,7 +504,7 @@ export const verifyProperty = asyncHandler(async (req, res) => {
   }
 
   const existing = await verificationService.getVerificationById(id);
-  checkPropertyVerificationAccess(existing, req.user);
+  await checkPropertyVerificationAccess(existing, req.user);
 
   const updated = await verificationService.verifyProperty(id, req.body, requesterId);
 
@@ -509,7 +524,7 @@ export const getPropertyStatus = asyncHandler(async (req, res) => {
   }
 
   const existing = await verificationService.getVerificationById(id);
-  checkPropertyVerificationAccess(existing, req.user);
+  await checkPropertyVerificationAccess(existing, req.user);
 
   const statusData = await verificationService.getPropertyStatus(id);
 

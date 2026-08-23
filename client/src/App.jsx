@@ -273,8 +273,9 @@ function App() {
                 <Route path="/manager/verification/wizard" element={<ManagerRoute><DashboardLayout><ManagerVerificationWizard /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification/documents" element={<ManagerRoute><DashboardLayout><ManagerVerificationDocuments /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification/timeline" element={<ManagerRoute><DashboardLayout><ManagerVerificationTimeline /></DashboardLayout></ManagerRoute>} />
-                <Route path="/manager/trust-score" element={<ManagerRoute><DashboardLayout><ManagerTrustScorePage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/property/verification/" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/property-verification" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/wizard" element={<ManagerRoute><DashboardLayout><PropertyVerificationWizard /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/documents" element={<ManagerRoute><DashboardLayout><PropertyVerificationDocuments /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/timeline" element={<ManagerRoute><DashboardLayout><PropertyVerificationTimeline /></DashboardLayout></ManagerRoute>} />

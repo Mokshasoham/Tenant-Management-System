@@ -597,24 +597,24 @@ export class VerificationService {
       verificationStatus: 'approved',
     });
 
-    const propertyCount = await Property.countDocuments({ manager: managerId });
-    const propertyVerified = await Property.countDocuments({ manager: managerId, verificationStatus: 'verified' });
+    const propertyCount = await Property.countDocuments({ $or: [{ manager: managerId }, { owner: managerId }] });
+    const propertyVerified = await Property.countDocuments({ $or: [{ manager: managerId }, { owner: managerId }], verificationStatus: 'verified' });
 
     return {
       managerVerification: {
         trustScore: manager?.currentTrustScore || 0,
-        status: verification?.status || 'DRAFT',
+        status: verification?.status || 'UNVERIFIED',
         verificationBadge: manager?.verificationBadge || false,
       },
       teamVerification: {
         total: teamCount,
         verified: teamVerified,
-        percentVerified: teamCount > 0 ? Math.round((teamVerified / teamCount) * 100) : 100,
+        percentVerified: teamCount > 0 ? Math.round((teamVerified / teamCount) * 100) : 0,
       },
       propertyVerification: {
         total: propertyCount,
         verified: propertyVerified,
-        percentVerified: propertyCount > 0 ? Math.round((propertyVerified / propertyCount) * 100) : 100,
+        percentVerified: propertyCount > 0 ? Math.round((propertyVerified / propertyCount) * 100) : 0,
       },
     };
   }
@@ -624,32 +624,45 @@ export class VerificationService {
     const tech = await User.findById(technicianId);
 
     return {
-      verificationStatus: verification?.status || 'DRAFT',
+      verificationStatus: verification?.status || 'UNVERIFIED',
       trustScore: tech?.currentTrustScore || 0,
       verificationBadge: tech?.verificationBadge || false,
       licenseStatus: 'VALID',
       policeVerificationStatus: 'VALID',
-      completionPercent: verification?.status === 'APPROVED' ? 100 : 50,
+      completionPercent: verification?.status === 'APPROVED' ? 100 : 0,
     };
   }
 
   async getPropertyWidget(propertyId) {
+    if (!propertyId || !mongoose.Types.ObjectId.isValid(String(propertyId))) {
+      return {
+        trustScore: 0,
+        trustDelta: 0,
+        verificationStatus: 'UNVERIFIED',
+        verificationBadge: 'UNVERIFIED',
+        stepsCompleted: 0,
+        stepsTotal: 4,
+        nextStep: 'ownership',
+        completionPercent: 0,
+        timeline: [],
+      };
+    }
     const verification = await verificationRepository.findLatestByEntity('PROPERTY', propertyId);
-    const property = propertyId ? await Property.findById(propertyId) : null;
-    const history = propertyId ? await trustScoreService.getTrustHistory('PROPERTY', propertyId) : [];
+    const property = await Property.findById(propertyId);
+    const history = await trustScoreService.getTrustHistory('PROPERTY', propertyId);
 
     const completed = verification?.completedSteps?.length || 0;
     const total = verification?.workflowId?.steps?.length || 4;
 
     return {
-      trustScore: property?.currentTrustScore || 88,
+      trustScore: property?.currentTrustScore || verification?.trustScore || 0,
       trustDelta: history?.[0]?.delta || 0,
-      verificationStatus: verification?.status || 'APPROVED',
-      verificationBadge: property?.verificationBadge || 'GOLD_PROPERTY',
+      verificationStatus: verification?.status || (property?.verificationStatus === 'verified' ? 'APPROVED' : 'UNVERIFIED'),
+      verificationBadge: property?.verificationBadge || (property?.verificationStatus === 'verified' ? 'GOLD_PROPERTY' : 'UNVERIFIED'),
       stepsCompleted: completed,
       stepsTotal: total,
       nextStep: verification?.currentStep || 'ownership',
-      completionPercent: Math.round((completed / total) * 100) || 100,
+      completionPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
       timeline: verification?.timeline?.slice(-5) || [],
     };
   }

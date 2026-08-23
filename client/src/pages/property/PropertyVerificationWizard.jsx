@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck,
   ArrowLeft,
@@ -15,7 +15,7 @@ import {
 import { useVerificationContext } from '../../context/VerificationContext';
 import useAuthStore from '../../context/authStore';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
-import { MOCK_OWNERSHIP_TYPES, MOCK_PROPERTY_PHOTOS } from '../../mocks/propertyVerificationMock';
+import { MOCK_OWNERSHIP_TYPES } from '../../mocks/propertyVerificationMock';
 import {
   VerificationPageHeader,
   VerificationSectionCard,
@@ -26,6 +26,7 @@ import {
 } from '../../components/verification';
 import { Button, Input } from '../../components/PremiumUI';
 import compressImage from '../../utils/compressImage';
+import apiClient from '../../services/apiClient';
 
 const WIZARD_STEPS = [
   { stepNumber: 1, title: 'Property Details' },
@@ -38,11 +39,13 @@ const WIZARD_STEPS = [
 
 export default function PropertyVerificationWizard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const { activeVerification, refresh } = useVerificationContext();
 
   const userId = user?.userId || user?._id || user?.id || 'demo';
-  const DRAFT_STORAGE_KEY = `property_verification_draft_${userId}`;
+  const propertyIdParam = searchParams.get('propertyId') || '';
+  const DRAFT_STORAGE_KEY = `property_verification_draft_${userId}_${propertyIdParam || 'general'}`;
 
   const [currentStep, setCurrentStep] = useState(1);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
@@ -53,21 +56,45 @@ export default function PropertyVerificationWizard() {
 
   // Form State
   const [formData, setFormData] = useState({
-    propertyName: 'Oakwood Residency, Apt 4B',
+    propertyName: '',
     propertyType: 'Apartment',
-    address: '142 Palm Boulevard, Sector 15, City',
-    areaSqFt: '1450',
-    yearBuilt: '2019',
-    ownerName: user?.firstName ? `${user.firstName} ${user.lastName}` : 'Sarah Jenkins',
-    ownershipType: 'Individual Owner', // Enhancement #2
-    registrationNumber: 'REG-2019-9941',
-    surveyNumber: 'SURV-882/B',
-    khataNumber: 'KHATA-4410',
-    municipality: 'City Municipal Corporation',
+    address: '',
+    areaSqFt: '',
+    yearBuilt: '',
+    ownerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '',
+    ownershipType: 'Individual Owner',
+    registrationNumber: '',
+    surveyNumber: '',
+    khataNumber: '',
+    municipality: '',
   });
 
   const [documents, setDocuments] = useState([]);
-  const [photos, setPhotos] = useState(MOCK_PROPERTY_PHOTOS);
+  const [photos, setPhotos] = useState([]);
+
+  // Fetch real property details if propertyId provided
+  useEffect(() => {
+    async function loadPropertyDetails() {
+      if (!propertyIdParam) return;
+      try {
+        const res = await apiClient.get(`/properties/${propertyIdParam}`);
+        const prop = res?.data?.data || res?.data || res;
+        if (prop) {
+          setFormData((prev) => ({
+            ...prev,
+            propertyName: prop.name || prev.propertyName,
+            propertyType: prop.type || prev.propertyType,
+            address: prop.address || prev.address,
+            areaSqFt: prop.areaSqFt || prop.sqft ? String(prop.areaSqFt || prop.sqft) : prev.areaSqFt,
+            yearBuilt: prop.yearBuilt ? String(prop.yearBuilt) : prev.yearBuilt,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load property for verification wizard:', err);
+      }
+    }
+    loadPropertyDetails();
+  }, [propertyIdParam]);
 
   // Auto-restore Draft on Mount
   useEffect(() => {
@@ -75,8 +102,9 @@ export default function PropertyVerificationWizard() {
       const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.formData) setFormData(parsed.formData);
-        if (parsed.photos) setPhotos(parsed.photos);
+        if (parsed.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
+        if (parsed.photos && parsed.photos.length > 0) setPhotos(parsed.photos);
+        if (parsed.documents && parsed.documents.length > 0) setDocuments(parsed.documents);
         if (parsed.currentStep) setCurrentStep(parsed.currentStep);
         setLastAutoSave(parsed.lastSaved || null);
       }
@@ -248,7 +276,7 @@ export default function PropertyVerificationWizard() {
             <span className="text-xs font-semibold text-muted-foreground">
               {saveStatus === 'saving' && 'Saving...'}
               {saveStatus === 'saved' && 'Saved ✓'}
-              {saveStatus === 'idle' && lastAutoSave && `Last saved: ${lastAutoSave}`}
+              {saveStatus === 'idle' && lastAutoSave && `Saved at ${lastAutoSave}`}
             </span>
             <Button variant="outline" onClick={saveDraft} disabled={saveStatus === 'saving'} className="text-xs">
               <Save className="w-3.5 h-3.5 mr-1.5" />
@@ -258,58 +286,62 @@ export default function PropertyVerificationWizard() {
         }
       />
 
-      {/* Stepper Wrapper & Progress Text */}
-      <div className="space-y-2">
-        <VerificationProgressStepper steps={WIZARD_STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
-        <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-1">
-          <span>Step {currentStep} of {WIZARD_STEPS.length}</span>
-          <span className="text-primary">{progressPercent}% Complete</span>
-        </div>
-      </div>
+      {/* Stepper Progress Bar */}
+      <VerificationProgressStepper
+        steps={WIZARD_STEPS}
+        currentStep={currentStep}
+        onStepClick={(step) => {
+          if (step <= currentStep) setCurrentStep(step);
+        }}
+      />
 
       {formError && <VerificationErrorState error={formError} />}
 
-      {/* Step 1: Property Details */}
+      {/* Step 1: Property Physical Details */}
       {currentStep === 1 && (
-        <VerificationSectionCard title="Step 1: Basic Property Specs" subtitle="Enter physical property specs">
-          <div className="space-y-4">
+        <VerificationSectionCard
+          title="Step 1: Property Details"
+          subtitle="Basic physical specifications and municipality classification"
+          icon={Building}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <Input
-              label="Property Name / Title"
-              placeholder="e.g. Oakwood Residency, Apt 4B"
+              label="Property Name *"
+              placeholder="e.g. Green Heights Villa #4"
               value={formData.propertyName}
               onChange={(e) => updateForm({ propertyName: e.target.value })}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Property Type</label>
-                <select
-                  className="w-full h-10 px-3 text-xs rounded-xl border border-border bg-background text-foreground"
-                  value={formData.propertyType}
-                  onChange={(e) => updateForm({ propertyType: e.target.value })}
-                >
-                  <option value="Apartment">Apartment</option>
-                  <option value="Independent Villa">Independent Villa</option>
-                  <option value="Commercial Office">Commercial Office</option>
-                  <option value="Retail Store">Retail Store</option>
-                  <option value="Warehouse / Storage">Warehouse / Storage</option>
-                </select>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Property Type</label>
+              <select
+                value={formData.propertyType}
+                onChange={(e) => updateForm({ propertyType: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs font-semibold text-foreground focus:outline-none"
+              >
+                <option value="Apartment">Apartment</option>
+                <option value="Villa">Villa / Independent House</option>
+                <option value="Commercial">Commercial / Office</option>
+                <option value="Plot">Residential Plot</option>
+                <option value="Studio">Studio Apartment</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <Input
-                label="Total Built-up Area (sq ft)"
-                placeholder="e.g. 1450"
-                value={formData.areaSqFt}
-                onChange={(e) => updateForm({ areaSqFt: e.target.value })}
+                label="Registered Property Address *"
+                placeholder="Full address according to municipality registration"
+                value={formData.address}
+                onChange={(e) => updateForm({ address: e.target.value })}
               />
             </div>
             <Input
-              label="Full Physical Address"
-              placeholder="e.g. 142 Palm Boulevard, Sector 15, City"
-              value={formData.address}
-              onChange={(e) => updateForm({ address: e.target.value })}
+              label="Total Built-up Area (Sq.Ft)"
+              placeholder="e.g. 1450"
+              value={formData.areaSqFt}
+              onChange={(e) => updateForm({ areaSqFt: e.target.value })}
             />
             <Input
-              label="Year Built / Construction Completion"
-              placeholder="e.g. 2019"
+              label="Construction Year"
+              placeholder="e.g. 2022"
               value={formData.yearBuilt}
               onChange={(e) => updateForm({ yearBuilt: e.target.value })}
             />
@@ -317,56 +349,55 @@ export default function PropertyVerificationWizard() {
         </VerificationSectionCard>
       )}
 
-      {/* Step 2: Ownership Details (#2 Expanded Ownership Types) */}
+      {/* Step 2: Ownership Details */}
       {currentStep === 2 && (
-        <VerificationSectionCard title="Step 2: Ownership & Legal Title" subtitle="Enter registered ownership specs">
-          <div className="space-y-4">
+        <VerificationSectionCard
+          title="Step 2: Legal & Ownership Identifiers"
+          subtitle="Official survey, khata, and municipal jurisdiction records"
+          icon={ShieldCheck}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <Input
-              label="Registered Property Owner Name"
-              placeholder="e.g. Sarah Jenkins"
+              label="Primary Owner / Legal Entity Name *"
+              placeholder="Name as printed on original Sale Deed"
               value={formData.ownerName}
               onChange={(e) => updateForm({ ownerName: e.target.value })}
             />
-
-            {/* Enhancement #2: Expanded Ownership Types */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-foreground">Ownership Category</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Ownership Structure</label>
               <select
-                className="w-full h-10 px-3 text-xs rounded-xl border border-border bg-background text-foreground"
                 value={formData.ownershipType}
                 onChange={(e) => updateForm({ ownershipType: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs font-semibold text-foreground focus:outline-none"
               >
-                {MOCK_OWNERSHIP_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {MOCK_OWNERSHIP_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
                 ))}
               </select>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
-                label="Property Reg Number"
-                placeholder="e.g. REG-2019-9941"
-                value={formData.registrationNumber}
-                onChange={(e) => updateForm({ registrationNumber: e.target.value })}
-              />
-              <Input
-                label="Survey / Plot Number"
-                placeholder="e.g. SURV-882/B"
-                value={formData.surveyNumber}
-                onChange={(e) => updateForm({ surveyNumber: e.target.value })}
-              />
-              <Input
-                label="Khata / Property Tax ID"
-                placeholder="e.g. KHATA-4410"
-                value={formData.khataNumber}
-                onChange={(e) => updateForm({ khataNumber: e.target.value })}
-              />
-            </div>
             <Input
-              label="Local Municipal Authority"
-              placeholder="e.g. City Municipal Corporation"
+              label="Property Registration Number"
+              placeholder="e.g. REG-2022-XXXX"
+              value={formData.registrationNumber}
+              onChange={(e) => updateForm({ registrationNumber: e.target.value })}
+            />
+            <Input
+              label="Survey / Plot Number"
+              placeholder="e.g. SURV-882/B"
+              value={formData.surveyNumber}
+              onChange={(e) => updateForm({ surveyNumber: e.target.value })}
+            />
+            <Input
+              label="Khata / PID Number"
+              placeholder="e.g. KHATA-4410"
+              value={formData.khataNumber}
+              onChange={(e) => updateForm({ khataNumber: e.target.value })}
+            />
+            <Input
+              label="Municipal Authority Jurisdiction"
+              placeholder="e.g. Greater Municipal Corporation"
               value={formData.municipality}
               onChange={(e) => updateForm({ municipality: e.target.value })}
             />
@@ -374,79 +405,123 @@ export default function PropertyVerificationWizard() {
         </VerificationSectionCard>
       )}
 
-      {/* Step 3: Property Documents */}
+      {/* Step 3: Documents Upload */}
       {currentStep === 3 && (
-        <VerificationSectionCard title="Step 3: Ownership & Tax Documents" subtitle="Upload title deed and property tax receipts">
-          <div className="space-y-4">
-            <FileUploader
-              label="Upload Original Sale Deed / Title Deed"
-              onFileSelect={(file) => handleFileUpload('SALE_DEED', file)}
-              hint="Registered title deed PDF or image"
-            />
-            <FileUploader
-              label="Upload Property Tax Receipt"
-              onFileSelect={(file) => handleFileUpload('TAX_RECEIPT', file)}
-              hint="Latest annual municipal property tax receipt"
-            />
-            {documents.map((doc) => (
-              <DocumentPreviewCard key={doc._id} document={doc} onRemove={() => handleRemoveDoc(doc._id)} />
-            ))}
+        <VerificationSectionCard
+          title="Step 3: Upload Ownership & Compliance Documents"
+          subtitle="Attach PDF or high-resolution photos of title deeds and tax receipts"
+          icon={Upload}
+        >
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 space-y-3">
+                <p className="text-xs font-bold text-foreground">1. Sale Deed / Title Deed *</p>
+                <p className="text-[11px] text-muted-foreground">Original registered deed proving ownership rights.</p>
+                <FileUploader onFileSelected={(file) => handleFileUpload('SALE_DEED', file)} label="Upload Title Deed" />
+              </div>
+
+              <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 space-y-3">
+                <p className="text-xs font-bold text-foreground">2. Property Tax Receipt (Current FY)</p>
+                <p className="text-[11px] text-muted-foreground">Latest municipal property tax payment receipt.</p>
+                <FileUploader onFileSelected={(file) => handleFileUpload('TAX_RECEIPT', file)} label="Upload Tax Receipt" />
+              </div>
+            </div>
+
+            {/* Uploaded Documents List */}
+            {documents.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-bold text-muted-foreground">Uploaded Documents ({documents.length})</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {documents.map((doc) => (
+                    <div key={doc._id} className="p-3 rounded-xl bg-card border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{doc.filename}</p>
+                          <p className="text-[10px] text-muted-foreground">{doc.documentType}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDoc(doc._id)}
+                        className="text-muted-foreground hover:text-rose-500 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </VerificationSectionCard>
       )}
 
       {/* Step 4: Property Photos */}
       {currentStep === 4 && (
-        <VerificationSectionCard title="Step 4: Property Room Photos" subtitle="Upload high-resolution room elevation photos" icon={ImageIcon}>
-          <div className="space-y-4 pt-1">
-            <FileUploader
-              label="Upload Room Photo"
-              onFileSelect={(file) => handlePhotoUpload('Room Elevation', file)}
-              hint="Exterior, Living Room, Bedroom, Kitchen, Bathroom"
-            />
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-              {photos.map((photo) => (
-                <div key={photo.id} className="p-3 rounded-xl border border-border bg-muted/30 relative group text-center space-y-2">
-                  <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-xs font-bold text-foreground truncate">{photo.title}</p>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(photo.id)}
-                    className="text-muted-foreground hover:text-rose-500 text-xs flex items-center justify-center gap-1 mx-auto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Remove</span>
-                  </button>
-                </div>
-              ))}
+        <VerificationSectionCard
+          title="Step 4: Property Physical Inspection Photos"
+          subtitle="Add exterior building elevation, living area, kitchen, and bathroom photos"
+          icon={ImageIcon}
+        >
+          <div className="space-y-4 pt-2">
+            <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 text-center space-y-2">
+              <p className="text-xs font-bold text-foreground">Upload Real Estate Photos</p>
+              <p className="text-[11px] text-muted-foreground">Geotagged high-resolution photos accelerate verification review.</p>
+              <FileUploader onFileSelected={(file) => handlePhotoUpload('Exterior / Interior', file)} label="Add Property Photo" />
             </div>
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                {photos.map((photo) => (
+                  <div key={photo.id} className="relative group rounded-xl overflow-hidden border border-border aspect-video bg-muted">
+                    <img src={photo.url} alt={photo.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(photo.id)}
+                        className="p-1.5 rounded-full bg-rose-500 text-white hover:bg-rose-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </VerificationSectionCard>
       )}
 
-      {/* Step 5: Review */}
+      {/* Step 5: Review & Verify */}
       {currentStep === 5 && (
-        <VerificationSectionCard title="Step 5: Review Submission Data" subtitle="Verify specs before legal submission">
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
-              <p className="font-bold text-foreground">Property: {formData.propertyName}</p>
-              <p className="text-muted-foreground">Type: {formData.propertyType} • Area: {formData.areaSqFt} sq ft</p>
-              <p className="text-muted-foreground">Owner: {formData.ownerName} ({formData.ownershipType})</p>
-              <p className="text-muted-foreground">Reg ID: {formData.registrationNumber} • Khata: {formData.khataNumber}</p>
-            </div>
-            <p className="font-bold text-foreground">Attached Property Documents ({documents.length}):</p>
-            {documents.map((doc) => (
-              <DocumentPreviewCard key={doc._id} document={doc} />
-            ))}
-            <p className="font-bold text-foreground">Verified Property Photos ({photos.length}):</p>
-            <div className="flex flex-wrap gap-2">
-              {photos.map((p) => (
-                <span key={p.id} className="px-2.5 py-1 rounded-lg bg-muted text-[10px] font-bold border border-border">
-                  {p.title} ✓
-                </span>
-              ))}
+        <VerificationSectionCard
+          title="Step 5: Review Property Verification Application"
+          subtitle="Verify all entered property attributes and attached documents before submission"
+          icon={ShieldCheck}
+        >
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-muted/30 border border-border">
+              <div>
+                <span className="text-muted-foreground font-semibold">Property:</span>
+                <p className="font-bold text-foreground text-sm mt-0.5">{formData.propertyName}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-semibold">Owner:</span>
+                <p className="font-bold text-foreground text-sm mt-0.5">{formData.ownerName} ({formData.ownershipType})</p>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="text-muted-foreground font-semibold">Address:</span>
+                <p className="font-medium text-foreground mt-0.5">{formData.address}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-semibold">Registration / Khata:</span>
+                <p className="font-medium text-foreground mt-0.5">{formData.registrationNumber || 'N/A'} • {formData.khataNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-semibold">Attached Docs & Photos:</span>
+                <p className="font-bold text-emerald-500 mt-0.5">{documents.length} Document(s), {photos.length} Photo(s)</p>
+              </div>
             </div>
           </div>
         </VerificationSectionCard>
@@ -454,30 +529,62 @@ export default function PropertyVerificationWizard() {
 
       {/* Step 6: Submit */}
       {currentStep === 6 && (
-        <VerificationSectionCard title="Step 6: Confirm & Submit Property" subtitle="Finalize real estate verification">
-          <div className="text-center py-6 space-y-4">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce-slow" />
-            <h3 className="text-base font-black text-foreground">Property Verification Ready</h3>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              By clicking Submit, your title deeds, municipal records, and physical photos will undergo legal title verification to issue VRF certification.
-            </p>
-            <Button variant="primary" onClick={handleSubmit} disabled={submitting} className="mx-auto">
-              {submitting ? 'Submitting Property...' : 'Submit Property Application'}
+        <VerificationSectionCard
+          title="Step 6: Submit Legal Verification Application"
+          subtitle="Your application will be queued for municipal automated review and physical inspection"
+          icon={CheckCircle2}
+        >
+          <div className="p-6 text-center space-y-4 max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">Ready to Submit Application</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Upon submission, a verification record will be generated. You will receive real-time status updates on your dashboard.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              className="w-full text-xs py-2.5 justify-center"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting Application...' : 'Confirm & Submit Verification'}
             </Button>
           </div>
         </VerificationSectionCard>
       )}
 
-      {/* Mobile-friendly Sticky Bottom Bar */}
-      <div className="fixed sm:static bottom-0 left-0 right-0 p-4 sm:p-0 bg-background/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t sm:border-0 border-border z-30 flex items-center justify-between pt-4">
-        <Button variant="ghost" onClick={handlePrev} disabled={currentStep === 1} className="text-xs">
+      {/* Bottom Floating Navigation Bar */}
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <Button
+          variant="outline"
+          onClick={handlePrev}
+          disabled={currentStep === 1}
+          className="text-xs"
+        >
           <ArrowLeft className="w-4 h-4 mr-1.5" />
           Previous
         </Button>
-        {currentStep < 6 && (
-          <Button variant="primary" onClick={handleNext} className="text-xs">
+
+        {currentStep < 6 ? (
+          <Button
+            variant="primary"
+            onClick={handleNext}
+            className="text-xs"
+          >
             Next Step
             <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="text-xs"
+          >
+            {submitting ? 'Submitting...' : 'Submit Application'}
           </Button>
         )}
       </div>

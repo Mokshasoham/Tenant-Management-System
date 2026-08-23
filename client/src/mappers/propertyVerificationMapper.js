@@ -12,7 +12,7 @@ export function mapVerification(raw) {
     return {
       id: null,
       verificationNumber: 'N/A',
-      status: 'NOT_SUBMITTED',
+      status: 'UNVERIFIED',
       entityType: 'PROPERTY',
       entityId: null,
       currentReviewLevel: 0,
@@ -28,7 +28,7 @@ export function mapVerification(raw) {
   return {
     id: v._id || v.id || null,
     verificationNumber: v.verificationNumber || 'N/A',
-    status: v.status || 'PENDING',
+    status: v.status || 'UNVERIFIED',
     entityType: v.entityType || 'PROPERTY',
     entityId: v.entityId || null,
     currentReviewLevel: v.currentReviewLevel || 1,
@@ -68,8 +68,8 @@ export function mapTrustScore(rawScore) {
   return {
     score: scoreVal,
     badge: scoreData.badge || (scoreVal >= 80 ? 'GOLD_PROPERTY' : 'UNVERIFIED'),
-    statusTitle,
-    percentileText: scoreData.percentileText || '',
+    statusTitle: scoreData.statusTitle || statusTitle,
+    percentileText: scoreData.percentileText || 'Verification not initiated',
     breakdown: scoreData.breakdown || [],
     penalties: scoreData.penalties || [],
     netScore: scoreData.netScore || scoreVal,
@@ -131,19 +131,44 @@ export function mapPropertyPhotos(rawPhotos) {
 export function mapPropertySummary(raw) {
   if (!raw) {
     return {
+      propertyName: 'No property selected',
       title: 'No property selected',
       unit: '',
-      type: 'N/A',
+      propertyType: 'Residential',
+      type: 'Residential',
       sqft: 0,
+      areaSqFt: 'N/A',
       bedrooms: 0,
       bathrooms: 0,
-      address: '',
+      address: 'Address not specified',
+      managerName: 'Assigned Manager',
+      occupancyStatus: 'Ready for Verification',
+      inspectionStatus: 'Pending Inspection',
+      yearBuilt: 'N/A',
+      builtYear: 'N/A',
       furnishing: 'N/A',
       parking: 'N/A',
-      builtYear: 'N/A',
     };
   }
-  return raw;
+  return {
+    propertyName: raw.propertyName || raw.name || raw.title || 'Property',
+    title: raw.title || raw.name || raw.propertyName || 'Property',
+    unit: raw.unit || '',
+    propertyType: raw.propertyType || raw.type || 'Residential',
+    type: raw.type || raw.propertyType || 'Residential',
+    sqft: raw.sqft || raw.areaSqFt || 0,
+    areaSqFt: raw.areaSqFt || (raw.sqft ? `${raw.sqft} sq.ft` : 'N/A'),
+    bedrooms: raw.bedrooms || 0,
+    bathrooms: raw.bathrooms || 0,
+    address: raw.address || 'Address not specified',
+    managerName: raw.managerName || 'Assigned Manager',
+    occupancyStatus: raw.occupancyStatus || 'Ready for Verification',
+    inspectionStatus: raw.inspectionStatus || 'Pending Inspection',
+    yearBuilt: raw.yearBuilt || raw.builtYear || 'N/A',
+    builtYear: raw.builtYear || raw.yearBuilt || 'N/A',
+    furnishing: raw.furnishing || 'N/A',
+    parking: raw.parking || 'N/A',
+  };
 }
 
 /**
@@ -167,7 +192,7 @@ export function mapRenewalStatus(raw) {
     renewalRequired: r.renewalRequired || false,
     statusLabel: r.statusLabel || 'Not Required',
     lastRenewal: r.lastRenewal || 'N/A',
-    renewalHistory: r.renewalHistory || [],
+    renewalHistory: Array.isArray(r.renewalHistory) ? r.renewalHistory : [],
   };
 }
 
@@ -180,10 +205,20 @@ export function mapPropertyLevels(raw) {
       currentLevel: 'Unverified',
       nextLevel: 'Level 1: Basic Identity',
       progressPercent: 0,
+      documentsRemaining: 2,
+      requirementsToNextLevel: ['Add Property Details', 'Upload Title Deed'],
       remainingRequirements: ['Add Property Details', 'Upload Title Deed'],
     };
   }
-  return raw;
+  const reqs = raw.requirementsToNextLevel || raw.remainingRequirements || ['Upload Title Deed'];
+  return {
+    currentLevel: raw.currentLevel || 'Unverified',
+    nextLevel: raw.nextLevel || 'Level 1: Basic Identity',
+    progressPercent: raw.progressPercent ?? 0,
+    documentsRemaining: raw.documentsRemaining ?? reqs.length,
+    requirementsToNextLevel: reqs,
+    remainingRequirements: reqs,
+  };
 }
 
 /**
@@ -193,11 +228,29 @@ export function mapPropertyHealth(raw) {
   if (!raw) {
     return {
       healthScore: 0,
+      healthScorePercent: 0,
       status: 'Incomplete',
+      metrics: {
+        documentsUploaded: 0,
+        photosUploaded: 0,
+        amenitiesVerified: 0,
+        inspectionsCompleted: 0,
+      },
       checks: [],
     };
   }
-  return raw;
+  return {
+    healthScore: raw.healthScore ?? 0,
+    healthScorePercent: raw.healthScorePercent ?? raw.healthScore ?? 0,
+    status: raw.status || 'Incomplete',
+    metrics: {
+      documentsUploaded: raw.metrics?.documentsUploaded ?? 0,
+      photosUploaded: raw.metrics?.photosUploaded ?? 0,
+      amenitiesVerified: raw.metrics?.amenitiesVerified ?? 0,
+      inspectionsCompleted: raw.metrics?.inspectionsCompleted ?? 0,
+    },
+    checks: Array.isArray(raw.checks) ? raw.checks : [],
+  };
 }
 
 export default {
