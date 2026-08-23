@@ -274,12 +274,22 @@ export class TechnicianService {
     };
   }
 
-  async getAvailableTechnicians(skill) {
+  async getAvailableTechnicians(skill, managerId = null) {
     const filter = {
       'technicianProfile.employmentStatus': 'active',
       'technicianProfile.availabilityStatus': 'free'
     };
     if (skill) filter['technicianProfile.skills.name'] = new RegExp(skill, 'i');
+
+    if (managerId) {
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(String(managerId));
+      const managerIds = [managerId, isValidObjectId ? new mongoose.Types.ObjectId(String(managerId)) : null].filter(Boolean);
+      filter.$or = [
+        { 'technicianProfile.managerId': { $in: managerIds } },
+        { 'technicianProfile.createdBy': { $in: managerIds } },
+        { createdBy: { $in: managerIds } }
+      ];
+    }
 
     const technicians = await technicianRepository.findWithFilters(filter);
     return await Promise.all(technicians.map(async t => {

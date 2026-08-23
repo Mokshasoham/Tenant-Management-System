@@ -38,10 +38,10 @@ export default function DispatchIntelligenceDashboard() {
   }
 
   const metrics = [
-    { label: 'Avg AI Match Score', value: `${data?.avgAIScore || 94}%`, icon: Sparkles, color: 'text-amber-400 bg-amber-500/10' },
-    { label: 'Algorithm Confidence', value: `${data?.avgConfidencePercent || 96}%`, icon: ShieldCheck, color: 'text-emerald-400 bg-emerald-500/10' },
-    { label: 'Manager Acceptance %', value: `${data?.acceptanceRatePercent || 92}%`, icon: Award, color: 'text-blue-400 bg-blue-500/10' },
-    { label: 'Assignment Time Saved', value: `${data?.estimatedTimeSavedHours || 14.5} hrs`, icon: Zap, color: 'text-purple-400 bg-purple-500/10' }
+    { label: 'Avg AI Match Score', value: data?.avgAIScore ? `${data.avgAIScore}%` : '0%', icon: Sparkles, color: 'text-amber-400 bg-amber-500/10' },
+    { label: 'Algorithm Confidence', value: data?.avgConfidencePercent ? `${data.avgConfidencePercent}%` : '0%', icon: ShieldCheck, color: 'text-emerald-400 bg-emerald-500/10' },
+    { label: 'Manager Acceptance %', value: data?.acceptanceRatePercent ? `${data.acceptanceRatePercent}%` : '0%', icon: Award, color: 'text-blue-400 bg-blue-500/10' },
+    { label: 'Assignment Time Saved', value: data?.estimatedTimeSavedHours ? `${data.estimatedTimeSavedHours} hrs` : '0 hrs', icon: Zap, color: 'text-purple-400 bg-purple-500/10' }
   ];
 
   return (

@@ -347,8 +347,8 @@ export default function TechniciansPage() {
                     training: technicians.filter(t => t.technicianProfile?.availabilityStatus === 'training').length,
                     total: technicians.length,
                     avgRating: technicians.length > 0 
-                        ? (technicians.reduce((acc, t) => acc + (t.technicianProfile?.rating || 0), 0) / technicians.length).toFixed(1) 
-                        : '0.0',
+                        ? `★ ${(technicians.reduce((acc, t) => acc + (t.technicianProfile?.rating || 0), 0) / technicians.length).toFixed(1)}` 
+                        : '—',
                     avgUtilization: technicians.length > 0
                         ? Math.round(technicians.reduce((acc, t) => acc + (t.workload?.utilizationPercent || 0), 0) / technicians.length)
                         : 0
@@ -377,7 +377,7 @@ export default function TechniciansPage() {
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
                             <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Rating</span>
-                            <p className="text-xl font-black text-amber-400">★ {kpis.avgRating}</p>
+                            <p className="text-xl font-black text-amber-400">{kpis.avgRating}</p>
                         </div>
                     </div>
                 );
@@ -451,6 +451,10 @@ export default function TechniciansPage() {
                             {!loading && technicians.map((t) => {
                                 const st = STATUS_ENGINE[t.technicianProfile?.availabilityStatus || 'available'] || STATUS_ENGINE.available;
                                 const isComp = compareSelected.includes(t._id);
+                                const currentJ = t.workload?.currentJobs ?? 0;
+                                const maxCap = t.technicianProfile?.maxCapacity || 5;
+                                const utilPct = t.workload?.utilizationPercent ?? Math.min(100, Math.round((currentJ / maxCap) * 100));
+                                const skills = t.technicianProfile?.skills || [];
                                 return (
                                     <tr key={t._id} className="hover:bg-muted/20 transition-all">
                                         <td className="p-3 text-center">
@@ -467,8 +471,13 @@ export default function TechniciansPage() {
                                         </td>
                                         <td className="p-3">
                                             <div className="flex flex-col gap-0.5">
-                                                <span className="font-bold text-foreground">Electrical {renderStars(5)}</span>
-                                                <span className="text-[9px] text-muted-foreground">HVAC {renderStars(4)}</span>
+                                                {skills.length > 0 ? (
+                                                    skills.slice(0, 2).map((sk, idx) => (
+                                                        <span key={idx} className="font-bold text-foreground text-[11px]">{sk.name || 'General'} {renderStars(sk.rating || 5)}</span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground">General Maintenance</span>
+                                                )}
                                             </div>
                                         </td>
                                         {/* 3. Live Workload Meter */}
@@ -476,10 +485,10 @@ export default function TechniciansPage() {
                                             <div className="space-y-1">
                                                 <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
                                                     <span>Load</span>
-                                                    <span>3 / 5 (60%)</span>
+                                                    <span>{currentJ} / {maxCap} ({utilPct}%)</span>
                                                 </div>
                                                 <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                                                    <div className="h-full bg-amber-500 rounded-full" style={{ width: '60%' }} />
+                                                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${utilPct}%` }} />
                                                 </div>
                                             </div>
                                         </td>
@@ -488,10 +497,12 @@ export default function TechniciansPage() {
                                                 ● {st.label}
                                             </span>
                                         </td>
-                                        <td className="p-3 font-bold text-amber-400">★ {t.technicianProfile?.rating || 4.9}</td>
+                                        <td className="p-3 font-bold text-amber-400">
+                                            {t.technicianProfile?.rating ? `★ ${t.technicianProfile.rating}` : '—'}
+                                        </td>
                                         {/* 9. Quick Actions Toolbar */}
                                         <td className="p-3 text-right space-x-1">
-                                            <a href={`tel:${t.phone || '9999999999'}`} className="px-2 py-1 rounded-lg border border-border bg-card text-[10px] font-bold">
+                                            <a href={`tel:${t.phone || ''}`} className="px-2 py-1 rounded-lg border border-border bg-card text-[10px] font-bold">
                                                 Call
                                             </a>
                                             <button onClick={() => setSelectedTech(t)} className="px-2 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-bold">

@@ -52,14 +52,20 @@ export class AssignmentEngineService {
       }
     }
 
-    const ticket = await Maintenance.findById(ticketId).populate('propertyId');
+    const ticket = await Maintenance.findById(ticketId).populate('property propertyId');
     if (!ticket) throw new AppError('Maintenance ticket not found', 404);
 
     const isEmergency = ticket.priority === 'emergency';
     const reqSkill = ticket.category || 'general';
 
-    // Retrieve active technicians with live workload
-    const { technicians } = await technicianService.getAllTechnicians({ limit: 100 });
+    const prop = ticket.property || ticket.propertyId;
+    const managerId = prop?.manager || prop?.owner;
+
+    // Retrieve active technicians with live workload (scoped to property's manager)
+    const { technicians } = await technicianService.getAllTechnicians({
+      limit: 100,
+      ...(managerId ? { managerId } : {})
+    });
     const activeTechnicians = technicians.filter(t => 
       t.technicianProfile?.employmentStatus !== 'suspended' &&
       t.technicianProfile?.employmentStatus !== 'inactive'

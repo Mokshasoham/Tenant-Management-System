@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
 import Maintenance from '../models/Maintenance.js';
@@ -9,8 +10,8 @@ import { uploadFileBuffer } from '../services/fileService.js';
 const resolveUserUrls = (user, req) => {
   if (!user) return user;
   const userObj = user.toObject ? user.toObject() : user;
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.get('host');
+  const protocol = req?.headers?.['x-forwarded-proto'] || req?.protocol || 'http';
+  const host = req?.get ? req.get('host') : (req?.headers?.host || 'localhost');
   
   if (userObj.avatar && typeof userObj.avatar === 'string') {
     let fullAvatar = userObj.avatar;
@@ -419,10 +420,26 @@ export const getPeople = asyncHandler(async (req, res) => {
 });
 
 export const getAvailableTechnicians = asyncHandler(async (req, res) => {
-  const technicians = await User.find({
+  const query = {
     role: { $in: ['technician', 'Technician'] },
     isActive: { $ne: false }
-  }).select('-password');
+  };
+
+  if (req.user && req.user.role === 'manager') {
+    const managerId = req.user.userId || req.user._id || req.user.id;
+    let managerOid = null;
+    if (mongoose.Types.ObjectId.isValid(String(managerId))) {
+      managerOid = new mongoose.Types.ObjectId(String(managerId));
+    }
+    const managerIds = [managerId, managerOid].filter(Boolean);
+    query.$or = [
+      { 'technicianProfile.managerId': { $in: managerIds } },
+      { 'technicianProfile.createdBy': { $in: managerIds } },
+      { createdBy: { $in: managerIds } }
+    ];
+  }
+
+  const technicians = await User.find(query).select('-password');
 
   const techIds = technicians.map(t => t._id);
 

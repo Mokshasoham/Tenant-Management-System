@@ -57,6 +57,8 @@ export default function WorkforceSchedulingPage() {
         }
     };
 
+    const [allRequests, setAllRequests] = useState([]);
+
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
@@ -67,10 +69,11 @@ export default function WorkforceSchedulingPage() {
             ]);
             
             const allTechs = techRes?.data || techRes || [];
-            const allReqs = reqRes?.data?.data || reqRes?.data || [];
+            const reqList = reqRes?.data?.data || reqRes?.data || [];
             
-            setTechnicians(allTechs);
-            setUnassignedTickets(allReqs.filter(r => !r.assignedTo || r.status === 'open'));
+            setTechnicians(Array.isArray(allTechs) ? allTechs : []);
+            setAllRequests(Array.isArray(reqList) ? reqList : []);
+            setUnassignedTickets(Array.isArray(reqList) ? reqList.filter(r => !r.assignedTo || r.status === 'open') : []);
             setSchedules(schedRes?.data || schedRes || []);
         } catch (err) {
             console.error(err);
@@ -82,6 +85,15 @@ export default function WorkforceSchedulingPage() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const activeDispatches = (allRequests || []).filter(r => ['in_progress', 'technician_assigned', 'visit_scheduled', 'technician_en_route', 'work_started', 'waiting_parts'].includes(r.status));
+    const todaysVisits = (allRequests || []).filter(r => {
+        const d = r.scheduledDate || r.requestedVisitDate;
+        return d && new Date(d).toDateString() === new Date().toDateString();
+    });
+    const avgCapacity = technicians.length > 0 
+        ? `${Math.round(technicians.reduce((acc, t) => acc + (t.workload?.utilizationPercent || 0), 0) / technicians.length)}%`
+        : '0%';
 
     const handleAutoSuggest = async (ticket) => {
         setSuggestTarget(ticket);
@@ -172,7 +184,7 @@ export default function WorkforceSchedulingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
                     <span className="text-[9px] font-black uppercase text-muted-foreground">Live Technicians</span>
-                    <p className="text-2xl font-black text-foreground">{technicians.length || 12}</p>
+                    <p className="text-2xl font-black text-foreground">{technicians.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
                     <span className="text-[9px] font-black uppercase text-muted-foreground">Unassigned Tickets</span>
@@ -180,15 +192,15 @@ export default function WorkforceSchedulingPage() {
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
                     <span className="text-[9px] font-black uppercase text-muted-foreground">Today's Visits</span>
-                    <p className="text-2xl font-black text-blue-400">8</p>
+                    <p className="text-2xl font-black text-blue-400">{todaysVisits.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
                     <span className="text-[9px] font-black uppercase text-muted-foreground">Active Dispatches</span>
-                    <p className="text-2xl font-black text-amber-500">5</p>
+                    <p className="text-2xl font-black text-amber-500">{activeDispatches.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
                     <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Capacity</span>
-                    <p className="text-2xl font-black text-emerald-400">76%</p>
+                    <p className="text-2xl font-black text-emerald-400">{avgCapacity}</p>
                 </div>
             </div>
 
@@ -203,21 +215,29 @@ export default function WorkforceSchedulingPage() {
                             </span>
                         </div>
                         <div className="space-y-3 min-h-[300px]">
-                            {unassignedTickets.map(t => (
-                                <div key={t._id} className="p-4 rounded-2xl border border-border bg-card space-y-2 hover:border-amber-500/50 transition-all shadow-sm">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-bold text-xs text-foreground">{t.title}</h4>
-                                        <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[9px] font-black uppercase">
-                                            {t.priority}
-                                        </span>
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground">{t.category} • Unit {t.unit || 'A101'}</p>
-                                    <button onClick={() => handleAutoSuggest(t)}
-                                        className="w-full py-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-black hover:bg-amber-500/20 flex items-center justify-center gap-1">
-                                        <Sparkles className="w-3.5 h-3.5" /> 7. Auto-Suggest Technician
-                                    </button>
+                            {unassignedTickets.length === 0 ? (
+                                <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
+                                    <CheckCircle2 className="w-6 h-6 mx-auto text-emerald-500 mb-1" />
+                                    <p className="text-xs font-bold text-foreground">No unassigned tickets</p>
+                                    <p className="text-[10px]">All maintenance requests are assigned.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                unassignedTickets.map(t => (
+                                    <div key={t._id} className="p-4 rounded-2xl border border-border bg-card space-y-2 hover:border-amber-500/50 transition-all shadow-sm">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-bold text-xs text-foreground">{t.title}</h4>
+                                            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[9px] font-black uppercase">
+                                                {t.priority}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">{t.category} • Unit {t.unit || 'A101'}</p>
+                                        <button onClick={() => handleAutoSuggest(t)}
+                                            className="w-full py-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-black hover:bg-amber-500/20 flex items-center justify-center gap-1">
+                                            <Sparkles className="w-3.5 h-3.5" /> 7. Auto-Suggest Technician
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
@@ -229,26 +249,34 @@ export default function WorkforceSchedulingPage() {
                             </span>
                         </div>
                         <div className="space-y-3 min-h-[300px]">
-                            {technicians.map(tech => (
-                                <div key={tech._id} className="p-4 rounded-2xl border border-border bg-card space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-                                                {tech.firstName?.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-xs text-foreground">{tech.firstName} {tech.lastName}</h4>
-                                                <span className="text-[9px] text-muted-foreground font-mono">{tech.technicianProfile?.employeeId || 'TECH-101'}</span>
-                                            </div>
-                                        </div>
-                                        <span className="text-amber-400 font-bold text-xs">★ {tech.technicianProfile?.rating || 4.9}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                                        <span>Capacity: 3 / 5 Jobs</span>
-                                        <span className="text-emerald-400 font-bold">● Free</span>
-                                    </div>
+                            {technicians.length === 0 ? (
+                                <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
+                                    <UserCheck className="w-6 h-6 mx-auto text-muted-foreground/50 mb-1" />
+                                    <p className="text-xs font-bold text-foreground">No technicians available</p>
+                                    <p className="text-[10px]">Invite technicians to assign tasks.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                technicians.map(tech => (
+                                    <div key={tech._id} className="p-4 rounded-2xl border border-border bg-card space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                                                    {tech.firstName?.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-xs text-foreground">{tech.firstName} {tech.lastName}</h4>
+                                                    <span className="text-[9px] text-muted-foreground font-mono">{tech.technicianProfile?.employeeId || 'TECH-101'}</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-amber-400 font-bold text-xs">★ {tech.technicianProfile?.rating || '—'}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                            <span>Capacity: {tech.workload?.currentJobs || 0} / {tech.technicianProfile?.maxCapacity || 5} Jobs</span>
+                                            <span className="text-emerald-400 font-bold">● Free</span>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
@@ -256,17 +284,29 @@ export default function WorkforceSchedulingPage() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20">
                             <span className="text-xs font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <Zap className="w-4 h-4" /> Active Dispatches
+                                <Zap className="w-4 h-4" /> Active Dispatches ({activeDispatches.length})
                             </span>
                         </div>
                         <div className="space-y-3 min-h-[300px]">
-                            <div className="p-4 rounded-2xl border border-border bg-card space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-mono text-xs font-bold text-amber-500">#MNT-210 • Water Leakage</span>
-                                    <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[9px] font-bold">Travelling</span>
+                            {activeDispatches.length === 0 ? (
+                                <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
+                                    <Zap className="w-6 h-6 mx-auto text-muted-foreground/50 mb-1" />
+                                    <p className="text-xs font-bold text-foreground">No active dispatches</p>
+                                    <p className="text-[10px]">Active maintenance dispatches will appear here.</p>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">Assigned: Mike Johnson • ETA 15 min</p>
-                            </div>
+                            ) : (
+                                activeDispatches.map(t => (
+                                    <div key={t._id} className="p-4 rounded-2xl border border-border bg-card space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-mono text-xs font-bold text-amber-500">#{String(t._id).substring(0, 6)} • {t.title}</span>
+                                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[9px] font-bold uppercase">{t.status?.replace('_', ' ')}</span>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Assigned: {t.assignedTo?.firstName ? `${t.assignedTo.firstName} ${t.assignedTo.lastName || ''}` : 'Technician'} • Priority: {t.priority}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

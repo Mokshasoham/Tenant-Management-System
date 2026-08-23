@@ -608,6 +608,15 @@ export const assignTechnician = asyncHandler(async (req, res) => {
     if (technicianId) {
         const tech = await User.findById(technicianId);
         if (!tech) throw new AppError('Technician user not found', 404);
+        if (req.user.role === 'manager') {
+            const managerId = (req.user.userId || req.user._id || req.user.id).toString();
+            const isManagerTech = String(tech.technicianProfile?.managerId) === managerId ||
+                                  String(tech.technicianProfile?.createdBy) === managerId ||
+                                  String(tech.createdBy) === managerId;
+            if (!isManagerTech) {
+                throw new AppError('Forbidden: You can only assign technicians from your authorized workforce', 403);
+            }
+        }
         ticket.assignedTo = technicianId;
         ticket.status = 'technician_assigned';
     }

@@ -14,10 +14,11 @@ export class WorkforceSchedulingService {
       const isValid = mongoose.Types.ObjectId.isValid(String(userId));
       const managerIds = [userId, isValid ? new mongoose.Types.ObjectId(String(userId)) : null].filter(Boolean);
       const managerTechs = await User.find({
-        role: 'technician',
+        role: { $in: ['technician', 'Technician'] },
         $or: [
           { 'technicianProfile.managerId': { $in: managerIds } },
-          { 'technicianProfile.createdBy': { $in: managerIds } }
+          { 'technicianProfile.createdBy': { $in: managerIds } },
+          { createdBy: { $in: managerIds } }
         ]
       }).select('_id');
       const techIds = managerTechs.map(t => t._id);
@@ -64,7 +65,7 @@ export class WorkforceSchedulingService {
     if (!ticket) throw new AppError('Ticket not found', 404);
 
     const techQuery = {
-      role: 'technician',
+      role: { $in: ['technician', 'Technician'] },
       'technicianProfile.employmentStatus': 'active'
     };
 
@@ -73,7 +74,8 @@ export class WorkforceSchedulingService {
       const managerIds = [userId, isValid ? new mongoose.Types.ObjectId(String(userId)) : null].filter(Boolean);
       techQuery.$or = [
         { 'technicianProfile.managerId': { $in: managerIds } },
-        { 'technicianProfile.createdBy': { $in: managerIds } }
+        { 'technicianProfile.createdBy': { $in: managerIds } },
+        { createdBy: { $in: managerIds } }
       ];
     }
 

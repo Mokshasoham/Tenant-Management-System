@@ -19,9 +19,23 @@ export const getAllTechnicians = asyncHandler(async (req, res) => {
   });
 });
 
+const assertManagerOwnsTechnician = (technician, user) => {
+  if (!user || user.role === 'admin') return;
+  if (user.role === 'manager') {
+    const managerId = (user.userId || user._id || user.id).toString();
+    const isOwned = technician.technicianProfile?.managerId?.toString() === managerId ||
+                    technician.technicianProfile?.createdBy?.toString() === managerId ||
+                    technician.createdBy?.toString() === managerId;
+    if (!isOwned) {
+      throw new AppError('Forbidden: Access denied to this technician', 403);
+    }
+  }
+};
+
 export const getTechnicianById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const technician = await technicianService.getTechnicianById(id);
+  assertManagerOwnsTechnician(technician, req.user);
   res.status(200).json({
     success: true,
     data: technician
@@ -40,6 +54,8 @@ export const createTechnician = asyncHandler(async (req, res) => {
 
 export const updateTechnician = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const existing = await technicianService.getTechnicianById(id);
+  assertManagerOwnsTechnician(existing, req.user);
   const technician = await technicianService.updateTechnician(id, req.body);
   res.status(200).json({
     success: true,
@@ -50,6 +66,8 @@ export const updateTechnician = asyncHandler(async (req, res) => {
 
 export const deleteTechnician = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const existing = await technicianService.getTechnicianById(id);
+  assertManagerOwnsTechnician(existing, req.user);
   await technicianService.deleteTechnician(id);
   res.status(200).json({
     success: true,
@@ -59,6 +77,8 @@ export const deleteTechnician = asyncHandler(async (req, res) => {
 
 export const getWorkload = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const existing = await technicianService.getTechnicianById(id);
+  assertManagerOwnsTechnician(existing, req.user);
   const workload = await technicianService.getTechnicianWorkload(id);
   res.status(200).json({
     success: true,
@@ -68,6 +88,8 @@ export const getWorkload = asyncHandler(async (req, res) => {
 
 export const getPerformance = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const existing = await technicianService.getTechnicianById(id);
+  assertManagerOwnsTechnician(existing, req.user);
   const performance = await technicianService.getTechnicianPerformance(id);
   res.status(200).json({
     success: true,
@@ -77,7 +99,8 @@ export const getPerformance = asyncHandler(async (req, res) => {
 
 export const getAvailableTechnicians = asyncHandler(async (req, res) => {
   const { skill } = req.query;
-  const technicians = await technicianService.getAvailableTechnicians(skill);
+  const managerId = req.user?.role === 'manager' ? (req.user.userId || req.user._id || req.user.id) : null;
+  const technicians = await technicianService.getAvailableTechnicians(skill, managerId);
   res.status(200).json({
     success: true,
     data: technicians
@@ -85,7 +108,11 @@ export const getAvailableTechnicians = asyncHandler(async (req, res) => {
 });
 
 export const searchTechnicians = asyncHandler(async (req, res) => {
-  const result = await technicianService.getAllTechnicians({ ...req.query, search: req.query.q });
+  const query = { ...req.query, search: req.query.q };
+  if (req.user?.role === 'manager') {
+    query.managerId = req.user.userId || req.user._id || req.user.id;
+  }
+  const result = await technicianService.getAllTechnicians(query);
   res.status(200).json({
     success: true,
     data: result.technicians

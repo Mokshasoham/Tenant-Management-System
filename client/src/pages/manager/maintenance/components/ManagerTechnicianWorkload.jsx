@@ -19,10 +19,10 @@ export default function ManagerTechnicianWorkload({ technicians = [], requests =
       </div>
 
       {technicians.length === 0 ? (
-        <div className="p-8 border border-dashed rounded-3xl text-center space-y-1 text-muted-foreground">
-          <UserCheck className="w-6 h-6 mx-auto text-muted-foreground/50 mb-2" />
-          <p className="text-xs font-bold">No field technicians registered</p>
-          <p className="text-[10px]">Technician accounts will appear here for dispatch.</p>
+        <div className="p-8 border border-dashed rounded-3xl text-center space-y-1.5 text-muted-foreground">
+          <UserCheck className="w-6 h-6 mx-auto text-muted-foreground/50 mb-1" />
+          <p className="text-xs font-bold text-foreground">No technicians assigned to your manager account yet.</p>
+          <p className="text-[10px] text-muted-foreground">Add or invite technicians to manage your maintenance workforce.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
