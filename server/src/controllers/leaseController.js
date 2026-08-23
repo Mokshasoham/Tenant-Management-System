@@ -70,7 +70,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
     }
   }
 
-  // Collect lease IDs created through tenant bookings
+  // 4. Find all bookings for this user/tenant to include their leases and properties
   const userBookings = await Booking.find({
     $or: [
       { user: { $in: tenantIds } },
@@ -79,9 +79,10 @@ export const getMyLease = asyncHandler(async (req, res) => {
     ]
   }).select('_id lease property');
   const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
+  const bookingPropertyIds = userBookings.map(b => b.property).filter(Boolean);
   const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
 
-  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0) {
+  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0 && bookingPropertyIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
@@ -90,7 +91,8 @@ export const getMyLease = asyncHandler(async (req, res) => {
       $or: [
         { tenant: { $in: tenantIds } },
         { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
+        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
       ],
       status: { $nin: ['terminated', 'expired', 'cancelled'] },
     })
@@ -105,8 +107,9 @@ export const getMyLease = asyncHandler(async (req, res) => {
     Lease.find({
       $or: [
         { tenant: { $in: tenantIds } },
-        { _id: { $in: embeddedLeaseIds } },
-        { user: { $in: tenantIds } }
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
+        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
       ],
       status: { $in: ['terminated', 'expired', 'cancelled'] },
     })

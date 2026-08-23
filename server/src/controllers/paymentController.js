@@ -505,13 +505,24 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     ...allUsersWithEmail.map(u => u._id)
   ].filter(Boolean).map(id => id.toString())));
 
-  // Collect embedded lease IDs
+  // Collect embedded lease IDs and booking lease IDs
   const embeddedLeaseIds = [];
   for (const t of tenantRecords) {
     if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases);
+      embeddedLeaseIds.push(...t.leases.filter(Boolean));
     }
   }
+
+  const userBookings = await Booking.find({
+    $or: [
+      { user: { $in: tenantIds } },
+      { tenant: { $in: tenantIds } },
+      { email: emailRegex }
+    ]
+  }).select('_id lease property');
+  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
+  const bookingPropertyIds = userBookings.map(b => b.property).filter(Boolean);
+  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
 
   if (leaseId) {
     if (mongoose.Types.ObjectId.isValid(leaseId)) {
@@ -537,8 +548,9 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     targetLease = await Lease.findOne({
       $or: [
         { tenant: { $in: tenantIds } },
-        { _id: { $in: embeddedLeaseIds } },
-        { user: { $in: tenantIds } }
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
+        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
       ],
       status: { $nin: ['terminated', 'expired', 'cancelled'] }
     }).populate('property tenant');
@@ -548,8 +560,9 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     targetLease = await Lease.findOne({
       $or: [
         { tenant: { $in: tenantIds } },
-        { _id: { $in: embeddedLeaseIds } },
-        { user: { $in: tenantIds } }
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
+        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
       ]
     }).sort({ createdAt: -1 }).populate('property tenant');
   }
