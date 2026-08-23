@@ -519,9 +519,8 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
       { tenant: { $in: tenantIds } },
       { email: emailRegex }
     ]
-  }).select('_id lease property');
+  }).select('_id lease');
   const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const bookingPropertyIds = userBookings.map(b => b.property).filter(Boolean);
   const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
 
   if (leaseId) {
@@ -549,10 +548,9 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
       $or: [
         { tenant: { $in: tenantIds } },
         { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
-        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ],
-      status: { $nin: ['terminated', 'expired', 'cancelled'] }
+      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] }
     }).populate('property tenant');
   }
 
@@ -561,8 +559,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
       $or: [
         { tenant: { $in: tenantIds } },
         { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
-        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ]
     }).sort({ createdAt: -1 }).populate('property tenant');
   }

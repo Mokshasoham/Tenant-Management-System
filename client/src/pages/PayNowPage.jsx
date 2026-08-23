@@ -659,87 +659,47 @@ export default function PayNowPage() {
                     }
                 }
 
-                // 2. Fetch all of the tenant's leases & bookings
-                let allLeases = [];
+                // 2. Fetch authenticated tenant's active leases
+                let userLeases = [];
                 try {
-                    const [leaseRes, bookingRes] = await Promise.allSettled([
-                        leaseService.getMyLease(),
-                        bookingService.getMyBookings()
-                    ]);
-
-                    if (leaseRes.status === 'fulfilled' && leaseRes.value) {
-                        const rawRes = leaseRes.value.data || leaseRes.value || {};
+                    const leaseRes = await leaseService.getMyLease();
+                    if (leaseRes) {
+                        const rawRes = leaseRes.data || leaseRes || {};
                         const activeArray = Array.isArray(rawRes.activeLeases)
                             ? rawRes.activeLeases
                             : (Array.isArray(rawRes.data?.activeLeases)
                                 ? rawRes.data.activeLeases
-                                : (Array.isArray(rawRes.data) ? rawRes.data : []));
+                                : (Array.isArray(rawRes.data) ? rawRes.data : (rawRes.data ? [rawRes.data] : [])));
                         
-                        const primaryLease = rawRes.data && !Array.isArray(rawRes.data) ? rawRes.data : null;
-                        const pastArray = Array.isArray(rawRes.pastLeases) ? rawRes.pastLeases : [];
-                        const candidateList = [
-                            ...(activeArray.length > 0 ? activeArray : (primaryLease ? [primaryLease] : [])),
-                            ...pastArray
-                        ];
-
-                        allLeases.push(...candidateList.filter(Boolean));
-                    }
-
-                    if (bookingRes.status === 'fulfilled' && bookingRes.value) {
-                        const bookings = bookingRes.value.data?.data || bookingRes.value.data || (Array.isArray(bookingRes.value) ? bookingRes.value : []);
-                        for (const b of (Array.isArray(bookings) ? bookings : [])) {
-                            if (b && b.property) {
-                                const propName = b.property?.name || b.propertyName || 'Property';
-                                const rentAmt = b.agreedRent || b.property?.rentAmount || b.totalAmount || 0;
-                                const bLeaseId = b.lease?._id || b.lease || b._id;
-                                const candidateLease = {
-                                    _id: bLeaseId,
-                                    id: bLeaseId,
-                                    leaseNumber: b.lease?.leaseNumber || `BOOK-${String(b._id).slice(-6)}`,
-                                    rentAmount: rentAmt,
-                                    status: 'active',
-                                    property: {
-                                        _id: b.property?._id || b.property,
-                                        name: propName
-                                    },
-                                    startDate: b.startDate,
-                                    endDate: b.endDate
-                                };
-                                allLeases.push(candidateLease);
-                            }
-                        }
+                        userLeases = activeArray.filter(Boolean);
                     }
                 } catch (lErr) {
-                    console.warn('[PayNowPage] getMyLease/booking fetch warning:', lErr);
+                    console.warn('[PayNowPage] getMyLease warning:', lErr);
                 }
 
-                // If specific leaseIdParam is given and not in allLeases, fetch directly and add
+                // If specific leaseIdParam is given and not in userLeases, fetch and add only if valid
                 const cleanParam = leaseIdParam ? String(leaseIdParam).trim() : null;
-                if (cleanParam && !allLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)) {
+                if (cleanParam && !userLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)) {
                     try {
                         const directRes = await leaseService.getLeaseById(cleanParam);
                         const directL = directRes?.data?.data || directRes?.data || directRes;
-                        if (directL) {
-                            allLeases.unshift(directL);
+                        if (directL && (directL.status === 'active' || directL.status === 'signed' || !directL.status)) {
+                            userLeases.unshift(directL);
                         }
                     } catch (dErr) {
                         console.warn('[PayNowPage] direct getLeaseById warning:', dErr);
                     }
                 }
 
-                // Deduplicate leases by ID and by Property ID/Name to prevent duplicates
-                const uniqueLeases = [];
-                const seenIds = new Set();
-                const seenProps = new Set();
-                for (const l of allLeases.filter(Boolean)) {
-                    const lid = String(l._id || l.id || l.leaseNumber || '');
-                    const pKey = String(l.property?._id || l.property?.name || l.propertyName || '').toLowerCase().trim();
-                    if (lid && !seenIds.has(lid)) {
-                        seenIds.add(lid);
-                        if (pKey) seenProps.add(pKey);
-                        uniqueLeases.push(l);
-                    }
-                }
+                // Filter to ONLY active leases
+                const activeOnly = userLeases.filter(l => l && (l.status === 'active' || l.status === 'signed' || !l.status));
+
+                // Deduplicate strictly by Unique Lease ID using Map
+                const uniqueLeases = Array.from(
+                    new Map(
+                        activeOnly.map(l => [String(l._id || l.id || l.leaseNumber), l])
+                    ).values()
+                );
 
                 if (!isMounted) return;
 
@@ -747,11 +707,12 @@ export default function PayNowPage() {
                     try {
                         const sumRes = await paymentService.getRentSummary({ leaseId: cleanParam || undefined, billId: billIdParam || undefined });
                         const summary = sumRes.data?.data || sumRes.data;
-                        if (summary) {
+                        if (summary && summary.leaseId) {
                             const syntheticLease = {
                                 _id: summary.leaseId,
                                 leaseNumber: summary.leaseNumber,
                                 rentAmount: summary.monthlyRent,
+                                status: 'active',
                                 property: {
                                     _id: summary.propertyId,
                                     name: summary.propertyName
@@ -769,8 +730,8 @@ export default function PayNowPage() {
                     setLeaseNotFound(true);
                 } else {
                     setLeases(uniqueLeases);
-                    const initialId = cleanParam && uniqueLeases.some(l => String(l._id || l.id) === cleanParam)
-                        ? cleanParam
+                    const initialId = cleanParam && uniqueLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)
+                        ? (uniqueLeases.find(l => String(l._id || l.id || l.leaseNumber) === cleanParam)?._id || cleanParam)
                         : (uniqueLeases[0]?._id || uniqueLeases[0]?.id || null);
                     setSelectedLeaseId(initialId);
                     setLeaseNotFound(false);

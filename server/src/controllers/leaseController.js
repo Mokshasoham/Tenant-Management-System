@@ -70,19 +70,18 @@ export const getMyLease = asyncHandler(async (req, res) => {
     }
   }
 
-  // 4. Find all bookings for this user/tenant to include their leases and properties
+  // 4. Find all bookings for this user/tenant that have an explicit linked lease
   const userBookings = await Booking.find({
     $or: [
       { user: { $in: tenantIds } },
       { tenant: { $in: tenantIds } },
       { email: emailRegex }
     ]
-  }).select('_id lease property');
+  }).select('_id lease');
   const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const bookingPropertyIds = userBookings.map(b => b.property).filter(Boolean);
   const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
 
-  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0 && bookingPropertyIds.length === 0) {
+  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
@@ -91,10 +90,9 @@ export const getMyLease = asyncHandler(async (req, res) => {
       $or: [
         { tenant: { $in: tenantIds } },
         { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
-        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ],
-      status: { $nin: ['terminated', 'expired', 'cancelled'] },
+      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] },
     })
       .sort({ createdAt: -1 })
       .populate({
@@ -108,10 +106,9 @@ export const getMyLease = asyncHandler(async (req, res) => {
       $or: [
         { tenant: { $in: tenantIds } },
         { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : []),
-        ...(bookingPropertyIds.length > 0 ? [{ property: { $in: bookingPropertyIds } }] : [])
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ],
-      status: { $in: ['terminated', 'expired', 'cancelled'] },
+      status: { $in: ['terminated', 'expired', 'cancelled', 'completed'] },
     })
       .sort({ createdAt: -1 })
       .populate({
