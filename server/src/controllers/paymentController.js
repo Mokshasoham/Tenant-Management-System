@@ -496,8 +496,21 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   let targetLease = null;
   const cleanEmail = user ? (user.email || '').trim() : '';
   const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const tenantRecords = emailRegex ? await Tenant.find({ email: emailRegex }) : [];
-  const allUsersWithEmail = emailRegex ? await User.find({ email: emailRegex }).select('_id') : [];
+  const tenantRecords = await Tenant.find({
+    $or: [
+      ...(emailRegex ? [{ email: emailRegex }] : []),
+      { user: actualUserId },
+      { userId: actualUserId },
+      ...(user?.phone ? [{ phone: user.phone }] : [])
+    ]
+  });
+  const allUsersWithEmail = await User.find({
+    $or: [
+      ...(emailRegex ? [{ email: emailRegex }] : []),
+      { _id: actualUserId },
+      ...(user?.phone ? [{ phone: user.phone }] : [])
+    ]
+  }).select('_id');
   const tenantIds = Array.from(new Set([
     actualUserId,
     ...(user ? [user._id] : []),
