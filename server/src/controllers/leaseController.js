@@ -66,11 +66,22 @@ export const getMyLease = asyncHandler(async (req, res) => {
   const embeddedLeaseIds = [];
   for (const t of tenants) {
     if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases);
+      embeddedLeaseIds.push(...t.leases.filter(Boolean));
     }
   }
 
-  if (tenantIds.length === 0 && embeddedLeaseIds.length === 0) {
+  // Collect lease IDs created through tenant bookings
+  const userBookings = await Booking.find({
+    $or: [
+      { user: { $in: tenantIds } },
+      { tenant: { $in: tenantIds } },
+      { email: emailRegex }
+    ]
+  }).select('_id lease property');
+  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
+  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
+
+  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
@@ -78,8 +89,8 @@ export const getMyLease = asyncHandler(async (req, res) => {
     Lease.find({
       $or: [
         { tenant: { $in: tenantIds } },
-        { _id: { $in: embeddedLeaseIds } },
-        { user: { $in: tenantIds } }
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ],
       status: { $nin: ['terminated', 'expired', 'cancelled'] },
     })
