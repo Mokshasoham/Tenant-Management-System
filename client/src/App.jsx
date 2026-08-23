@@ -236,6 +236,7 @@ function App() {
                 <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPropertiesPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/compare" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/compare/*" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/reviews/:propertyId" element={<ProtectedRoute><DashboardLayout><ReviewsPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/lease-decision" element={<ProtectedRoute><DashboardLayout><LeaseDecisionPage /></DashboardLayout></ProtectedRoute>} />

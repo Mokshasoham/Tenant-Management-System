@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Scale, Check, X, Star, MapPin, Bed, Bath, Maximize, ArrowLeft, Trash2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
