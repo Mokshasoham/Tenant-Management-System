@@ -47,12 +47,17 @@ export const resolveLeaseUrls = (lease, req) => {
 
 // Tenant-scoped: get the current user's own lease
 export const getMyLease = asyncHandler(async (req, res) => {
-  // JWT only has userId + role — look up the User to get their email
-  const user = await User.findById(req.user.userId).select('email');
+  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
+  const user = await User.findById(actualUserId).select('email');
   if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
 
   const tenants = await Tenant.find({ email: user.email });
-  const tenantIds = [req.user.userId, ...tenants.map(t => t._id)];
+  const allUsersWithEmail = await User.find({ email: user.email }).select('_id');
+  const tenantIds = [
+    actualUserId,
+    ...tenants.map(t => t._id),
+    ...allUsersWithEmail.map(u => u._id)
+  ].filter(Boolean);
   if (tenantIds.length === 0) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }

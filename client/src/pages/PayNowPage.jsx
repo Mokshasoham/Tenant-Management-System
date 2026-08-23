@@ -748,7 +748,17 @@ export default function PayNowPage() {
                     }
                 }
 
-                setAvailableLeases(allLeases.filter(l => l && !['terminated', 'expired', 'cancelled'].includes((l.status || '').toLowerCase())));
+                const candidateLeases = allLeases.filter(Boolean);
+                const uniqueLeases = [];
+                const seenIds = new Set();
+                for (const l of candidateLeases) {
+                    const lid = String(l._id || l.id || l.leaseNumber || '');
+                    if (lid && !seenIds.has(lid)) {
+                        seenIds.add(lid);
+                        uniqueLeases.push(l);
+                    }
+                }
+                setAvailableLeases(uniqueLeases);
 
                 if (!targetLease && !summary) {
                     setLease(null);
@@ -810,6 +820,8 @@ export default function PayNowPage() {
 
     const handleSuccess = () => setSuccess(true);
 
+    const displayLeases = availableLeases.length > 0 ? availableLeases : (lease ? [lease] : []);
+
     return (
         <div className="max-w-lg mx-auto space-y-5 pb-10">
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
@@ -842,13 +854,13 @@ export default function PayNowPage() {
                                     {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
                                 </p>
 
-                                {availableLeases.length > 1 && !isBooking && !billIdParam && (
+                                {!isBooking && !billIdParam && displayLeases.length > 0 && (
                                     <div className="flex flex-wrap items-center gap-1.5">
-                                        {availableLeases.map((l) => {
+                                        {displayLeases.map((l) => {
                                             const isSelected = (lease?._id || lease?.id) === (l._id || l.id);
                                             return (
                                                 <button
-                                                    key={l._id || l.id}
+                                                    key={l._id || l.id || l.leaseNumber}
                                                     type="button"
                                                     onClick={() => handleSelectLease(l)}
                                                     className={cn(
