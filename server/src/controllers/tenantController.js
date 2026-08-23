@@ -1,6 +1,12 @@
 import Tenant from '../models/Tenant.js';
+import User from '../models/User.js';
+import Lease from '../models/Lease.js';
+import Booking from '../models/Booking.js';
+import Property from '../models/Property.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import { resolveLeaseUrls } from './leaseController.js';
+import { resolvePropertyUrls } from './propertyController.js';
 
 export const getAllTenants = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status, managedBy } = req.query;
@@ -201,3 +207,166 @@ export const getTenantStats = asyncHandler(async (req, res) => {
     },
   });
 });
+
+// Unified Context for Authenticated Tenant
+export const getMyTenantContext = asyncHandler(async (req, res) => {
+  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
+  const user = await User.findById(actualUserId).select('email phone firstName lastName avatar role');
+  if (!user) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        hasActiveLease: false,
+        hasProperty: false,
+        hasBooking: false,
+        hasEndedLease: false,
+        activeLease: null,
+        activeLeases: [],
+        endedLeases: [],
+        property: null,
+        manager: null,
+        booking: null,
+      },
+    });
+  }
+
+  const cleanEmail = (user.email || '').trim();
+  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  const cleanPhone = (user.phone || '').trim();
+  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+
+  const tenants = await Tenant.find({
+    $or: [
+      ...(emailRegex ? [{ email: emailRegex }] : []),
+      { user: actualUserId },
+      { userId: actualUserId },
+      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
+      ...(user.firstName && user.lastName ? [{
+        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
+        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
+      }] : [])
+    ]
+  });
+
+  const tenantIds = Array.from(new Set([
+    actualUserId,
+    user._id,
+    ...tenants.map(t => t._id)
+  ].filter(Boolean).map(id => id.toString())));
+
+  // Collect lease IDs embedded in tenant documents
+  const embeddedLeaseIds = [];
+  for (const t of tenants) {
+    if (Array.isArray(t.leases)) {
+      embeddedLeaseIds.push(...t.leases.filter(Boolean));
+    }
+  }
+
+  // Find bookings for this user
+  const userBookings = await Booking.find({
+    $or: [
+      { user: { $in: tenantIds } },
+      { tenant: { $in: tenantIds } },
+      ...(emailRegex ? [{ email: emailRegex }] : [])
+    ]
+  })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'property',
+      select: 'name address city state zipCode images coverImage manager rentAmount depositAmount',
+      populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
+    })
+    .populate('manager', 'firstName lastName email phone avatar');
+
+  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
+  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
+
+  // Find active leases & past leases
+  const [activeLeases, endedLeases] = await Promise.all([
+    Lease.find({
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
+      ],
+      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] },
+    })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'property',
+        select: 'name address city state zipCode type bedrooms bathrooms floor squareFeet rentAmount depositAmount amenities images coverImage manager',
+        populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
+      })
+      .populate('tenant', 'firstName lastName email phone'),
+
+    Lease.find({
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { user: { $in: tenantIds } },
+        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
+      ],
+      status: { $in: ['terminated', 'expired', 'cancelled', 'completed'] },
+    })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'property',
+        select: 'name address city state zipCode images coverImage manager',
+        populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
+      })
+      .populate('tenant', 'firstName lastName email phone')
+  ]);
+
+  const resolvedActiveLeases = activeLeases.map(l => resolveLeaseUrls(l, req));
+  const resolvedEndedLeases = endedLeases.map(l => resolveLeaseUrls(l, req));
+  const primaryLease = resolvedActiveLeases[0] || null;
+
+  const activeBookings = userBookings.filter(b => ['pending', 'approved', 'active'].includes(b.status));
+  const primaryBooking = activeBookings[0] || userBookings[0] || null;
+
+  const hasActiveLease = resolvedActiveLeases.length > 0;
+  const hasEndedLease = resolvedEndedLeases.length > 0 && !hasActiveLease;
+  const hasBooking = Boolean(primaryBooking);
+
+  // Property derivation
+  let property = null;
+  if (primaryLease?.property) {
+    property = typeof primaryLease.property === 'object' ? resolvePropertyUrls(primaryLease.property, req) : primaryLease.property;
+  } else if (primaryBooking?.property) {
+    property = typeof primaryBooking.property === 'object' ? resolvePropertyUrls(primaryBooking.property, req) : primaryBooking.property;
+  }
+  const hasProperty = Boolean(property);
+
+  // Manager derivation (ONLY IF LEGITIMATE RELATIONSHIP)
+  let manager = null;
+  if (primaryLease?.property?.manager && typeof primaryLease.property.manager === 'object') {
+    manager = primaryLease.property.manager;
+  } else if (primaryBooking?.manager && typeof primaryBooking.manager === 'object') {
+    manager = primaryBooking.manager;
+  } else if (primaryBooking?.property?.manager && typeof primaryBooking.property.manager === 'object') {
+    manager = primaryBooking.property.manager;
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      hasActiveLease,
+      hasProperty,
+      hasBooking,
+      hasEndedLease,
+      activeLease: primaryLease,
+      activeLeases: resolvedActiveLeases,
+      endedLeases: resolvedEndedLeases,
+      property,
+      manager: manager ? {
+        _id: manager._id,
+        firstName: manager.firstName,
+        lastName: manager.lastName,
+        email: manager.email,
+        phone: manager.phone || '',
+        avatar: manager.avatar || null,
+      } : null,
+      booking: primaryBooking,
+    },
+  });
+});
+

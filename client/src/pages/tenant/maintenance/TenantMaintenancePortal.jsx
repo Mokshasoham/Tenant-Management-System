@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   RefreshCw,
@@ -13,7 +13,8 @@ import {
   Clock,
   ArrowRight,
   Plus,
-  QrCode
+  QrCode,
+  Home
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { maintenanceService, leaseService, platformService } from '../../../services/api';
@@ -35,6 +36,7 @@ import TenantPropertyQrModal from './TenantPropertyQrModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
@@ -249,8 +251,62 @@ export default function TenantMaintenancePortal() {
         </div>
       )}
 
-      {/* ══ CONDITIONAL: LOCKED CARD VS INCLUDED CARD + DASHBOARD ══ */}
-      {isLocked ? (
+      {/* ══ LOADING SPINNER ══ */}
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center space-y-3">
+            <div className="w-10 h-10 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin mx-auto" />
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">Loading maintenance records...</p>
+          </div>
+        </div>
+      )}
+
+      {/* ══ EMPTY STATE: NO ACTIVE LEASE / NO PROPERTY ══ */}
+      {!loading && leases.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-[2.5rem] bg-white dark:bg-[#0B1424] border border-slate-200 dark:border-emerald-500/20 shadow-xl p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-6"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20 border border-emerald-500/30">
+            <Home className="w-10 h-10" />
+          </div>
+
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>No Active Property</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Maintenance starts after you move in.
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium max-w-lg mx-auto leading-relaxed">
+              Once you have an active lease, you can report maintenance issues, track repairs, and communicate with your property manager from here.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <button
+              type="button"
+              onClick={() => navigate('/browse')}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>EXPLORE PROPERTIES</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/saved')}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>VIEW SAVED PROPERTIES</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ══ CONDITIONAL: LOCKED CARD VS INCLUDED CARD + DASHBOARD (WHEN LEASE EXISTS) ══ */}
+      {!loading && leases.length > 0 && (isLocked ? (
         /* 🔒 LOCKED MAINTENANCE CARD (ORANGE THEME) */
         <div className="relative rounded-[28px] bg-gradient-to-b from-[#0B142B]/95 via-[#070D1F]/98 to-[#030712] border border-amber-500/35 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.9),0_0_30px_-5px_rgba(245,158,11,0.12)] p-6 sm:p-8 overflow-hidden animate-fade-in">
           {/* Ambient decorative backlights */}
@@ -563,7 +619,7 @@ export default function TenantMaintenancePortal() {
             theme={theme}
           />
         </div>
-      )}
+      ))}
 
       {/* Lease Selection Step Modal (When multiple leases exist) */}
       <AnimatePresence>

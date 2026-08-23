@@ -11,7 +11,7 @@ import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
     ChevronRight, Lock, RefreshCw, ArrowLeft, IndianRupee,
     Shield, Eye, EyeOff, Info, Coins, Zap,
-    Building2, ChevronDown, Check
+    Building2, ChevronDown, Check, Home, ArrowRight
 } from 'lucide-react';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule';
 import { cn } from '../utils/cn';
@@ -846,6 +846,34 @@ export default function PayNowPage() {
                     <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }} className="rounded-[2.5rem] border border-border bg-card p-8 shadow-xl">
                         <SuccessScreen amount={finalTotalPayable} method={method} navigate={navigate} type={isBooking ? 'booking' : 'rent'} />
+                    </motion.div>
+                ) : (!isBooking && !loadingLease && (leases.length === 0 || leaseNotFound)) ? (
+                    <motion.div key="no-lease" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                        className="rounded-[2.5rem] border border-border bg-card p-8 sm:p-10 shadow-xl text-center space-y-6">
+                        <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30 shadow-lg shadow-emerald-500/20">
+                            <Home className="w-10 h-10" />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                                <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Rent Payments</span>
+                            </div>
+                            <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No active lease yet</h2>
+                            <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                                You don't have an active rental lease requiring payment at this time. Book a property or check back when your rental agreement is active.
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto pt-2">
+                            <button onClick={() => navigate('/browse')}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer">
+                                <span>EXPLORE PROPERTIES</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => navigate('/saved')}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-foreground bg-muted border border-border hover:bg-muted/80 transition-all cursor-pointer">
+                                <span>SAVED PROPERTIES</span>
+                            </button>
+                        </div>
                     </motion.div>
                 ) : (
                     <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">

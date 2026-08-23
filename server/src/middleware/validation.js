@@ -33,6 +33,10 @@ export const validateUserRegistration = [
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
     .matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
     .withMessage('Password must contain uppercase, lowercase, number, and special character'),
+  body('role')
+    .optional()
+    .isIn(['tenant', 'manager'])
+    .withMessage('Role must be either tenant or manager'),
 ];
 
 export const validateUserLogin = [

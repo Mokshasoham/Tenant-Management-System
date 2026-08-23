@@ -5,7 +5,7 @@ import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
     Home, Star, Sparkles, ArrowRight, XCircle, RefreshCw, Plus, ChevronDown, ChevronUp,
-    ChevronLeft, ChevronRight, X, FileSignature
+    ChevronLeft, ChevronRight, X, FileSignature, Heart, Scale, Bookmark, Compass, HelpCircle, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
@@ -652,12 +652,123 @@ export default function TenantDashboard({ user, navigate }) {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center py-8 rounded-2xl border border-dashed border-border bg-card/10">
-                            <Home className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                            <p className="text-sm font-bold text-muted-foreground">No active rentals</p>
-                            <button onClick={() => navigate('/browse')} className="mt-2 text-xs font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto">
-                                Browse Properties <ArrowRight className="w-3 h-3" />
-                            </button>
+                        <div className="space-y-4">
+                            {/* Onboarding Quick Action Hub for New Tenants */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="rounded-3xl border border-border bg-card/60 backdrop-blur-md p-6 sm:p-8 shadow-xl space-y-6"
+                            >
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                                            <Sparkles className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-foreground">Welcome to Your Resident Portal</h3>
+                                            <p className="text-xs text-muted-foreground font-medium">Get started by discovering your next home or checking your shortlists.</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/browse')}
+                                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <span>Explore Properties</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                {/* 4 Action Cards Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    {[
+                                        {
+                                            title: 'Explore Properties',
+                                            desc: 'Discover verified rental apartments and luxury homes',
+                                            icon: Compass,
+                                            path: '/browse',
+                                            badge: 'Browse',
+                                            color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                                        },
+                                        {
+                                            title: 'Saved Properties',
+                                            desc: 'View and shortlist your favorite properties',
+                                            icon: Bookmark,
+                                            path: '/saved',
+                                            badge: 'Favorites',
+                                            color: 'text-rose-500 bg-rose-500/10 border-rose-500/20'
+                                        },
+                                        {
+                                            title: 'Compare Units',
+                                            desc: 'Side-by-side comparison of amenities and pricing',
+                                            icon: Scale,
+                                            path: '/compare',
+                                            badge: 'Compare',
+                                            color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
+                                        },
+                                        {
+                                            title: 'Track Bookings',
+                                            desc: 'Check status of pending or approved reservations',
+                                            icon: Clock,
+                                            path: '/bookings',
+                                            badge: 'Reservations',
+                                            color: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                                        },
+                                    ].map((action, idx) => {
+                                        const Icon = action.icon;
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => navigate(action.path)}
+                                                className="p-4 rounded-2xl border border-border bg-card hover:bg-muted/40 hover:border-emerald-500/30 cursor-pointer transition-all duration-200 group flex flex-col justify-between"
+                                            >
+                                                <div className="space-y-2.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center border", action.color)}>
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
+                                                            {action.badge}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="text-xs font-black text-foreground group-hover:text-emerald-500 transition-colors">
+                                                        {action.title}
+                                                    </h4>
+                                                    <p className="text-[11px] text-muted-foreground leading-tight">
+                                                        {action.desc}
+                                                    </p>
+                                                </div>
+                                                <div className="pt-3 mt-2 border-t border-border/40 flex items-center justify-between text-[10px] font-black text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                                                    <span>Open</span>
+                                                    <ArrowRight className="w-3 h-3" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* How TMS Works step guide */}
+                                <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">How TMS Rental Process Works</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                                        {[
+                                            { step: '1', title: 'Find & Compare', desc: 'Browse verified listings' },
+                                            { step: '2', title: 'Reserve & Book', desc: 'Instant booking requests' },
+                                            { step: '3', title: 'Digital Lease', desc: 'Secure online signing' },
+                                            { step: '4', title: 'Move In & Pay', desc: 'Automated rent & repairs' },
+                                        ].map((s, i) => (
+                                            <div key={i} className="flex items-start gap-2">
+                                                <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0">
+                                                    {s.step}
+                                                </span>
+                                                <div>
+                                                    <p className="font-black text-foreground text-[11px]">{s.title}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{s.desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
                         </div>
                     )}
 

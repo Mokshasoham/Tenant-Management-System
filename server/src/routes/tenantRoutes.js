@@ -5,6 +5,10 @@ import { validationMiddleware, validateTenantCreation } from '../middleware/vali
 
 const router = express.Router();
 
+// Tenant Context for authenticated resident
+router.get('/my-context', authenticate, tenantController.getMyTenantContext);
+
+// Manager / Admin only routes below
 router.use(authenticate);
 router.use(managerOrAdmin);
 

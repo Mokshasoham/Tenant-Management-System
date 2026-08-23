@@ -55,11 +55,21 @@ const useAuthStore = create((set) => ({
     }
   },
 
-  googleLogin: async (idToken) => {
+  googleLogin: async (idToken, role) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authService.googleAuth(idToken);
+      const response = await authService.googleAuth(idToken, role);
       const resData = response?.data || response;
+
+      if (resData?.requiresRoleSelection || response?.requiresRoleSelection) {
+        set({ isLoading: false });
+        return {
+          requiresRoleSelection: true,
+          googleProfile: resData?.googleProfile || response?.googleProfile,
+          idToken,
+        };
+      }
+
       const token = resData?.token || response?.token;
       const user = resData?.user || response?.user;
 

@@ -607,21 +607,34 @@ export default function MyLeasePage() {
                 </div>
             )}
 
-            {/* No Lease */}
+            {/* No Active Lease Empty State */}
             {!loading && activeLeases.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="flex flex-col items-center justify-center gap-6 py-24 rounded-[2rem] border-2 border-dashed border-border bg-card/50">
-                    <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center">
-                        <Home className="w-10 h-10 text-muted-foreground/20" />
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center gap-6 py-20 px-6 rounded-[2.5rem] border border-border bg-card shadow-xl max-w-2xl mx-auto text-center">
+                    <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-lg shadow-emerald-500/20">
+                        <Home className="w-10 h-10" />
                     </div>
-                    <div className="text-center">
-                        <p className="font-black text-foreground text-xl">No Active Lease Found</p>
-                        <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">Your property manager hasn't set up your lease yet or your email doesn't match.</p>
+                    <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Rental Agreement</span>
+                        </div>
+                        <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No active lease yet</h2>
+                        <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                            You don't have a rental agreement linked to your account. Find a property, book your preferred home, and once your rental is confirmed, your lease and rent details will appear here.
+                        </p>
                     </div>
-                    <button onClick={() => navigate('/messages')}
-                        className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-black hover:opacity-90 transition-all shadow-lg shadow-primary/20">
-                        <Mail className="w-4 h-4" /> Message Manager
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto pt-2">
+                        <button onClick={() => navigate('/browse')}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer">
+                            <span>EXPLORE PROPERTIES</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => navigate('/saved')}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-foreground bg-muted border border-border hover:bg-muted/80 transition-all cursor-pointer">
+                            <span>SAVED PROPERTIES</span>
+                        </button>
+                    </div>
                 </motion.div>
             )}
 

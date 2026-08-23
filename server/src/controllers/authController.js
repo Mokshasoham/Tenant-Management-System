@@ -47,13 +47,16 @@ const resolveUserUrls = (user, req) => {
 
 
 export const register = asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { firstName, lastName, email, password, role } = req.body;
 
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new AppError('User with this email already exists', 400);
   }
+
+  // Validate allowed role for public signup (only tenant or manager allowed from registration)
+  const chosenRole = (role && ['tenant', 'manager'].includes(role)) ? role : 'tenant';
 
   // Hash password
   const hashedPassword = await hashPassword(password);
@@ -68,7 +71,7 @@ export const register = asyncHandler(async (req, res) => {
     lastName,
     email,
     password: hashedPassword,
-    role: 'user',
+    role: chosenRole,
     isEmailVerified: false,
     emailVerificationToken: hashedVerificationToken,
     emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
@@ -97,7 +100,7 @@ export const register = asyncHandler(async (req, res) => {
   // Generate token so they can log in but be flagged as unverified
   const token = generateToken(user._id, user.role);
 
-  logger.info(`New user registered: ${user.email}`);
+  logger.info(`New user registered: ${user.email} (${user.role})`);
 
   res.status(201).json({
     success: true,
@@ -545,7 +548,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 });
 
 export const googleAuth = asyncHandler(async (req, res) => {
-  const { idToken } = req.body;
+  const { idToken, role } = req.body;
 
   if (!idToken) {
     throw new AppError('Google ID Token is required', 400);
@@ -577,7 +580,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
   let user = await User.findOne({ email: normalizedEmail }).select('+password');
 
   if (user) {
-    // Preserve existing account & role, attach googleId if missing
+    // Existing user: preserve existing account & role, attach googleId if missing
     let shouldSave = false;
     if (!user.googleId) {
       user.googleId = googleId;
@@ -596,6 +599,26 @@ export const googleAuth = asyncHandler(async (req, res) => {
     }
   } else {
     // New Google Signup
+    // If no valid role provided for new user, require role selection step
+    if (!role || !['tenant', 'manager'].includes(role)) {
+      return res.status(200).json({
+        success: true,
+        message: 'Role selection required for new user',
+        data: {
+          requiresRoleSelection: true,
+          googleProfile: {
+            googleId,
+            email: normalizedEmail,
+            firstName: given_name || 'User',
+            lastName: family_name || 'Name',
+            avatar: picture,
+            emailVerified: Boolean(payload.email_verified),
+          }
+        }
+      });
+    }
+
+    const chosenRole = role === 'manager' ? 'manager' : 'tenant';
     const randomPassword = crypto.randomBytes(16).toString('hex');
     const hashedPassword = await hashPassword(randomPassword);
 
@@ -604,12 +627,12 @@ export const googleAuth = asyncHandler(async (req, res) => {
       lastName: family_name || 'Name',
       email: normalizedEmail,
       password: hashedPassword,
-      role: 'tenant', // Default role for new users
+      role: chosenRole,
       isEmailVerified: Boolean(payload.email_verified),
       googleId: googleId,
       avatar: picture,
     });
-    logger.info(`New user registered via Google: ${user.email} (tenant)`);
+    logger.info(`New user registered via Google: ${user.email} (${user.role})`);
   }
 
   if (!user.isActive) {
@@ -631,6 +654,7 @@ export const googleAuth = asyncHandler(async (req, res) => {
     data: {
       user,
       token,
+      requiresRoleSelection: false,
     },
   });
 });
