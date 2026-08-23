@@ -95,143 +95,131 @@ function DebitCardForm({ amount, paymentId, onSuccess, propertyId, billId, lease
         setErrors({});
         
         try {
+            const isRzpLoaded = await loadRazorpayScript();
+            if (!isRzpLoaded || !window.Razorpay) {
+                setLoading(false);
+                setErrors({ submit: 'Razorpay SDK could not be loaded. Please check your connection and try again.' });
+                return;
+            }
+
             if (isBooking) {
                 // Booking payment flow
-                const isRzpLoaded = await loadRazorpayScript();
                 const orderRes = await bookingService.createRazorpayOrder({
                     propertyId: propertyId || bookingData?.propertyId,
                     bookingId: bookingData?.bookingId
                 });
                 const order = orderRes.data?.data || orderRes.data;
 
-                if (isRzpLoaded && window.Razorpay && order?.keyId && !order.keyId.includes('placeholder') && !String(order.razorpayOrderId).startsWith('order_sim_')) {
-                    const options = {
-                        key: order.keyId,
-                        amount: order.amount,
-                        currency: order.currency || 'INR',
-                        name: 'Tenant Management System',
-                        description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
-                        order_id: order.razorpayOrderId,
-                        prefill: {
-                            name: name || `${user?.firstName || ''} ${user?.lastName || ''}`,
-                            email: user?.email || '',
-                            contact: user?.phone || ''
-                        },
-                        theme: { color: '#059669' },
-                        handler: async function (response) {
-                            try {
-                                await bookingService.verifyRazorpayPayment({
-                                    bookingId: bookingData?.bookingId || order.bookingId,
-                                    propertyId: propertyId,
-                                    razorpayOrderId: response.razorpay_order_id,
-                                    razorpayPaymentId: response.razorpay_payment_id,
-                                    razorpaySignature: response.razorpay_signature
-                                });
-                                setLoading(false);
-                                onSuccess();
-                            } catch (vErr) {
-                                setLoading(false);
-                                setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
-                            }
-                        },
-                        modal: {
-                            ondismiss: () => setLoading(false)
-                        }
-                    };
-                    const rzp = new window.Razorpay(options);
-                    rzp.on('payment.failed', (resp) => {
-                        setLoading(false);
-                        setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
-                    });
-                    rzp.open();
+                if (!order?.keyId || !order?.razorpayOrderId) {
+                    setLoading(false);
+                    setErrors({ submit: 'Failed to create booking payment order. Please try again.' });
                     return;
                 }
 
-                // Fallback simulation for booking
-                await bookingService.processMockPayment({
-                    propertyId: propertyId,
-                    amount: amount,
-                    method: 'debit_card',
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    billId: billId,
-                    leaseId: leaseId,
-                });
-                setTimeout(() => {
-                    setLoading(false);
-                    onSuccess();
-                }, 1000);
-                return;
-            }
-
-            // Rent Payment Flow via Authoritative Razorpay Integration
-            const isRzpLoaded = await loadRazorpayScript();
-            const orderRes = await paymentService.createRentOrder({
-                leaseId: leaseId,
-                billId: billId
-            });
-            const orderData = orderRes.data?.data || orderRes.data;
-
-            if (isRzpLoaded && window.Razorpay && orderData?.keyId && !orderData.keyId.includes('placeholder') && !String(orderData.orderId).startsWith('order_sim_')) {
                 const options = {
-                    key: orderData.keyId,
-                    amount: orderData.amount, // in paise
-                    currency: orderData.currency || 'INR',
+                    key: order.keyId,
+                    amount: order.amount,
+                    currency: order.currency || 'INR',
                     name: 'Tenant Management System',
-                    description: `Rent Payment — Lease #${String(leaseId).slice(-6)}`,
-                    order_id: orderData.orderId,
+                    description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
+                    order_id: order.razorpayOrderId,
                     prefill: {
-                        name: name || `${user?.firstName || ''} ${user?.lastName || ''}`,
+                        name: name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
                         email: user?.email || '',
                         contact: user?.phone || ''
                     },
                     theme: { color: '#059669' },
                     handler: async function (response) {
                         try {
-                            const verifyRes = await paymentService.verifyRazorpayPayment({
-                                leaseId: leaseId,
-                                billId: billId,
+                            await bookingService.verifyRazorpayPayment({
+                                bookingId: bookingData?.bookingId || order.bookingId,
+                                propertyId: propertyId,
                                 razorpayOrderId: response.razorpay_order_id,
                                 razorpayPaymentId: response.razorpay_payment_id,
                                 razorpaySignature: response.razorpay_signature
                             });
                             setLoading(false);
-                            onSuccess(verifyRes.data?.data || verifyRes.data);
+                            onSuccess();
                         } catch (vErr) {
                             setLoading(false);
                             setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
                         }
                     },
                     modal: {
-                        ondismiss: () => setLoading(false)
+                        ondismiss: () => {
+                            setLoading(false);
+                        }
                     }
                 };
+
                 const rzp = new window.Razorpay(options);
                 rzp.on('payment.failed', (resp) => {
                     setLoading(false);
-                    setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+                    setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
                 });
                 rzp.open();
                 return;
             }
 
-            // Server-verified fallback for development / simulated environments
-            const verifyRes = await paymentService.verifyRazorpayPayment({
+            // Rent Payment Flow via Authoritative Razorpay Integration
+            const orderRes = await paymentService.createRentOrder({
                 leaseId: leaseId,
-                billId: billId,
-                razorpayOrderId: orderData?.orderId || `order_sim_${Date.now()}`,
-                razorpayPaymentId: `pay_sim_${Date.now()}`,
-                razorpaySignature: 'sig_sim_valid'
+                billId: billId
             });
+            const orderData = orderRes.data?.data || orderRes.data;
 
-            setTimeout(() => {
+            if (!orderData?.keyId || !orderData?.orderId) {
                 setLoading(false);
-                onSuccess(verifyRes.data?.data || verifyRes.data);
-            }, 900);
+                setErrors({ submit: 'Failed to generate Razorpay payment order from server.' });
+                return;
+            }
+
+            const options = {
+                key: orderData.keyId,
+                amount: orderData.amount, // in paise
+                currency: orderData.currency || 'INR',
+                name: 'Tenant Management System',
+                description: `Rent Payment — Lease #${String(leaseId).slice(-6)}`,
+                order_id: orderData.orderId,
+                prefill: {
+                    name: name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+                    email: user?.email || '',
+                    contact: user?.phone || ''
+                },
+                theme: { color: '#059669' },
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await paymentService.verifyRazorpayPayment({
+                            leaseId: leaseId,
+                            billId: billId,
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature
+                        });
+                        setLoading(false);
+                        onSuccess(verifyRes.data?.data || verifyRes.data);
+                    } catch (vErr) {
+                        setLoading(false);
+                        setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment signature verification failed.' });
+                    }
+                },
+                modal: {
+                    ondismiss: () => {
+                        setLoading(false);
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', (resp) => {
+                setLoading(false);
+                setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+            });
+            rzp.open();
 
         } catch (err) {
             console.error('[DebitCardForm] Payment error:', err);
-            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment failed. Please try again.' });
+            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment initiation failed. Please try again.' });
             setLoading(false);
         }
     };
@@ -349,90 +337,35 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId, us
         setErrors({});
 
         try {
+            const isRzpLoaded = await loadRazorpayScript();
+            if (!isRzpLoaded || !window.Razorpay) {
+                setLoading(false);
+                setErrors({ submit: 'Razorpay SDK could not be loaded. Please check your connection and try again.' });
+                return;
+            }
+
             if (isBooking) {
-                const isRzpLoaded = await loadRazorpayScript();
                 const orderRes = await bookingService.createRazorpayOrder({
                     propertyId: propertyId || bookingData?.propertyId,
                     bookingId: bookingData?.bookingId
                 });
                 const order = orderRes.data?.data || orderRes.data;
 
-                if (isRzpLoaded && window.Razorpay && order?.keyId && !order.keyId.includes('placeholder') && !String(order.razorpayOrderId).startsWith('order_sim_')) {
-                    const options = {
-                        key: order.keyId,
-                        amount: order.amount,
-                        currency: order.currency || 'INR',
-                        name: 'Tenant Management System',
-                        description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
-                        order_id: order.razorpayOrderId,
-                        prefill: {
-                            name: `${user?.firstName || ''} ${user?.lastName || ''}`,
-                            email: user?.email || '',
-                            contact: user?.phone || '',
-                            vpa: upiId
-                        },
-                        theme: { color: '#7c3aed' },
-                        handler: async function (response) {
-                            try {
-                                await bookingService.verifyRazorpayPayment({
-                                    bookingId: bookingData?.bookingId || order.bookingId,
-                                    propertyId: propertyId,
-                                    razorpayOrderId: response.razorpay_order_id,
-                                    razorpayPaymentId: response.razorpay_payment_id,
-                                    razorpaySignature: response.razorpay_signature
-                                });
-                                setLoading(false);
-                                onSuccess();
-                            } catch (vErr) {
-                                setLoading(false);
-                                setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
-                            }
-                        },
-                        modal: { ondismiss: () => setLoading(false) }
-                    };
-                    const rzp = new window.Razorpay(options);
-                    rzp.on('payment.failed', (resp) => {
-                        setLoading(false);
-                        setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
-                    });
-                    rzp.open();
+                if (!order?.keyId || !order?.razorpayOrderId) {
+                    setLoading(false);
+                    setErrors({ submit: 'Failed to create booking payment order. Please try again.' });
                     return;
                 }
 
-                await bookingService.processMockPayment({
-                    propertyId: propertyId,
-                    amount: amount,
-                    method: 'upi',
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    billId: billId,
-                    leaseId: leaseId,
-                });
-                setTimeout(() => {
-                    setLoading(false);
-                    onSuccess();
-                }, 1000);
-                return;
-            }
-
-            // Rent Payment via Razorpay
-            const isRzpLoaded = await loadRazorpayScript();
-            const orderRes = await paymentService.createRentOrder({
-                leaseId: leaseId,
-                billId: billId
-            });
-            const orderData = orderRes.data?.data || orderRes.data;
-
-            if (isRzpLoaded && window.Razorpay && orderData?.keyId && !orderData.keyId.includes('placeholder') && !String(orderData.orderId).startsWith('order_sim_')) {
                 const options = {
-                    key: orderData.keyId,
-                    amount: orderData.amount,
-                    currency: orderData.currency || 'INR',
+                    key: order.keyId,
+                    amount: order.amount,
+                    currency: order.currency || 'INR',
                     name: 'Tenant Management System',
-                    description: `Rent Payment (UPI) — Lease #${String(leaseId).slice(-6)}`,
-                    order_id: orderData.orderId,
+                    description: `Security Deposit for ${bookingData?.propertyName || 'Property'}`,
+                    order_id: order.razorpayOrderId,
                     prefill: {
-                        name: `${user?.firstName || ''} ${user?.lastName || ''}`,
+                        name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
                         email: user?.email || '',
                         contact: user?.phone || '',
                         vpa: upiId
@@ -440,48 +373,94 @@ function UpiForm({ amount, paymentId, onSuccess, propertyId, billId, leaseId, us
                     theme: { color: '#7c3aed' },
                     handler: async function (response) {
                         try {
-                            const verifyRes = await paymentService.verifyRazorpayPayment({
-                                leaseId: leaseId,
-                                billId: billId,
+                            await bookingService.verifyRazorpayPayment({
+                                bookingId: bookingData?.bookingId || order.bookingId,
+                                propertyId: propertyId,
                                 razorpayOrderId: response.razorpay_order_id,
                                 razorpayPaymentId: response.razorpay_payment_id,
                                 razorpaySignature: response.razorpay_signature
                             });
                             setLoading(false);
-                            onSuccess(verifyRes.data?.data || verifyRes.data);
+                            onSuccess();
                         } catch (vErr) {
                             setLoading(false);
                             setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
                         }
                     },
-                    modal: { ondismiss: () => setLoading(false) }
+                    modal: {
+                        ondismiss: () => {
+                            setLoading(false);
+                        }
+                    }
                 };
                 const rzp = new window.Razorpay(options);
                 rzp.on('payment.failed', (resp) => {
                     setLoading(false);
-                    setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+                    setErrors({ submit: resp.error?.description || 'Payment failed in Razorpay.' });
                 });
                 rzp.open();
                 return;
             }
 
-            // Fallback for simulation
-            const verifyRes = await paymentService.verifyRazorpayPayment({
+            // Rent Payment via Razorpay
+            const orderRes = await paymentService.createRentOrder({
                 leaseId: leaseId,
-                billId: billId,
-                razorpayOrderId: orderData?.orderId || `order_sim_${Date.now()}`,
-                razorpayPaymentId: `pay_sim_${Date.now()}`,
-                razorpaySignature: 'sig_sim_valid'
+                billId: billId
             });
+            const orderData = orderRes.data?.data || orderRes.data;
 
-            setTimeout(() => {
+            if (!orderData?.keyId || !orderData?.orderId) {
                 setLoading(false);
-                onSuccess(verifyRes.data?.data || verifyRes.data);
-            }, 900);
+                setErrors({ submit: 'Failed to generate Razorpay payment order from server.' });
+                return;
+            }
+
+            const options = {
+                key: orderData.keyId,
+                amount: orderData.amount,
+                currency: orderData.currency || 'INR',
+                name: 'Tenant Management System',
+                description: `Rent Payment (UPI) — Lease #${String(leaseId).slice(-6)}`,
+                order_id: orderData.orderId,
+                prefill: {
+                    name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+                    email: user?.email || '',
+                    contact: user?.phone || '',
+                    vpa: upiId
+                },
+                theme: { color: '#7c3aed' },
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await paymentService.verifyRazorpayPayment({
+                            leaseId: leaseId,
+                            billId: billId,
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature
+                        });
+                        setLoading(false);
+                        onSuccess(verifyRes.data?.data || verifyRes.data);
+                    } catch (vErr) {
+                        setLoading(false);
+                        setErrors({ submit: vErr.response?.data?.message || vErr.message || 'Payment verification failed.' });
+                    }
+                },
+                modal: {
+                    ondismiss: () => {
+                        setLoading(false);
+                    }
+                }
+            };
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', (resp) => {
+                setLoading(false);
+                setErrors({ submit: resp.error?.description || 'Payment was unsuccessful. Please try again.' });
+            });
+            rzp.open();
 
         } catch (err) {
             console.error('[UpiForm] Payment error:', err);
-            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment failed. Please try again.' });
+            setErrors({ submit: err?.response?.data?.message || err?.message || 'Payment initiation failed. Please try again.' });
             setLoading(false);
         }
     };

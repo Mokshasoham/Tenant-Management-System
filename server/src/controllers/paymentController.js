@@ -662,46 +662,41 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
   const totalDue = breakdown.totalPayable;
   const amountInPaise = Math.round(totalDue * 100);
 
-  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const isRazorpayConfigured = Boolean(keyId && keySecret && !keyId.includes('placeholder'));
+  const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
   let razorpayOrderId = null;
 
-  if (isRazorpayConfigured) {
-    try {
-      const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
-      const order = await rzp.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: `rcpt_rent_${String(targetLease._id).slice(-8)}_${Date.now()}`,
-        notes: {
-          leaseId: String(targetLease._id),
-          propertyId: String(targetLease.property?._id || targetLease.property),
-          tenantId: String(targetLease.tenant?._id || targetLease.tenant),
-          monthlyRent: String(rentAmount),
-          lateFee: String(lateFee),
-          daysOverdue: String(daysOverdue),
-          platformFee: String(breakdown.platformFee),
-          totalDue: String(totalDue)
-        }
-      });
-      razorpayOrderId = order.id;
-      logger.info(`[Razorpay Rent] Created order ${razorpayOrderId} for amount ${amountInPaise} paise`);
-    } catch (rzpErr) {
-      logger.error(`[Razorpay Rent] API order creation failed: ${rzpErr.message}`);
-      throw new AppError(`Razorpay API order creation failed: ${rzpErr.message}`, 400);
-    }
-  } else {
-    razorpayOrderId = `order_sim_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-    logger.info(`[Razorpay Rent] Simulated order generated: ${razorpayOrderId}`);
+  try {
+    const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    const order = await rzp.orders.create({
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: `rcpt_rent_${String(targetLease._id).slice(-8)}_${Date.now()}`,
+      notes: {
+        leaseId: String(targetLease._id),
+        propertyId: String(targetLease.property?._id || targetLease.property),
+        tenantId: String(targetLease.tenant?._id || targetLease.tenant),
+        monthlyRent: String(rentAmount),
+        lateFee: String(lateFee),
+        daysOverdue: String(daysOverdue),
+        platformFee: String(breakdown.platformFee),
+        totalDue: String(totalDue)
+      }
+    });
+    razorpayOrderId = order.id;
+    logger.info(`[Razorpay Rent] Created order ${razorpayOrderId} for amount ${amountInPaise} paise`);
+  } catch (rzpErr) {
+    const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
+    logger.error(`[Razorpay Rent] API order creation failed: ${errMsg}`);
+    throw new AppError(`Razorpay API order creation failed: ${errMsg}`, 400);
   }
 
   res.status(201).json({
     success: true,
     data: {
       orderId: razorpayOrderId,
-      keyId: isRazorpayConfigured ? keyId : 'rzp_test_placeholder',
+      keyId: keyId,
       amount: amountInPaise,
       currency: 'INR',
       leaseId: targetLease._id,
@@ -732,13 +727,26 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
 
   let targetLease = null;
   if (leaseId) {
-    targetLease = await Lease.findById(leaseId).populate('property tenant');
+    if (mongoose.Types.ObjectId.isValid(leaseId)) {
+      targetLease = await Lease.findById(leaseId).populate('property tenant');
+    }
+    if (!targetLease) {
+      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
   } else if (billId) {
-    const bill = await Bill.findById(billId).populate('lease property tenant');
+    let bill = null;
+    if (mongoose.Types.ObjectId.isValid(billId)) {
+      bill = await Bill.findById(billId).populate('lease property tenant');
+    }
+    if (!bill) {
+      bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
+    }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
     }
-  } else {
+  }
+
+  if (!targetLease) {
     targetLease = await Lease.findOne({
       tenant: { $in: tenantIds },
       status: { $in: ['active', 'pending'] }
@@ -746,25 +754,29 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
   }
 
   if (!targetLease) {
+    targetLease = await Lease.findOne({
+      tenant: { $in: tenantIds }
+    }).sort({ createdAt: -1 }).populate('property tenant');
+  }
+
+  if (!targetLease) {
     throw new AppError('Lease not found for payment verification', 404);
   }
 
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const isMockOrder = String(razorpayOrderId).startsWith('order_sim_') || String(razorpayPaymentId).startsWith('pay_sim_');
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
 
-  // Verify HMAC signature for live payments
-  if (!isMockOrder && keySecret && !keySecret.includes('placeholder')) {
-    if (!razorpaySignature || !razorpayOrderId || !razorpayPaymentId) {
-      throw new AppError('Missing Razorpay verification parameters', 400);
-    }
-    const hmac = crypto.createHmac('sha256', keySecret);
-    hmac.update(`${razorpayOrderId}|${razorpayPaymentId}`);
-    const generatedSignature = hmac.digest('hex');
+  // Strict HMAC SHA-256 signature verification
+  if (!razorpaySignature || !razorpayOrderId || !razorpayPaymentId) {
+    throw new AppError('Missing Razorpay verification parameters (signature, orderId, paymentId)', 400);
+  }
 
-    if (generatedSignature !== razorpaySignature) {
-      logger.error(`[Razorpay Rent] Signature mismatch for order ${razorpayOrderId}`);
-      throw new AppError('Payment signature verification failed', 400);
-    }
+  const hmac = crypto.createHmac('sha256', keySecret);
+  hmac.update(`${razorpayOrderId}|${razorpayPaymentId}`);
+  const generatedSignature = hmac.digest('hex');
+
+  if (generatedSignature !== razorpaySignature) {
+    logger.error(`[Razorpay Rent] Signature mismatch for order ${razorpayOrderId}. Expected ${generatedSignature}, got ${razorpaySignature}`);
+    throw new AppError('Payment signature verification failed. Invalid transaction signature.', 400);
   }
 
   // Recalculate authoritative server amounts
