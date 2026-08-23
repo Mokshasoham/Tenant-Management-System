@@ -226,7 +226,6 @@ export class MaintenanceReportService {
     };
   }
 }
-}
 
 const maintenanceReportServiceSingleton = new MaintenanceReportService();
 export default maintenanceReportServiceSingleton;

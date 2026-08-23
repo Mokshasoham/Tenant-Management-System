@@ -253,7 +253,6 @@ export const getPaymentById = asyncHandler(async (req, res) => {
     data: resolveInvoiceUrl(payment, req),
   });
 });
-});
 
 export const getPaymentInvoice = asyncHandler(async (req, res) => {
   const { id } = req.params;

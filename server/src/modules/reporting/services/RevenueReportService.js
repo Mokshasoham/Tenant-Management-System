@@ -6,9 +6,10 @@
 
 import Payment from '../../../models/Payment.js';
 import ReportResponseBuilder from '../builders/ReportResponseBuilder.js';
+import { getManagerPropertyIds } from '../../../utils/managerHelper.js';
 
 export class RevenueReportService {
-  async generate(filters = {}) {
+  async generate(filters = {}, userId = null, role = null) {
     const builder = new ReportResponseBuilder('revenue');
     const months = parseInt(filters.months || '12', 10);
 
@@ -19,7 +20,24 @@ export class RevenueReportService {
       status: 'paid',
       paymentDate: { $exists: true, $ne: null, $gte: since }
     };
-    if (filters.propertyId) matchQuery.property = filters.propertyId;
+
+    if (role === 'manager' && userId) {
+      const propIds = await getManagerPropertyIds(userId);
+      if (propIds.length === 0) {
+        builder
+          .setSummary({ totalRevenue: 0, transactionCount: 0, monthsAnalyzed: months })
+          .addKPI('total_revenue', 'Total Collected Revenue', '₹0', '', 'positive')
+          .addKPI('transaction_count', 'Total Payments Processed', 0, '', 'neutral')
+          .addChart('area', 'Revenue Over Time', [], { x: 'month', y: 'revenue' })
+          .setTable(['Month', 'Total Revenue (₹)', 'Transactions'], [])
+          .setTrends([])
+          .setMeta({ filters });
+        return builder.build();
+      }
+      matchQuery.property = { $in: propIds };
+    } else if (filters.propertyId) {
+      matchQuery.property = filters.propertyId;
+    }
 
     const [revenueData, totalStats] = await Promise.all([
       Payment.aggregate([
@@ -59,12 +77,12 @@ export class RevenueReportService {
 
     builder
       .setSummary({ totalRevenue: totalRev, transactionCount: totalCount, monthsAnalyzed: months })
-      .addKPI('total_revenue', 'Total Collected Revenue', `$${totalRev.toLocaleString()}`, '', 'positive')
+      .addKPI('total_revenue', 'Total Collected Revenue', `₹${totalRev.toLocaleString('en-IN')}`, '', 'positive')
       .addKPI('transaction_count', 'Total Payments Processed', totalCount, '', 'neutral')
       .addChart('area', 'Revenue Over Time', formattedData, { x: 'month', y: 'revenue' })
       .setTable(
-        ['Month', 'Total Revenue ($)', 'Transactions'],
-        formattedData.map(d => [d.month, `$${d.revenue.toLocaleString()}`, d.count])
+        ['Month', 'Total Revenue (₹)', 'Transactions'],
+        formattedData.map(d => [d.month, `₹${d.revenue.toLocaleString('en-IN')}`, d.count])
       )
       .setTrends(formattedData)
       .setMeta({ filters });

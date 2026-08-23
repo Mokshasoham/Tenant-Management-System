@@ -8,14 +8,19 @@ import Notification from '../../../models/Notification.js';
 import ReportResponseBuilder from '../builders/ReportResponseBuilder.js';
 
 export class NotificationReportService {
-  async generate(filters = {}) {
+  async generate(filters = {}, userId = null, role = null) {
     const builder = new ReportResponseBuilder('notification');
+    let queryFilter = {};
+
+    if (role === 'manager' && userId) {
+      queryFilter.recipient = userId;
+    }
 
     const [totalNotifications, unreadCount, readCount, recentNotifications] = await Promise.all([
-      Notification.countDocuments(),
-      Notification.countDocuments({ isRead: false }),
-      Notification.countDocuments({ isRead: true }),
-      Notification.find().sort({ createdAt: -1 }).limit(50).lean()
+      Notification.countDocuments(queryFilter),
+      Notification.countDocuments({ ...queryFilter, isRead: false }),
+      Notification.countDocuments({ ...queryFilter, isRead: true }),
+      Notification.find(queryFilter).sort({ createdAt: -1 }).limit(50).lean()
     ]);
 
     const readRate = totalNotifications > 0 ? Math.round((readCount / totalNotifications) * 100) : 0;

@@ -1,13 +1,10 @@
-/**
- * server/src/controllers/workforceSchedulingController.js
- * Controller for Workforce Scheduling, Auto-Assignment & Dispatch Board endpoints.
- */
-
 import workforceSchedulingService from '../services/workforceSchedulingService.js';
 import { asyncHandler } from '../utils/errorHandling.js';
+import { getAuthenticatedUserId } from '../utils/managerHelper.js';
 
 export const getScheduleCalendar = asyncHandler(async (req, res) => {
-  const calendar = await workforceSchedulingService.getScheduleCalendar(req.query);
+  const userId = getAuthenticatedUserId(req);
+  const calendar = await workforceSchedulingService.getScheduleCalendar(req.query, userId, req.user?.role);
   res.status(200).json({
     success: true,
     data: calendar
@@ -15,7 +12,8 @@ export const getScheduleCalendar = asyncHandler(async (req, res) => {
 });
 
 export const createShift = asyncHandler(async (req, res) => {
-  const shift = await workforceSchedulingService.createShift(req.body);
+  const userId = getAuthenticatedUserId(req);
+  const shift = await workforceSchedulingService.createShift(req.body, userId, req.user?.role);
   res.status(201).json({
     success: true,
     message: 'Shift created successfully',
@@ -34,7 +32,8 @@ export const detectConflicts = asyncHandler(async (req, res) => {
 
 export const autoSuggestTechnician = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
-  const suggestions = await workforceSchedulingService.autoSuggestTechnician(ticketId);
+  const userId = getAuthenticatedUserId(req);
+  const suggestions = await workforceSchedulingService.autoSuggestTechnician(ticketId, userId, req.user?.role);
   res.status(200).json({
     success: true,
     data: suggestions

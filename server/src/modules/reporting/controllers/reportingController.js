@@ -28,7 +28,8 @@ export const generateReport = asyncHandler(async (req, res) => {
   }
 
   const userId = getUserId(req);
-  const report = await reportService.generateReport(reportType, filters, userId, format);
+  const userRole = req.user?.role || null;
+  const report = await reportService.generateReport(reportType, filters, userId, userRole, format);
 
   res.status(200).json(report);
 });
@@ -48,10 +49,11 @@ export const exportReportSync = asyncHandler(async (req, res) => {
   }
 
   const userId = getUserId(req);
+  const userRole = req.user?.role || null;
   const ipAddress = req.ip || req.socket.remoteAddress;
 
   // 1. Generate Report DTO
-  const reportDTO = await reportService.generateReport(reportType, filters, userId, 'json');
+  const reportDTO = await reportService.generateReport(reportType, filters, userId, userRole, 'json');
 
   // 2. Export via ExportManager facade
   const result = await exportManager.export(format, reportDTO, {

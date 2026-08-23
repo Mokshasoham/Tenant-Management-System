@@ -1,8 +1,4 @@
-/**
- * server/src/services/workforceSchedulingService.js
- * Service layer for Workforce Scheduling, Auto-Assignment Engine, Conflict Detection & Calendar Management.
- */
-
+import mongoose from 'mongoose';
 import workforceSchedulingRepository from '../repositories/workforceSchedulingRepository.js';
 import technicianService from './technicianService.js';
 import Maintenance from '../models/Maintenance.js';
@@ -12,8 +8,22 @@ import NotificationService from './NotificationService.js';
 import { AppError } from '../utils/errorHandling.js';
 
 export class WorkforceSchedulingService {
-  async getScheduleCalendar(query = {}) {
+  async getScheduleCalendar(query = {}, userId = null, role = null) {
     const { startDate = new Date(Date.now() - 7 * 86400000), endDate = new Date(Date.now() + 30 * 86400000), technicianId } = query;
+    if (role === 'manager' && userId && !technicianId) {
+      const isValid = mongoose.Types.ObjectId.isValid(String(userId));
+      const managerIds = [userId, isValid ? new mongoose.Types.ObjectId(String(userId)) : null].filter(Boolean);
+      const managerTechs = await User.find({
+        role: 'technician',
+        $or: [
+          { 'technicianProfile.managerId': { $in: managerIds } },
+          { 'technicianProfile.createdBy': { $in: managerIds } }
+        ]
+      }).select('_id');
+      const techIds = managerTechs.map(t => t._id);
+      if (techIds.length === 0) return [];
+      return await workforceSchedulingRepository.findByRange(startDate, endDate, { $in: techIds });
+    }
     return await workforceSchedulingRepository.findByRange(startDate, endDate, technicianId);
   }
 
@@ -49,14 +59,25 @@ export class WorkforceSchedulingService {
     };
   }
 
-  async autoSuggestTechnician(ticketId) {
+  async autoSuggestTechnician(ticketId, userId = null, role = null) {
     const ticket = await Maintenance.findById(ticketId);
     if (!ticket) throw new AppError('Ticket not found', 404);
 
-    const availableTechs = await User.find({
+    const techQuery = {
       role: 'technician',
       'technicianProfile.employmentStatus': 'active'
-    });
+    };
+
+    if (role === 'manager' && userId) {
+      const isValid = mongoose.Types.ObjectId.isValid(String(userId));
+      const managerIds = [userId, isValid ? new mongoose.Types.ObjectId(String(userId)) : null].filter(Boolean);
+      techQuery.$or = [
+        { 'technicianProfile.managerId': { $in: managerIds } },
+        { 'technicianProfile.createdBy': { $in: managerIds } }
+      ];
+    }
+
+    const availableTechs = await User.find(techQuery);
 
     const scored = await Promise.all(availableTechs.map(async (tech) => {
       const workload = await technicianService.getTechnicianWorkload(tech._id);

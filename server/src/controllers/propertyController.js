@@ -112,6 +112,10 @@ export const getAllProperties = asyncHandler(async (req, res) => {
       filter.status = { $in: ['available', 'occupied', 'rented'] };
     }
   }
+
+  if (minPrice || maxPrice) {
+    filter.rentAmount = {};
+    if (minPrice) filter.rentAmount.$gte = Number(minPrice);
     if (maxPrice) filter.rentAmount.$lte = Number(maxPrice);
   }
 

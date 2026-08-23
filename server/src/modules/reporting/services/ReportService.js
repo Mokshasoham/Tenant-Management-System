@@ -34,7 +34,7 @@ export class ReportService {
   /**
    * Generates a report by delegating to the appropriate domain report service and logging audit execution.
    */
-  async generateReport(reportType, filters = {}, userId = null, exportFormat = 'json') {
+  async generateReport(reportType, filters = {}, userId = null, role = null, exportFormat = 'json') {
     const startTime = Date.now();
     const service = this.services[reportType];
 
@@ -43,7 +43,7 @@ export class ReportService {
     }
 
     try {
-      const result = await service.generate(filters);
+      const result = await service.generate(filters, userId, role);
       const executionTimeMs = Date.now() - startTime;
 
       // Asynchronously record report audit if userId provided

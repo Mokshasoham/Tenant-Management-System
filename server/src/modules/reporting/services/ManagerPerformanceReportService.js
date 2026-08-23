@@ -10,16 +10,21 @@ import Maintenance from '../../../models/Maintenance.js';
 import ReportResponseBuilder from '../builders/ReportResponseBuilder.js';
 
 export class ManagerPerformanceReportService {
-  async generate(filters = {}) {
+  async generate(filters = {}, userId = null, role = null) {
     const builder = new ReportResponseBuilder('manager_performance');
 
-    const managers = await User.find({ role: 'manager' }).lean();
+    let managerQuery = { role: 'manager' };
+    if (role === 'manager' && userId) {
+      managerQuery._id = userId;
+    }
+
+    const managers = await User.find(managerQuery).lean();
     const managerCount = managers.length;
 
     const managerStats = await Promise.all(
       managers.map(async (m) => {
         const [assignedProperties, openTickets] = await Promise.all([
-          Property.countDocuments({ manager: m._id }),
+          Property.countDocuments({ $or: [{ manager: m._id }, { owner: m._id }] }),
           Maintenance.countDocuments({ assignedTo: m._id, status: { $in: ['open', 'in_progress'] } })
         ]);
         return {

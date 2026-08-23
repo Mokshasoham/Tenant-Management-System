@@ -3,6 +3,7 @@
  * Service layer for Technician & Workforce Management.
  */
 
+import mongoose from 'mongoose';
 import technicianRepository from '../repositories/technicianRepository.js';
 import Maintenance from '../models/Maintenance.js';
 import eventBus from '../platform/events/eventBus.js';
@@ -44,7 +45,14 @@ export class TechnicianService {
     }
 
     if (managerId) {
-      andConditions.push({ 'technicianProfile.managerId': managerId });
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(String(managerId));
+      const managerIds = [managerId, isValidObjectId ? new mongoose.Types.ObjectId(String(managerId)) : null].filter(Boolean);
+      andConditions.push({
+        $or: [
+          { 'technicianProfile.managerId': { $in: managerIds } },
+          { 'technicianProfile.createdBy': { $in: managerIds } }
+        ]
+      });
     }
 
     const filter = andConditions.length > 0 ? { $and: andConditions } : {};

@@ -8,14 +8,20 @@ import ReportAudit from '../models/ReportAudit.js';
 import ReportResponseBuilder from '../builders/ReportResponseBuilder.js';
 
 export class AuditReportService {
-  async generate(filters = {}) {
+  async generate(filters = {}, userId = null, role = null) {
     const builder = new ReportResponseBuilder('audit_log');
     const limit = parseInt(filters.limit || '50', 10);
+    let queryFilter = {};
+
+    if (role === 'manager' && userId) {
+      queryFilter.requestedBy = userId;
+    }
 
     const [totalAudits, recentAudits, formatBreakdown] = await Promise.all([
-      ReportAudit.countDocuments(),
-      ReportAudit.find().sort({ createdAt: -1 }).limit(limit).lean(),
+      ReportAudit.countDocuments(queryFilter),
+      ReportAudit.find(queryFilter).sort({ createdAt: -1 }).limit(limit).lean(),
       ReportAudit.aggregate([
+        ...(Object.keys(queryFilter).length > 0 ? [{ $match: queryFilter }] : []),
         { $group: { _id: '$exportFormat', count: { $sum: 1 } } }
       ])
     ]);
