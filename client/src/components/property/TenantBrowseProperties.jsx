@@ -758,4 +758,5 @@ export function TenantBrowseProperties() {
     );
 }
 
+export { GridCard, SkeletonCard, CompactCard };
 export default TenantBrowseProperties;
