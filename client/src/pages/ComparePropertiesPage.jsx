@@ -36,12 +36,32 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Read compareList from navigation state, fallback to props, then fallback to empty array
-    const initialList = location.state?.compareList || compareList || [];
-    const [selected, setSelected] = useState(initialList);
+    // Read compareList from navigation state, fallback to localStorage, then fallback to props
+    const [selected, setSelected] = useState(() => {
+        if (location.state?.compareList && Array.isArray(location.state.compareList) && location.state.compareList.length > 0) {
+            try {
+                localStorage.setItem('tms_compare_properties', JSON.stringify(location.state.compareList));
+            } catch (e) {}
+            return location.state.compareList;
+        }
+        try {
+            const saved = localStorage.getItem('tms_compare_properties');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+        return compareList || [];
+    });
 
     const remove = (id) => {
-        setSelected(prev => prev.filter(p => p._id !== id));
+        setSelected(prev => {
+            const updated = prev.filter(p => p._id !== id);
+            try {
+                localStorage.setItem('tms_compare_properties', JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+        });
         if (onRemove) onRemove(id);
     };
 
