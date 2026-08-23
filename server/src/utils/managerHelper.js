@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Property from '../models/Property.js';
 
 /**
@@ -14,20 +15,36 @@ export const getAuthenticatedUserId = (req) => {
  */
 export const getManagerPropertyIds = async (managerId) => {
   if (!managerId) return [];
+  const isValidOid = mongoose.Types.ObjectId.isValid(String(managerId));
+  const managerIds = [managerId, isValidOid ? new mongoose.Types.ObjectId(String(managerId)) : null].filter(Boolean);
+  
   const properties = await Property.find({
-    $or: [{ owner: managerId }, { manager: managerId }]
+    $or: [
+      { owner: { $in: managerIds } },
+      { manager: { $in: managerIds } },
+      { createdBy: { $in: managerIds } }
+    ]
   }).select('_id');
+  
   return properties.map(p => p._id);
 };
 
 /**
- * Checks if a property belongs to the specified manager (as owner or manager)
+ * Checks if a property belongs to the specified manager (as owner, manager, or creator)
  */
 export const isManagerPropertyOwner = async (propertyId, managerId) => {
   if (!propertyId || !managerId) return false;
+  const isValidOid = mongoose.Types.ObjectId.isValid(String(managerId));
+  const managerIds = [managerId, isValidOid ? new mongoose.Types.ObjectId(String(managerId)) : null].filter(Boolean);
+  
   const property = await Property.findOne({
     _id: propertyId,
-    $or: [{ owner: managerId }, { manager: managerId }]
+    $or: [
+      { owner: { $in: managerIds } },
+      { manager: { $in: managerIds } },
+      { createdBy: { $in: managerIds } }
+    ]
   }).select('_id');
+  
   return !!property;
 };

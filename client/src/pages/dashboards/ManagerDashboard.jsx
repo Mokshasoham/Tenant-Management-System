@@ -11,6 +11,7 @@ import { bookingService, visitService, maintenanceService, analyticsService, tec
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
+import useAuthStore from '../../context/authStore';
 
 function useCounter(end, duration = 2000) {
     const [count, setCount] = useState(0);
@@ -122,6 +123,9 @@ function ManagerStatCard({ card }) {
 }
 
 export default function ManagerDashboard({ stats, loading, navigate }) {
+    const user = useAuthStore((state) => state.user);
+    const currentUserId = user?.userId || user?._id || user?.id;
+
     const [view, setView] = useState('overview');
     const [bookings, setBookings] = useState([]);
     const [bookingLoading, setBookingLoading] = useState(true);
@@ -144,6 +148,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [reschedSlot, setReschedSlot] = useState('10:00 AM - 11:00 AM');
 
     useEffect(() => {
+        if (!currentUserId) return;
+
         const fetchBookings = async () => {
             try {
                 const res = await bookingService.getManagerBookings();
@@ -214,7 +220,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         fetchRenewals();
         fetchMaintenance();
         fetchRevenue();
-    }, []);
+    }, [currentUserId]);
 
     const handleUpdateBooking = async (id, status, reason = '') => {
         try {

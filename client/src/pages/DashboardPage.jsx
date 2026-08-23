@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { userService, tenantService, propertyService, leaseService, paymentService, billService } from '../services/api';
+import { userService, tenantService, propertyService, leaseService, paymentService, billService, analyticsService } from '../services/api';
 import useAuthStore from '../context/authStore';
 import AdminDashboard from './dashboards/AdminDashboard';
 import ManagerDashboard from './dashboards/ManagerDashboard';
@@ -10,6 +10,7 @@ import TechnicianDashboard from './dashboards/TechnicianDashboard';
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const currentUserId = user?.userId || user?._id || user?.id;
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalTenants: 0,
@@ -19,22 +20,64 @@ export default function DashboardPage() {
     availableProperties: 0,
     occupiedProperties: 0,
     maintenanceProperties: 0,
+    totalRevenue: 0,
+    pendingPayments: 0,
+    bookingRequests: 0,
+    openMaintenance: 0,
+    occupancyRate: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!user) return;
       try {
         setLoading(true);
         const data = {};
 
         if (user?.role === 'admin') {
-          const userStats = await userService.getDashboardStats();
-          data.totalUsers = userStats.data?.totalUsers || userStats.data?.data?.totalUsers || 0;
+          try {
+            const userStats = await userService.getDashboardStats();
+            data.totalUsers = userStats.data?.totalUsers || userStats.data?.data?.totalUsers || 0;
+          } catch (e) {
+            console.error('Failed to fetch user admin stats:', e);
+          }
         }
 
-        if (['admin', 'manager'].includes(user?.role)) {
-          const [tenantStats, propertyStats, leaseStats, paymentStats, billAnalyticsRes] = await Promise.all([
+        if (user?.role === 'manager') {
+          // Unified, single source of truth for manager dashboard portfolio metrics
+          try {
+            const summaryRes = await analyticsService.getSummary();
+            const summary = summaryRes?.data?.data || summaryRes?.data || {};
+
+            data.totalProperties = summary.totalProperties ?? summary.managedProperties ?? 0;
+            data.availableProperties = summary.availableProperties ?? 0;
+            data.occupiedProperties = summary.occupiedProperties ?? 0;
+            data.maintenanceProperties = summary.maintenanceProperties ?? 0;
+            data.totalTenants = summary.activeTenants ?? summary.totalTenants ?? 0;
+            data.totalLeases = summary.totalLeases ?? summary.activeLeases ?? 0;
+            data.totalPayments = summary.totalPayments ?? 0;
+            data.totalRevenue = summary.monthlyCollections ?? summary.totalRevenue ?? 0;
+            data.pendingPayments = summary.pendingPaymentsAmount ?? summary.pendingPayments ?? 0;
+            data.bookingRequests = summary.bookingRequests ?? 0;
+            data.openMaintenance = summary.openMaintenance ?? 0;
+            data.occupancyRate = summary.occupancyRate ?? 0;
+          } catch (sumErr) {
+            console.error('Failed to fetch manager summary stats:', sumErr);
+            // Fallback to propertyStats if summary endpoint fails
+            try {
+              const propRes = await propertyService.getPropertyStats();
+              const propData = propRes.data?.data || propRes.data || {};
+              data.totalProperties = propData.totalProperties || 0;
+              data.availableProperties = propData.availableProperties || 0;
+              data.occupiedProperties = propData.occupiedProperties || 0;
+              data.maintenanceProperties = propData.maintenanceProperties || 0;
+            } catch (pErr) {
+              console.error('Failed to fetch property stats fallback:', pErr);
+            }
+          }
+        } else if (user?.role === 'admin') {
+          const [tenantStats, propertyStats, leaseStats, paymentStats, billAnalyticsRes] = await Promise.allSettled([
             tenantService.getTenantStats(),
             propertyService.getPropertyStats(),
             leaseService.getLeaseStats(),
@@ -42,21 +85,24 @@ export default function DashboardPage() {
             billService.getBillAnalytics()
           ]);
 
-          const propData = propertyStats.data?.data || propertyStats.data || {};
-          const billData = billAnalyticsRes.data?.data || billAnalyticsRes.data || {};
+          const propData = propertyStats.status === 'fulfilled' ? (propertyStats.value.data?.data || propertyStats.value.data || {}) : {};
+          const billData = billAnalyticsRes.status === 'fulfilled' ? (billAnalyticsRes.value.data?.data || billAnalyticsRes.value.data || {}) : {};
+          const tenData = tenantStats.status === 'fulfilled' ? (tenantStats.value.data?.totalTenants || tenantStats.value.data?.data?.totalTenants || 0) : 0;
+          const leaseData = leaseStats.status === 'fulfilled' ? (leaseStats.value.data?.totalLeases || leaseStats.value.data?.data?.totalLeases || 0) : 0;
+          const payData = paymentStats.status === 'fulfilled' ? (paymentStats.value.data?.totalPayments || paymentStats.value.data?.data?.totalPayments || 0) : 0;
 
-          data.totalTenants = tenantStats.data?.totalTenants || tenantStats.data?.data?.totalTenants || 0;
+          data.totalTenants = tenData;
           data.totalProperties = propData.totalProperties || 0;
           data.availableProperties = propData.availableProperties || 0;
           data.occupiedProperties = propData.occupiedProperties || 0;
           data.maintenanceProperties = propData.maintenanceProperties || 0;
-          data.totalLeases = leaseStats.data?.totalLeases || leaseStats.data?.data?.totalLeases || 0;
-          data.totalPayments = paymentStats.data?.totalPayments || paymentStats.data?.data?.totalPayments || 0;
+          data.totalLeases = leaseData;
+          data.totalPayments = payData;
           data.totalRevenue = billData.totalCollected || 0;
           data.pendingPayments = billData.outstandingAmount || 0;
         }
 
-        setStats(data);
+        setStats(prev => ({ ...prev, ...data }));
       } catch (error) {
         console.error('Failed to fetch stats:', error);
       } finally {
@@ -65,7 +111,7 @@ export default function DashboardPage() {
     };
 
     fetchStats();
-  }, [user?.role]);
+  }, [currentUserId, user?.role]);
 
   if (!user) {
     return (
@@ -93,5 +139,3 @@ export default function DashboardPage() {
       );
   }
 }
-
-

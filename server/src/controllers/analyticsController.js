@@ -3,6 +3,8 @@ import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';
 import Maintenance from '../models/Maintenance.js';
+import Booking from '../models/Booking.js';
+import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/errorHandling.js';
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
 
@@ -45,7 +47,8 @@ export const getOccupancyStats = asyncHandler(async (req, res) => {
     let filter = {};
 
     if (req.user?.role === 'manager') {
-        filter = { $or: [{ owner: userId }, { manager: userId }] };
+        const propIds = await getManagerPropertyIds(userId);
+        filter = { _id: { $in: propIds } };
     }
 
     const [total, occupied, available, maintenance] = await Promise.all([
@@ -113,6 +116,8 @@ export const getPaymentCollectionRate = asyncHandler(async (req, res) => {
 
 export const getSummaryStats = asyncHandler(async (req, res) => {
     const userId = getAuthenticatedUserId(req);
+    const isValidOid = mongoose.Types.ObjectId.isValid(String(userId));
+    const userIds = [userId, isValidOid ? new mongoose.Types.ObjectId(String(userId)) : null].filter(Boolean);
 
     if (req.user?.role === 'manager') {
         const propIds = await getManagerPropertyIds(userId);
@@ -120,55 +125,124 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
             return res.status(200).json({
                 success: true,
                 data: {
+                    managedProperties: 0,
                     totalProperties: 0,
+                    availableProperties: 0,
+                    occupiedProperties: 0,
+                    maintenanceProperties: 0,
+                    activeTenants: 0,
                     totalTenants: 0,
+                    bookingRequests: 0,
                     totalLeases: 0,
+                    activeLeases: 0,
                     totalPayments: 0,
                     paidPayments: 0,
-                    overduePayments: 0,
-                    openMaintenance: 0,
+                    pendingPayments: 0,
+                    pendingPaymentsAmount: 0,
+                    monthlyCollections: 0,
                     totalRevenue: 0,
+                    occupancyRate: 0,
+                    openMaintenance: 0,
                     maintenanceByCategory: [],
                 },
             });
         }
 
+        // 1. Property stats
         const [
-            totalTenants, totalLeases, totalPayments,
-            paidPayments, overduePayments, openMaintenance,
-            totalRevenue, maintenanceByCategory
+            totalProperties,
+            availableProperties,
+            occupiedProperties,
+            maintenanceProperties
         ] = await Promise.all([
-            Tenant.countDocuments({ managedBy: userId }),
-            Lease.countDocuments({ property: { $in: propIds }, status: 'active' }),
+            Property.countDocuments({ _id: { $in: propIds } }),
+            Property.countDocuments({ _id: { $in: propIds }, status: 'available' }),
+            Property.countDocuments({ _id: { $in: propIds }, status: 'occupied' }),
+            Property.countDocuments({ _id: { $in: propIds }, status: 'maintenance' })
+        ]);
+
+        // 2. Tenants count (via managedBy or Leases or Bookings on manager's properties)
+        const leasesOnProps = await Lease.find({ property: { $in: propIds } }).select('tenant status').lean();
+        const leaseTenantIds = leasesOnProps.map(l => l.tenant).filter(Boolean);
+        const bookingsOnProps = await Booking.find({ property: { $in: propIds } }).select('user status').lean();
+        const pendingBookingsCount = bookingsOnProps.filter(b => b.status === 'pending').length;
+
+        const tenantQuery = {
+            $or: [
+                { managedBy: { $in: userIds } },
+                { _id: { $in: leaseTenantIds } }
+            ]
+        };
+        const [totalTenants, activeTenants] = await Promise.all([
+            Tenant.countDocuments(tenantQuery),
+            Tenant.countDocuments({ ...tenantQuery, status: 'active' })
+        ]);
+
+        // 3. Leases
+        const activeLeases = leasesOnProps.filter(l => l.status === 'active' || l.status === 'signed').length;
+
+        // 4. Payments
+        const [
+            totalPayments,
+            paidPayments,
+            pendingPayments,
+            overduePayments,
+            revenueAgg,
+            pendingAmountAgg
+        ] = await Promise.all([
             Payment.countDocuments({ property: { $in: propIds } }),
             Payment.countDocuments({ property: { $in: propIds }, status: 'paid' }),
+            Payment.countDocuments({ property: { $in: propIds }, status: 'pending' }),
             Payment.countDocuments({ property: { $in: propIds }, status: 'overdue' }),
-            Maintenance.countDocuments({ property: { $in: propIds }, status: { $in: ['open', 'in_progress'] } }),
             Payment.aggregate([
                 { $match: { property: { $in: propIds }, status: 'paid' } },
                 { $group: { _id: null, total: { $sum: '$amountPaid' } } }
             ]),
+            Payment.aggregate([
+                { $match: { property: { $in: propIds }, status: { $in: ['pending', 'overdue'] } } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ])
+        ]);
+
+        // 5. Maintenance
+        const [openMaintenance, maintenanceByCategory] = await Promise.all([
+            Maintenance.countDocuments({ property: { $in: propIds }, status: { $in: ['open', 'in_progress'] } }),
             Maintenance.aggregate([
                 { $match: { property: { $in: propIds } } },
                 { $group: { _id: '$category', count: { $sum: 1 } } }
             ])
         ]);
 
+        const totalRevenue = revenueAgg[0]?.total || 0;
+        const pendingPaymentsAmount = pendingAmountAgg[0]?.total || 0;
+        const occupancyTotal = occupiedProperties + availableProperties;
+        const occupancyRate = occupancyTotal > 0 ? Math.round((occupiedProperties / occupancyTotal) * 100) : 0;
+
         return res.status(200).json({
             success: true,
             data: {
-                totalProperties: propIds.length,
+                managedProperties: totalProperties,
+                totalProperties,
+                availableProperties,
+                occupiedProperties,
+                maintenanceProperties,
+                activeTenants: activeTenants || totalTenants,
                 totalTenants,
-                totalLeases,
+                bookingRequests: pendingBookingsCount,
+                totalLeases: leasesOnProps.length,
+                activeLeases,
                 totalPayments,
                 paidPayments,
-                overduePayments,
+                pendingPayments: pendingPaymentsAmount || (pendingPayments + overduePayments),
+                pendingPaymentsAmount,
+                monthlyCollections: totalRevenue,
+                totalRevenue,
+                occupancyRate,
                 openMaintenance,
-                totalRevenue: totalRevenue[0]?.total || 0,
                 maintenanceByCategory: maintenanceByCategory.map(c => ({
                     category: c._id || 'other',
                     count: c.count
-                })),
+                }))
             },
         });
     }
@@ -195,14 +269,17 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: {
+            managedProperties: totalProperties,
             totalProperties,
             totalTenants,
+            activeTenants: totalTenants,
             totalLeases,
             totalPayments,
             paidPayments,
-            overduePayments,
+            pendingPayments: overduePayments,
             openMaintenance,
             totalRevenue: totalRevenue[0]?.total || 0,
+            monthlyCollections: totalRevenue[0]?.total || 0,
             maintenanceByCategory: maintenanceByCategory.map(c => ({
                 category: c._id || 'other',
                 count: c.count
