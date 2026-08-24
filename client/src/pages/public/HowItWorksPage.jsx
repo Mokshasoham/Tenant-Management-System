@@ -286,35 +286,6 @@ export default function HowItWorksPage() {
                             );
                         })}
                     </div>
-
-                    {/* Bottom CTA Box */}
-                    <div className="mt-16 p-8 sm:p-10 rounded-[2.5rem] bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 text-center space-y-4">
-                        <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-                            {journey === 'tenant' ? 'Ready to find your next home?' : 'Ready to streamline your property operations?'}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium max-w-lg mx-auto">
-                            {journey === 'tenant'
-                                ? 'Browse hundreds of verified properties and sign digital leases seamlessly.'
-                                : 'List your properties, screen tenants, and automate your entire rental workflow.'}
-                        </p>
-                        <div className="pt-2">
-                            {journey === 'tenant' ? (
-                                <button
-                                    onClick={() => navigate('/public/properties')}
-                                    className="px-8 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition-all"
-                                >
-                                    Browse Verified Properties →
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => navigate('/register')}
-                                    className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all"
-                                >
-                                    Start Managing Properties →
-                                </button>
-                            )}
-                        </div>
-                    </div>
                 </section>
 
                 <PublicFooter />

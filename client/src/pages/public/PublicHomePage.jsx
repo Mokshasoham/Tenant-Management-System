@@ -518,35 +518,6 @@ export default function PublicHomePage() {
                     </div>
                 </section>
 
-                {/* ══════════════════════════════════════════════════════
-                    6. FINAL CTA
-                ══════════════════════════════════════════════════════ */}
-                <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
-                    <div className="p-10 sm:p-14 rounded-[3rem] bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 text-white shadow-2xl space-y-6 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-radial-gradient from-white/10 via-transparent to-transparent pointer-events-none" />
-                        <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-                            Ready to transform the way you rent?
-                        </h2>
-                        <p className="text-emerald-100 text-sm sm:text-base max-w-xl mx-auto font-medium">
-                            Join thousands of verified tenants and property managers streamlining leases, payments, and maintenance today.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                            <button
-                                onClick={() => navigate('/public/properties')}
-                                className="px-8 py-4 rounded-2xl bg-white text-emerald-800 font-black text-xs uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-xl cursor-pointer"
-                            >
-                                Explore Properties →
-                            </button>
-                            <button
-                                onClick={() => navigate('/register')}
-                                className="px-8 py-4 rounded-2xl bg-emerald-950/40 hover:bg-emerald-950/60 border border-white/20 text-white font-black text-xs uppercase tracking-wider backdrop-blur-xl transition-all cursor-pointer"
-                            >
-                                Create Free Account
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
                 <PublicFooter />
             </div>
         </PageTransition>

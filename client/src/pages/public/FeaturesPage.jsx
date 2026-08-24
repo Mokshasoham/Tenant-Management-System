@@ -367,32 +367,6 @@ export default function FeaturesPage() {
                     </div>
                 </section>
 
-                {/* Final CTA */}
-                <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center pb-28">
-                    <div className="p-10 rounded-[3rem] bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20 space-y-6">
-                        <h3 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
-                            Experience the modern standard of rental management.
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium max-w-xl mx-auto">
-                            Start exploring verified rental properties or list your entire portfolio with zero upfront setup fees.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-center gap-4">
-                            <button
-                                onClick={() => navigate('/public/properties')}
-                                className="px-8 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition-all"
-                            >
-                                Browse Properties →
-                            </button>
-                            <button
-                                onClick={() => navigate('/register')}
-                                className="px-8 py-3.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-xs uppercase tracking-wider shadow-lg transition-all"
-                            >
-                                Get Started Free
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
                 <PublicFooter />
             </div>
         </PageTransition>

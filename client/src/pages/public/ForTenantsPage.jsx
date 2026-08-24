@@ -263,26 +263,6 @@ export default function ForTenantsPage() {
                     </div>
                 </section>
 
-                {/* Final CTA */}
-                <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center pb-28">
-                    <div className="p-10 rounded-[3rem] bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-2xl space-y-6">
-                        <h3 className="text-2xl sm:text-4xl font-black">
-                            Ready to find your verified dream home?
-                        </h3>
-                        <p className="text-emerald-100 text-xs sm:text-sm font-medium max-w-md mx-auto">
-                            Browse verified properties with transparent pricing and zero brokerage.
-                        </p>
-                        <div>
-                            <button
-                                onClick={() => navigate('/public/properties')}
-                                className="px-8 py-4 rounded-2xl bg-white text-emerald-800 font-black text-xs uppercase tracking-wider hover:bg-emerald-50 shadow-xl transition-all"
-                            >
-                                Explore Properties Now →
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
                 <PublicFooter />
             </div>
         </PageTransition>
