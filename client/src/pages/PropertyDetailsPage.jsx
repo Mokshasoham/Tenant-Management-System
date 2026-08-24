@@ -11,7 +11,7 @@ import {
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
     Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
-    Edit2, Trash2, Users, Wrench
+    Edit2, Trash2, Users, Wrench, Phone, Mail
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
@@ -1704,63 +1704,180 @@ export default function PropertyDetailsPage() {
                                     </p>
                                 </div>
 
-                        {/* Manager Profile */}
-                        <div className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-6">
+                        {/* ═══════════════════════════════════════════════════════════
+                            PREMIUM PROPERTY MANAGER CONTACT & RELATIONSHIP SECTION
+                            ═══════════════════════════════════════════════════════════ */}
+                        <div className="p-7 sm:p-8 rounded-[2.25rem] bg-card border border-border shadow-lg space-y-6">
+                            {/* Card Header Tag */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-primary flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                    Property Manager
+                                </span>
+                                {property.manager?.firstName ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                                        <ShieldCheck className="w-3 h-3" /> Assigned Manager
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
+                                        Unassigned
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Manager Profile Row */}
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center text-2xl font-black text-white shadow-lg">
-                                    {property.manager?.firstName?.[0] || '?'}
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-black text-foreground">
-                                        {property.manager?.firstName 
-                                            ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim() 
+                                {property.manager?.avatar ? (
+                                    <img
+                                        src={property.manager.avatar}
+                                        alt={property.manager.firstName || 'Manager'}
+                                        className="w-14 h-14 rounded-2xl object-cover border border-border shadow-md"
+                                    />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 dark:from-emerald-500 dark:to-cyan-600 flex items-center justify-center text-xl font-black text-white shadow-lg shadow-emerald-500/20">
+                                        {property.manager?.firstName
+                                            ? `${property.manager.firstName[0]}${property.manager?.lastName?.[0] || ''}`.toUpperCase()
+                                            : '?'}
+                                    </div>
+                                )}
+                                <div className="space-y-0.5 min-w-0 flex-1">
+                                    <h3 className="text-base sm:text-lg font-black text-foreground truncate">
+                                        {property.manager?.firstName
+                                            ? `${property.manager.firstName} ${property.manager?.lastName || ''}`.trim()
                                             : 'Manager not assigned'}
                                     </h3>
-                                    {property.manager?.firstName ? (
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
-                                            <Shield className="w-3 h-3" /> VERIFIED MANAGER
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-muted border border-border text-muted-foreground text-[10px] font-black w-fit mt-1 uppercase tracking-widest">
-                                            UNASSIGNED
-                                        </div>
-                                    )}
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                        {property.manager?.firstName ? 'Dedicated Property Manager' : 'No manager currently assigned'}
+                                    </p>
                                 </div>
                             </div>
 
-                            {(() => {
-                                const hasActiveBooking = Boolean(
-                                    existingBooking && (
-                                        existingBooking.status === 'active' ||
-                                        existingBooking.status === 'confirmed' ||
-                                        existingBooking.status === 'approved' ||
-                                        existingBooking.paymentStatus === 'paid'
-                                    )
-                                );
-                                const hasActiveLeaseOnProp = Boolean(activeLease);
-                                const isChatAvailable = Boolean(property.manager?._id && (hasActiveBooking || hasActiveLeaseOnProp));
-
-                                return isChatAvailable ? (
-                                    <button
-                                        onClick={handleChat}
-                                        className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-black hover:opacity-90 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-                                    >
-                                        <MessageSquare className="w-4 h-4" /> Chat with Manager
-                                    </button>
-                                ) : (
-                                    <div className="space-y-1.5 text-center">
-                                        <button
-                                            disabled
-                                            className="w-full py-3.5 rounded-2xl bg-muted/50 border border-border text-muted-foreground/60 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-not-allowed"
-                                        >
-                                            <MessageSquare className="w-4 h-4 text-muted-foreground/40" /> Chat with Manager
-                                        </button>
-                                        <p className="text-[10px] text-muted-foreground font-medium">
-                                            Chat becomes available after you book this property.
-                                        </p>
+                            {/* Contact Details List */}
+                            {property.manager?.firstName ? (
+                                <div className="space-y-2.5 pt-1">
+                                    {/* Phone Row */}
+                                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60 text-xs">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                                <Phone className="w-3.5 h-3.5" />
+                                            </div>
+                                            <span className="font-bold text-foreground truncate">
+                                                {property.manager.phone || property.manager.phoneNumber || 'Phone not available'}
+                                            </span>
+                                        </div>
+                                        {(property.manager.phone || property.manager.phoneNumber) && (
+                                            <a
+                                                href={`tel:${property.manager.phone || property.manager.phoneNumber}`}
+                                                className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-black text-[11px] uppercase tracking-wider transition-colors shrink-0"
+                                            >
+                                                Call
+                                            </a>
+                                        )}
                                     </div>
-                                );
-                            })()}
+
+                                    {/* Email Row */}
+                                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60 text-xs">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                                <Mail className="w-3.5 h-3.5" />
+                                            </div>
+                                            <span className="font-bold text-foreground truncate">
+                                                {property.manager.email || 'Email not available'}
+                                            </span>
+                                        </div>
+                                        {property.manager.email && (
+                                            <a
+                                                href={`mailto:${property.manager.email}`}
+                                                className="px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-black text-[11px] uppercase tracking-wider transition-colors shrink-0"
+                                            >
+                                                Email
+                                            </a>
+                                        )}
+                                    </div>
+
+                                    {/* Quick Contact Action Buttons */}
+                                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                                        {(property.manager.phone || property.manager.phoneNumber) ? (
+                                            <a
+                                                href={`tel:${property.manager.phone || property.manager.phoneNumber}`}
+                                                className="py-2.5 px-3 rounded-xl bg-muted hover:bg-primary/10 border border-border hover:border-primary/30 text-foreground hover:text-primary font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                                            >
+                                                <Phone className="w-3.5 h-3.5 text-primary" />
+                                                <span>Call Manager</span>
+                                            </a>
+                                        ) : (
+                                            <button
+                                                disabled
+                                                className="py-2.5 px-3 rounded-xl bg-muted/40 border border-border/40 text-muted-foreground/50 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
+                                            >
+                                                <Phone className="w-3.5 h-3.5" />
+                                                <span>No Phone</span>
+                                            </button>
+                                        )}
+
+                                        {property.manager.email ? (
+                                            <a
+                                                href={`mailto:${property.manager.email}`}
+                                                className="py-2.5 px-3 rounded-xl bg-muted hover:bg-primary/10 border border-border hover:border-primary/30 text-foreground hover:text-primary font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                                            >
+                                                <Mail className="w-3.5 h-3.5 text-primary" />
+                                                <span>Email Manager</span>
+                                            </a>
+                                        ) : (
+                                            <button
+                                                disabled
+                                                className="py-2.5 px-3 rounded-xl bg-muted/40 border border-border/40 text-muted-foreground/50 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
+                                            >
+                                                <Mail className="w-3.5 h-3.5" />
+                                                <span>No Email</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-4 rounded-2xl bg-muted/30 border border-dashed border-border text-center">
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                        No manager is currently assigned to this property.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Chat Relationship Guard */}
+                            <div className="pt-2 border-t border-border/60">
+                                {(() => {
+                                    const hasActiveBooking = Boolean(
+                                        existingBooking && (
+                                            existingBooking.status === 'active' ||
+                                            existingBooking.status === 'confirmed' ||
+                                            existingBooking.status === 'approved' ||
+                                            existingBooking.paymentStatus === 'paid'
+                                        )
+                                    );
+                                    const hasActiveLeaseOnProp = Boolean(activeLease);
+                                    const isChatAvailable = Boolean(property.manager?._id && (hasActiveBooking || hasActiveLeaseOnProp));
+
+                                    return isChatAvailable ? (
+                                        <button
+                                            onClick={handleChat}
+                                            className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-black hover:opacity-90 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                                        >
+                                            <MessageSquare className="w-4 h-4" /> Chat with Manager
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-1.5 text-center">
+                                            <button
+                                                disabled
+                                                className="w-full py-3.5 rounded-2xl bg-muted/50 border border-border text-muted-foreground/60 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-not-allowed"
+                                            >
+                                                <MessageSquare className="w-4 h-4 text-muted-foreground/40" /> Chat available after booking
+                                            </button>
+                                            <p className="text-[10px] text-muted-foreground font-medium">
+                                                Chat becomes available once you have an approved booking or active lease for this property.
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </div>
 
                         {/* Social Proof */}

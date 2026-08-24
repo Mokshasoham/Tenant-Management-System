@@ -159,8 +159,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     .sort(sortObj)
     .skip(skip)
     .limit(parseInt(limit))
-    .populate('owner', 'firstName lastName email')
-    .populate('manager', 'firstName lastName email')
+    .populate('owner', 'firstName lastName email phone avatar role')
+    .populate('manager', 'firstName lastName email phone avatar role')
     .populate('currentTenant', 'firstName lastName email')
     .populate({
       path: 'leases',
@@ -228,8 +228,8 @@ export const getAvailability = asyncHandler(async (req, res) => {
 
 export const getPropertyById = asyncHandler(async (req, res) => {
   const property = await Property.findById(req.params.id)
-    .populate('owner', 'firstName lastName email phone')
-    .populate('manager', 'firstName lastName email')
+    .populate('owner', 'firstName lastName email phone avatar role')
+    .populate('manager', 'firstName lastName email phone avatar role')
     .populate('currentTenant')
     .populate({
       path: 'leases',
