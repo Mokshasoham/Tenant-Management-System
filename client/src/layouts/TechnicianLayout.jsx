@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import ScrollToTopButton from '../components/common/ScrollToTopButton';
 import useAuthStore from '../context/authStore';
 import { technicianPortalService } from '../services/api';
 import {
@@ -47,6 +48,7 @@ export default function TechnicianLayout({ children }) {
   const setUser = useAuthStore((state) => state.setUser);
 
   const offlineSync = useOfflineSync();
+  const techMainRef = useRef(null);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSyncCenterOpen, setIsSyncCenterOpen] = useState(false);
@@ -252,9 +254,11 @@ export default function TechnicianLayout({ children }) {
         </AnimatePresence>
 
         {/* Content Area */}
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main ref={techMainRef} className="flex-1 p-4 md:p-6 overflow-y-auto max-w-7xl w-full mx-auto">
           {children}
         </main>
+
+        <ScrollToTopButton containerRef={techMainRef} />
       </div>
 
       {/* Offline Sync Center Modal */}

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
+import ScrollToTopButton from '../components/common/ScrollToTopButton';
 import useAuthStore from '../context/authStore';
 import { cn } from '../utils/cn';
 
@@ -46,6 +47,8 @@ export default function DashboardLayout({ children }) {
                          location.pathname !== '/dashboard' && 
                          location.pathname !== '/';
 
+  const mainContentRef = useRef(null);
+
   return (
     <div className={cn(
       'flex h-screen overflow-hidden relative transition-colors duration-300',
@@ -69,7 +72,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Page Content */}
-        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[92px]">
+        <main ref={mainContentRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-[92px]">
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
             {showBackButton && (
               <div className="mb-6 flex justify-start">
@@ -85,6 +88,9 @@ export default function DashboardLayout({ children }) {
             {children}
           </div>
         </main>
+
+        {/* Floating Scroll to Top Button for Portal Views */}
+        <ScrollToTopButton containerRef={mainContentRef} />
       </div>
     </div>
   );
