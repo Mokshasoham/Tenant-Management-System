@@ -26,18 +26,21 @@ export default function PublicNavbar() {
 
     const navItems = [
         { label: 'Home', path: '/' },
-        { label: 'Properties', path: '/public/properties' },
-        { label: 'How It Works', path: '/public/how-it-works' },
-        { label: 'Features', path: '/public/features' },
-        { label: 'For Tenants', path: '/public/for-tenants' },
-        { label: 'For Managers', path: '/public/for-managers' },
+        { label: 'Properties', path: '/properties' },
+        { label: 'How It Works', path: '/how-it-works' },
+        { label: 'Features', path: '/features' },
+        { label: 'For Tenants', path: '/for-tenants' },
+        { label: 'For Managers', path: '/for-managers' },
     ];
 
     const isActive = (path) => {
         if (path === '/') {
             return location.pathname === '/';
         }
-        return location.pathname.startsWith(path);
+        const cleanPath = path.replace(/^\//, '');
+        return location.pathname === path ||
+               location.pathname.startsWith(`/${cleanPath}`) ||
+               location.pathname.startsWith(`/public/${cleanPath}`);
     };
 
     return (

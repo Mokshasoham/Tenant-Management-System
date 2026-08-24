@@ -158,6 +158,21 @@ const SubscriptionRouter = () => {
   return <TenantSubscriptionPage />;
 };
 
+const PropertiesRouter = () => {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  if (isAuthenticated && (user?.role === 'manager' || user?.role === 'admin')) {
+    return (
+      <ManagerRoute>
+        <DashboardLayout>
+          <PropertiesPage />
+        </DashboardLayout>
+      </ManagerRoute>
+    );
+  }
+  return <PublicPropertiesPage />;
+};
+
 
 const PaymentRedirectHandler = () => {
   const [searchParams] = useSearchParams();
@@ -203,6 +218,13 @@ function App() {
               <Routes>
                 {/* Public Marketing & Discovery Website */}
                 <Route path="/" element={<PublicHomePage />} />
+                <Route path="/properties" element={<PropertiesRouter />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
+                <Route path="/features" element={<FeaturesPage />} />
+                <Route path="/for-tenants" element={<ForTenantsPage />} />
+                <Route path="/for-managers" element={<ForManagersPage />} />
+
+                {/* /public/... Dedicated Aliases */}
                 <Route path="/public/properties" element={<PublicPropertiesPage />} />
                 <Route path="/public/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/public/features" element={<FeaturesPage />} />
@@ -275,7 +297,6 @@ function App() {
 
                 {/* Manager + Admin */}
                 <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
-                <Route path="/properties" element={<ManagerRoute><DashboardLayout><PropertiesPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/technicians" element={<ManagerRoute><DashboardLayout><TechniciansPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/workforce-scheduling" element={<ManagerRoute><DashboardLayout><WorkforceSchedulingPage /></DashboardLayout></ManagerRoute>} />
