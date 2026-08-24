@@ -20,6 +20,12 @@ import ProfilePage from './pages/ProfilePage';
 import MaintenancePage from './pages/MaintenancePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import LandingPage from './pages/LandingPage';
+import PublicHomePage from './pages/public/PublicHomePage';
+import PublicPropertiesPage from './pages/public/PublicPropertiesPage';
+import HowItWorksPage from './pages/public/HowItWorksPage';
+import FeaturesPage from './pages/public/FeaturesPage';
+import ForTenantsPage from './pages/public/ForTenantsPage';
+import ForManagersPage from './pages/public/ForManagersPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import MessagesPage from './pages/MessagesPage';
@@ -195,8 +201,15 @@ function App() {
             <ChatProvider>
               <PaymentRedirectHandler />
               <Routes>
-                {/* Public */}
-                <Route path="/" element={<LandingPage />} />
+                {/* Public Marketing & Discovery Website */}
+                <Route path="/" element={<PublicHomePage />} />
+                <Route path="/public/properties" element={<PublicPropertiesPage />} />
+                <Route path="/public/how-it-works" element={<HowItWorksPage />} />
+                <Route path="/public/features" element={<FeaturesPage />} />
+                <Route path="/public/for-tenants" element={<ForTenantsPage />} />
+                <Route path="/public/for-managers" element={<ForManagersPage />} />
+
+                {/* Authentication - 100% Preserved & Untouched */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

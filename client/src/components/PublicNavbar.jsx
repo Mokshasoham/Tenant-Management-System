@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Building2, Menu, X, ArrowRight, ShieldCheck, Compass, Sparkles } from 'lucide-react';
+import { Building2, Menu, X, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import ThemeSwitch from './ThemeSwitch';
@@ -19,16 +19,25 @@ export default function PublicNavbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const scrollToSection = (id) => {
+    // Close mobile menu upon route change
+    useEffect(() => {
         setIsOpen(false);
-        if (location.pathname !== '/') {
-            navigate(`/#${id}`);
-            return;
+    }, [location.pathname]);
+
+    const navItems = [
+        { label: 'Home', path: '/' },
+        { label: 'Properties', path: '/public/properties' },
+        { label: 'How It Works', path: '/public/how-it-works' },
+        { label: 'Features', path: '/public/features' },
+        { label: 'For Tenants', path: '/public/for-tenants' },
+        { label: 'For Managers', path: '/public/for-managers' },
+    ];
+
+    const isActive = (path) => {
+        if (path === '/') {
+            return location.pathname === '/';
         }
-        const element = document.getElementById(id);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-        }
+        return location.pathname.startsWith(path);
     };
 
     return (
@@ -60,42 +69,30 @@ export default function PublicNavbar() {
 
                     {/* Desktop Navigation Links */}
                     <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-                        <button
-                            onClick={() => scrollToSection('home')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        >
-                            Home
-                        </button>
-                        <Link
-                            to="/browse"
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-                        >
-                            Properties
-                        </Link>
-                        <button
-                            onClick={() => scrollToSection('how-it-works')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        >
-                            How It Works
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('features')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        >
-                            Features
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('tenants')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        >
-                            For Tenants
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('managers')}
-                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                        >
-                            For Managers
-                        </button>
+                        {navItems.map((item) => {
+                            const active = isActive(item.path);
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={cn(
+                                        "px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all relative",
+                                        active
+                                            ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15"
+                                            : "text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
+                                    )}
+                                >
+                                    {item.label}
+                                    {active && (
+                                        <motion.div
+                                            layoutId="activeNavIndicator"
+                                            className="absolute bottom-0 left-3 right-3 h-0.5 bg-emerald-500 rounded-full"
+                                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
                     </nav>
 
                     {/* Desktop Action Buttons + Theme Switch */}
@@ -149,69 +146,48 @@ export default function PublicNavbar() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: -15, scale: 0.98 }}
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -15, scale: 0.98 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="lg:hidden max-w-7xl mx-auto mt-2 pointer-events-auto"
+                        className="lg:hidden fixed top-[4.5rem] left-4 right-4 z-50 bg-white/95 dark:bg-[#060B13]/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-2xl rounded-[2rem] p-5 pointer-events-auto"
                     >
-                        <div className="p-6 rounded-[2rem] bg-white/95 dark:bg-[#060B13]/95 backdrop-blur-2xl border border-slate-200 dark:border-white/15 shadow-2xl space-y-4">
-                            <div className="flex flex-col gap-1.5 text-left">
-                                <button
-                                    onClick={() => scrollToSection('home')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                                >
-                                    Home
-                                </button>
-                                <Link
-                                    to="/browse"
-                                    onClick={() => setIsOpen(false)}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                                >
-                                    Properties
-                                </Link>
-                                <button
-                                    onClick={() => scrollToSection('how-it-works')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                                >
-                                    How It Works
-                                </button>
-                                <button
-                                    onClick={() => scrollToSection('features')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                                >
-                                    Features
-                                </button>
-                                <button
-                                    onClick={() => scrollToSection('tenants')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                                >
-                                    For Tenants
-                                </button>
-                                <button
-                                    onClick={() => scrollToSection('managers')}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left"
-                                >
-                                    For Managers
-                                </button>
-                            </div>
-
+                        <div className="flex flex-col gap-2">
+                            {navItems.map((item) => {
+                                const active = isActive(item.path);
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        onClick={() => setIsOpen(false)}
+                                        className={cn(
+                                            "w-full text-left px-4 py-3 rounded-xl text-sm font-extrabold transition-all flex items-center justify-between",
+                                            active
+                                                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15"
+                                                : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"
+                                        )}
+                                    >
+                                        <span>{item.label}</span>
+                                        {active && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                    </Link>
+                                );
+                            })}
                             <div className="h-px bg-slate-200 dark:bg-white/10 my-2" />
-
-                            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                            <div className="grid grid-cols-2 gap-3 pt-1">
                                 <button
                                     type="button"
-                                    onClick={() => { navigate('/login'); setIsOpen(false); }}
-                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-all text-center"
+                                    onClick={() => { setIsOpen(false); navigate('/login'); }}
+                                    className="w-full py-3 rounded-xl text-xs font-extrabold text-slate-800 dark:text-white bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
                                 >
                                     Sign In
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => { navigate('/register'); setIsOpen(false); }}
-                                    className="w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30 text-center"
+                                    onClick={() => { setIsOpen(false); navigate('/register'); }}
+                                    className="w-full py-3 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1"
                                 >
-                                    Get Started
+                                    <span>Get Started</span>
+                                    <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
