@@ -123,6 +123,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isTest: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isInternal: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     lastLogin: {
       type: Date,
       default: null,

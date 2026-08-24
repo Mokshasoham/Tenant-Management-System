@@ -917,7 +917,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
     if (!property) throw new AppError('Property not found', 404);
 
     // Enforce property validation rules: must be published and status must be available
-    if (property.publishStatus !== 'published' || property.status !== 'available') {
+    if (property.publishStatus !== 'published' || property.status !== 'available' || property.isTest || property.isInternal || property.isArchived || property.isDeleted) {
         throw new AppError('This property is not actually available for booking (it may be inactive, occupied, rented, or under maintenance).', 400);
     }
 

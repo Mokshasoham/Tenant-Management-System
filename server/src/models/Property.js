@@ -142,6 +142,27 @@ const propertySchema = new mongoose.Schema(
       type: String,
       enum: ['draft', 'published', 'archived'],
       default: 'published',
+      index: true,
+    },
+    isTest: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isInternal: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     seo: {
       title: String,

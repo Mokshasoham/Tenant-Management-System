@@ -63,6 +63,7 @@ export const resolvePropertyUrls = (property, req) => {
 };
 
 import { getAuthenticatedUserId } from '../utils/managerHelper.js';
+import { getPublicPropertyFilter, isPropertyPubliclyVisible } from '../utils/propertyVisibility.js';
 
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
@@ -91,30 +92,33 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     west,
   } = req.query;
 
-  const filter = {};
+  let filter = {};
   const userId = getAuthenticatedUserId(req);
 
-  // Visibility Logic
-  if (req.user?.role === 'manager' && scope !== 'public' && isPublic !== 'true') {
+  const isManagerPortal = req.user?.role === 'manager' && scope !== 'public' && isPublic !== 'true';
+  const isAdmin = req.user?.role === 'admin' && scope !== 'public' && isPublic !== 'true';
+
+  if (isManagerPortal) {
     // Managers see only their own properties in manager portal
     filter.$or = [{ owner: userId }, { manager: userId }];
     if (status) {
       filter.status = status;
     }
-  } else if (req.user?.role === 'admin') {
+  } else if (isAdmin) {
     if (owner) filter.owner = owner;
     if (status) filter.status = status;
   } else {
-    // Tenants/Users/Public visitors see available, occupied, or rented properties
-    if (status) {
-      filter.status = status;
-    } else {
-      filter.status = { $in: ['available', 'occupied', 'rented'] };
-    }
+    // ══════════════════════════════════════════════════════════════════════════
+    // PUBLIC / TENANT DISCOVERY VISIBILITY
+    // ══════════════════════════════════════════════════════════════════════════
+    filter = await getPublicPropertyFilter(status ? { status } : {});
   }
 
+  if (type) filter.type = type;
+  if (city) filter.city = { $regex: city.trim(), $options: 'i' };
+
   if (minPrice || maxPrice) {
-    filter.rentAmount = {};
+    filter.rentAmount = filter.rentAmount || {};
     if (minPrice) filter.rentAmount.$gte = Number(minPrice);
     if (maxPrice) filter.rentAmount.$lte = Number(maxPrice);
   }
@@ -159,8 +163,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     .sort(sortObj)
     .skip(skip)
     .limit(parseInt(limit))
-    .populate('owner', 'firstName lastName email phone avatar role')
-    .populate('manager', 'firstName lastName email phone avatar role')
+    .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
     .populate('currentTenant', 'firstName lastName email')
     .populate({
       path: 'leases',
@@ -236,8 +240,8 @@ export const getAvailability = asyncHandler(async (req, res) => {
 
 export const getPropertyById = asyncHandler(async (req, res) => {
   const property = await Property.findById(req.params.id)
-    .populate('owner', 'firstName lastName email phone avatar role')
-    .populate('manager', 'firstName lastName email phone avatar role')
+    .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
     .populate('currentTenant')
     .populate({
       path: 'leases',
@@ -250,6 +254,20 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 
   if (!property) {
     throw new AppError('Property not found', 404);
+  }
+
+  // Tenant / Public guest visibility validation
+  const requesterId = getAuthenticatedUserId(req);
+  const isManagerOrAdmin = req.user?.role === 'admin' ||
+    (requesterId && (
+      String(property.owner?._id || property.owner) === String(requesterId) ||
+      String(property.manager?._id || property.manager) === String(requesterId)
+    ));
+
+  if (!isManagerOrAdmin) {
+    if (!isPropertyPubliclyVisible(property)) {
+      throw new AppError('Property not found or is not currently available', 404);
+    }
   }
 
   const resolved = resolvePropertyUrls(property, req);
@@ -541,15 +559,18 @@ export const getSimilarProperties = asyncHandler(async (req, res) => {
       geoFilter = { city: property.city };
   }
 
-  const similarProps = await Property.find({
+  const publicFilter = await getPublicPropertyFilter({
     _id: { $ne: property._id },
     type: property.type,
     status: 'available',
     rentAmount: { $gte: minPrice, $lte: maxPrice },
     ...geoFilter
-  })
+  });
+
+  const similarProps = await Property.find(publicFilter)
   .limit(4)
-  .populate('manager', 'firstName lastName')
+  .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
+  .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
   .populate({
     path: 'leases',
     select: 'status endDate',

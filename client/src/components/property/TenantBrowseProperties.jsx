@@ -363,12 +363,18 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 
                 <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
-                            {p.manager?.firstName?.[0] || 'M'}
-                        </div>
+                        {p.manager?.avatar ? (
+                            <img src={p.manager.avatar} alt="Manager" className="w-8 h-8 rounded-xl object-cover border border-border shadow-sm flex-shrink-0" />
+                        ) : (
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
+                                {p.manager?.firstName?.[0] || p.manager?.name?.[0] || 'M'}
+                            </div>
+                        )}
                         <div className="flex flex-col min-w-0">
                             <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
-                            <span className="text-xs font-bold text-foreground truncate max-w-[110px] sm:max-w-[130px]">{p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : 'Property Manager'}</span>
+                            <span className="text-xs font-bold text-foreground truncate max-w-[110px] sm:max-w-[130px]">
+                                {p.manager?.name || (p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : (p.manager?.email || 'Assigned Manager'))}
+                            </span>
                         </div>
                     </div>
 
