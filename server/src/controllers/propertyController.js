@@ -171,9 +171,17 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
   const total = await Property.countDocuments(filter);
 
+  const resolvedProperties = properties.map(p => {
+    const resolved = resolvePropertyUrls(p, req);
+    if (!resolved.manager && resolved.owner) {
+      resolved.manager = resolved.owner;
+    }
+    return resolved;
+  });
+
   res.status(200).json({
     success: true,
-    data: properties.map(p => resolvePropertyUrls(p, req)),
+    data: resolvedProperties,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -244,9 +252,17 @@ export const getPropertyById = asyncHandler(async (req, res) => {
     throw new AppError('Property not found', 404);
   }
 
+  const resolved = resolvePropertyUrls(property, req);
+
+  // Authoritative Property -> Manager resolution:
+  // If property.manager is null or unpopulated, resolve from the property's owner/creator
+  if (!resolved.manager && resolved.owner) {
+    resolved.manager = resolved.owner;
+  }
+
   res.status(200).json({
     success: true,
-    data: resolvePropertyUrls(property, req),
+    data: resolved,
   });
 });
 
@@ -273,15 +289,24 @@ export const createProperty = asyncHandler(async (req, res) => {
   }
 
   const property = await Property.create({
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || undefined, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
   });
 
   logger.info(`New property created: ${property.name}`);
 
+  const populatedProperty = await Property.findById(property._id)
+    .populate('owner', 'firstName lastName email phone avatar role')
+    .populate('manager', 'firstName lastName email phone avatar role');
+
+  const resolved = resolvePropertyUrls(populatedProperty, req);
+  if (!resolved.manager && resolved.owner) {
+    resolved.manager = resolved.owner;
+  }
+
   res.status(201).json({
     success: true,
     message: 'Property created successfully',
-    data: resolvePropertyUrls(property, req),
+    data: resolved,
   });
 });
 
