@@ -18,6 +18,7 @@ import {
     SecurityDepositCard,
     LeaseRenewalCard,
     LeasePropertyMediaGallery,
+    PropertyManagerHeaderCard,
 } from '../components/lease';
 
 const AMENITY_ICON = {
@@ -640,6 +641,11 @@ export default function MyLeasePage() {
 
             {!loading && activeLeases.length > 0 && (
                 <>
+                    {/* ── Property & Manager Header Card ── */}
+                    {currentLease && (
+                        <PropertyManagerHeaderCard key={`pm-header-${currentLease._id}`} lease={currentLease} />
+                    )}
+
                     {/* ── Pending Signature Warning Banner / Upcoming Banner ── */}
                     <AnimatePresence mode="wait">
                         {isUnsigned ? (

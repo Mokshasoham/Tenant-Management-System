@@ -117,8 +117,11 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .populate({
         path: 'property',
-        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager',
-        populate: { path: 'manager', select: 'firstName lastName email' }
+        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
+        populate: [
+          { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
+          { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
+        ]
       })
       .populate('tenant', 'firstName lastName email phone'),
 
@@ -133,8 +136,11 @@ export const getMyLease = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .populate({
         path: 'property',
-        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager',
-        populate: { path: 'manager', select: 'firstName lastName email' }
+        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
+        populate: [
+          { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
+          { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
+        ]
       })
       .populate('tenant', 'firstName lastName email phone'),
 
