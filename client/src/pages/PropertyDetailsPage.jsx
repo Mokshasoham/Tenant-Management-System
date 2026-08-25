@@ -11,7 +11,7 @@ import {
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
     Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
-    Edit2, Trash2, Users, Wrench, Phone, Mail
+    Edit2, Trash2, Users, Wrench, Phone, Mail, Scale, Heart
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
@@ -141,7 +141,8 @@ export default function PropertyDetailsPage() {
     const [isSaved, setIsSaved] = useState(false);
     const [savingState, setSavingState] = useState(false);
     const [savedPropertyIds, setSavedPropertyIds] = useState(new Set());
-    const [comparePropertyIds, setComparePropertyIds] = useState(new Set());
+    const [compareList, setCompareList] = useState([]);
+    const comparePropertyIds = React.useMemo(() => new Set(compareList.map(p => String(p._id || p.id))), [compareList]);
     const [toastMessage, setToastMessage] = useState(null);
     const [showInfoDrawer, setShowInfoDrawer] = useState(false);
 
@@ -234,12 +235,29 @@ export default function PropertyDetailsPage() {
             const prop = res.data;
             setProperty(prop);
 
-            // Initial saved state from MongoDB
+            // Initial saved state from MongoDB for all saved properties
             const activeUser = useAuthStore.getState().user;
-            if (prop && activeUser) {
-                const userId = activeUser._id || activeUser.id;
-                const saved = Array.isArray(prop.savedBy) && prop.savedBy.some(sId => String(sId._id || sId) === String(userId));
-                setIsSaved(saved);
+            if (activeUser) {
+                try {
+                    const savedRes = await propertyService.getAllProperties({ savedOnly: true, limit: 100 });
+                    const savedList = savedRes?.data?.data || savedRes?.data || [];
+                    if (Array.isArray(savedList)) {
+                        const savedSet = new Set(savedList.map(p => String(p._id || p.id)));
+                        if (prop?._id && savedSet.has(String(prop._id))) {
+                            setIsSaved(true);
+                        } else if (prop) {
+                            const userId = activeUser._id || activeUser.id;
+                            const savedInProp = Array.isArray(prop.savedBy) && prop.savedBy.some(sId => String(sId._id || sId) === String(userId));
+                            if (savedInProp) {
+                                savedSet.add(String(prop._id));
+                                setIsSaved(true);
+                            }
+                        }
+                        setSavedPropertyIds(savedSet);
+                    }
+                } catch (err) {
+                    console.log('Failed to fetch saved properties set:', err);
+                }
             }
 
             const activeLease = prop?.leases?.find(l => l && l.status === 'active');
@@ -358,20 +376,19 @@ export default function PropertyDetailsPage() {
 
     const handleToggleCompare = (prop) => {
         if (!prop?._id) return;
-        setComparePropertyIds(prev => {
-            const next = new Set(prev);
-            if (next.has(prop._id)) {
-                next.delete(prop._id);
+        const propId = String(prop._id || prop.id);
+        setCompareList(prev => {
+            const exists = prev.some(p => String(p._id || p.id) === propId);
+            if (exists) {
                 setToastMessage({ type: 'info', text: `Removed ${prop.name} from comparison` });
-            } else {
-                if (next.size >= 4) {
-                    setToastMessage({ type: 'error', text: 'You can compare up to 4 properties' });
-                    return prev;
-                }
-                next.add(prop._id);
-                setToastMessage({ type: 'success', text: `Added ${prop.name} to comparison` });
+                return prev.filter(p => String(p._id || p.id) !== propId);
             }
-            return next;
+            if (prev.length >= 4) {
+                setToastMessage({ type: 'error', text: 'You can compare up to 4 properties' });
+                return prev;
+            }
+            setToastMessage({ type: 'success', text: `Added ${prop.name} to comparison` });
+            return [...prev, prop];
         });
         setTimeout(() => setToastMessage(null), 3000);
     };
@@ -1999,13 +2016,44 @@ export default function PropertyDetailsPage() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         className={cn(
-                            "fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 border",
+                            "fixed top-6 left-1/2 -translate-x-1/2 z-[110] px-6 py-3 rounded-full text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 border",
                             toastMessage.type === 'error'
-                                ? "bg-rose-500/90 text-white border-rose-400/40 shadow-rose-500/20"
-                                : "bg-slate-900/95 text-white border-indigo-500/40 shadow-indigo-500/20 dark:bg-white dark:text-slate-900"
+                                ? "bg-rose-500/95 text-white border-rose-400/40 shadow-rose-500/20"
+                                : "bg-slate-950/95 text-emerald-400 border-emerald-500/40 shadow-emerald-950/40"
                         )}
                     >
                         <span>{toastMessage.text}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ══ FLOATING COMPARE TRAY ══ */}
+            <AnimatePresence>
+                {compareList.length > 0 && (
+                    <motion.div
+                        initial={{ y: 80, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 80, opacity: 0 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 px-6 py-3 rounded-[1.75rem] bg-slate-950/95 text-white shadow-2xl shadow-emerald-950/60 border border-emerald-500/40 backdrop-blur-md"
+                    >
+                        <Scale className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                        <span className="text-white font-black text-xs whitespace-nowrap">
+                            {compareList.length} propert{compareList.length > 1 ? 'ies' : 'y'} selected
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/compare', { state: { compareList } })}
+                            className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                        >
+                            Compare Now →
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCompareList([])}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>

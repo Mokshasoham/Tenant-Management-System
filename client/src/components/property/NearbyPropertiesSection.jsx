@@ -14,10 +14,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { cn } from '../../utils/cn';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 
-// Custom Leaflet Icons for Current vs Nearby properties
-const createMarkerIcon = (isCurrent = false, label = '') => {
-    const bg = isCurrent ? '#10b981' : '#6366f1';
-    const border = isCurrent ? '#059669' : '#4f46e5';
+// Custom Leaflet Icons styled in Emerald / Teal TMS theme
+const createMarkerIcon = (isCurrent = false) => {
+    const bg = isCurrent ? '#10b981' : '#059669';
+    const border = isCurrent ? '#047857' : '#065f46';
     const pulse = isCurrent ? '<span class="absolute -inset-1 rounded-full bg-emerald-400/40 animate-ping"></span>' : '';
     
     return L.divIcon({
@@ -36,10 +36,9 @@ const createMarkerIcon = (isCurrent = false, label = '') => {
     });
 };
 
-function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId }) {
+function MiniNearbyMap({ target, properties, onSelectProperty }) {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
-    const markersRef = useRef([]);
 
     const targetCoords = useMemo(() => {
         if (target?.location?.lat && target?.location?.lng) {
@@ -51,7 +50,6 @@ function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId 
     useEffect(() => {
         if (!mapRef.current || !targetCoords) return;
 
-        // Clean up existing instance
         if (mapInstanceRef.current) {
             try {
                 mapInstanceRef.current.remove();
@@ -76,9 +74,9 @@ function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId 
                 maxZoom: 19
             }).addTo(map);
 
-            // 1. Add Target Property Marker (Current Property)
+            // Target Property Marker
             const targetMarker = L.marker(targetCoords, {
-                icon: createMarkerIcon(true, target.name)
+                icon: createMarkerIcon(true)
             }).addTo(map);
 
             targetMarker.bindPopup(`
@@ -89,7 +87,7 @@ function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId 
                 </div>
             `);
 
-            // 2. Add Nearby Properties Markers
+            // Nearby Property Markers
             const bounds = [targetCoords];
 
             properties.forEach(p => {
@@ -98,12 +96,12 @@ function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId 
                 if (!isNaN(lat) && !isNaN(lng)) {
                     bounds.push([lat, lng]);
                     const marker = L.marker([lat, lng], {
-                        icon: createMarkerIcon(false, p.name)
+                        icon: createMarkerIcon(false)
                     }).addTo(map);
 
                     const coverImg = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url) || DEFAULT_PLACEHOLDER_SVG;
                     const priceFormatted = p.rentAmount ? `₹${Number(p.rentAmount).toLocaleString('en-IN')}` : '';
-                    const distBadge = p.distanceText ? `<span style="background: rgba(99, 102, 241, 0.12); color: #4f46e5; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 9px;">${p.distanceText}</span>` : '';
+                    const distBadge = p.distanceText ? `<span style="background: rgba(16, 185, 129, 0.15); color: #059669; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 9px;">${p.distanceText}</span>` : '';
 
                     marker.bindPopup(`
                         <div style="font-family: system-ui, -apple-system, sans-serif; width: 170px; padding: 2px;">
@@ -162,7 +160,6 @@ function MiniNearbyMap({ target, properties, onSelectProperty, activePropertyId 
     );
 }
 
-// ── Skeleton Card Component ──
 function NearbyCardSkeleton() {
     return (
         <div className="rounded-3xl bg-card border border-border overflow-hidden p-3.5 space-y-3 animate-pulse">
@@ -193,7 +190,7 @@ export default function NearbyPropertiesSection({
     const [nearbyList, setNearbyList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'map'
+    const [viewMode, setViewMode] = useState('grid');
     const [scopeLabel, setScopeLabel] = useState('');
     const [activeSelectedId, setActiveSelectedId] = useState(null);
 
@@ -238,7 +235,7 @@ export default function NearbyPropertiesSection({
                 <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                         <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] uppercase tracking-widest border border-emerald-500/20 flex items-center gap-1">
-                            <Compass className="w-3 h-3" /> Location Discovery
+                            <Compass className="w-3 h-3 text-emerald-500" /> Location Discovery
                         </span>
                         {scopeLabel && (
                             <span className="text-[11px] font-bold text-muted-foreground/75">
@@ -250,7 +247,7 @@ export default function NearbyPropertiesSection({
                         What's Around This Property?
                     </h2>
                     <p className="text-xs text-muted-foreground font-medium max-w-xl">
-                        Explore other verified available homes physically close to this location in {property?.city || 'the area'}.
+                        Explore verified homes near this location in {property?.city || 'the area'}.
                     </p>
                 </div>
 
@@ -264,7 +261,7 @@ export default function NearbyPropertiesSection({
                                 className={cn(
                                     "px-3 py-1.5 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer",
                                     viewMode === 'grid'
-                                        ? "bg-card text-foreground shadow-sm border border-border"
+                                        ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border border-border"
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
@@ -276,7 +273,7 @@ export default function NearbyPropertiesSection({
                                 className={cn(
                                     "px-3 py-1.5 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer",
                                     viewMode === 'map'
-                                        ? "bg-card text-foreground shadow-sm border border-border"
+                                        ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border border-border"
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
@@ -288,9 +285,9 @@ export default function NearbyPropertiesSection({
                     <button
                         type="button"
                         onClick={handleExploreWiderCity}
-                        className="px-4 py-2 rounded-2xl bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-primary/20 shadow-sm"
+                        className="px-4 py-2 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-500/20 shadow-sm"
                     >
-                        <span>Explore {property?.city || 'All'}</span>
+                        <span>Explore {property?.city || 'Area'}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
@@ -298,11 +295,11 @@ export default function NearbyPropertiesSection({
 
             {/* Error State */}
             {error && !loading && (
-                <div className="p-6 rounded-3xl bg-destructive/5 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                <div className="p-5 rounded-3xl bg-destructive/5 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
                         <div>
-                            <p className="text-xs font-black text-destructive uppercase tracking-wider">Failed to load nearby properties</p>
+                            <p className="text-xs font-black text-destructive uppercase tracking-wider">Unable to load nearby properties</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
                         </div>
                     </div>
@@ -311,7 +308,7 @@ export default function NearbyPropertiesSection({
                         onClick={fetchNearby}
                         className="px-4 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all"
                     >
-                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                        <RefreshCw className="w-3.5 h-3.5" /> Try again
                     </button>
                 </div>
             )}
@@ -325,25 +322,27 @@ export default function NearbyPropertiesSection({
                 </div>
             )}
 
-            {/* Empty State */}
+            {/* Compact Refined Empty State */}
             {!loading && !error && nearbyList.length === 0 && (
-                <div className="p-10 sm:p-14 rounded-3xl bg-card/60 border border-dashed border-border flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
-                    <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center text-2xl shadow-inner">
-                        📍
-                    </div>
-                    <div className="space-y-1 max-w-md">
-                        <h3 className="text-base font-black text-foreground">No nearby properties yet</h3>
-                        <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                            There aren't other verified homes within the immediate vicinity of this property. Try exploring the wider {property?.city || 'city'} area.
-                        </p>
+                <div className="py-7 px-6 sm:px-8 rounded-3xl bg-card/70 border border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                    <div className="flex items-center gap-4 text-center sm:text-left">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center text-xl shrink-0 shadow-inner">
+                            📍
+                        </div>
+                        <div className="space-y-0.5">
+                            <h3 className="text-sm font-black text-foreground">No verified homes nearby</h3>
+                            <p className="text-xs text-muted-foreground font-medium">
+                                There aren't other verified properties close to this location yet.
+                            </p>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={handleExploreWiderCity}
-                        className="px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 cursor-pointer"
+                        className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-900/20 flex items-center gap-2 cursor-pointer shrink-0"
                     >
-                        <span>Explore properties in {property?.city || 'this region'}</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <span>Explore {property?.city || 'City'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
             )}
@@ -355,15 +354,15 @@ export default function NearbyPropertiesSection({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {nearbyList.map((p) => {
                                 const coverImg = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url) || DEFAULT_PLACEHOLDER_SVG;
-                                const isSaved = savedPropertyIds?.has(p._id);
-                                const isCompared = comparePropertyIds?.has(p._id);
+                                const isSaved = savedPropertyIds?.has(String(p._id || p.id));
+                                const isCompared = comparePropertyIds?.has(String(p._id || p.id));
 
                                 return (
                                     <motion.div
                                         key={p._id}
                                         whileHover={{ y: -4 }}
                                         onClick={() => handleViewProperty(p._id)}
-                                        className="group cursor-pointer rounded-3xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-xl hover:border-primary/40 transition-all flex flex-col justify-between"
+                                        className="group cursor-pointer rounded-3xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between"
                                     >
                                         <div className="p-3.5 space-y-3">
                                             {/* Property Cover Image Stage */}
@@ -381,22 +380,22 @@ export default function NearbyPropertiesSection({
                                                 {/* Distance / Proximity Pill */}
                                                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
                                                     {p.distanceText && (
-                                                        <span className="px-2.5 py-1 rounded-xl bg-slate-900/85 backdrop-blur-md text-white font-black text-[10px] tracking-wide shadow-lg border border-white/20 flex items-center gap-1">
+                                                        <span className="px-2.5 py-1 rounded-xl bg-slate-950/85 backdrop-blur-md text-emerald-400 font-black text-[10px] tracking-wide shadow-lg border border-emerald-500/30 flex items-center gap-1">
                                                             <Navigation className="w-3 h-3 text-emerald-400" />
-                                                            {p.distanceText}
+                                                            {p.distanceText} away
                                                         </span>
                                                     )}
                                                     {(p.verificationStatus === 'verified' || p.verifiedBadge) && (
-                                                        <span className="px-2 py-1 rounded-xl bg-emerald-500/90 backdrop-blur-md text-white font-black text-[10px] tracking-wide shadow-lg flex items-center gap-1">
+                                                        <span className="px-2 py-1 rounded-xl bg-emerald-600/90 backdrop-blur-md text-white font-black text-[10px] tracking-wide shadow-lg flex items-center gap-1">
                                                             <ShieldCheck className="w-3 h-3" />
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 {/* Price Badge */}
-                                                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-card/90 backdrop-blur-md border border-border/80 text-foreground font-black text-xs shadow-lg">
+                                                <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-white font-black text-xs shadow-lg">
                                                     ₹{p.rentAmount?.toLocaleString('en-IN') || '0'}
-                                                    <span className="text-[9px] font-bold text-muted-foreground">/mo</span>
+                                                    <span className="text-[9px] font-bold text-slate-400">/mo</span>
                                                 </div>
 
                                                 {/* Quick Action Overlay (Save & Compare) */}
@@ -407,13 +406,14 @@ export default function NearbyPropertiesSection({
                                                             aria-label="Save property"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                e.preventDefault();
                                                                 onSaveProperty(p._id);
                                                             }}
                                                             className={cn(
                                                                 "p-2 rounded-xl backdrop-blur-md transition-all shadow-md cursor-pointer",
                                                                 isSaved
                                                                     ? "bg-rose-500 text-white"
-                                                                    : "bg-slate-900/70 hover:bg-slate-900 text-white hover:scale-105"
+                                                                    : "bg-slate-950/70 hover:bg-slate-900 text-white hover:scale-105"
                                                             )}
                                                         >
                                                             <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
@@ -425,13 +425,14 @@ export default function NearbyPropertiesSection({
                                                             aria-label="Compare property"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                e.preventDefault();
                                                                 onToggleCompare(p);
                                                             }}
                                                             className={cn(
                                                                 "p-2 rounded-xl backdrop-blur-md transition-all shadow-md cursor-pointer",
                                                                 isCompared
-                                                                    ? "bg-primary text-white"
-                                                                    : "bg-slate-900/70 hover:bg-slate-900 text-white hover:scale-105"
+                                                                    ? "bg-emerald-600 text-white"
+                                                                    : "bg-slate-950/70 hover:bg-slate-900 text-white hover:scale-105"
                                                             )}
                                                         >
                                                             <Scale className="w-3.5 h-3.5" />
@@ -443,7 +444,7 @@ export default function NearbyPropertiesSection({
                                             {/* Property Details Info */}
                                             <div className="space-y-1.5 px-1">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <h3 className="font-black text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                                                    <h3 className="font-black text-sm text-foreground truncate group-hover:text-emerald-500 transition-colors">
                                                         {p.name}
                                                     </h3>
                                                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60 shrink-0">
@@ -459,10 +460,10 @@ export default function NearbyPropertiesSection({
                                                 {/* Specs */}
                                                 <div className="flex items-center gap-3 pt-2 text-[11px] font-bold text-muted-foreground border-t border-border/50">
                                                     <span className="flex items-center gap-1">
-                                                        <Bed className="w-3.5 h-3.5 text-indigo-500" /> {p.bedrooms || 0} Bed
+                                                        <Bed className="w-3.5 h-3.5 text-emerald-500" /> {p.bedrooms || 0} Bed
                                                     </span>
                                                     <span className="flex items-center gap-1">
-                                                        <Bath className="w-3.5 h-3.5 text-emerald-500" /> {p.bathrooms || 0} Bath
+                                                        <Bath className="w-3.5 h-3.5 text-teal-500" /> {p.bathrooms || 0} Bath
                                                     </span>
                                                     {p.squareFeet && (
                                                         <span className="flex items-center gap-1">
@@ -478,7 +479,7 @@ export default function NearbyPropertiesSection({
                                             <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60">
                                                 {p.proximityBadge || 'Nearby'}
                                             </span>
-                                            <span className="text-primary font-black flex items-center gap-1 text-[11px] uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                                            <span className="text-emerald-500 dark:text-emerald-400 font-black flex items-center gap-1 text-[11px] uppercase tracking-wider group-hover:translate-x-1 transition-transform">
                                                 View Property <ChevronRight className="w-3.5 h-3.5" />
                                             </span>
                                         </div>
@@ -493,12 +494,11 @@ export default function NearbyPropertiesSection({
                                 <MiniNearbyMap
                                     target={property}
                                     properties={nearbyList}
-                                    activePropertyId={activeSelectedId}
                                     onSelectProperty={(p) => setActiveSelectedId(p._id)}
                                 />
                             </div>
 
-                            <div className="lg:col-span-5 flex flex-col gap-3.5 max-h-[460px] overflow-y-auto pr-1">
+                            <div className="lg:col-span-5 flex flex-col gap-3 max-h-[460px] overflow-y-auto pr-1">
                                 <div className="sticky top-0 bg-background/90 backdrop-blur-md py-1 z-10">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                                         {nearbyList.length} properties around this location
@@ -515,7 +515,7 @@ export default function NearbyPropertiesSection({
                                             onMouseEnter={() => setActiveSelectedId(p._id)}
                                             className={cn(
                                                 "p-3 rounded-2xl border transition-all cursor-pointer flex gap-3.5 items-center bg-card shadow-sm hover:shadow-md",
-                                                isSelected ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
+                                                isSelected ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-border hover:border-emerald-500/40"
                                             )}
                                         >
                                             <div className="w-20 h-16 rounded-xl overflow-hidden bg-muted shrink-0 relative">
