@@ -63,6 +63,7 @@ export const propertyService = {
   getNearbyPlaces: (id, params) => apiClient.get(`/properties/${id}/nearby`, { params }),
   getCityPlaces: (id, params) => apiClient.get(`/properties/${id}/city-places`, { params }),
   getRoute: (id, params) => apiClient.get(`/properties/${id}/route`, { params }),
+  getPropertyNavigation: (id) => apiClient.get(`/properties/${id}/navigation`),
 };
 
 export const nearbyService = {

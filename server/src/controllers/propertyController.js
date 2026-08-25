@@ -1,4 +1,8 @@
 import Property from '../models/Property.js';
+import PropertyVisit from '../models/PropertyVisit.js';
+import Booking from '../models/Booking.js';
+import Lease from '../models/Lease.js';
+import Tenant from '../models/Tenant.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import sharp from 'sharp';
@@ -724,5 +728,174 @@ export const getPropertyQrPass = asyncHandler(async (req, res) => {
   const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
   const qrData = await getOrCreatePropertyQr(targetLease._id, origin);
   res.status(200).json({ success: true, data: qrData });
+});
+
+// GET /api/properties/:id/navigation (Secure, approval-gated navigation endpoint)
+export const getPropertyNavigation = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const property = await Property.findById(id);
+  if (!property) {
+    throw new AppError('Property not found', 404);
+  }
+
+  // If unauthenticated, access is strictly locked
+  if (!req.user || !req.user.userId) {
+    return res.status(403).json({
+      success: false,
+      authorized: false,
+      status: 'locked',
+      message: 'Directions locked. Please log in and request a visit or book this property to unlock navigation.'
+    });
+  }
+
+  const userId = req.user.userId;
+  const userRole = req.user.role;
+
+  // Manager / Admin / Owner Access Override
+  const isManagerOrOwner =
+    userRole === 'admin' ||
+    userRole === 'manager' ||
+    (property.manager && String(property.manager) === String(userId)) ||
+    (property.owner && String(property.owner) === String(userId));
+
+  let isAuthorized = isManagerOrOwner;
+  let reason = isManagerOrOwner ? 'manager_access' : null;
+  let approvedDate = null;
+  let timeSlot = null;
+
+  if (!isAuthorized) {
+    // 1. Check for Approved Visit Request
+    const approvedVisit = await PropertyVisit.findOne({
+      property: property._id,
+      tenant: userId,
+      status: 'approved'
+    }).sort({ updatedAt: -1 });
+
+    if (approvedVisit) {
+      isAuthorized = true;
+      reason = 'visit_approved';
+      approvedDate = approvedVisit.visitDate;
+      timeSlot = approvedVisit.timeSlot;
+    }
+  }
+
+  if (!isAuthorized) {
+    // 2. Check for Approved or Confirmed Booking
+    const approvedBooking = await Booking.findOne({
+      property: property._id,
+      user: userId,
+      $or: [
+        { status: { $in: ['approved', 'confirmed', 'active'] } },
+        { paymentStatus: 'paid' }
+      ]
+    }).sort({ updatedAt: -1 });
+
+    if (approvedBooking) {
+      isAuthorized = true;
+      reason = 'booking_approved';
+      approvedDate = approvedBooking.startDate;
+    }
+  }
+
+  if (!isAuthorized) {
+    // 3. Check for Active / Approved Lease
+    const tenantDoc = await Tenant.findOne({ user: userId });
+    const tenantIds = [userId, tenantDoc?._id].filter(Boolean);
+
+    const approvedLease = await Lease.findOne({
+      property: property._id,
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { user: { $in: tenantIds } }
+      ],
+      status: { $in: ['active', 'signed', 'pending_payment'] }
+    }).sort({ updatedAt: -1 });
+
+    if (approvedLease) {
+      isAuthorized = true;
+      reason = 'lease_active';
+      approvedDate = approvedLease.startDate;
+    }
+  }
+
+  if (!isAuthorized) {
+    // Determine detailed lock status for tenant guidance
+    const [pendingVisit, pendingBooking, rejectedVisit, rejectedBooking] = await Promise.all([
+      PropertyVisit.findOne({ property: property._id, tenant: userId, status: 'pending' }).sort({ updatedAt: -1 }),
+      Booking.findOne({ property: property._id, user: userId, status: 'pending' }).sort({ updatedAt: -1 }),
+      PropertyVisit.findOne({ property: property._id, tenant: userId, status: 'rejected' }).sort({ updatedAt: -1 }),
+      Booking.findOne({ property: property._id, user: userId, status: 'rejected' }).sort({ updatedAt: -1 })
+    ]);
+
+    let lockStatus = 'locked';
+    let lockMessage = 'Directions locked. Request a visit or book this property to unlock navigation.';
+
+    if (pendingVisit || pendingBooking) {
+      lockStatus = 'pending_approval';
+      lockMessage = 'Awaiting Manager Approval. Navigation will be unlocked once your request is approved.';
+    } else if (rejectedVisit || rejectedBooking) {
+      lockStatus = 'rejected';
+      lockMessage = 'Your visit or booking request was not approved. Navigation remains restricted.';
+    }
+
+    return res.status(403).json({
+      success: false,
+      authorized: false,
+      status: lockStatus,
+      message: lockMessage
+    });
+  }
+
+  // Tenant is legitimately authorized — extract real stored property location
+  let lat = property.location?.lat;
+  let lng = property.location?.lng;
+
+  // Fallback to geo Point coordinates [lng, lat]
+  if ((!lat || !lng || isNaN(lat) || isNaN(lng)) && Array.isArray(property.geo?.coordinates) && property.geo.coordinates.length >= 2) {
+    lng = property.geo.coordinates[0];
+    lat = property.geo.coordinates[1];
+  }
+
+  const hasValidCoords = lat !== undefined && lat !== null && lng !== undefined && lng !== null && !isNaN(Number(lat)) && !isNaN(Number(lng));
+  const fullAddress = [property.address, property.city, property.state, property.zipCode].filter(Boolean).join(', ');
+
+  let destinationUrl = null;
+  if (hasValidCoords) {
+    destinationUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  } else if (fullAddress) {
+    destinationUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}`;
+  }
+
+  let label = 'Navigation Unlocked';
+  if (reason === 'visit_approved') {
+    label = 'Visit Approved • Navigation Available';
+  } else if (reason === 'booking_approved') {
+    label = 'Booking Approved • Navigation Available';
+  } else if (reason === 'lease_active') {
+    label = 'Lease Active • Navigation Available';
+  } else if (reason === 'manager_access') {
+    label = 'Manager Access • Navigation Available';
+  }
+
+  res.status(200).json({
+    success: true,
+    authorized: true,
+    status: 'unlocked',
+    reason,
+    label,
+    data: {
+      hasLocation: Boolean(destinationUrl),
+      lat: hasValidCoords ? Number(lat) : null,
+      lng: hasValidCoords ? Number(lng) : null,
+      address: property.address,
+      city: property.city,
+      state: property.state,
+      zipCode: property.zipCode,
+      fullAddress,
+      destinationUrl,
+      approvedDate,
+      timeSlot
+    }
+  });
 });
 

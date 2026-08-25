@@ -23,6 +23,7 @@ router.use(authenticate);
 // Authenticated Property Routes
 router.get('/stats', managerOrAdmin, propertyController.getPropertyStats);
 router.get('/:id/qr-pass', propertyController.getPropertyQrPass);
+router.get('/:id/navigation', propertyController.getPropertyNavigation);
 
 // Explore Nearby Places & Driving Route & City Discovery (Authenticated)
 router.get('/:id/nearby', nearbyController.getNearbyPlaces);

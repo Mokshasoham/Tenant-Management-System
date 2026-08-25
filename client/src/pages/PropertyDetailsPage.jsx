@@ -11,7 +11,8 @@ import {
     Wifi, Car, Droplets, Wind, Info, MessageSquare,
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
     Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
-    Edit2, Trash2, Users, Wrench, Phone, Mail, Scale, Heart
+    Edit2, Trash2, Users, Wrench, Phone, Mail, Scale, Heart,
+    Lock, Navigation, Compass, ExternalLink, Clock
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
@@ -159,6 +160,73 @@ export default function PropertyDetailsPage() {
     const [showLeaseLimitModal, setShowLeaseLimitModal] = useState(false);
     const [maintenanceConfig, setMaintenanceConfig] = useState({ fee: 500, frequency: 'monthly', version: '1.0' });
 
+    // Approval-Gated Navigation State
+    const [navStatus, setNavStatus] = useState({
+        loading: true,
+        authorized: false,
+        status: 'locked',
+        reason: null,
+        label: 'Directions Locked',
+        message: 'Request a visit or book this property to unlock navigation.',
+        data: null
+    });
+
+    const fetchNavigationStatus = React.useCallback(async (propId) => {
+        if (!propId) return;
+        const activeUser = useAuthStore.getState().user;
+        if (!activeUser) {
+            setNavStatus({
+                loading: false,
+                authorized: false,
+                status: 'locked',
+                reason: null,
+                label: 'Directions Locked',
+                message: 'Request a visit or book this property to unlock navigation.',
+                data: null
+            });
+            return;
+        }
+
+        try {
+            setNavStatus(prev => ({ ...prev, loading: true }));
+            const res = await propertyService.getPropertyNavigation(propId);
+            const resData = res?.data || res;
+            if (resData?.authorized) {
+                setNavStatus({
+                    loading: false,
+                    authorized: true,
+                    status: 'unlocked',
+                    reason: resData.reason,
+                    label: resData.label || 'Navigation Available',
+                    message: 'Your request is approved. Live turn-by-turn directions are available.',
+                    data: resData.data
+                });
+            } else {
+                setNavStatus({
+                    loading: false,
+                    authorized: false,
+                    status: resData?.status || 'locked',
+                    reason: null,
+                    label: resData?.status === 'pending_approval' ? 'Awaiting Manager Approval' : (resData?.status === 'rejected' ? 'Navigation Unavailable' : 'Directions Locked'),
+                    message: resData?.message || 'Request a visit or book this property to unlock navigation.',
+                    data: null
+                });
+            }
+        } catch (err) {
+            const errData = err.response?.data;
+            const lockStatus = errData?.status || 'locked';
+            const lockLabel = lockStatus === 'pending_approval' ? 'Awaiting Manager Approval' : (lockStatus === 'rejected' ? 'Navigation Unavailable' : 'Directions Locked');
+            setNavStatus({
+                loading: false,
+                authorized: false,
+                status: lockStatus,
+                reason: null,
+                label: lockLabel,
+                message: errData?.message || 'Request a visit or book this property to unlock navigation.',
+                data: null
+            });
+        }
+    }, []);
 
     useEffect(() => {
         (async () => {
@@ -312,6 +380,12 @@ export default function PropertyDetailsPage() {
     useEffect(() => {
         fetchProperty();
     }, [fetchProperty]);
+
+    useEffect(() => {
+        if (id) {
+            fetchNavigationStatus(id);
+        }
+    }, [id, existingBooking, existingVisit, fetchNavigationStatus]);
 
     const inFlightSavesRef = useRef(new Set());
 
@@ -1177,6 +1251,99 @@ export default function PropertyDetailsPage() {
                                 <span className="text-xs font-bold text-muted-foreground/70">{property.city}, {property.country || 'India'}</span>
                             </div>
                             <PropertyDetailMap location={property.location} name={property.name} address={property.address} city={property.city} />
+
+                            {/* Access-Controlled Navigation Action Card */}
+                            <div className={cn(
+                                "p-5 rounded-3xl border transition-all duration-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+                                navStatus.authorized
+                                    ? "bg-emerald-500/5 dark:bg-emerald-950/20 border-emerald-500/30 shadow-emerald-950/10"
+                                    : navStatus.status === 'pending_approval'
+                                        ? "bg-amber-500/5 dark:bg-amber-950/20 border-amber-500/30"
+                                        : navStatus.status === 'rejected'
+                                            ? "bg-rose-500/5 dark:bg-rose-950/20 border-rose-500/30"
+                                            : "bg-muted/40 border-border/80"
+                            )}>
+                                <div className="flex items-start sm:items-center gap-3.5">
+                                    <div className={cn(
+                                        "w-11 h-11 rounded-2xl flex items-center justify-center text-lg shrink-0 shadow-inner",
+                                        navStatus.authorized
+                                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30"
+                                            : navStatus.status === 'pending_approval'
+                                                ? "bg-amber-500/10 text-amber-500 border border-amber-500/30"
+                                                : navStatus.status === 'rejected'
+                                                    ? "bg-rose-500/10 text-rose-500 border border-rose-500/30"
+                                                    : "bg-muted text-muted-foreground border border-border"
+                                    )}>
+                                        {navStatus.authorized ? (
+                                            <Compass className="w-5 h-5 text-emerald-500" />
+                                        ) : navStatus.status === 'pending_approval' ? (
+                                            <Clock className="w-5 h-5 text-amber-500" />
+                                        ) : navStatus.status === 'rejected' ? (
+                                            <XCircle className="w-5 h-5 text-rose-500" />
+                                        ) : (
+                                            <Lock className="w-5 h-5 text-muted-foreground/80" />
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs font-black text-foreground uppercase tracking-wider">
+                                                Access-Controlled Navigation
+                                            </span>
+                                            <span className={cn(
+                                                "px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                                                navStatus.authorized
+                                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                                                    : navStatus.status === 'pending_approval'
+                                                        ? "bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                                                        : navStatus.status === 'rejected'
+                                                            ? "bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400"
+                                                            : "bg-muted border-border text-muted-foreground"
+                                            )}>
+                                                {navStatus.authorized ? '✓ Navigation Unlocked' : (
+                                                    navStatus.status === 'pending_approval' ? '⏳ Awaiting Approval' : (
+                                                        navStatus.status === 'rejected' ? '🔒 Restricted' : '🔒 Locked'
+                                                    )
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <p className="text-xs text-muted-foreground font-medium max-w-md leading-relaxed">
+                                            {navStatus.authorized
+                                                ? `${navStatus.label} • Live driving directions and turn-by-turn navigation are ready.`
+                                                : navStatus.message}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Action Button */}
+                                {navStatus.authorized ? (
+                                    <button
+                                        type="button"
+                                        disabled={!navStatus.data?.hasLocation || !navStatus.data?.destinationUrl}
+                                        onClick={() => {
+                                            if (navStatus.data?.destinationUrl) {
+                                                window.open(navStatus.data.destinationUrl, '_blank', 'noopener,noreferrer');
+                                            }
+                                        }}
+                                        className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Navigation className="w-4 h-4" />
+                                        <span>Get Directions</span>
+                                        <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-muted/60 border border-border/80 text-muted-foreground/60 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed shrink-0"
+                                        title={navStatus.message}
+                                    >
+                                        <Lock className="w-4 h-4" />
+                                        <span>{navStatus.label || 'Directions Locked'}</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Explore Nearby Places Section */}
