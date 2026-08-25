@@ -16,6 +16,7 @@ router.get('/', optionalAuthenticate, propertyController.getAllProperties);
 router.get('/:id', optionalAuthenticate, propertyController.getPropertyById);
 router.get('/:id/availability', optionalAuthenticate, propertyController.getAvailability);
 router.get('/:id/similar', optionalAuthenticate, propertyController.getSimilarProperties);
+router.get('/:id/nearby-properties', optionalAuthenticate, propertyController.getNearbyProperties);
 
 router.use(authenticate);
 

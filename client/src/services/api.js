@@ -56,6 +56,7 @@ export const propertyService = {
   saveProperty: (id) => apiClient.post(`/properties/${id}/save`),
   getAvailability: (id) => apiClient.get(`/properties/${id}/availability`),
   getSimilarProperties: (id) => apiClient.get(`/properties/${id}/similar`),
+  getNearbyProperties: (id, params) => apiClient.get(`/properties/${id}/nearby-properties`, { params }),
   uploadPropertyMedia: (id, formData) => apiClient.post(`/properties/${id}/media`, formData, { timeout: 120000 }),
   getPropertyQrPass: (id, leaseId) => apiClient.get(`/properties/${id}/qr-pass`, { params: { leaseId } }),
   verifyPropertyPublic: (token) => apiClient.get(`/properties/public-verify/${token}`),

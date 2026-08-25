@@ -64,6 +64,7 @@ export const resolvePropertyUrls = (property, req) => {
 
 import { getAuthenticatedUserId } from '../utils/managerHelper.js';
 import { getPublicPropertyFilter, isPropertyPubliclyVisible } from '../utils/propertyVisibility.js';
+import { extractPropertyCoords, getProximityDetails, calculateSimilarityScore } from '../utils/propertyDiscovery.js';
 
 export const getAllProperties = asyncHandler(async (req, res) => {
   const {
@@ -533,54 +534,158 @@ export const uploadPropertyMedia = asyncHandler(async (req, res) => {
   });
 });
 
-export const getSimilarProperties = asyncHandler(async (req, res) => {
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /api/properties/:id/nearby-properties
+// Authoritative Geographic Proximity Discovery
+// ══════════════════════════════════════════════════════════════════════════════
+export const getNearbyProperties = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const property = await Property.findById(id);
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 6));
+  const maxRadiusKm = Number(req.query.radius) || 50;
 
-  if (!property) {
+  const target = await Property.findById(id);
+  if (!target) {
     throw new AppError('Property not found', 404);
   }
 
-  const minPrice = property.rentAmount * 0.85;
-  const maxPrice = property.rentAmount * 1.15;
+  const targetCoords = extractPropertyCoords(target);
 
-  let geoFilter = {};
-  if (property.geo && property.geo.coordinates && property.geo.coordinates.length === 2) {
-      geoFilter = {
-        geo: {
-            $near: {
-                $geometry: { type: "Point", coordinates: property.geo.coordinates },
-                $maxDistance: 16093.4 // 10 miles in meters
-            }
-        }
-      };
-  } else {
-      // Fallback if geo coordinates aren't seeded properly
-      geoFilter = { city: property.city };
-  }
+  // Apply authoritative public property visibility filter excluding target property
+  const publicFilter = await getPublicPropertyFilter({ _id: { $ne: target._id } });
 
-  const publicFilter = await getPublicPropertyFilter({
-    _id: { $ne: property._id },
-    type: property.type,
-    status: 'available',
-    rentAmount: { $gte: minPrice, $lte: maxPrice },
-    ...geoFilter
+  const candidates = await Property.find(publicFilter)
+    .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate({
+      path: 'leases',
+      select: 'status endDate',
+      match: { status: 'active' }
+    })
+    .populate('activeLease');
+
+  // Compute proximity for each candidate
+  const withProximity = candidates.map(cand => {
+    const prox = getProximityDetails(target, cand);
+    const resolved = resolvePropertyUrls(cand, req);
+    if (!resolved.manager && resolved.owner) {
+      resolved.manager = resolved.owner;
+    }
+    return {
+      ...resolved,
+      distanceKm: prox.distanceKm,
+      distanceText: prox.distanceText,
+      proximityBadge: prox.proximityBadge,
+      scope: prox.scope,
+      hasPreciseDistance: prox.hasPreciseDistance,
+      location: cand.location || (prox.coords ? { lat: prox.coords.lat, lng: prox.coords.lng } : null)
+    };
   });
 
-  const similarProps = await Property.find(publicFilter)
-  .limit(4)
-  .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
-  .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
-  .populate({
-    path: 'leases',
-    select: 'status endDate',
-    match: { status: 'active' }
-  })
-  .populate('activeLease');
+  // Sort strategy:
+  // 1. Properties with precise distance (ascending distance)
+  // 2. Properties in the same city (fallback)
+  // 3. Properties in the same state
+  withProximity.sort((a, b) => {
+    if (a.distanceKm !== null && b.distanceKm !== null) {
+      return a.distanceKm - b.distanceKm;
+    }
+    if (a.distanceKm !== null) return -1;
+    if (b.distanceKm !== null) return 1;
+
+    // Check same city
+    const aSameCity = Boolean(target.city && a.city && target.city.toLowerCase() === a.city.toLowerCase());
+    const bSameCity = Boolean(target.city && b.city && target.city.toLowerCase() === b.city.toLowerCase());
+    if (aSameCity && !bSameCity) return -1;
+    if (!aSameCity && bSameCity) return 1;
+
+    return 0;
+  });
+
+  // Filter out candidates that are absurdly far away (> maxRadiusKm) if precise distance is known
+  const filtered = withProximity.filter(item => {
+    if (item.distanceKm !== null) {
+      return item.distanceKm <= maxRadiusKm;
+    }
+    return true;
+  }).slice(0, limit);
+
+  let scopeLabel = `Homes near ${target.name}`;
+  if (filtered.length > 0) {
+    if (filtered[0].distanceKm !== null && filtered[0].distanceKm <= 5) {
+      scopeLabel = 'Homes within 5 km';
+    } else if (target.city) {
+      scopeLabel = `Homes in ${target.city}`;
+    }
+  }
 
   res.status(200).json({
     success: true,
-    data: similarProps.map(p => resolvePropertyUrls(p, req)),
+    target: {
+      id: target._id,
+      name: target.name,
+      city: target.city,
+      address: target.address,
+      location: target.location || targetCoords,
+      rentAmount: target.rentAmount,
+      type: target.type
+    },
+    count: filtered.length,
+    scopeLabel,
+    data: filtered,
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /api/properties/:id/similar
+// Multi-Signal Algorithmic Recommendation Engine
+// ══════════════════════════════════════════════════════════════════════════════
+export const getSimilarProperties = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 6));
+
+  const target = await Property.findById(id);
+  if (!target) {
+    throw new AppError('Property not found', 404);
+  }
+
+  // Apply authoritative public property visibility filter excluding target property
+  const publicFilter = await getPublicPropertyFilter({ _id: { $ne: target._id } });
+
+  const candidates = await Property.find(publicFilter)
+    .populate('owner', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate('manager', 'firstName lastName email phone avatar role isTest isInternal')
+    .populate({
+      path: 'leases',
+      select: 'status endDate',
+      match: { status: 'active' }
+    })
+    .populate('activeLease');
+
+  // Compute similarity score for each candidate
+  const scoredCandidates = candidates.map(cand => {
+    const { score, matchReasons } = calculateSimilarityScore(target, cand);
+    const resolved = resolvePropertyUrls(cand, req);
+    if (!resolved.manager && resolved.owner) {
+      resolved.manager = resolved.owner;
+    }
+    return {
+      ...resolved,
+      matchScore: score,
+      matchPercentage: `${score}%`,
+      matchReasons
+    };
+  });
+
+  // Sort by match score descending
+  scoredCandidates.sort((a, b) => b.matchScore - a.matchScore);
+
+  const topMatches = scoredCandidates.slice(0, limit);
+
+  res.status(200).json({
+    success: true,
+    targetId: target._id,
+    count: topMatches.length,
+    data: topMatches,
   });
 });
 

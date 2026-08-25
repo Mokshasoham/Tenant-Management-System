@@ -21,6 +21,8 @@ import MaintenanceTermsModal from '../components/MaintenanceTermsModal';
 import TenantLeaseLimitModal from '../components/subscription/TenantLeaseLimitModal';
 import NearbyPlacesSection from '../components/property/NearbyPlacesSection';
 import TopNearbyPlacesCTA from '../components/property/TopNearbyPlacesCTA';
+import NearbyPropertiesSection from '../components/property/NearbyPropertiesSection';
+import SimilarPropertiesSection from '../components/property/SimilarPropertiesSection';
 
 
 
@@ -138,6 +140,8 @@ export default function PropertyDetailsPage() {
     // Save & Info state
     const [isSaved, setIsSaved] = useState(false);
     const [savingState, setSavingState] = useState(false);
+    const [savedPropertyIds, setSavedPropertyIds] = useState(new Set());
+    const [comparePropertyIds, setComparePropertyIds] = useState(new Set());
     const [toastMessage, setToastMessage] = useState(null);
     const [showInfoDrawer, setShowInfoDrawer] = useState(false);
 
@@ -298,6 +302,12 @@ export default function PropertyDetailsPage() {
             const res = await propertyService.saveProperty(id);
             const nextSaved = res.data?.saved ?? !isSaved;
             setIsSaved(nextSaved);
+            setSavedPropertyIds(prev => {
+                const next = new Set(prev);
+                if (nextSaved) next.add(id);
+                else next.delete(id);
+                return next;
+            });
             setToastMessage({
                 type: 'success',
                 text: nextSaved ? '★ Property saved to your favorites' : '☆ Property removed from saved properties'
@@ -312,6 +322,58 @@ export default function PropertyDetailsPage() {
             setSavingState(false);
             setTimeout(() => setToastMessage(null), 3500);
         }
+    };
+
+    const handleSaveItem = async (propId) => {
+        if (!user) {
+            navigate('/login', { state: { from: `/properties/${id}` } });
+            return;
+        }
+        try {
+            const res = await propertyService.saveProperty(propId);
+            const nextSaved = res.data?.saved;
+            setSavedPropertyIds(prev => {
+                const next = new Set(prev);
+                if (nextSaved) next.add(propId);
+                else next.delete(propId);
+                return next;
+            });
+            if (propId === id) {
+                setIsSaved(Boolean(nextSaved));
+            }
+            setToastMessage({
+                type: 'success',
+                text: nextSaved ? '★ Property added to saved list' : '☆ Property removed from saved list'
+            });
+        } catch (err) {
+            console.error('Save item error:', err);
+            setToastMessage({
+                type: 'error',
+                text: 'Unable to update saved property.'
+            });
+        } finally {
+            setTimeout(() => setToastMessage(null), 3000);
+        }
+    };
+
+    const handleToggleCompare = (prop) => {
+        if (!prop?._id) return;
+        setComparePropertyIds(prev => {
+            const next = new Set(prev);
+            if (next.has(prop._id)) {
+                next.delete(prop._id);
+                setToastMessage({ type: 'info', text: `Removed ${prop.name} from comparison` });
+            } else {
+                if (next.size >= 4) {
+                    setToastMessage({ type: 'error', text: 'You can compare up to 4 properties' });
+                    return prev;
+                }
+                next.add(prop._id);
+                setToastMessage({ type: 'success', text: `Added ${prop.name} to comparison` });
+            }
+            return next;
+        });
+        setTimeout(() => setToastMessage(null), 3000);
     };
 
     const handleChat = () => {
@@ -1907,52 +1969,26 @@ export default function PropertyDetailsPage() {
                 )}
             </div>
 
-            {/* Similar Properties */}
-            {similarProperties.length > 0 && (
-                <div className="space-y-6 pt-12 border-t border-border/50">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-black text-foreground">Similar Properties</h2>
-                            <p className="text-xs text-muted-foreground/40 font-black uppercase tracking-widest mt-1">Handpicked for you in {property.city}</p>
-                        </div>
-                        <button onClick={() => navigate('/browse')} className="text-xs font-black text-primary hover:text-primary/80 flex items-center gap-2 uppercase tracking-widest">
-                            View all <ArrowRight className="w-4 h-4" />
-                        </button>
-                    </div>
+            {/* ══ FEATURE 1: NEARBY / AROUND THIS LOCATION ══ */}
+            {property && (
+                <NearbyPropertiesSection
+                    property={property}
+                    onSaveProperty={handleSaveItem}
+                    savedPropertyIds={savedPropertyIds}
+                    onToggleCompare={handleToggleCompare}
+                    comparePropertyIds={comparePropertyIds}
+                />
+            )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {similarProperties.map((p) => (
-                            <motion.div
-                                key={p._id}
-                                whileHover={{ y: -8 }}
-                                onClick={() => {
-                                    navigate(`/properties/${p._id}`);
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                }}
-                                className="group cursor-pointer rounded-3xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-xl transition-all"
-                            >
-                                <div className="aspect-[4/3] overflow-hidden relative">
-                                    <img
-                                        src={p.images?.[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80'}
-                                        alt={p.name}
-                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    />
-                                    <div className="absolute top-4 left-4 px-3 py-1.5 rounded-xl bg-white/90 backdrop-blur-md text-[10px] font-black text-primary shadow-lg uppercase tracking-widest">
-                                        ₹{p.rentAmount?.toLocaleString('en-IN')}
-                                    </div>
-                                </div>
-                                <div className="p-5 space-y-3">
-                                    <h3 className="font-black text-foreground truncate">{p.name}</h3>
-                                    <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                                        <span className="flex items-center gap-1.5"><Bed className="w-3 h-3" /> {p.bedrooms}</span>
-                                        <span className="flex items-center gap-1.5"><Bath className="w-3 h-3" /> {p.bathrooms}</span>
-                                        <span className="flex items-center gap-1.5"><Square className="w-3 h-3" /> {p.size} sqft</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
+            {/* ══ FEATURE 2: SIMILAR PROPERTIES (PERSONALIZED RECOMMENDATIONS) ══ */}
+            {property && (
+                <SimilarPropertiesSection
+                    property={property}
+                    onSaveProperty={handleSaveItem}
+                    savedPropertyIds={savedPropertyIds}
+                    onToggleCompare={handleToggleCompare}
+                    comparePropertyIds={comparePropertyIds}
+                />
             )}
 
             {/* ══ FLOATING TOAST NOTIFICATION ══ */}
