@@ -643,7 +643,12 @@ export default function MyLeasePage() {
                 <>
                     {/* ── Property & Manager Header Card ── */}
                     {currentLease && (
-                        <PropertyManagerHeaderCard key={`pm-header-${currentLease._id}`} lease={currentLease} />
+                        <PropertyManagerHeaderCard
+                            lease={currentLease}
+                            leases={activeLeases}
+                            currentIndex={selectedLeaseIndex}
+                            onSelectLeaseIndex={handleSelectLeaseIndex}
+                        />
                     )}
 
                     {/* ── Pending Signature Warning Banner / Upcoming Banner ── */}
