@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { propertyService } from '../../services/api';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Search, MapPin, Bed, Bath, Square, Building2,
     Star, ArrowRight, SlidersHorizontal, X,
     Zap, LayoutGrid, Map, Heart, Scale, ChevronDown,
-    CheckCircle2, RefreshCw, AlertTriangle,
+    CheckCircle2, RefreshCw, AlertTriangle, Filter, Sparkles, Tag
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { propertyService } from '../../services/api';
 import { cn } from '../../utils/cn';
 import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
@@ -16,7 +16,7 @@ import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
 import InteractivePropertyMap from '../PropertyMap';
 
-// ── Error boundary – catches any map rendering crash ──
+// ── Error boundary for Leaflet map crashes ──
 class MapErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false, error: null }; }
     static getDerivedStateFromError(error) { return { hasError: true, error }; }
@@ -29,7 +29,7 @@ class MapErrorBoundary extends React.Component {
                     <p className="text-muted-foreground text-xs">{this.state.error?.message}</p>
                     <button
                         onClick={() => this.setState({ hasError: false, error: null })}
-                        className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-black text-xs shadow-xl transition-all"
+                        className="px-6 py-2.5 rounded-full bg-emerald-600 text-white font-black text-xs shadow-xl transition-all cursor-pointer"
                     >
                         Reload Map View
                     </button>
@@ -41,15 +41,15 @@ class MapErrorBoundary extends React.Component {
 }
 
 const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest First' },
+    { value: 'createdAt', label: 'Newest First' },
     { value: 'price_asc', label: 'Price: Low to High' },
     { value: 'price_desc', label: 'Price: High to Low' },
-    { value: 'rating', label: 'Top Rated' },
+    { value: 'bedrooms', label: 'Most Bedrooms' },
 ];
 
 const TYPE_COLORS = {
-    apartment: '#6366f1',
-    house: '#10b981',
+    apartment: '#10b981',
+    house: '#059669',
     commercial: '#f59e0b',
     land: '#8b5cf6',
 };
@@ -58,23 +58,23 @@ const TYPE_COLORS = {
 function SkeletonCard({ compact = false }) {
     if (compact) {
         return (
-            <div className="flex gap-3 p-3 rounded-2xl bg-card border border-border">
-                <div className="w-24 h-20 rounded-xl flex-shrink-0 shimmer" />
+            <div className="flex gap-3 p-3 rounded-2xl bg-card border border-border animate-pulse">
+                <div className="w-24 h-20 rounded-xl flex-shrink-0 bg-muted" />
                 <div className="flex-1 space-y-2 pt-1">
-                    <div className="h-3.5 w-[70%] rounded-md shimmer" />
-                    <div className="h-3 w-[50%] rounded-md shimmer" />
-                    <div className="h-4.5 w-[40%] rounded-md shimmer" />
+                    <div className="h-3.5 w-[70%] rounded-md bg-muted" />
+                    <div className="h-3 w-[50%] rounded-md bg-muted" />
+                    <div className="h-4.5 w-[40%] rounded-md bg-muted" />
                 </div>
             </div>
         );
     }
     return (
-        <div className="rounded-[1.75rem] overflow-hidden bg-card border border-border">
-            <div className="h-48 shimmer" />
-            <div className="p-5 space-y-2.5">
-                <div className="h-4.5 w-[70%] rounded-md shimmer" />
-                <div className="h-3.5 w-[50%] rounded-md shimmer" />
-                <div className="h-9 w-full rounded-xl shimmer mt-1" />
+        <div className="rounded-[1.75rem] overflow-hidden bg-card border border-border animate-pulse p-4 space-y-3">
+            <div className="h-48 rounded-2xl bg-muted" />
+            <div className="space-y-2.5 px-1">
+                <div className="h-4 w-3/4 bg-muted rounded-md" />
+                <div className="h-3 w-1/2 bg-muted rounded-md" />
+                <div className="h-8 w-full bg-muted rounded-xl mt-2" />
             </div>
         </div>
     );
@@ -83,12 +83,10 @@ function SkeletonCard({ compact = false }) {
 // ── Compact card for the map side-panel ──
 function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
-    const color = TYPE_COLORS[p.type] || '#6366f1';
-    const displayStatus = getDisplayStatus(p);
     const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
-            className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
+            className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-emerald-500/50 transition-all shadow-sm">
             <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted relative">
                 {coverUrl
                     ? <img 
@@ -100,65 +98,38 @@ function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
                             e.target.src = DEFAULT_PLACEHOLDER_SVG;
                         }}
                     />
-                    : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
-                <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
-                {displayStatus && (
-                    <span className={cn(
-                        "absolute bottom-1 right-1 text-[7px] font-black px-1 rounded shadow-sm border uppercase tracking-tighter",
-                        displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
-                        displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
-                        displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
-                        "bg-rose-500/90 border-rose-400/20 text-white"
-                    )}>
-                        {displayStatus === 'Available' ? 'AVBL' : displayStatus === 'Under Maintenance' ? 'MAINT' : displayStatus === 'Sold Out' ? 'SOLD' : 'SOON'}
-                    </span>
-                )}
+                    : <div className="w-full h-full flex items-center justify-center text-2xl">🏠</div>
+                }
             </div>
-            <div className="flex-1 min-w-0">
-                <p className="font-black text-sm text-foreground truncate">{p.name}</p>
-                <p className="text-[10px] text-muted-foreground/60 truncate my-0.5">📍 {p.city}</p>
-                <p className="text-base font-black text-foreground" style={{ color: theme === 'light' ? color : 'inherit' }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span className="text-[9px] font-bold text-muted-foreground/40">/mo</span></p>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-muted-foreground/60">🛏 {p.bedrooms || 0}</span>
-                    <span className="text-[10px] text-muted-foreground/60">🚿 {p.bathrooms || 0}</span>
-                    <button onClick={e => { e.stopPropagation(); onSave(); }} className={cn("ml-auto p-1 rounded-lg transition-colors", isSaved ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground/30 hover:bg-muted")}>
-                        <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); onCompare(); }} className={cn("p-1 rounded-lg transition-colors", inCompare ? "text-primary bg-primary/10" : "text-muted-foreground/30 hover:bg-muted")}>
-                        <Scale className="w-3.5 h-3.5" />
-                    </button>
+            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                    <div className="flex items-center justify-between gap-1">
+                        <p className="font-black text-xs text-foreground truncate">{p.name}</p>
+                        <span className="text-[9px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md shrink-0">
+                            {p.type || 'Home'}
+                        </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        📍 {[p.city, p.state].filter(Boolean).join(', ')}
+                    </p>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs font-black text-foreground">
+                        ₹{(p.rentAmount || 0).toLocaleString('en-IN')}<small className="text-[9px] text-muted-foreground font-normal">/mo</small>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-bold">
+                        {p.bedrooms || 0} Bed • {p.bathrooms || 0} Bath
+                    </span>
                 </div>
             </div>
         </motion.div>
     );
 }
 
-// ── Curated high-fidelity harmonic ambient palettes for property media cycling ──
-const AMBIENT_PALETTES = [
-    { r: 245, g: 158, b: 11 },   // Warm Sunset Gold / Amber
-    { r: 16, g: 185, b: 129 },   // Fresh Emerald / Forest Green
-    { r: 99, g: 102, b: 241 },   // Sapphire Indigo / Modern Blue
-    { r: 249, g: 115, b: 22 },   // Terracotta / Warm Orange
-    { r: 59, g: 130, b: 246 },   // Ocean Azure / Sky Blue
-    { r: 236, g: 72, b: 153 },   // Coral Rose / Pink
-    { r: 139, g: 92, b: 246 },   // Amethyst Violet / Purple
-    { r: 20, g: 184, b: 166 },   // Crisp Mint / Teal
-];
-
-function getMediaAmbientRgb(cardIndex, imgIndex) {
-    const paletteIndex = ((cardIndex || 0) * 3 + (imgIndex || 0)) % AMBIENT_PALETTES.length;
-    return AMBIENT_PALETTES[paletteIndex];
-}
-
-const VIEW_DETAILS_LETTERS = ['V', 'i', 'e', 'w', '\u00A0', 'd', 'e', 't', 'a', 'i', 'l', 's'];
-
 // ── Full grid card ──
 function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
-    const color = TYPE_COLORS[p.type] || '#6366f1';
-    const displayStatus = getDisplayStatus(p);
 
-    // Extract real images
     const allMedia = p.media || [];
     const rawImages = p.images?.length
         ? p.images
@@ -167,12 +138,8 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
 
     const [currentImgIndex, setCurrentImgIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
-    const [btnHovered, setBtnHovered] = useState(false);
     const intervalRef = useRef(null);
 
-    const ambientRgb = getMediaAmbientRgb(index, currentImgIndex);
-
-    // Slideshow interval only active on hovered card
     useEffect(() => {
         if (isHovered && imageUrls.length > 1) {
             intervalRef.current = setInterval(() => {
@@ -193,348 +160,309 @@ function GridCard({ p, index, isSaved, inCompare, onSave, onCompare, onClick }) 
         };
     }, [isHovered, imageUrls.length]);
 
+    const coverImg = imageUrls[currentImgIndex] || DEFAULT_PLACEHOLDER_SVG;
+    const mgr = p.manager || p.owner;
+    const mgrName = mgr?.name || (mgr?.firstName ? `${mgr.firstName} ${mgr?.lastName || ''}`.trim() : (p.ownerName || 'Manager not assigned'));
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: Math.min(index * 0.05, 0.5) }}
+            transition={{ delay: Math.min(index * 0.04, 0.4) }}
             onClick={onClick}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            style={{
-                boxShadow: isHovered
-                    ? theme === 'light'
-                        ? `0 12px 28px -6px rgba(0, 0, 0, 0.07), 0 20px 48px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.14)`
-                        : `0 14px 32px -6px rgba(0, 0, 0, 0.50), 0 20px 52px -10px rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, 0.18)`
-                    : theme === 'light'
-                        ? '0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)'
-                        : '0 4px 20px -2px rgba(0, 0, 0, 0.30), 0 2px 6px -1px rgba(0, 0, 0, 0.15)',
-                transform: isHovered ? 'translateY(-3px)' : 'translateY(0px)',
-                borderColor: isHovered
-                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.14)'
-                    : theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-                transition: 'transform 280ms cubic-bezier(.2,.8,.2,1), box-shadow 500ms ease, border-color 300ms ease'
-            }}
-            className={cn(
-                "relative rounded-[2.25rem] cursor-pointer bg-card border select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            )}
+            className="group cursor-pointer rounded-3xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between"
         >
-            {/* Dynamic Ambient Media Shadow Layer radiating OUTSIDE behind the entire card */}
-            <div
-                className="absolute -inset-2.5 sm:-inset-3.5 rounded-[2.75rem] pointer-events-none -z-10"
-                style={{
-                    background: isHovered
-                        ? `radial-gradient(ellipse at 50% 30%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.22 : 0.30}) 0%, rgba(${ambientRgb.r}, ${ambientRgb.g}, ${ambientRgb.b}, ${theme === 'light' ? 0.07 : 0.12}) 50%, transparent 80%)`
-                        : 'transparent',
-                    filter: 'blur(30px)',
-                    opacity: isHovered ? 1 : 0,
-                    transform: isHovered ? 'scale(1.04) translateY(-2px)' : 'scale(0.95) translateY(0)',
-                    transition: 'opacity 700ms ease, background 900ms ease, transform 300ms ease'
-                }}
-            />
+            <div className="p-3.5 space-y-3">
+                {/* Media Stage */}
+                <div className="aspect-[16/10] rounded-2xl overflow-hidden relative bg-muted">
+                    <img
+                        src={coverImg}
+                        alt={p.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                        }}
+                    />
 
-            {/* Media Area */}
-            <div className="relative h-56 sm:h-60 overflow-hidden bg-muted transition-colors rounded-t-[2.25rem]">
-                {imageUrls.length > 0 ? (
-                    <div className="w-full h-full relative overflow-hidden">
-                        <AnimatePresence initial={false} mode="wait">
-                            <motion.img
-                                key={`prop-img-${currentImgIndex}-${imageUrls[currentImgIndex]}`}
-                                src={imageUrls[currentImgIndex]}
-                                alt={p.name}
-                                loading="lazy"
-                                initial={{ opacity: 0.85, scale: 1.00 }}
-                                animate={{ opacity: 1, scale: isHovered ? 1.025 : 1.00 }}
-                                exit={{ opacity: 0.85, scale: 1.00 }}
-                                transition={{
-                                    opacity: { duration: 0.8, ease: 'easeInOut' },
-                                    scale: { duration: 0.8, ease: 'easeOut' }
-                                }}
-                                className="w-full h-full object-cover select-none pointer-events-none"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
-                                }}
-                            />
-                        </AnimatePresence>
+                    {/* Top Left: Type & Verified */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="px-2.5 py-1 rounded-xl bg-slate-950/85 backdrop-blur-md text-emerald-400 font-black text-[10px] tracking-wide shadow-lg border border-emerald-500/30 uppercase">
+                            {p.type || 'Property'}
+                        </span>
+                        {(p.verificationStatus === 'verified' || p.verifiedBadge) && (
+                            <span className="px-2 py-1 rounded-xl bg-emerald-600/90 backdrop-blur-md text-white font-black text-[10px] tracking-wide shadow-lg flex items-center gap-1">
+                                ✓ Verified
+                            </span>
+                        )}
                     </div>
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
-                        <Building2 className="w-12 h-12 opacity-20 text-foreground" />
+
+                    {/* Price Badge */}
+                    <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-white font-black text-xs shadow-lg">
+                        ₹{(p.rentAmount || 0).toLocaleString('en-IN')}
+                        <span className="text-[9px] font-bold text-slate-400">/mo</span>
                     </div>
-                )}
 
-                {/* Ambient Dark Gradient Overlays for readable text and badges */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/15 pointer-events-none" />
-
-                {/* Media Progress Dot Indicators */}
-                {imageUrls.length > 1 && (
-                    <div className="absolute bottom-3.5 right-4 flex items-center gap-1.5 z-10 pointer-events-none">
-                        {imageUrls.map((_, i) => (
-                            <span
-                                key={i}
+                    {/* Save & Compare Quick Overlays */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                        {onSave && (
+                            <button
+                                type="button"
+                                aria-label="Save property"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    onSave();
+                                }}
                                 className={cn(
-                                    "rounded-full transition-all duration-500",
-                                    i === currentImgIndex
-                                        ? "w-4 h-1.5 bg-white shadow-sm"
-                                        : "w-1.5 h-1.5 bg-white/40"
+                                    "p-2 rounded-xl backdrop-blur-md transition-all shadow-md cursor-pointer",
+                                    isSaved
+                                        ? "bg-rose-500 text-white"
+                                        : "bg-slate-950/70 hover:bg-slate-900 text-white hover:scale-105"
                                 )}
-                            />
-                        ))}
-                    </div>
-                )}
-
-                {/* Top-left badges */}
-                <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-20 pointer-events-none">
-                    <div className="flex gap-1.5 flex-wrap">
-                        <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>{p.type}</span>
-                        {displayStatus && (
-                            <span className={cn(
-                                "px-3 py-1 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border uppercase tracking-wider",
-                                displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
-                                displayStatus.startsWith('Available from') ? "bg-indigo-500/90 border-indigo-400/20 text-white" :
-                                displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
-                                "bg-rose-500/90 border-rose-400/20 text-white"
-                            )}>
-                                {displayStatus}
-                            </span>
+                            >
+                                <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
+                            </button>
                         )}
-                        {((p.videos?.length || p.media?.filter(m => m.mediaType === 'video').length || 0) > 0) && (
-                            <span className="px-2.5 py-1 bg-black/60 text-emerald-400 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/10">
-                                ▶ Video
-                            </span>
-                        )}
-                        {p.virtualTourUrl && (
-                            <span className="px-2.5 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">
-                                360° Tour
-                            </span>
+                        {onCompare && (
+                            <button
+                                type="button"
+                                aria-label="Compare property"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    onCompare();
+                                }}
+                                className={cn(
+                                    "p-2 rounded-xl backdrop-blur-md transition-all shadow-md cursor-pointer",
+                                    inCompare
+                                        ? "bg-emerald-600 text-white"
+                                        : "bg-slate-950/70 hover:bg-slate-900 text-white hover:scale-105"
+                                )}
+                            >
+                                <Scale className="w-3.5 h-3.5" />
+                            </button>
                         )}
                     </div>
-                    {p.bookingType === 'free' && <span className="px-3 py-1 bg-primary/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">🛡️ Demo Available</span>}
-                    {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">⚡ Best Value</span>}
                 </div>
 
-                {/* Top-right actions (Save & Compare untouched) */}
-                <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
-                    <button onClick={e => { e.stopPropagation(); onSave(); }}
-                        className={cn(
-                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg hover:scale-105 active:scale-95",
-                            isSaved ? "bg-rose-500/80" : "bg-black/40 hover:bg-black/60"
-                        )}>
-                        <Heart className={cn("w-4.5 h-4.5", isSaved && "fill-current")} />
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); onCompare(); }}
-                        className={cn(
-                            "w-9 h-9 rounded-xl border-none cursor-pointer flex items-center justify-center backdrop-blur-md text-white transition-all shadow-lg hover:scale-105 active:scale-95",
-                            inCompare ? "bg-primary/80" : "bg-black/40 hover:bg-black/60"
-                        )}>
-                        <Scale className="w-4.5 h-4.5" />
-                    </button>
-                </div>
-
-                {/* Price & Rating */}
-                <div className="absolute bottom-3.5 left-4 text-white z-10 pointer-events-none">
-                    <p className="text-2xl font-black mb-0 tracking-tight">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
-                    <p className="text-[10px] font-black opacity-70 uppercase tracking-widest leading-none mt-0.5">per month</p>
-                </div>
-                {p.rating > 0 && (
-                    <div className="absolute bottom-3.5 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg z-10 pointer-events-none">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span className="text-white text-xs font-black">{p.rating}</span>
+                {/* Details */}
+                <div className="space-y-1.5 px-1">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-black text-sm text-foreground truncate group-hover:text-emerald-500 transition-colors">
+                            {p.name}
+                        </h3>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60 shrink-0">
+                            Available
+                        </span>
                     </div>
-                )}
+
+                    <p className="text-xs text-muted-foreground/80 font-medium flex items-center gap-1 truncate">
+                        <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate">{[p.address, p.city, p.state].filter(Boolean).join(', ')}</span>
+                    </p>
+
+                    {/* Specs */}
+                    <div className="flex items-center gap-3 pt-2 text-[11px] font-bold text-muted-foreground border-t border-border/50">
+                        <span className="flex items-center gap-1">
+                            <Bed className="w-3.5 h-3.5 text-emerald-500" /> {p.bedrooms || 0} Bed
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <Bath className="w-3.5 h-3.5 text-teal-500" /> {p.bathrooms || 0} Bath
+                        </span>
+                        {p.squareFeet && (
+                            <span className="flex items-center gap-1">
+                                <Square className="w-3.5 h-3.5 text-amber-500" /> {p.squareFeet} sqft
+                            </span>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Body */}
-            <div className="p-5 sm:p-6 space-y-4">
-                <div>
-                    <h3 className="text-lg font-black text-foreground truncate group-hover:text-foreground/95 transition-colors duration-200">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground/75 font-semibold flex items-center gap-1.5 mt-1 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
-                        <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bedrooms || 0} Bed</span>
-                    <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
-                    {p.squareFeet && <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet} sqft</span>}
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        {p.manager?.avatar ? (
-                            <img src={p.manager.avatar} alt="Manager" className="w-8 h-8 rounded-xl object-cover border border-border shadow-sm flex-shrink-0" />
-                        ) : (
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
-                                {p.manager?.firstName?.[0] || p.manager?.name?.[0] || 'M'}
-                            </div>
-                        )}
-                        <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
-                            <span className="text-xs font-bold text-foreground truncate max-w-[110px] sm:max-w-[130px]">
-                                {p.manager?.name || (p.manager?.firstName ? `${p.manager.firstName} ${p.manager?.lastName || ''}`.trim() : (p.manager?.email || 'Assigned Manager'))}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Right-anchored Circular Arrow -> Expanding View Details Action */}
-                    <div className="flex justify-end flex-shrink-0">
-                        <button
-                            type="button"
-                            aria-label={`View details for ${p.name}`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClick();
-                            }}
-                            onMouseEnter={() => setBtnHovered(true)}
-                            onMouseLeave={() => setBtnHovered(false)}
-                            onFocus={() => setBtnHovered(true)}
-                            onBlur={() => setBtnHovered(false)}
-                            className="relative h-9 rounded-full flex items-center justify-end overflow-hidden cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
-                            style={{
-                                width: btnHovered ? '126px' : '36px',
-                                backgroundColor: btnHovered
-                                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.12)'
-                                    : theme === 'light' ? 'rgba(0, 0, 0, 0.045)' : 'rgba(255, 255, 255, 0.06)',
-                                borderColor: btnHovered
-                                    ? theme === 'light' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(255, 255, 255, 0.18)'
-                                    : theme === 'light' ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)',
-                                borderWidth: '1px',
-                                borderStyle: 'solid',
-                                boxShadow: btnHovered
-                                    ? theme === 'light' ? '0 4px 14px rgba(0, 0, 0, 0.08)' : '0 6px 18px rgba(0, 0, 0, 0.22)'
-                                    : 'none',
-                                transform: btnHovered ? 'translateY(-1px)' : 'translateY(0px)',
-                                transition: 'width 380ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease, transform 300ms ease'
-                            }}
-                        >
-                            {/* Sliding Queue Revealed Letters */}
-                            <div
-                                className="overflow-hidden flex items-center whitespace-nowrap pointer-events-none"
-                                style={{
-                                    width: btnHovered ? '82px' : '0px',
-                                    paddingLeft: btnHovered ? '12px' : '0px',
-                                    opacity: btnHovered ? 1 : 0,
-                                    transition: 'width 380ms cubic-bezier(0.22, 1, 0.36, 1), padding-left 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease'
-                                }}
-                            >
-                                <span
-                                    className="text-xs font-black tracking-tight flex items-center select-none"
-                                    style={{
-                                        color: theme === 'light' ? '#0f172a' : '#F5F7FA'
-                                    }}
-                                >
-                                    {VIEW_DETAILS_LETTERS.map((char, i) => (
-                                        <span
-                                            key={i}
-                                            className="inline-block select-none"
-                                            style={{
-                                                transform: btnHovered ? 'translateX(0px)' : 'translateX(-8px)',
-                                                opacity: btnHovered ? 1 : 0,
-                                                transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease',
-                                                transitionDelay: btnHovered ? `${i * 16}ms` : `${(VIEW_DETAILS_LETTERS.length - 1 - i) * 8}ms`
-                                            }}
-                                        >
-                                            {char}
-                                        </span>
-                                    ))}
-                                </span>
-                            </div>
-
-                            {/* Circular Arrow Anchor */}
-                            <div className="w-[34px] h-[34px] flex items-center justify-center flex-shrink-0">
-                                <ArrowRight
-                                    className="w-3.5 h-3.5 transition-transform duration-300 pointer-events-none"
-                                    style={{
-                                        transform: btnHovered ? 'translateX(1px)' : 'translateX(0px)',
-                                        color: theme === 'light' ? '#0f172a' : '#F5F7FA'
-                                    }}
-                                />
-                            </div>
-                        </button>
-                    </div>
-                </div>
+            {/* Footer */}
+            <div className="px-4 py-2.5 bg-muted/30 border-t border-border/50 flex items-center justify-between text-xs font-bold text-foreground">
+                <span className="text-[11px] font-bold text-muted-foreground truncate max-w-[140px]">
+                    {mgrName}
+                </span>
+                <span className="text-emerald-500 dark:text-emerald-400 font-black flex items-center gap-1 text-[11px] uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                    View Details →
+                </span>
             </div>
         </motion.div>
     );
 }
 
-// ══════════════════════════════════════════
-//  ORIGINAL TENANT BROWSE PROPERTIES COMPONENT
-// ══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+//  AUTHORITATIVE TENANT BROWSE & CITY DISCOVERY COMPONENT
+// ══════════════════════════════════════════════════════════════════════════════
 export function TenantBrowseProperties() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Parse URL params
+    const initialCity = searchParams.get('city') || '';
+    const initialView = searchParams.get('view') === 'map' ? 'map' : 'grid';
+    const initialSearch = searchParams.get('search') || '';
+    const initialType = searchParams.get('type') || '';
+    const initialMinPrice = searchParams.get('minPrice') || '';
+    const initialMaxPrice = searchParams.get('maxPrice') || '';
+    const initialBedrooms = searchParams.get('bedrooms') || '';
+    const initialFurnishing = searchParams.get('furnishing') || '';
+
     const user = useAuthStore((state) => state.user);
     const [properties, setProperties] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'map'
-    const [search, setSearch] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [viewMode, setViewMode] = useState(initialView);
+    const [search, setSearch] = useState(initialSearch);
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState('createdAt');
-    const [filters, setFilters] = useState({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '', country: '' });
+    const [filters, setFilters] = useState({
+        city: initialCity,
+        type: initialType,
+        minPrice: initialMinPrice,
+        maxPrice: initialMaxPrice,
+        bedrooms: initialBedrooms,
+        furnishing: initialFurnishing,
+        country: ''
+    });
     const [savedIds, setSavedIds] = useState(new Set());
     const [compareList, setCompareList] = useState([]);
     const [mapBounds, setMapBounds] = useState(null);
     const debounce = useRef(null);
 
-    // ── Fetch properties ──
-    const fetchProperties = async (overrides = {}) => {
-        setLoading(true);
-        try {
-            const params = {
-                limit: 80,
-                sortBy,
-                ...filters,
-                search,
-                ...overrides,
-            };
-            // Remove empty strings
-            Object.keys(params).forEach(k => { if (params[k] === '') delete params[k]; });
-            const res = await propertyService.getAllProperties(params);
-            const list = res?.data?.data || res?.data || [];
-            setProperties(Array.isArray(list) ? list : []);
+    // Sync when URL query changes (e.g. browser back/forward or navigation from property details)
+    useEffect(() => {
+        const urlCity = searchParams.get('city') || '';
+        const urlView = searchParams.get('view') === 'map' ? 'map' : 'grid';
+        if (urlCity !== filters.city) {
+            setFilters(prev => ({ ...prev, city: urlCity }));
+        }
+        if (urlView !== viewMode) {
+            setViewMode(urlView);
+        }
+    }, [searchParams]);
 
-            // Initialize saved IDs from the fetched list
+    // Update URL query parameters seamlessly
+    const syncUrlParams = (currentFilters, currentSearch, currentView) => {
+        const params = {};
+        if (currentFilters.city) params.city = currentFilters.city;
+        if (currentFilters.type) params.type = currentFilters.type;
+        if (currentFilters.minPrice) params.minPrice = currentFilters.minPrice;
+        if (currentFilters.maxPrice) params.maxPrice = currentFilters.maxPrice;
+        if (currentFilters.bedrooms) params.bedrooms = currentFilters.bedrooms;
+        if (currentFilters.furnishing) params.furnishing = currentFilters.furnishing;
+        if (currentSearch) params.search = currentSearch;
+        if (currentView === 'map') params.view = 'map';
+
+        setSearchParams(params, { replace: true });
+    };
+
+    // ── Fetch properties from backend using authoritative public filter ──
+    const fetchProperties = useCallback(async (overrides = {}) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const currentFilterState = { ...filters, ...overrides };
+            const currentSearch = overrides.search !== undefined ? overrides.search : search;
+            const currentSort = overrides.sortBy || sortBy;
+
+            const params = {
+                limit: 100,
+                sortBy: currentSort,
+                ...currentFilterState,
+                search: currentSearch,
+            };
+
+            // Clean up empty params
+            Object.keys(params).forEach(k => {
+                if (params[k] === '' || params[k] === undefined || params[k] === null) {
+                    delete params[k];
+                }
+            });
+
+            const res = await propertyService.getAllProperties(params);
+            const rawList = res?.data?.data || res?.data || [];
+            const list = Array.isArray(rawList) ? rawList : [];
+            setProperties(list);
+
+            // Fetch saved properties for active authenticated user
             const activeUser = useAuthStore.getState().user;
             if (activeUser) {
-                const saved = new Set();
-                list.forEach(p => {
-                    if (p.savedBy?.includes(activeUser._id || activeUser.id)) saved.add(p._id || p.id);
-                });
-                setSavedIds(saved);
+                try {
+                    const savedRes = await propertyService.getAllProperties({ savedOnly: true, limit: 100 });
+                    const savedList = savedRes?.data?.data || savedRes?.data || [];
+                    if (Array.isArray(savedList)) {
+                        setSavedIds(new Set(savedList.map(p => String(p._id || p.id))));
+                    }
+                } catch (e) {
+                    console.log('Failed to fetch user saved properties:', e);
+                }
             }
         } catch (err) {
-            console.error('Browse fetch error:', err);
+            console.error('[TenantBrowseProperties] Fetch error:', err);
+            setError(`Unable to load properties. Please try again.`);
             setProperties([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters, search, sortBy]);
 
-    // Initial load
-    useEffect(() => { fetchProperties(); }, []); // eslint-disable-line
+    useEffect(() => {
+        fetchProperties();
+    }, [filters.city, filters.type, filters.minPrice, filters.maxPrice, filters.bedrooms, filters.furnishing, sortBy]);
 
     const handleSearchChange = (val) => {
         setSearch(val);
+        syncUrlParams(filters, val, viewMode);
         clearTimeout(debounce.current);
-        debounce.current = setTimeout(() => fetchProperties({ search: val }), 600);
+        debounce.current = setTimeout(() => {
+            fetchProperties({ search: val });
+        }, 500);
     };
 
-    const handleSave = (propId) => {
+    const handleCityClear = () => {
+        const nextFilters = { ...filters, city: '' };
+        setFilters(nextFilters);
+        syncUrlParams(nextFilters, search, viewMode);
+    };
+
+    const handleResetAllFilters = () => {
+        const reset = { city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '', country: '' };
+        setFilters(reset);
+        setSearch('');
+        syncUrlParams(reset, '', viewMode);
+    };
+
+    const handleViewModeToggle = (mode) => {
+        setViewMode(mode);
+        syncUrlParams(filters, search, mode);
+    };
+
+    const handleSave = async (propId) => {
+        const strId = String(propId);
         setSavedIds(prev => {
             const next = new Set(prev);
-            next.has(propId) ? next.delete(propId) : next.add(propId);
+            if (next.has(strId)) next.delete(strId);
+            else next.add(strId);
             return next;
         });
-        propertyService.saveProperty(propId).catch(() => { });
+        try {
+            await propertyService.saveProperty(propId);
+        } catch (err) {
+            console.error('Failed to save property:', err);
+        }
     };
 
     const toggleCompare = (prop) => {
+        const pId = String(prop._id || prop.id);
         setCompareList(prev => {
-            const pId = prop._id || prop.id;
-            if (prev.some(p => (p._id || p.id) === pId)) return prev.filter(p => (p._id || p.id) !== pId);
-            if (prev.length >= 3) return prev;
+            if (prev.some(p => String(p._id || p.id) === pId)) {
+                return prev.filter(p => String(p._id || p.id) !== pId);
+            }
+            if (prev.length >= 4) return prev;
             return [...prev, prop];
         });
     };
@@ -544,223 +472,564 @@ export function TenantBrowseProperties() {
         fetchProperties({ ...bounds });
     };
 
-    const activeFilterCount = Object.values(filters).filter(Boolean).length;
+    // Active filters count
+    const activeFilterCount = Object.entries(filters).filter(([k, v]) => Boolean(v) && k !== 'country').length;
 
-    const inputClass = "bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-full transition-all placeholder:text-muted-foreground/30";
+    const formattedCity = filters.city
+        ? filters.city.trim().charAt(0).toUpperCase() + filters.city.trim().slice(1)
+        : '';
+
+    const inputClass = "bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 w-full transition-all placeholder:text-muted-foreground/40";
 
     return (
-        <>
-            {/* Shimmer keyframe */}
-            <style>{`@keyframes shimmerAnim { 0%{background-position:-1000px 0} 100%{background-position:1000px 0} }`}</style>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-                {/* ══ TOP BAR ══ */}
-                <div className="p-4 rounded-[1.75rem] bg-card border border-border shadow-sm flex flex-wrap items-center gap-4 transition-colors">
-                    {/* Title */}
-                    <div className="flex-[2] min-w-[200px]">
-                        <h1 className="text-2xl font-black text-foreground mb-0.5 flex items-center gap-2">🏠 Find a Home</h1>
-                        <p className="text-xs text-muted-foreground/60 font-medium">
-                            {loading ? 'Searching…' : `${properties.length} properties available`}
-                        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* ══ TOP BAR & CITY DISCOVERY HEADER ══ */}
+            <div className="p-5 rounded-[2rem] bg-card border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
+                {/* Dynamic Title / City Discovery Header */}
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        {filters.city ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] uppercase tracking-widest border border-emerald-500/20 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> City Discovery • {formattedCity}
+                            </span>
+                        ) : (
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] uppercase tracking-widest border border-emerald-500/20 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" /> All Listings
+                            </span>
+                        )}
                     </div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+                        {filters.city ? `Find a Home in ${formattedCity}` : 'Find a Home'}
+                    </h1>
+                    <p className="text-xs text-muted-foreground font-medium">
+                        {loading
+                            ? `Searching verified homes${filters.city ? ` in ${formattedCity}` : ''}…`
+                            : filters.city
+                                ? `${properties.length} verified home${properties.length === 1 ? '' : 's'} available in ${formattedCity}`
+                                : `${properties.length} verified properties available`
+                        }
+                    </p>
+                </div>
 
-                    {/* Search */}
-                    <div className="relative flex-[1.5] min-w-[200px]">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
+                {/* Controls Bar */}
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Search Field */}
+                    <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
                         <input
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
-                            placeholder="Search name, city, locality…"
-                            className={cn(inputClass, "pl-11")}
+                            placeholder={filters.city ? `Search within ${formattedCity}…` : "Search city, locality, name…"}
+                            className={cn(inputClass, "pl-10 h-11 text-xs")}
                         />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => handleSearchChange('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                     </div>
 
-                    {/* Sort */}
+                    {/* Sort Dropdown */}
                     <div className="relative">
-                        <select value={sortBy} onChange={e => { setSortBy(e.target.value); fetchProperties({ sortBy: e.target.value }); }}
-                            className={cn(inputClass, "pr-10 appearance-none cursor-pointer w-auto font-bold")}>
-                            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-card">{o.label}</option>)}
+                        <select
+                            value={sortBy}
+                            onChange={e => setSortBy(e.target.value)}
+                            className={cn(inputClass, "h-11 pr-9 appearance-none cursor-pointer w-auto font-bold text-xs")}
+                        >
+                            {SORT_OPTIONS.map(o => (
+                                <option key={o.value} value={o.value} className="bg-card">
+                                    {o.label}
+                                </option>
+                            ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none" />
                     </div>
 
-                    {/* Filter toggle */}
-                    <button onClick={() => setShowFilters(v => !v)}
+                    {/* Filter Toggle */}
+                    <button
+                        type="button"
+                        onClick={() => setShowFilters(v => !v)}
                         className={cn(
-                            inputClass, "w-auto px-4 flex items-center gap-2 font-bold cursor-pointer",
-                            showFilters ? "border-primary text-primary bg-primary/5" : "text-muted-foreground hover:bg-muted"
-                        )}>
-                        <SlidersHorizontal className="w-4 h-4" />
-                        Filters
-                        {activeFilterCount > 0 && <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black">{activeFilterCount}</span>}
+                            inputClass, "h-11 w-auto px-4 flex items-center gap-2 font-bold text-xs cursor-pointer shadow-sm",
+                            showFilters || activeFilterCount > 0
+                                ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                                : "text-muted-foreground hover:bg-muted"
+                        )}
+                    >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        <span>Filters</span>
+                        {activeFilterCount > 0 && (
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+                                {activeFilterCount}
+                            </span>
+                        )}
                     </button>
 
-                    {/* Map/Grid toggle */}
-                    <div className="flex bg-muted p-1.5 rounded-2xl border border-border shadow-inner">
-                        {[{ mode: 'grid', icon: LayoutGrid, label: 'Grid' }, { mode: 'map', icon: Map, label: 'Map' }].map(({ mode, icon: Icon, label }) => (
-                            <button key={mode} onClick={() => setViewMode(mode)}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-xl border-none cursor-pointer flex items-center gap-2 text-xs font-black transition-all",
-                                    viewMode === mode ? "bg-card text-foreground shadow-md" : "text-muted-foreground/60 hover:text-muted-foreground"
-                                )}>
-                                <Icon className="w-3.5 h-3.5" />{label}
-                            </button>
-                        ))}
+                    {/* Grid / Map Toggle */}
+                    <div className="flex bg-muted p-1 rounded-2xl border border-border shadow-inner">
+                        <button
+                            type="button"
+                            onClick={() => handleViewModeToggle('grid')}
+                            className={cn(
+                                "px-3.5 py-1.5 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-xs font-black transition-all",
+                                viewMode === 'grid'
+                                    ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border border-border"
+                                    : "text-muted-foreground/60 hover:text-muted-foreground"
+                            )}
+                        >
+                            <LayoutGrid className="w-3.5 h-3.5" /> Grid
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleViewModeToggle('map')}
+                            className={cn(
+                                "px-3.5 py-1.5 rounded-xl border-none cursor-pointer flex items-center gap-1.5 text-xs font-black transition-all",
+                                viewMode === 'map'
+                                    ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border border-border"
+                                    : "text-muted-foreground/60 hover:text-muted-foreground"
+                            )}
+                        >
+                            <Map className="w-3.5 h-3.5" /> Map
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                {/* ══ FILTER PANEL ══ */}
-                <AnimatePresence>
-                    {showFilters && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden">
-                            <div className="p-5 rounded-[1.75rem] bg-card border border-border mt-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 transition-colors">
-                                {[
-                                    { key: 'country', label: 'Country', type: 'text', placeholder: 'India' },
-                                    { key: 'city', label: 'City', type: 'text', placeholder: 'Bangalore' },
-                                    { key: 'minPrice', label: 'Min Price (₹)', type: 'number', placeholder: '0' },
-                                    { key: 'maxPrice', label: 'Max Price (₹)', type: 'number', placeholder: '50000' },
-                                    { key: 'bedrooms', label: 'Bedrooms', type: 'number', placeholder: '2' },
-                                ].map(f => (
-                                    <div key={f.key}>
-                                        <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">{f.label}</label>
-                                        <input type={f.type} value={filters[f.key]} placeholder={f.placeholder}
-                                            onChange={e => setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
-                                            className={cn(inputClass, "h-10 text-xs px-3")} />
-                                    </div>
-                                ))}
-                                <div>
-                                    <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">Type</label>
-                                    <select value={filters.type} onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                                        className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}>
-                                        <option value="" className="bg-card">All Types</option>
-                                        {['apartment', 'house', 'commercial', 'land'].map(t => <option key={t} value={t} className="bg-card">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                                    </select>
-                                </div>
-                                <div className="md:col-span-2 lg:col-span-1">
-                                    <label className="block text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-1.5 ml-1">Furnished</label>
-                                    <select value={filters.furnishing} onChange={e => setFilters(prev => ({ ...prev, furnishing: e.target.value }))}
-                                        className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}>
-                                        <option value="" className="bg-card">Any</option>
-                                        {['furnished', 'semi-furnished', 'unfurnished'].map(t => <option key={t} value={t} className="bg-card">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                                    </select>
-                                </div>
-                                <div className="col-span-2 lg:col-span-7 mt-2 flex items-center justify-end gap-3 pt-3 border-t border-border/50">
-                                    <button onClick={() => { setFilters({ city: '', type: '', minPrice: '', maxPrice: '', bedrooms: '', furnishing: '', country: '' }); fetchProperties({}); }}
-                                        className="h-10 px-6 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-500 font-black text-xs uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">
-                                        Reset
-                                    </button>
-                                    <button onClick={() => fetchProperties()}
-                                        className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
-                                        Apply Filters
-                                    </button>
+            {/* ══ ACTIVE FILTER CHIPS ══ */}
+            {(filters.city || filters.type || filters.bedrooms || filters.furnishing || filters.minPrice || filters.maxPrice || search) && (
+                <div className="flex flex-wrap items-center gap-2 px-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/50 mr-1 flex items-center gap-1">
+                        <Filter className="w-3 h-3" /> Active:
+                    </span>
+
+                    {filters.city && (
+                        <span className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                            <MapPin className="w-3 h-3 text-emerald-500" />
+                            <span>{formattedCity}</span>
+                            <button
+                                type="button"
+                                onClick={handleCityClear}
+                                className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 cursor-pointer ml-0.5"
+                                title="Clear city filter"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    {filters.type && (
+                        <span className="px-3 py-1 rounded-full bg-muted text-foreground font-bold text-xs border border-border flex items-center gap-1.5">
+                            <Building2 className="w-3 h-3 text-muted-foreground" />
+                            <span className="capitalize">{filters.type}</span>
+                            <button
+                                type="button"
+                                onClick={() => setFilters(prev => ({ ...prev, type: '' }))}
+                                className="p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    {filters.bedrooms && (
+                        <span className="px-3 py-1 rounded-full bg-muted text-foreground font-bold text-xs border border-border flex items-center gap-1.5">
+                            <Bed className="w-3 h-3 text-muted-foreground" />
+                            <span>{filters.bedrooms}+ Bedrooms</span>
+                            <button
+                                type="button"
+                                onClick={() => setFilters(prev => ({ ...prev, bedrooms: '' }))}
+                                className="p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    {(filters.minPrice || filters.maxPrice) && (
+                        <span className="px-3 py-1 rounded-full bg-muted text-foreground font-bold text-xs border border-border flex items-center gap-1.5">
+                            <span>₹{filters.minPrice || '0'} - ₹{filters.maxPrice || 'Any'}</span>
+                            <button
+                                type="button"
+                                onClick={() => setFilters(prev => ({ ...prev, minPrice: '', maxPrice: '' }))}
+                                className="p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    {filters.furnishing && (
+                        <span className="px-3 py-1 rounded-full bg-muted text-foreground font-bold text-xs border border-border flex items-center gap-1.5">
+                            <span className="capitalize">{filters.furnishing}</span>
+                            <button
+                                type="button"
+                                onClick={() => setFilters(prev => ({ ...prev, furnishing: '' }))}
+                                className="p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    {search && (
+                        <span className="px-3 py-1 rounded-full bg-muted text-foreground font-bold text-xs border border-border flex items-center gap-1.5">
+                            <span>"{search}"</span>
+                            <button
+                                type="button"
+                                onClick={() => handleSearchChange('')}
+                                className="p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={handleResetAllFilters}
+                        className="text-xs font-black text-rose-500 hover:underline px-2 py-1 cursor-pointer"
+                    >
+                        Clear All
+                    </button>
+                </div>
+            )}
+
+            {/* ══ EXPANDABLE FILTER DRAWER ══ */}
+            <AnimatePresence>
+                {showFilters && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-6 rounded-[2rem] bg-card border border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 shadow-sm">
+                            {/* City Filter Input */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    City / Locality
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={filters.city}
+                                        placeholder="e.g. Phagwara, Visakhapatnam"
+                                        onChange={e => setFilters(prev => ({ ...prev, city: e.target.value }))}
+                                        className={cn(inputClass, "h-10 text-xs px-3")}
+                                    />
+                                    {filters.city && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCityClear}
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
 
-                {/* ══ GRID VIEW ══ */}
-                {viewMode === 'grid' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                        {loading
-                            ? Array(6).fill(0).map((_, i) => <SkeletonCard key={i} />)
-                            : properties.length === 0
-                                ? (
-                                    <div className="col-span-full py-20 flex flex-col items-center justify-center bg-card border border-dashed border-border rounded-[2.5rem]">
-                                        <div className="text-6xl mb-4 grayscale opacity-40">🏠</div>
-                                        <p className="text-xl font-black text-foreground">No properties found</p>
-                                        <p className="text-muted-foreground mt-2 max-w-xs text-center">Try adjusting your filters or search terms to find what you're looking for.</p>
-                                    </div>
-                                )
-                                : properties.map((p, i) => (
-                                    <GridCard key={p._id || p.id} p={p} index={i}
-                                        isSaved={savedIds.has(p._id || p.id)}
-                                        inCompare={compareList.some(c => (c._id || c.id) === (p._id || p.id))}
-                                        onSave={() => handleSave(p._id || p.id)}
-                                        onCompare={() => toggleCompare(p)}
-                                        onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
-                                    />
-                                ))
-                        }
-                    </div>
-                )}
+                            {/* Property Type */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    Property Type
+                                </label>
+                                <select
+                                    value={filters.type}
+                                    onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                                    className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}
+                                >
+                                    <option value="" className="bg-card">All Types</option>
+                                    {['apartment', 'house', 'commercial', 'land'].map(t => (
+                                        <option key={t} value={t} className="bg-card">
+                                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                {/* ══ MAP VIEW ══  */}
-                {viewMode === 'map' && (
-                    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-220px)] min-h-[520px]">
-                        {/* Map panel */}
-                        <div className="flex-1 lg:flex-[2.5] rounded-[2.5rem] overflow-hidden border border-border shadow-inner bg-muted transition-colors relative">
-                            <MapErrorBoundary>
-                                <Suspense fallback={
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                                        <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                                        <p className="text-primary font-black text-xs uppercase tracking-widest">Warping to location…</p>
-                                    </div>
-                                }>
-                                    <InteractivePropertyMap
-                                        height="100%"
-                                        properties={properties}
-                                        loading={loading}
-                                        country={filters.country}
-                                        onBoundsChange={handleMapBoundsChange}
-                                    />
-                                </Suspense>
-                            </MapErrorBoundary>
+                            {/* Min Rent */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    Min Rent (₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={filters.minPrice}
+                                    placeholder="0"
+                                    onChange={e => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
+                                    className={cn(inputClass, "h-10 text-xs px-3")}
+                                />
+                            </div>
+
+                            {/* Max Rent */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    Max Rent (₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={filters.maxPrice}
+                                    placeholder="e.g. 50,000"
+                                    onChange={e => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
+                                    className={cn(inputClass, "h-10 text-xs px-3")}
+                                />
+                            </div>
+
+                            {/* Bedrooms */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    Bedrooms
+                                </label>
+                                <select
+                                    value={filters.bedrooms}
+                                    onChange={e => setFilters(prev => ({ ...prev, bedrooms: e.target.value }))}
+                                    className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}
+                                >
+                                    <option value="" className="bg-card">Any BHK</option>
+                                    <option value="1" className="bg-card">1+ BHK</option>
+                                    <option value="2" className="bg-card">2+ BHK</option>
+                                    <option value="3" className="bg-card">3+ BHK</option>
+                                    <option value="4" className="bg-card">4+ BHK</option>
+                                </select>
+                            </div>
+
+                            {/* Furnishing */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">
+                                    Furnishing
+                                </label>
+                                <select
+                                    value={filters.furnishing}
+                                    onChange={e => setFilters(prev => ({ ...prev, furnishing: e.target.value }))}
+                                    className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}
+                                >
+                                    <option value="" className="bg-card">Any</option>
+                                    {['furnished', 'semi-furnished', 'unfurnished'].map(t => (
+                                        <option key={t} value={t} className="bg-card">
+                                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="sm:col-span-2 lg:col-span-6 flex items-center justify-end gap-3 pt-3 border-t border-border/50">
+                                <button
+                                    type="button"
+                                    onClick={handleResetAllFilters}
+                                    className="h-10 px-5 rounded-xl border border-border text-foreground hover:bg-muted font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                    Reset
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        syncUrlParams(filters, search, viewMode);
+                                        fetchProperties();
+                                        setShowFilters(false);
+                                    }}
+                                    className="h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                                >
+                                    Apply Filters
+                                </button>
+                            </div>
                         </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        {/* Results list */}
-                        <div className="lg:w-[360px] flex flex-col gap-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                            <div className="sticky top-0 bg-transparent py-2 z-10">
-                                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 px-2">
-                                    {loading ? '⏳ Searching…' : `${properties.length} results in area`}
+            {/* ══ ERROR STATE ══ */}
+            {error && !loading && (
+                <div className="p-6 rounded-3xl bg-destructive/5 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                    <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+                        <div>
+                            <p className="text-xs font-black text-destructive uppercase tracking-wider">
+                                {filters.city ? `Couldn't load properties in ${formattedCity}` : "Couldn't load properties"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => fetchProperties()}
+                        className="px-4 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" /> Try again
+                    </button>
+                </div>
+            )}
+
+            {/* ══ GRID VIEW ══ */}
+            {viewMode === 'grid' && (
+                <div>
+                    {loading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {Array(6).fill(0).map((_, i) => <SkeletonCard key={i} />)}
+                        </div>
+                    ) : properties.length === 0 ? (
+                        /* Zero Properties Empty State */
+                        <div className="py-16 px-6 flex flex-col items-center justify-center bg-card border border-dashed border-border rounded-[2.5rem] text-center space-y-4 shadow-sm">
+                            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center text-3xl shadow-inner">
+                                📍
+                            </div>
+                            <div className="space-y-1 max-w-md">
+                                <h3 className="text-lg font-black text-foreground">
+                                    {filters.city ? `No properties available in ${formattedCity}` : 'No properties found'}
+                                </h3>
+                                <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                                    {filters.city
+                                        ? `There are currently no verified rental properties available in this city. Try exploring other locations or clearing the filter.`
+                                        : `Try adjusting your search terms or filters to discover available homes.`
+                                    }
                                 </p>
                             </div>
-                            {loading
-                                ? Array(5).fill(0).map((_, i) => <SkeletonCard key={i} compact />)
-                                : properties.length === 0
-                                    ? <div className="p-10 flex flex-col items-center justify-center text-center bg-card/50 border border-dashed border-border rounded-[2rem] mt-4">
-                                        <div className="text-4xl mb-3 opacity-20">🗺️</div>
-                                        <p className="font-black text-foreground text-sm">Pan to search area</p>
-                                        <p className="text-[10px] text-muted-foreground/50 mt-2 uppercase tracking-widest leading-relaxed">Zoom in or move map <br /> to find listings</p>
-                                    </div>
-                                    : properties.map(p => (
-                                        <CompactCard key={p._id || p.id} p={p}
-                                            isSaved={savedIds.has(p._id || p.id)}
-                                            inCompare={compareList.some(c => (c._id || c.id) === (p._id || p.id))}
-                                            onSave={() => handleSave(p._id || p.id)}
-                                            onCompare={() => toggleCompare(p)}
-                                            onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
-                                        />
-                                    ))
-                            }
+                            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                                {filters.city && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCityClear}
+                                        className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                                    >
+                                        Clear City Filter
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleResetAllFilters}
+                                    className="px-5 py-2.5 rounded-2xl bg-muted border border-border hover:bg-muted/80 text-foreground font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                    Browse All Listings →
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
-
-                {/* ══ COMPARE TRAY ══ */}
-                <AnimatePresence>
-                    {compareList.length > 0 && (
-                        <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
-                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 px-6 py-3.5 rounded-[1.75rem] bg-primary shadow-2xl shadow-primary/40 border border-white/20">
-                            <Scale className="w-5 h-5 text-white flex-shrink-0" />
-                            <span className="text-white font-black text-sm whitespace-nowrap">
-                                {compareList.length} propert{compareList.length > 1 ? 'ies' : 'y'} selected
-                            </span>
-                            <button onClick={() => navigate('/compare', { state: { compareList } })}
-                                className="px-5 py-2 rounded-xl bg-white text-primary font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md">
-                                Compare Now →
-                            </button>
-                            <button onClick={() => setCompareList([])}
-                                className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </motion.div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {properties.map((p, i) => (
+                                <GridCard
+                                    key={p._id || p.id}
+                                    p={p}
+                                    index={i}
+                                    isSaved={savedIds.has(String(p._id || p.id))}
+                                    inCompare={compareList.some(c => String(c._id || c.id) === String(p._id || p.id))}
+                                    onSave={() => handleSave(p._id || p.id)}
+                                    onCompare={() => toggleCompare(p)}
+                                    onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
+                                />
+                            ))}
+                        </div>
                     )}
-                </AnimatePresence>
-            </div>
-        </>
+                </div>
+            )}
+
+            {/* ══ MAP VIEW ══ */}
+            {viewMode === 'map' && (
+                <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-220px)] min-h-[520px]">
+                    {/* Leaflet Map Stage */}
+                    <div className="flex-1 lg:flex-[2.5] rounded-[2.5rem] overflow-hidden border border-border shadow-inner bg-muted transition-colors relative">
+                        <MapErrorBoundary>
+                            <Suspense fallback={
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                                    <div className="w-10 h-10 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+                                    <p className="text-emerald-500 font-black text-xs uppercase tracking-widest">Loading interactive map…</p>
+                                </div>
+                            }>
+                                <InteractivePropertyMap
+                                    height="100%"
+                                    properties={properties}
+                                    loading={loading}
+                                    country={filters.country}
+                                    onBoundsChange={handleMapBoundsChange}
+                                />
+                            </Suspense>
+                        </MapErrorBoundary>
+                    </div>
+
+                    {/* Results Sidebar */}
+                    <div className="lg:w-[360px] flex flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                        <div className="sticky top-0 bg-background/90 backdrop-blur-md py-2 z-10">
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground px-1">
+                                {loading
+                                    ? '⏳ Searching…'
+                                    : `${properties.length} results${filters.city ? ` in ${formattedCity}` : ' in view'}`
+                                }
+                            </p>
+                        </div>
+
+                        {loading ? (
+                            Array(4).fill(0).map((_, i) => <SkeletonCard key={i} compact />)
+                        ) : properties.length === 0 ? (
+                            <div className="p-8 flex flex-col items-center justify-center text-center bg-card/60 border border-dashed border-border rounded-[2rem] mt-2 space-y-3">
+                                <div className="text-3xl opacity-30">🗺️</div>
+                                <p className="font-black text-foreground text-xs">
+                                    {filters.city ? `No map listings in ${formattedCity}` : 'Pan to search area'}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                    {filters.city ? 'Try zooming out or clearing the city filter' : 'Zoom in or move map to discover listings'}
+                                </p>
+                                {filters.city && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCityClear}
+                                        className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs cursor-pointer shadow-sm"
+                                    >
+                                        Clear City Filter
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            properties.map(p => (
+                                <CompactCard
+                                    key={p._id || p.id}
+                                    p={p}
+                                    isSaved={savedIds.has(String(p._id || p.id))}
+                                    inCompare={compareList.some(c => String(c._id || c.id) === String(p._id || p.id))}
+                                    onSave={() => handleSave(p._id || p.id)}
+                                    onCompare={() => toggleCompare(p)}
+                                    onClick={() => handleViewPropertyNavigation({ navigate, property: p, role: user?.role })}
+                                />
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ══ FLOATING COMPARE TRAY ══ */}
+            <AnimatePresence>
+                {compareList.length > 0 && (
+                    <motion.div
+                        initial={{ y: 80, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 80, opacity: 0 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 px-6 py-3.5 rounded-[1.75rem] bg-slate-950/95 text-white shadow-2xl shadow-emerald-950/60 border border-emerald-500/40 backdrop-blur-md"
+                    >
+                        <Scale className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                        <span className="text-white font-black text-xs whitespace-nowrap">
+                            {compareList.length} propert{compareList.length > 1 ? 'ies' : 'y'} selected
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/compare', { state: { compareList } })}
+                            className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                        >
+                            Compare Now →
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCompareList([])}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
 

@@ -322,28 +322,18 @@ export default function NearbyPropertiesSection({
                 </div>
             )}
 
-            {/* Compact Refined Empty State */}
+            {/* Compact Refined Empty State — No duplicate button */}
             {!loading && !error && nearbyList.length === 0 && (
-                <div className="py-7 px-6 sm:px-8 rounded-3xl bg-card/70 border border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-                    <div className="flex items-center gap-4 text-center sm:text-left">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                            📍
-                        </div>
-                        <div className="space-y-0.5">
-                            <h3 className="text-sm font-black text-foreground">No verified homes nearby</h3>
-                            <p className="text-xs text-muted-foreground font-medium">
-                                There aren't other verified properties close to this location yet.
-                            </p>
-                        </div>
+                <div className="py-6 px-6 sm:px-8 rounded-3xl bg-card/70 border border-border/80 flex items-center gap-4 shadow-sm">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center text-lg shrink-0 shadow-inner">
+                        📍
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleExploreWiderCity}
-                        className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-900/20 flex items-center gap-2 cursor-pointer shrink-0"
-                    >
-                        <span>Explore {property?.city || 'City'}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="space-y-0.5">
+                        <h3 className="text-sm font-black text-foreground">No verified homes nearby</h3>
+                        <p className="text-xs text-muted-foreground font-medium">
+                            There aren't other verified properties close to this location yet.
+                        </p>
+                    </div>
                 </div>
             )}
 
