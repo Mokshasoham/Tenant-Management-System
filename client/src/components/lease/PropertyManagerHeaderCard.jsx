@@ -71,41 +71,63 @@ export default function PropertyManagerHeaderCard({
         return () => { isMounted = false; };
     }, [propId]);
 
-    // ── Mouse Wheel / Trackpad Scroll Listener ──
+    const stateRef = useRef({
+        currentIndex,
+        leases,
+        isMultiLease,
+        onSelectLeaseIndex
+    });
+
+    useEffect(() => {
+        stateRef.current = {
+            currentIndex,
+            leases,
+            isMultiLease,
+            onSelectLeaseIndex
+        };
+    }, [currentIndex, leases, isMultiLease, onSelectLeaseIndex]);
+
+    // ── Mouse Wheel / Trackpad Scroll Listener (Horizontal Lease Navigation Only) ──
     useEffect(() => {
         const cardElement = cardRef.current;
-        if (!cardElement || !isMultiLease || typeof onSelectLeaseIndex !== 'function') return;
+        if (!cardElement) return;
 
         const handleWheel = (e) => {
-            // Prevent the entire page from scrolling when user scrolls over this card
+            const { isMultiLease: multi, leases: leaseList, currentIndex: idx, onSelectLeaseIndex: selectFn } = stateRef.current;
+            if (!multi || !leaseList || leaseList.length <= 1 || typeof selectFn !== 'function') {
+                return;
+            }
+
+            // Always intercept wheel events over the card so the background page stays completely still
             e.preventDefault();
             e.stopPropagation();
 
             if (scrollCooldownRef.current) return;
 
-            const dominantDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+            // Translate any vertical wheel movement (deltaY) or horizontal movement (deltaX) into horizontal lease navigation
+            const dominantDelta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
             wheelAccumulatorRef.current += dominantDelta;
 
-            const SCROLL_THRESHOLD = 25;
+            const SCROLL_THRESHOLD = 18;
 
             if (wheelAccumulatorRef.current >= SCROLL_THRESHOLD) {
-                // Scroll down / right -> Next property
-                const nextIndex = (currentIndex + 1) % leases.length;
-                onSelectLeaseIndex(nextIndex);
+                // Next leased property (Scroll down / Scroll right)
+                const nextIndex = (idx + 1) % leaseList.length;
+                selectFn(nextIndex);
                 scrollCooldownRef.current = true;
                 wheelAccumulatorRef.current = 0;
                 setTimeout(() => {
                     scrollCooldownRef.current = false;
-                }, 350);
+                }, 300);
             } else if (wheelAccumulatorRef.current <= -SCROLL_THRESHOLD) {
-                // Scroll up / left -> Previous property
-                const prevIndex = (currentIndex - 1 + leases.length) % leases.length;
-                onSelectLeaseIndex(prevIndex);
+                // Previous leased property (Scroll up / Scroll left)
+                const prevIndex = (idx - 1 + leaseList.length) % leaseList.length;
+                selectFn(prevIndex);
                 scrollCooldownRef.current = true;
                 wheelAccumulatorRef.current = 0;
                 setTimeout(() => {
                     scrollCooldownRef.current = false;
-                }, 350);
+                }, 300);
             }
         };
 
@@ -115,9 +137,9 @@ export default function PropertyManagerHeaderCard({
         return () => {
             cardElement.removeEventListener('wheel', handleWheel);
         };
-    }, [currentIndex, isMultiLease, leases.length, onSelectLeaseIndex]);
+    }, []);
 
-    // ── Touch Swipe Handling for Mobile / Tablet ──
+    // ── Touch Swipe Handling for Mobile / Tablet (Horizontal Gestures Only) ──
     const handleTouchStart = (e) => {
         if (!isMultiLease) return;
         if (e.touches && e.touches.length > 0) {
@@ -130,7 +152,8 @@ export default function PropertyManagerHeaderCard({
     };
 
     const handleTouchEnd = (e) => {
-        if (!isMultiLease || typeof onSelectLeaseIndex !== 'function') return;
+        const { isMultiLease: multi, leases: leaseList, currentIndex: idx, onSelectLeaseIndex: selectFn } = stateRef.current;
+        if (!multi || !leaseList || leaseList.length <= 1 || typeof selectFn !== 'function') return;
         if (!e.changedTouches || e.changedTouches.length === 0) return;
 
         const diffX = touchStartRef.current.x - e.changedTouches[0].clientX;
@@ -138,33 +161,29 @@ export default function PropertyManagerHeaderCard({
         const absX = Math.abs(diffX);
         const absY = Math.abs(diffY);
 
-        if (absX >= 40 || absY >= 40) {
-            if (absX > absY) {
-                if (diffX > 0) {
-                    onSelectLeaseIndex((currentIndex + 1) % leases.length);
-                } else {
-                    onSelectLeaseIndex((currentIndex - 1 + leases.length) % leases.length);
-                }
+        // Only trigger horizontal switching when horizontal swipe is distinctly dominant
+        if (absX >= 35 && absX > absY * 1.2) {
+            if (diffX > 0) {
+                // Swiped left -> Next property
+                selectFn((idx + 1) % leaseList.length);
             } else {
-                if (diffY > 0) {
-                    onSelectLeaseIndex((currentIndex + 1) % leases.length);
-                } else {
-                    onSelectLeaseIndex((currentIndex - 1 + leases.length) % leases.length);
-                }
+                // Swiped right -> Previous property
+                selectFn((idx - 1 + leaseList.length) % leaseList.length);
             }
         }
     };
 
     // ── Keyboard Arrow Navigation when Focused ──
     const handleKeyDown = (e) => {
-        if (!isMultiLease || typeof onSelectLeaseIndex !== 'function') return;
+        const { isMultiLease: multi, leases: leaseList, currentIndex: idx, onSelectLeaseIndex: selectFn } = stateRef.current;
+        if (!multi || !leaseList || leaseList.length <= 1 || typeof selectFn !== 'function') return;
 
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
             e.preventDefault();
-            onSelectLeaseIndex((currentIndex + 1) % leases.length);
+            selectFn((idx + 1) % leaseList.length);
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
             e.preventDefault();
-            onSelectLeaseIndex((currentIndex - 1 + leases.length) % leases.length);
+            selectFn((idx - 1 + leaseList.length) % leaseList.length);
         }
     };
 
