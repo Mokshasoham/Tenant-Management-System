@@ -223,8 +223,7 @@ export default function NearbyPropertiesSection({
     };
 
     const handleExploreWiderCity = () => {
-        const cityParam = property?.city ? `?city=${encodeURIComponent(property.city)}` : '';
-        navigate(`/browse${cityParam}`);
+        navigate('/browse');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 

@@ -258,18 +258,6 @@ export default function InteractivePropertyMap({
 
             markersRef.current[property._id] = marker;
         });
-
-        // Auto-center / fit map bounds to the current filtered properties
-        if (visible.length > 0 && map) {
-            const validCoords = visible
-                .filter(p => p.location?.lat && p.location?.lng)
-                .map(p => [Number(p.location.lat), Number(p.location.lng)]);
-            if (validCoords.length === 1) {
-                map.setView(validCoords[0], 13, { animate: true });
-            } else if (validCoords.length > 1) {
-                map.fitBounds(validCoords, { padding: [50, 50], maxZoom: 15 });
-            }
-        }
     }, [properties, typeFilter, navigate]);
 
     // ── State/Country filter → zoom map + set area panel ──
