@@ -396,7 +396,7 @@ export default function NearbyPropertiesSection({
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 e.preventDefault();
-                                                                onSaveProperty(p._id);
+                                                                onSaveProperty(String(p._id || p.id));
                                                             }}
                                                             className={cn(
                                                                 "p-2 rounded-xl backdrop-blur-md transition-all shadow-md cursor-pointer",

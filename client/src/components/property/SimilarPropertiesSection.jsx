@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 
 import { propertyService } from '../../services/api';
+import useAuthStore from '../../context/authStore';
 import { PropertyCard, SkeletonCard } from './PropertyCard';
 
 export default function SimilarPropertiesSection({
@@ -29,6 +30,18 @@ export default function SimilarPropertiesSection({
             const data = res?.data?.data || res?.data || [];
             const list = Array.isArray(data) ? data : [];
             setSimilarList(list);
+
+            // Synchronize saved status from each property's savedBy list on initial mount
+            const activeUser = useAuthStore.getState().user;
+            if (activeUser) {
+                const userId = String(activeUser._id || activeUser.id);
+                list.forEach(p => {
+                    const strId = String(p._id || p.id);
+                    if (Array.isArray(p.savedBy) && p.savedBy.some(sId => String(sId._id || sId) === userId)) {
+                        savedPropertyIds.add(strId);
+                    }
+                });
+            }
         } catch (err) {
             console.error('[SimilarPropertiesSection] Error fetching similar properties:', err);
             setError('Recommendations could not be loaded. Please try again.');
@@ -132,10 +145,14 @@ export default function SimilarPropertiesSection({
                 </div>
             )}
 
-            {/* Same Browse Properties Grid & Card Design */}
+            {/* Same Browse Properties Grid & Card Design with Independent Save/Compare */}
             {!loading && !error && similarList.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {similarList.map((p, index) => {
+                        const strId = String(p._id || p.id);
+                        const isSaved = savedPropertyIds?.has(strId);
+                        const inCompare = comparePropertyIds?.has(strId);
+
                         const matchTag = p.matchScore >= 75
                             ? 'Strong match'
                             : p.matchScore >= 50
@@ -144,14 +161,14 @@ export default function SimilarPropertiesSection({
 
                         return (
                             <PropertyCard
-                                key={p._id || p.id}
+                                key={strId}
                                 p={p}
                                 index={index}
-                                isSaved={savedPropertyIds?.has(String(p._id || p.id))}
-                                inCompare={comparePropertyIds?.has(String(p._id || p.id))}
-                                onSave={() => onSaveProperty?.(p._id || p.id)}
+                                isSaved={isSaved}
+                                inCompare={inCompare}
+                                onSave={() => onSaveProperty?.(strId)}
                                 onCompare={() => onToggleCompare?.(p)}
-                                onClick={() => handleViewProperty(p._id || p.id)}
+                                onClick={() => handleViewProperty(strId)}
                                 matchTag={matchTag}
                                 matchReasons={p.matchReasons || []}
                             />

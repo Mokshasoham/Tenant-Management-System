@@ -313,63 +313,133 @@ export default function PropertyDetailsPage() {
         fetchProperty();
     }, [fetchProperty]);
 
+    const inFlightSavesRef = useRef(new Set());
+
     const handleToggleSave = async () => {
-        if (savingState) return;
-        setSavingState(true);
+        if (!user) {
+            navigate('/login', { state: { from: `/properties/${id}` } });
+            return;
+        }
+        const strId = String(id);
+        if (inFlightSavesRef.current.has(strId)) return;
+        inFlightSavesRef.current.add(strId);
+
+        const wasSaved = isSaved || savedPropertyIds.has(strId);
+        const willBeSaved = !wasSaved;
+
+        // Instant optimistic toggle
+        setIsSaved(willBeSaved);
+        setSavedPropertyIds(prev => {
+            const next = new Set(prev);
+            if (willBeSaved) next.add(strId);
+            else next.delete(strId);
+            return next;
+        });
+
+        setToastMessage({
+            type: 'success',
+            text: willBeSaved ? '★ Property saved to your favorites' : '☆ Property removed from saved properties'
+        });
+
         try {
-            const res = await propertyService.saveProperty(id);
-            const nextSaved = res.data?.saved ?? !isSaved;
-            setIsSaved(nextSaved);
-            setSavedPropertyIds(prev => {
-                const next = new Set(prev);
-                if (nextSaved) next.add(id);
-                else next.delete(id);
-                return next;
-            });
-            setToastMessage({
-                type: 'success',
-                text: nextSaved ? '★ Property saved to your favorites' : '☆ Property removed from saved properties'
-            });
+            const res = await propertyService.saveProperty(strId);
+            const serverSaved = res.data?.saved;
+            if (typeof serverSaved === 'boolean' && serverSaved !== willBeSaved) {
+                setIsSaved(serverSaved);
+                setSavedPropertyIds(prev => {
+                    const next = new Set(prev);
+                    if (serverSaved) next.add(strId);
+                    else next.delete(strId);
+                    return next;
+                });
+            }
         } catch (err) {
             console.error('Save property error:', err);
+            // Rollback on error
+            setIsSaved(wasSaved);
+            setSavedPropertyIds(prev => {
+                const next = new Set(prev);
+                if (wasSaved) next.add(strId);
+                else next.delete(strId);
+                return next;
+            });
             setToastMessage({
                 type: 'error',
                 text: 'Unable to save property. Please try again.'
             });
         } finally {
-            setSavingState(false);
-            setTimeout(() => setToastMessage(null), 3500);
+            inFlightSavesRef.current.delete(strId);
+            setTimeout(() => setToastMessage(null), 3000);
         }
     };
 
     const handleSaveItem = async (propId) => {
-        if (!user) {
+        if (!propId) return;
+        const strId = String(propId);
+
+        const activeUser = useAuthStore.getState().user;
+        if (!activeUser) {
             navigate('/login', { state: { from: `/properties/${id}` } });
             return;
         }
+
+        // Deduplicate in-flight clicks on the same card
+        if (inFlightSavesRef.current.has(strId)) return;
+        inFlightSavesRef.current.add(strId);
+
+        const wasSaved = savedPropertyIds.has(strId);
+        const willBeSaved = !wasSaved;
+
+        // 1. Instant optimistic update
+        setSavedPropertyIds(prev => {
+            const next = new Set(prev);
+            if (willBeSaved) next.add(strId);
+            else next.delete(strId);
+            return next;
+        });
+
+        if (strId === String(id)) {
+            setIsSaved(willBeSaved);
+        }
+
+        setToastMessage({
+            type: 'success',
+            text: willBeSaved ? '★ Property saved to your favorites' : '☆ Property removed from saved properties'
+        });
+
         try {
-            const res = await propertyService.saveProperty(propId);
-            const nextSaved = res.data?.saved;
-            setSavedPropertyIds(prev => {
-                const next = new Set(prev);
-                if (nextSaved) next.add(propId);
-                else next.delete(propId);
-                return next;
-            });
-            if (propId === id) {
-                setIsSaved(Boolean(nextSaved));
+            // 2. Persist to MongoDB through propertyService
+            const res = await propertyService.saveProperty(strId);
+            const serverSaved = res?.data?.saved;
+            if (typeof serverSaved === 'boolean' && serverSaved !== willBeSaved) {
+                setSavedPropertyIds(prev => {
+                    const next = new Set(prev);
+                    if (serverSaved) next.add(strId);
+                    else next.delete(strId);
+                    return next;
+                });
+                if (strId === String(id)) {
+                    setIsSaved(serverSaved);
+                }
             }
-            setToastMessage({
-                type: 'success',
-                text: nextSaved ? '★ Property added to saved list' : '☆ Property removed from saved list'
-            });
         } catch (err) {
             console.error('Save item error:', err);
+            // 3. Rollback on failure
+            setSavedPropertyIds(prev => {
+                const next = new Set(prev);
+                if (wasSaved) next.add(strId);
+                else next.delete(strId);
+                return next;
+            });
+            if (strId === String(id)) {
+                setIsSaved(wasSaved);
+            }
             setToastMessage({
                 type: 'error',
-                text: 'Unable to update saved property.'
+                text: 'Unable to update saved property. Please try again.'
             });
         } finally {
+            inFlightSavesRef.current.delete(strId);
             setTimeout(() => setToastMessage(null), 3000);
         }
     };
