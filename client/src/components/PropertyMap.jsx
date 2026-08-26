@@ -334,9 +334,9 @@ export default function InteractivePropertyMap({
     }, [onBoundsChange]);
 
     return (
-        <div className="relative w-full h-full min-h-[480px]">
+        <div className="relative w-full h-full min-h-[480px] overflow-hidden rounded-[2.5rem]">
             {/* ── TOP OVERLAY: Quick Type Pills + Hierarchical Location Filter ── */}
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2 pointer-events-auto max-w-[95%]">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 pointer-events-auto max-w-[95%]">
                 {/* Property Type Pills */}
                 <div className="flex items-center gap-1.5 flex-wrap justify-center p-1 rounded-full bg-background/80 backdrop-blur-md border border-border/80 shadow-lg">
                     {TYPE_PILLS.map(({ val, label }) => {
@@ -376,19 +376,19 @@ export default function InteractivePropertyMap({
                 <button
                     type="button"
                     onClick={searchArea}
-                    className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[1000] px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-indigo-600/50 border border-white/20 transition-all cursor-pointer"
+                    className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-indigo-600/50 border border-white/20 transition-all cursor-pointer"
                 >
                     🔍 Search this area
                 </button>
             )}
 
             {/* ── Bottom-Left Count Badge (Strictly Synchronized with Results) ── */}
-            <div className="absolute bottom-4 left-4 z-[1000] px-4 py-1.5 rounded-full bg-background/90 text-foreground font-black text-xs uppercase tracking-wider backdrop-blur-md border border-border shadow-lg">
+            <div className="absolute bottom-4 left-4 z-10 px-4 py-1.5 rounded-full bg-background/90 text-foreground font-black text-xs uppercase tracking-wider backdrop-blur-md border border-border shadow-lg">
                 {loading ? 'Loading…' : `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`}
             </div>
 
             {/* ── Leaflet Container ── */}
-            <div ref={containerRef} className="w-full h-full min-h-[480px]" />
+            <div ref={containerRef} className="w-full h-full min-h-[480px] relative z-0" />
         </div>
     );
 }

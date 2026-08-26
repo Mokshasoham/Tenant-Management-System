@@ -141,36 +141,40 @@ export default function TenantCompactCard({
                         ) : null}
 
                         {/* Save & Compare Buttons */}
-                        <div className="ml-auto flex items-center gap-1">
+                        <div className="ml-auto flex items-center gap-1.5 relative z-20">
                             <button
                                 type="button"
+                                aria-label="Save property"
                                 onClick={(e) => {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     onSave?.();
                                 }}
                                 className={cn(
-                                    "p-1 rounded-lg transition-colors cursor-pointer",
+                                    "p-1.5 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-center min-w-[28px] min-h-[28px] relative z-20",
                                     isSaved
-                                        ? "text-rose-500 bg-rose-500/10"
-                                        : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+                                        ? "text-rose-500 bg-rose-500/15 border border-rose-500/30"
+                                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted border border-border/40"
                                 )}
-                                title={isSaved ? "Saved" : "Save property"}
+                                title={isSaved ? "Remove from saved" : "Save property"}
                             >
                                 <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
                             </button>
                             <button
                                 type="button"
+                                aria-label="Compare property"
                                 onClick={(e) => {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     onCompare?.();
                                 }}
                                 className={cn(
-                                    "p-1 rounded-lg transition-colors cursor-pointer",
+                                    "p-1.5 rounded-xl transition-all duration-150 cursor-pointer flex items-center justify-center min-w-[28px] min-h-[28px] relative z-20",
                                     inCompare
-                                        ? "text-primary bg-primary/10"
-                                        : "text-muted-foreground/40 hover:text-foreground hover:bg-muted"
+                                        ? "text-primary bg-primary/15 border border-primary/30"
+                                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted border border-border/40"
                                 )}
-                                title={inCompare ? "In comparison" : "Add to compare"}
+                                title={inCompare ? "Remove from comparison" : "Add to comparison"}
                             >
                                 <Scale className="w-3.5 h-3.5" />
                             </button>

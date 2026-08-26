@@ -618,7 +618,7 @@ export function TenantBrowseProperties() {
                 {viewMode === 'map' && (
                     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-220px)] min-h-[520px]">
                         {/* Left: Leaflet Map Container */}
-                        <div className="flex-1 lg:flex-[2.5] rounded-[2.5rem] overflow-hidden border border-border shadow-inner bg-muted transition-colors relative">
+                        <div className="flex-1 lg:flex-[2.5] rounded-[2.5rem] overflow-hidden border border-border shadow-inner bg-muted transition-colors relative z-0">
                             <MapErrorBoundary>
                                 <Suspense
                                     fallback={
@@ -649,7 +649,7 @@ export function TenantBrowseProperties() {
                         </div>
 
                         {/* Right: Results Side-Panel (Synchronized Source of Truth) */}
-                        <div className="lg:w-[360px] flex flex-col gap-3 overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                        <div className="lg:w-[360px] flex flex-col gap-3 overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent relative z-20 shrink-0">
                             <div className="sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 flex items-center justify-between px-2 border-b border-border/40">
                                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">
                                     {loading
@@ -727,7 +727,7 @@ export function TenantBrowseProperties() {
                             initial={{ y: 80, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: 80, opacity: 0 }}
-                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 px-6 py-3.5 rounded-[1.75rem] bg-primary shadow-2xl shadow-primary/40 border border-white/20"
+                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[2000] flex items-center gap-4 px-6 py-3.5 rounded-[1.75rem] bg-primary shadow-2xl shadow-primary/40 border border-white/20 pointer-events-auto"
                         >
                             <Scale className="w-5 h-5 text-white flex-shrink-0" />
                             <span className="text-white font-black text-sm whitespace-nowrap">
