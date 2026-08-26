@@ -1,11 +1,12 @@
 /**
- * InteractivePropertyMap — Vanilla Leaflet + State/Area filter overlay
- * Features:
- *  - Type filter pills (All, Apt, House, Commercial, Land)
- *  - State/Area selector dropdown → zooms map + filters markers
- *  - "Search this area" button after pan/zoom
- *  - Price markers → popup with property detail card
- *  - Area info panel when a state is selected
+ * InteractivePropertyMap — Leaflet Map Engine with Controlled Filtering & Two-Way Marker Sync
+ * Supports:
+ *  - Controlled or Uncontrolled Type Filter Pills (All, Apt, House, Commercial, Land)
+ *  - Hierarchical Location Selector (State / City)
+ *  - Missing Coordinate Validation
+ *  - Marker ↔ Result Card 2-Way Selection & FlyTo
+ *  - Dynamic Bounds Auto-fit
+ *  - Theme-aware Tile Layer
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
@@ -13,6 +14,7 @@ import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import handleViewPropertyNavigation from '../utils/propertyNavigationHelper';
+import LocationFilterPopover from './property/LocationFilterPopover';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -26,8 +28,12 @@ const TYPE_COLORS = {
     house: '#10b981',
     commercial: '#f59e0b',
     land: '#8b5cf6',
+    hostel: '#a855f7',
+    pg: '#f43f5e',
+    villa: '#10b981',
+    shop: '#f59e0b',
 };
-const DEF = '#3b82f6';
+const DEF_COLOR = '#6366f1';
 
 const TYPE_PILLS = [
     { val: '', label: '🏠 All' },
@@ -37,54 +43,9 @@ const TYPE_PILLS = [
     { val: 'land', label: '🌿 Land' },
 ];
 
-// Major Indian state centers [lat, lng, zoom]
-const STATE_COORDS = {
-    'Andhra Pradesh': [15.9129, 79.7400, 7],
-    'Arunachal Pradesh': [28.2180, 94.7278, 7],
-    'Assam': [26.2006, 92.9376, 7],
-    'Bihar': [25.0961, 85.3131, 7],
-    'Chhattisgarh': [21.2787, 81.8661, 7],
-    'Goa': [15.2993, 74.1240, 10],
-    'Gujarat': [22.2587, 71.1924, 7],
-    'Haryana': [29.0588, 76.0856, 8],
-    'Himachal Pradesh': [31.1048, 77.1734, 8],
-    'Jharkhand': [23.6102, 85.2799, 7],
-    'Karnataka': [15.3173, 75.7139, 7],
-    'Kerala': [10.8505, 76.2711, 7],
-    'Madhya Pradesh': [22.9734, 78.6569, 7],
-    'Maharashtra': [19.7515, 75.7139, 7],
-    'Manipur': [24.6637, 93.9063, 8],
-    'Meghalaya': [25.4670, 91.3662, 8],
-    'Mizoram': [23.1645, 92.9376, 8],
-    'Nagaland': [26.1584, 94.5624, 8],
-    'Odisha': [20.9517, 85.0985, 7],
-    'Punjab': [31.1471, 75.3412, 8],
-    'Rajasthan': [27.0238, 74.2179, 7],
-    'Sikkim': [27.5330, 88.5122, 9],
-    'Tamil Nadu': [11.1271, 78.6569, 7],
-    'Telangana': [18.1124, 79.0193, 7],
-    'Tripura': [23.9408, 91.9882, 9],
-    'Uttar Pradesh': [26.8467, 80.9462, 7],
-    'Uttarakhand': [30.0668, 79.0193, 8],
-    'West Bengal': [22.9868, 87.8550, 7],
-    'Delhi': [28.7041, 77.1025, 11],
-    'Chandigarh': [30.7333, 76.7794, 12],
-    'Jammu & Kashmir': [33.7782, 76.5762, 7],
-    'Puducherry': [11.9416, 79.8083, 10],
-    'Mumbai': [19.0760, 72.8777, 12],
-    'Bengaluru': [12.9716, 77.5946, 12],
-    'Chennai': [13.0827, 80.2707, 12],
-    'Hyderabad': [17.3850, 78.4867, 12],
-    'Kolkata': [22.5726, 88.3639, 12],
-    'Ahmedabad': [23.0225, 72.5714, 12],
-    'Jaipur': [26.9124, 75.7873, 12],
-    'Pune': [18.5204, 73.8567, 12],
-};
-
-const INDIA_STATES = Object.keys(STATE_COORDS);
-
-function priceIcon(property, selected) {
-    const color = TYPE_COLORS[property.type] || DEF;
+function priceIcon(property, isSelected) {
+    const propType = (property?.type || 'apartment').toLowerCase();
+    const color = TYPE_COLORS[propType] || DEF_COLOR;
     const amount = property.rentAmount || 0;
     let priceLabel = '';
     if (amount >= 1000) {
@@ -96,30 +57,26 @@ function priceIcon(property, selected) {
 
     return L.divIcon({
         className: 'custom-price-marker',
-        iconAnchor: [28, 18],
-        iconSize: [64, 32],
+        iconAnchor: [30, 16],
+        iconSize: [68, 34],
         html: `<div style="
-      background:${color};color:white;padding:5px 10px;border-radius:20px;
-      font-size:12px;font-weight:800;white-space:nowrap;border:2px solid white;
-      box-shadow:${selected ? `0 4px 20px ${color}80,0 2px 8px rgba(0,0,0,0.6)` : '0 2px 8px rgba(0,0,0,0.3)'};
-      transform:${selected ? 'scale(1.25)' : 'scale(1)'};cursor:pointer;font-family:Inter,sans-serif;
+      background:${color};
+      color:white;
+      padding:5px 10px;
+      border-radius:20px;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+      border:${isSelected ? '3px solid #34d399' : '2px solid white'};
+      box-shadow:${isSelected ? `0 0 0 4px rgba(52, 211, 153, 0.4), 0 6px 20px ${color}90` : '0 2px 10px rgba(0,0,0,0.35)'};
+      transform:${isSelected ? 'scale(1.2)' : 'scale(1)'};
+      transition:transform 0.2s ease, box-shadow 0.2s ease;
+      cursor:pointer;
+      font-family:Inter,system-ui,sans-serif;
+      text-align:center;
     ">${priceLabel}</div>`,
     });
 }
-
-const S = {
-    overlay: {
-        position: 'absolute', zIndex: 1000, pointerEvents: 'auto',
-    },
-    pill: (active, color) => ({
-        padding: '6px 13px', borderRadius: 20, cursor: 'pointer', fontWeight: 800, fontSize: 12,
-        border: `2px solid ${active ? color : 'rgba(255,255,255,0.45)'}`,
-        background: active ? color : 'rgba(255,255,255,0.9)',
-        color: active ? 'white' : '#1e293b',
-        boxShadow: active ? `0 4px 16px ${color}60` : '0 2px 8px rgba(0,0,0,0.12)',
-        transition: 'all 0.18s',
-    }),
-};
 
 export default function InteractivePropertyMap({
     height = '100%',
@@ -127,6 +84,16 @@ export default function InteractivePropertyMap({
     loading = false,
     onBoundsChange,
     country,
+    // Controlled props for Tenant Browse (falls back to internal state if omitted)
+    typeFilter: controlledTypeFilter,
+    onTypeFilterChange,
+    stateFilter: controlledStateFilter,
+    cityFilter: controlledCityFilter,
+    onLocationChange,
+    availableLocations,
+    selectedPropertyId = null,
+    onSelectProperty,
+    onClearFilters,
 }) {
     const navigate = useNavigate();
     const { theme } = useTheme();
@@ -134,16 +101,37 @@ export default function InteractivePropertyMap({
     const mapRef = useRef(null);
     const tileLayerRef = useRef(null);
     const markersRef = useRef({});
+    const popupsRef = useRef({});
 
-    const [typeFilter, setTypeFilter] = useState('');
-    const [stateFilter, setStateFilter] = useState('');
+    // Fallback internal state if not controlled
+    const [internalTypeFilter, setInternalTypeFilter] = useState('');
+    const [internalStateFilter, setInternalStateFilter] = useState('');
+    const [internalCityFilter, setInternalCityFilter] = useState('');
     const [hasMoved, setHasMoved] = useState(false);
-    const [count, setCount] = useState(0);
-    const [areaProps, setAreaProps] = useState([]);  // properties in selected state
-    const [showAreaPanel, setShowAreaPanel] = useState(false);
     const pendingBoundsRef = useRef(null);
 
-    // ── Init map once ──
+    const activeType = controlledTypeFilter !== undefined ? controlledTypeFilter : internalTypeFilter;
+    const activeState = controlledStateFilter !== undefined ? controlledStateFilter : internalStateFilter;
+    const activeCity = controlledCityFilter !== undefined ? controlledCityFilter : internalCityFilter;
+
+    const handleTypeClick = (val) => {
+        if (onTypeFilterChange) {
+            onTypeFilterChange(val);
+        } else {
+            setInternalTypeFilter(val);
+        }
+    };
+
+    const handleLocationChange = (loc) => {
+        if (onLocationChange) {
+            onLocationChange(loc);
+        } else {
+            setInternalStateFilter(loc.state || '');
+            setInternalCityFilter(loc.city || '');
+        }
+    };
+
+    // ── Init Leaflet Map Once ──
     useEffect(() => {
         if (!containerRef.current || mapRef.current) return;
 
@@ -153,11 +141,15 @@ export default function InteractivePropertyMap({
             zoomControl: false,
         });
 
-        const tileLayer = L.tileLayer(theme === 'dark'
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        }).addTo(map);
+        const tileLayer = L.tileLayer(
+            theme === 'dark'
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            }
+        ).addTo(map);
+
         tileLayerRef.current = tileLayer;
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -165,134 +157,174 @@ export default function InteractivePropertyMap({
         map.on('moveend', () => {
             const b = map.getBounds();
             pendingBoundsRef.current = {
-                north: b.getNorth(), south: b.getSouth(),
-                east: b.getEast(), west: b.getWest(),
+                north: b.getNorth(),
+                south: b.getSouth(),
+                east: b.getEast(),
+                west: b.getWest(),
             };
             setHasMoved(true);
         });
 
-        // Fire initial bounds
-        setTimeout(() => {
-            const b = map.getBounds();
-            if (onBoundsChange) onBoundsChange({
-                north: b.getNorth(), south: b.getSouth(),
-                east: b.getEast(), west: b.getWest(),
-            });
-        }, 400);
-
         mapRef.current = map;
+
         return () => {
             map.remove();
             mapRef.current = null;
             tileLayerRef.current = null;
             markersRef.current = {};
+            popupsRef.current = {};
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Update map tile layer theme dynamically ──
+    // ── Update Tile Layer Theme ──
     useEffect(() => {
         if (tileLayerRef.current) {
-            const url = theme === 'dark'
-                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            const url =
+                theme === 'dark'
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
             tileLayerRef.current.setUrl(url);
         }
     }, [theme]);
 
-    // ── Update markers when properties/typeFilter change ──
+    // ── Update Markers When Properties / Selected Property Changes ──
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
 
-        const visible = typeFilter ? properties.filter(p => p.type === typeFilter) : properties;
-        setCount(visible.length);
-
-        // Remove stale
-        const existIds = new Set(Object.keys(markersRef.current));
-        const newIds = new Set(visible.map(p => p._id));
-        existIds.forEach(id => {
-            if (!newIds.has(id)) { markersRef.current[id].remove(); delete markersRef.current[id]; }
+        // Filter properties that have valid numeric coordinates
+        const validProperties = properties.filter((p) => {
+            const lat = Number(p.location?.lat);
+            const lng = Number(p.location?.lng);
+            return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
         });
 
-        // Add new
-        visible.forEach(property => {
-            if (markersRef.current[property._id]) return;
+        const currentMarkerIds = new Set(Object.keys(markersRef.current));
+        const newPropertyIds = new Set(validProperties.map((p) => p._id || p.id));
 
-            const lat = property.location?.lat || 12.9716;
-            const lng = property.location?.lng || 77.5946;
-            const color = TYPE_COLORS[property.type] || DEF;
+        // Remove markers that are no longer in the filtered set
+        currentMarkerIds.forEach((id) => {
+            if (!newPropertyIds.has(id)) {
+                if (markersRef.current[id]) {
+                    markersRef.current[id].remove();
+                    delete markersRef.current[id];
+                }
+                delete popupsRef.current[id];
+            }
+        });
 
-            const marker = L.marker([lat, lng], { icon: priceIcon(property, false) }).addTo(map);
+        // Add or update markers
+        validProperties.forEach((property) => {
+            const propId = property._id || property.id;
+            const lat = Number(property.location.lat);
+            const lng = Number(property.location.lng);
+            const isSelected = selectedPropertyId === propId;
+            const color = TYPE_COLORS[(property.type || '').toLowerCase()] || DEF_COLOR;
 
+            if (markersRef.current[propId]) {
+                // Update icon style for selection
+                markersRef.current[propId].setIcon(priceIcon(property, isSelected));
+                if (isSelected) {
+                    markersRef.current[propId].setZIndexOffset(1000);
+                } else {
+                    markersRef.current[propId].setZIndexOffset(0);
+                }
+                return;
+            }
+
+            const marker = L.marker([lat, lng], {
+                icon: priceIcon(property, isSelected),
+                zIndexOffset: isSelected ? 1000 : 0,
+            }).addTo(map);
+
+            // Create Popup Content
             const node = document.createElement('div');
-            node.style.cssText = 'width:210px;font-family:Inter,system-ui,sans-serif;';
+            node.style.cssText = 'width:220px;font-family:Inter,system-ui,sans-serif;padding:4px;';
             node.innerHTML = `
-        <div style="height:110px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:#1e293b;position:relative;">
-          ${property.images?.[0]
-                    ? `<img src="${property.images[0]}" alt="${property.name}" style="width:100%;height:100%;object-fit:cover;">`
-                    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;">🏠</div>`}
-          <span style="position:absolute;top:6px;left:6px;background:${color};color:white;padding:2px 8px;border-radius:12px;font-size:9px;font-weight:800;text-transform:uppercase;">${property.type || 'property'}</span>
-          ${property.state ? `<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:white;padding:2px 7px;border-radius:12px;font-size:9px;font-weight:700;">📍 ${property.state}</span>` : ''}
+        <div style="height:115px;border-radius:14px;overflow:hidden;margin-bottom:10px;background:#0f172a;position:relative;">
+          ${
+              property.images?.[0]
+                  ? `<img src="${property.images[0]}" alt="${property.name}" style="width:100%;height:100%;object-fit:cover;">`
+                  : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;">🏠</div>`
+          }
+          <span style="position:absolute;top:6px;left:6px;background:${color};color:white;padding:3px 8px;border-radius:10px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;box-shadow:0 2px 6px rgba(0,0,0,0.3);">${
+              property.type || 'property'
+          }</span>
+          ${
+              property.state
+                  ? `<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:white;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;backdrop-filter:blur(4px);">📍 ${property.state}</span>`
+                  : ''
+          }
         </div>
-        <p style="font-weight:800;margin:0 0 2px;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${property.name}</p>
-        <p style="font-size:11px;color:#64748b;margin:0 0 6px;">📍 ${[property.city, property.state].filter(Boolean).join(', ')}</p>
-        <p style="color:${color};font-weight:800;font-size:17px;margin:0 0 8px;">
-          ₹${(property.rentAmount || 0).toLocaleString('en-IN')}
-          <span style="font-size:10px;font-weight:600;color:#94a3b8;">/mo</span>
-        </p>
-        <div style="display:flex;gap:10px;font-size:11px;color:#64748b;margin-bottom:10px;">
-          ${property.bedrooms != null ? `<span>🛏 ${property.bedrooms}</span>` : ''}
-          ${property.bathrooms != null ? `<span>🚿 ${property.bathrooms}</span>` : ''}
-          ${property.squareFeet ? `<span>📐 ${property.squareFeet}sqft</span>` : ''}
+        <p style="font-weight:900;margin:0 0 2px;font-size:13px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${
+            property.name
+        }</p>
+        <p style="font-size:11px;color:#64748b;margin:0 0 6px;font-weight:600;">📍 ${[
+            property.city,
+            property.state,
+        ]
+            .filter(Boolean)
+            .join(', ')}</p>
+        <div style="display:flex;align-items:center;justify-content:between;margin:0 0 8px;">
+          <p style="color:${color};font-weight:900;font-size:16px;margin:0;">
+            ₹${(property.rentAmount || 0).toLocaleString('en-IN')}
+            <span style="font-size:10px;font-weight:600;color:#94a3b8;">/mo</span>
+          </p>
         </div>
-        <button id="cta-${property._id}" style="width:100%;padding:8px;border-radius:10px;background:${color};color:white;border:none;font-weight:800;font-size:12px;cursor:pointer;">View Details →</button>
+        <div style="display:flex;gap:10px;font-size:11px;color:#64748b;margin-bottom:10px;font-weight:600;">
+          ${property.bedrooms != null ? `<span>🛏 ${property.bedrooms} Beds</span>` : ''}
+          ${property.bathrooms != null ? `<span>🚿 ${property.bathrooms} Baths</span>` : ''}
+        </div>
+        <button id="cta-${propId}" style="width:100%;padding:9px;border-radius:12px;background:linear-gradient(to right, #059669, #0d9488);color:white;border:none;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;cursor:pointer;box-shadow:0 4px 12px rgba(5,150,105,0.3);transition:transform 0.1s ease;">View Property Details →</button>
       `;
 
-            const popup = L.popup({ maxWidth: 220, closeButton: true }).setContent(node);
+            const popup = L.popup({ maxWidth: 240, closeButton: true }).setContent(node);
             marker.bindPopup(popup);
-            marker.on('popupopen', () => {
-                const btn = document.getElementById(`cta-${property._id}`);
-                if (btn) btn.onclick = () => handleViewPropertyNavigation({ navigate, property });
+
+            marker.on('click', () => {
+                if (onSelectProperty) {
+                    onSelectProperty(propId);
+                }
             });
 
-            markersRef.current[property._id] = marker;
+            marker.on('popupopen', () => {
+                const btn = document.getElementById(`cta-${propId}`);
+                if (btn) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        handleViewPropertyNavigation({ navigate, property });
+                    };
+                }
+            });
+
+            markersRef.current[propId] = marker;
+            popupsRef.current[propId] = popup;
         });
-    }, [properties, typeFilter, navigate]);
 
-    // ── State/Country filter → zoom map + set area panel ──
-    const [countryFilter, setCountryFilter] = useState('');
-
-    // Sync external country prop
-    useEffect(() => {
-        if (typeof country !== 'undefined') setCountryFilter(country);
-    }, [country]);
-
-    useEffect(() => {
-        if (!stateFilter && !countryFilter) { setAreaProps([]); setShowAreaPanel(false); return; }
-
-        let foundCoords = false;
-
-        // Priority to State zoom if selected
-        if (stateFilter) {
-            const coords = STATE_COORDS[stateFilter];
-            if (coords && mapRef.current) {
-                mapRef.current.setView([coords[0], coords[1]], coords[2], { animate: true });
-                foundCoords = true;
-            }
+        // ── Auto-adjust Viewport to Fit Valid Properties ──
+        if (validProperties.length > 1) {
+            const bounds = L.latLngBounds(
+                validProperties.map((p) => [Number(p.location.lat), Number(p.location.lng)])
+            );
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13, animate: true });
+        } else if (validProperties.length === 1) {
+            const singleLat = Number(validProperties[0].location.lat);
+            const singleLng = Number(validProperties[0].location.lng);
+            map.setView([singleLat, singleLng], 13, { animate: true });
         }
+    }, [properties, selectedPropertyId, onSelectProperty, navigate]);
 
-        // Filter properties
-        const matching = properties.filter(p => {
-            const matchState = !stateFilter || (p.state || '').toLowerCase() === stateFilter.toLowerCase() || (p.city || '').toLowerCase() === stateFilter.toLowerCase();
-            const matchCountry = !countryFilter || (p.country || 'India').toLowerCase() === countryFilter.toLowerCase();
-            return matchState && matchCountry;
-        });
-
-        setAreaProps(matching);
-        setShowAreaPanel(!!(stateFilter || matching.length > 0)); // Show panel if state selected or if we found props in country
-
-    }, [stateFilter, countryFilter, properties]);
+    // ── Handle Card Selection → Pan Map & Open Popup ──
+    useEffect(() => {
+        if (!selectedPropertyId || !mapRef.current) return;
+        const marker = markersRef.current[selectedPropertyId];
+        if (marker) {
+            const latLng = marker.getLatLng();
+            mapRef.current.flyTo(latLng, 14, { duration: 0.8 });
+            marker.openPopup();
+        }
+    }, [selectedPropertyId]);
 
     const searchArea = useCallback(() => {
         if (!pendingBoundsRef.current) return;
@@ -301,142 +333,62 @@ export default function InteractivePropertyMap({
         pendingBoundsRef.current = null;
     }, [onBoundsChange]);
 
-    const avgRent = areaProps.length > 0
-        ? Math.round(areaProps.reduce((s, p) => s + (p.rentAmount || 0), 0) / areaProps.length)
-        : 0;
-
     return (
-        <div style={{ position: 'relative', width: '100%', height, minHeight: 480 }}>
-
-            {/* ── Top: Type pills + State selector ── */}
-            <div style={{ ...S.overlay, top: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                {/* Type pills */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div className="relative w-full h-full min-h-[480px]">
+            {/* ── TOP OVERLAY: Quick Type Pills + Hierarchical Location Filter ── */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2 pointer-events-auto max-w-[95%]">
+                {/* Property Type Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap justify-center p-1 rounded-full bg-background/80 backdrop-blur-md border border-border/80 shadow-lg">
                     {TYPE_PILLS.map(({ val, label }) => {
-                        const active = typeFilter === val;
-                        const color = val ? (TYPE_COLORS[val] || DEF) : '#6366f1';
+                        const active = activeType === val;
+                        const color = val ? TYPE_COLORS[val] || DEF_COLOR : '#6366f1';
                         return (
-                            <button key={val} onClick={() => setTypeFilter(val)} style={S.pill(active, color)}>{label}</button>
+                            <button
+                                key={val}
+                                type="button"
+                                onClick={() => handleTypeClick(val)}
+                                className="px-3.5 py-1.5 rounded-full font-black text-xs transition-all duration-200 cursor-pointer shadow-sm flex items-center gap-1 border"
+                                style={{
+                                    backgroundColor: active ? color : 'transparent',
+                                    borderColor: active ? color : 'transparent',
+                                    color: active ? '#ffffff' : 'inherit',
+                                    boxShadow: active ? `0 4px 14px ${color}50` : 'none',
+                                }}
+                            >
+                                <span>{label}</span>
+                            </button>
                         );
                     })}
                 </div>
 
-                {/* State/Area selector */}
-                <div style={{ position: 'relative' }}>
-                    <select
-                        value={stateFilter}
-                        onChange={e => setStateFilter(e.target.value)}
-                        style={{
-                            padding: '7px 36px 7px 14px', borderRadius: 20, border: '2px solid rgba(255,255,255,0.4)',
-                            background: stateFilter ? '#6366f1' : 'rgba(255,255,255,0.92)',
-                            color: stateFilter ? 'white' : '#1e293b',
-                            fontWeight: 800, fontSize: 12, cursor: 'pointer', appearance: 'none',
-                            boxShadow: stateFilter ? '0 4px 16px rgba(99,102,241,0.5)' : '0 2px 8px rgba(0,0,0,0.12)',
-                            minWidth: 180,
-                        }}
-                    >
-                        <option value="">📍 Select State / City</option>
-                        <optgroup label="── States ──" style={{ background: '#1e293b', color: '#94a3b8' }}>
-                            {INDIA_STATES.filter(s => !['Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Pune'].includes(s)).map(s => (
-                                <option key={s} value={s} style={{ background: '#1e293b' }}>{s}</option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="── Major Cities ──" style={{ background: '#1e293b', color: '#94a3b8' }}>
-                            {['Mumbai', 'Bengaluru', 'Chennai', 'Hyderabad', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Pune'].map(c => (
-                                <option key={c} value={c} style={{ background: '#1e293b' }}>{c}</option>
-                            ))}
-                        </optgroup>
-                    </select>
-                    <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: stateFilter ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: 10 }}>▼</span>
-                </div>
+                {/* Hierarchical State / City Selector Popover */}
+                <LocationFilterPopover
+                    stateFilter={activeState}
+                    cityFilter={activeCity}
+                    availableLocations={availableLocations}
+                    onLocationChange={handleLocationChange}
+                    onClear={onClearFilters}
+                />
             </div>
 
-            {/* ── Area Detail Panel (shown when state selected) ── */}
-            {showAreaPanel && stateFilter && (
-                <div style={{
-                    ...S.overlay, top: 12, right: 12,
-                    background: 'rgba(15,15,30,0.92)', backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(99,102,241,0.3)', borderRadius: 20,
-                    padding: 16, width: 260, maxHeight: 'calc(100% - 80px)', overflowY: 'auto',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <h3 style={{ fontWeight: 900, fontSize: 14, color: 'white', margin: 0 }}>📍 {stateFilter}</h3>
-                        <button onClick={() => { setStateFilter(''); setShowAreaPanel(false); }}
-                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
-                    </div>
-
-                    {/* Stats row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                        {[
-                            { label: 'Properties', value: areaProps.length, color: '#6366f1' },
-                            { label: 'Avg Rent', value: avgRent > 0 ? `₹${(avgRent / 1000).toFixed(0)}k` : '—', color: '#10b981' },
-                        ].map(({ label, value, color }) => (
-                            <div key={label} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '10px 12px', textAlign: 'center' }}>
-                                <p style={{ fontWeight: 900, fontSize: 20, color, margin: 0 }}>{value}</p>
-                                <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', margin: 0, fontWeight: 700, textTransform: 'uppercase' }}>{label}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {areaProps.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgba(255,255,255,0.3)' }}>
-                            <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
-                            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>No properties listed here yet</p>
-                            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>Pan the map to search all areas</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {areaProps.map(p => {
-                                const color = TYPE_COLORS[p.type] || DEF;
-                                return (
-                                    <div key={p._id} onClick={() => navigate(`/properties/${p._id}`)}
-                                        style={{ display: 'flex', gap: 10, padding: 10, borderRadius: 14, cursor: 'pointer', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', transition: 'background 0.15s' }}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                                    >
-                                        <div style={{ width: 60, height: 52, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.04)' }}>
-                                            {p.images?.[0]
-                                                ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏠</div>}
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <span style={{ background: color, color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 8, textTransform: 'uppercase' }}>{p.type}</span>
-                                            <p style={{ fontWeight: 800, fontSize: 12, color: 'white', margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                                            <p style={{ fontWeight: 800, fontSize: 13, color, margin: '2px 0 0' }}>₹{(p.rentAmount || 0).toLocaleString('en-IN')}<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>/mo</span></p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── "Search this area" ── */}
-            {hasMoved && !showAreaPanel && (
-                <button onClick={searchArea} style={{
-                    ...S.overlay, bottom: 56, left: '50%', transform: 'translateX(-50%)',
-                    padding: '10px 22px', borderRadius: 24, border: 'none',
-                    background: '#6366f1', color: 'white', fontWeight: 800, fontSize: 13,
-                    cursor: 'pointer', boxShadow: '0 4px 24px rgba(99,102,241,0.6)',
-                }}>
+            {/* ── "Search this area" Button ── */}
+            {hasMoved && (
+                <button
+                    type="button"
+                    onClick={searchArea}
+                    className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[1000] px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-indigo-600/50 border border-white/20 transition-all cursor-pointer"
+                >
                     🔍 Search this area
                 </button>
             )}
 
-            {/* ── Count badge ── */}
-            <div style={{
-                ...S.overlay, bottom: 18, left: 16,
-                background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)',
-                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 800, color: '#1e293b',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            }}>
-                {loading ? '⏳ Loading…' : `${count} ${count === 1 ? 'property' : 'properties'}`}
+            {/* ── Bottom-Left Count Badge (Strictly Synchronized with Results) ── */}
+            <div className="absolute bottom-4 left-4 z-[1000] px-4 py-1.5 rounded-full bg-background/90 text-foreground font-black text-xs uppercase tracking-wider backdrop-blur-md border border-border shadow-lg">
+                {loading ? 'Loading…' : `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`}
             </div>
 
-            {/* ── Map div ── */}
-            <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 480 }} />
+            {/* ── Leaflet Container ── */}
+            <div ref={containerRef} className="w-full h-full min-h-[480px]" />
         </div>
     );
 }

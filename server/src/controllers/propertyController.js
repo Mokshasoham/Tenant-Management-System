@@ -79,6 +79,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     status,
     owner,
     city,
+    state,
     minPrice,
     maxPrice,
     bedrooms,
@@ -119,8 +120,22 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     filter = await getPublicPropertyFilter(status ? { status } : {});
   }
 
-  if (type) filter.type = type;
+  if (type) {
+    const t = type.toLowerCase().trim();
+    if (t === 'apartment' || t === 'apt') {
+      filter.type = { $in: ['apartment', 'flat', 'studio'] };
+    } else if (t === 'house') {
+      filter.type = { $in: ['house', 'villa'] };
+    } else if (t === 'commercial') {
+      filter.type = { $in: ['commercial', 'shop'] };
+    } else if (t === 'land') {
+      filter.type = { $in: ['land', 'plot'] };
+    } else {
+      filter.type = t;
+    }
+  }
   if (city) filter.city = { $regex: city.trim(), $options: 'i' };
+  if (state) filter.state = { $regex: state.trim(), $options: 'i' };
 
   if (minPrice || maxPrice) {
     filter.rentAmount = filter.rentAmount || {};
@@ -150,6 +165,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
       { name: { $regex: search, $options: 'i' } },
       { address: { $regex: search, $options: 'i' } },
       { city: { $regex: search, $options: 'i' } },
+      { state: { $regex: search, $options: 'i' } },
     ];
     if (filter.$or) {
       filter.$and = [{ $or: filter.$or }, { $or: searchOrParts }];
