@@ -300,7 +300,10 @@ export const createProperty = asyncHandler(async (req, res) => {
   }
 
   const {
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl,
+    bhk, floor, totalFloors, furnishing, balcony, parking, garden, builtUpArea,
+    commercialArea, frontage, washroom, electricity, suitableFor,
+    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails
   } = req.body;
 
   let geo = undefined;
@@ -312,7 +315,10 @@ export const createProperty = asyncHandler(async (req, res) => {
   }
 
   const property = await Property.create({
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl,
+    bhk, floor, totalFloors, furnishing, balcony, parking, garden, builtUpArea,
+    commercialArea, frontage, washroom, electricity, suitableFor,
+    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails
   });
 
   logger.info(`New property created: ${property.name}`);

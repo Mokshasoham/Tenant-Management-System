@@ -12,7 +12,7 @@ import {
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
     Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
     Edit2, Trash2, Users, Wrench, Phone, Mail, Scale, Heart,
-    Lock, Navigation, Compass, ExternalLink, Clock
+    Lock, Navigation, Compass, ExternalLink, Clock, Store, Utensils
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
@@ -1187,15 +1187,30 @@ export default function PropertyDetailsPage() {
 
                         {/* Quick Specs */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { label: 'Bedrooms', value: property.bedrooms, icon: Bed, color: 'text-primary', bg: 'bg-primary/10' },
-                                { label: 'Bathrooms', value: property.bathrooms, icon: Bath, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                                { label: 'Square Ft', value: property.squareFeet, icon: Square, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                                { label: 'Security', value: '24/7', icon: Shield, color: 'text-rose-500', bg: 'bg-rose-500/10' }
-                            ].map((spec, i) => (
+                            {(property.type === 'commercial' || property.type === 'shop' ? [
+                                { label: 'Commercial Area', value: `${property.commercialArea || property.squareFeet || '—'} sqft`, icon: Square, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                                { label: 'Floor Level', value: property.floor !== undefined ? `Floor ${property.floor}` : 'Ground Floor', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                                { label: 'Frontage', value: property.frontage || 'Standard Frontage', icon: Store, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                { label: 'Electricity / Power', value: property.electricity || 'Commercial Power', icon: Zap, color: 'text-rose-500', bg: 'bg-rose-500/10' }
+                            ] : property.type === 'hostel' ? [
+                                { label: 'Total Beds', value: property.totalBeds ? `${property.totalBeds} Beds` : `${property.bedrooms || '—'} Rooms`, icon: Bed, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                                { label: 'Room Type', value: property.roomType || 'Hostel Living', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+                                { label: 'Gender', value: property.genderPreference ? `${property.genderPreference.toUpperCase()}` : 'Co-ed', icon: ShieldCheck, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                { label: 'Food / Mess', value: property.foodAvailability || 'Available', icon: Utensils, color: 'text-amber-500', bg: 'bg-amber-500/10' }
+                            ] : property.type === 'pg' ? [
+                                { label: 'Sharing Basis', value: property.sharingCapacity ? `${property.sharingCapacity} Sharing` : (property.roomType || 'PG Unit'), icon: Users, color: 'text-rose-500', bg: 'bg-rose-500/10' },
+                                { label: 'Bathroom', value: property.bathroomType || 'Attached Bath', icon: Bath, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                { label: 'Gender', value: property.genderPreference ? `${property.genderPreference.toUpperCase()}` : 'Any', icon: ShieldCheck, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                                { label: 'Food & Meals', value: property.foodAvailability || 'Included', icon: Utensils, color: 'text-amber-500', bg: 'bg-amber-500/10' }
+                            ] : [
+                                { label: 'Bedrooms', value: property.bhk || (property.bedrooms ? `${property.bedrooms} Bed` : '—'), icon: Bed, color: 'text-primary', bg: 'bg-primary/10' },
+                                { label: 'Bathrooms', value: property.bathrooms ? `${property.bathrooms} Bath` : '—', icon: Bath, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                { label: 'Square Ft', value: property.squareFeet || property.builtUpArea ? `${property.squareFeet || property.builtUpArea} sqft` : '—', icon: Square, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                                { label: 'Security', value: '24/7 Verified', icon: Shield, color: 'text-rose-500', bg: 'bg-rose-500/10' }
+                            ]).map((spec, i) => (
                                 <div key={i} className="p-4 rounded-3xl bg-muted border border-border/50 space-y-1">
                                     <spec.icon className={cn("w-5 h-5", spec.color)} />
-                                    <p className="text-foreground font-black">{spec.value}</p>
+                                    <p className="text-foreground font-black capitalize truncate">{spec.value}</p>
                                     <p className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest">{spec.label}</p>
                                 </div>
                             ))}

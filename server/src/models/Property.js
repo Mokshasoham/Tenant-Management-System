@@ -33,9 +33,11 @@ const propertySchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ['apartment', 'house', 'commercial', 'land', 'room', 'villa', 'studio'],
+      enum: ['apartment', 'house', 'commercial', 'land', 'room', 'villa', 'studio', 'hostel', 'pg', 'shop'],
       required: true,
     },
+    // Common / residential specs
+    bhk: { type: String, trim: true },
     bedrooms: { type: Number, min: 0 },
     bathrooms: { type: Number, min: 0 },
     squareFeet: { type: Number, min: 0 },
@@ -46,6 +48,36 @@ const propertySchema = new mongoose.Schema(
       enum: ['unfurnished', 'semi-furnished', 'fully-furnished'],
       default: 'unfurnished',
     },
+    balcony: { type: Number, default: 0 },
+    parking: { type: String, trim: true },
+    garden: { type: String, trim: true },
+    builtUpArea: { type: Number, min: 0 },
+
+    // Shop / Commercial specs
+    commercialArea: { type: Number, min: 0 },
+    frontage: { type: String, trim: true },
+    washroom: { type: String, trim: true },
+    electricity: { type: String, trim: true },
+    suitableFor: [{ type: String, trim: true }],
+
+    // Hostel / PG specs
+    totalBeds: { type: Number, min: 0 },
+    roomType: { type: String, trim: true },
+    occupancyCapacity: { type: Number, min: 0 },
+    genderPreference: {
+      type: String,
+      enum: ['male', 'female', 'co-ed', 'any', 'unrestricted'],
+      default: 'any',
+    },
+    foodAvailability: { type: String, trim: true },
+    acAvailable: { type: String, trim: true },
+    roomSharing: { type: String, trim: true },
+    bathroomType: { type: String, trim: true },
+    facilities: [{ type: String, trim: true }],
+    commonFacilities: [{ type: String, trim: true }],
+
+    // Additional flexible type-specific metadata container
+    typeDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
 
     rentAmount: {
       type: Number,

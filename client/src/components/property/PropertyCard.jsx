@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    MapPin, Bed, Bath, Square, Building2,
+    MapPin, Bed, Bath, Square, Building2, Users, Home, Store, KeyRound,
     Star, ArrowRight, Heart, Scale, Zap, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -13,6 +13,11 @@ export const TYPE_COLORS = {
     house: '#10b981',
     commercial: '#f59e0b',
     land: '#8b5cf6',
+    villa: '#14b8a6',
+    studio: '#6366f1',
+    hostel: '#a855f7',
+    pg: '#f43f5e',
+    shop: '#f59e0b',
 };
 
 // ── Curated high-fidelity harmonic ambient palettes for property media cycling ──
@@ -356,10 +361,31 @@ export function PropertyCard({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bedrooms || 0} Bed</span>
-                    <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
-                    {p.squareFeet && <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet} sqft</span>}
+                <div className="flex items-center gap-4 sm:gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground flex-wrap">
+                    {p.type === 'commercial' || p.type === 'shop' ? (
+                        <>
+                            <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.commercialArea || p.squareFeet || 0} sqft</span>
+                            <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-blue-500" />{p.frontage || (p.floor !== undefined ? `Floor ${p.floor}` : 'Commercial')}</span>
+                        </>
+                    ) : p.type === 'hostel' ? (
+                        <>
+                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4 text-purple-500" />{p.totalBeds ? `${p.totalBeds} Beds` : `${p.bedrooms || 0} Rooms`}</span>
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-indigo-500" />{p.roomType || 'Hostel'}</span>
+                        </>
+                    ) : p.type === 'pg' ? (
+                        <>
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-rose-500" />{p.sharingCapacity ? `${p.sharingCapacity} Sharing` : (p.roomType || 'PG')}</span>
+                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathroomType || `${p.bathrooms || 0} Bath`}</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bhk || `${p.bedrooms || 0} Bed`}</span>
+                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
+                            {Boolean(p.squareFeet || p.builtUpArea) && (
+                                <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet || p.builtUpArea} sqft</span>
+                            )}
+                        </>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-between pt-1">

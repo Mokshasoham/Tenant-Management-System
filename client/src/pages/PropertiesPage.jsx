@@ -13,6 +13,7 @@ import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import { useTheme } from '../context/ThemeContext';
 import PropertyModal from '../components/PropertyModal';
+import PropertyTypeSelectorModal from '../components/property/PropertyTypeSelectorModal';
 import ManagerPropertyLimitModal from '../components/subscription/ManagerPropertyLimitModal';
 import { subscriptionService } from '../services/api';
 
@@ -448,6 +449,8 @@ export default function PropertiesPage() {
   const [selected, setSelected] = useState(null);
   const [subData, setSubData] = useState(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [selectedType, setSelectedType] = useState('apartment');
+  const [showTypeSelectorModal, setShowTypeSelectorModal] = useState(false);
   const LIMIT = 12;
 
   const fetchSubscription = useCallback(async () => {
@@ -468,6 +471,13 @@ export default function PropertiesPage() {
       setShowLimitModal(true);
       return;
     }
+    setSelected(null);
+    setShowTypeSelectorModal(true);
+  };
+
+  const handleSelectType = (typeKey) => {
+    setSelectedType(typeKey);
+    setShowTypeSelectorModal(false);
     setSelected(null);
     setModal('add');
   };
@@ -856,11 +866,27 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      {/* ── Add / Edit Property Modal ── */}
+      {/* ── Step 1: Property Type Selection Modal ── */}
+      <AnimatePresence>
+        {showTypeSelectorModal && (
+          <PropertyTypeSelectorModal
+            isOpen={showTypeSelectorModal}
+            onClose={() => setShowTypeSelectorModal(false)}
+            onSelectType={handleSelectType}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Step 2: Add / Edit Property Modal ── */}
       <AnimatePresence>
         {(modal === 'add' || modal === 'edit') && (
           <PropertyModal
             property={modal === 'edit' ? selected : null}
+            initialType={modal === 'edit' ? selected?.type : selectedType}
+            onChangeType={() => {
+              setModal(null);
+              setShowTypeSelectorModal(true);
+            }}
             onClose={() => {
               setModal(null);
               setSelected(null);

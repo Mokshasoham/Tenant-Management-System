@@ -4,7 +4,8 @@ import { propertyService } from '../services/api';
 import { 
   X, UploadCloud, MapPin, XCircle, Video, Image as ImageIcon, Loader2, 
   CheckCircle2, Navigation, Layers, Compass, Sparkles, MoveLeft, MoveRight, 
-  Eye, Globe, Shield, Star, Info, ArrowRight, Check
+  Eye, Globe, Shield, Star, Info, ArrowRight, Check, Building2, Home, Store,
+  Building, KeyRound, Bed, Bath, Square, Users, Utensils, Zap, ShieldCheck
 } from 'lucide-react';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
@@ -42,6 +43,21 @@ const INDIA_STATES = [
 const COMMON_AMENITIES = [
   'Parking', 'Wifi', 'Pool', 'Gym', 'Laundry', 'AC',
   'Furnished', 'Maintenance', 'Security', 'Balcony', 'Power Backup', 'Elevator'
+];
+
+const COMMERCIAL_BUSINESS_TYPES = [
+  'Retail Store', 'Corporate Office', 'Clinic / Medical', 'Showroom',
+  'Cafe / Restaurant', 'Cloud Kitchen', 'Warehouse / Storage', 'Salon / Spa', 'Bank / ATM'
+];
+
+const HOSTEL_FACILITIES = [
+  'Study Hall', 'Mess / Dining Area', 'TV Lounge', 'Laundry Facility', 'Gym Room',
+  'Warden on Duty', 'CCTV Security', 'High-Speed WiFi', 'Hot Water / Geyser'
+];
+
+const PG_FACILITIES = [
+  'High-Speed WiFi', 'Daily Housekeeping', 'RO Purified Water', 'Washing Machine',
+  'Refrigerator', 'Geyser / Hot Water', 'Power Backup', 'Attached Bathroom'
 ];
 
 const COORDS_MAP = {
@@ -89,7 +105,13 @@ const COORDS_MAP = {
 
 const EMPTY_FORM = {
   name: '', address: '', city: '', state: '', zipCode: '', country: 'India',
-  type: 'apartment', bedrooms: '', bathrooms: '', squareFeet: '',
+  type: 'apartment',
+  bhk: '', bedrooms: '', bathrooms: '', squareFeet: '', floor: '', totalFloors: '',
+  furnishing: 'unfurnished', balcony: '', parking: '', garden: '', builtUpArea: '',
+  commercialArea: '', frontage: '', washroom: '', electricity: '', suitableFor: [],
+  totalBeds: '', roomType: '', occupancyCapacity: '', genderPreference: 'any',
+  foodAvailability: '', acAvailable: '', roomSharing: '', bathroomType: '',
+  facilities: [], commonFacilities: [],
   rentAmount: '', depositAmount: '', description: '', notes: '',
   amenities: [], bookingType: 'paid', publishStatus: 'published',
   seoTitle: '', seoDescription: '', seoKeywords: '',
@@ -98,16 +120,40 @@ const EMPTY_FORM = {
 
 const libraries = ['places'];
 
-export default function PropertyModal({ property, onClose, onSave }) {
+export default function PropertyModal({ property, initialType = 'apartment', onClose, onSave, onChangeType }) {
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' | 'details' | 'location' | 'media' | 'seo'
   const [form, setForm] = useState(() => {
     if (property) {
       return {
         ...property,
+        type: property.type || initialType || 'apartment',
         amenities: Array.isArray(property.amenities) ? property.amenities : (property.amenities || '').split(',').map(a => a.trim()).filter(Boolean),
+        bhk: property.bhk || '',
         bedrooms: property.bedrooms ?? '',
         bathrooms: property.bathrooms ?? '',
         squareFeet: property.squareFeet ?? '',
+        floor: property.floor ?? '',
+        totalFloors: property.totalFloors ?? '',
+        furnishing: property.furnishing || 'unfurnished',
+        balcony: property.balcony ?? '',
+        parking: property.parking || '',
+        garden: property.garden || '',
+        builtUpArea: property.builtUpArea ?? '',
+        commercialArea: property.commercialArea ?? property.squareFeet ?? '',
+        frontage: property.frontage || '',
+        washroom: property.washroom || '',
+        electricity: property.electricity || '',
+        suitableFor: Array.isArray(property.suitableFor) ? property.suitableFor : [],
+        totalBeds: property.totalBeds ?? '',
+        roomType: property.roomType || '',
+        occupancyCapacity: property.occupancyCapacity ?? '',
+        genderPreference: property.genderPreference || 'any',
+        foodAvailability: property.foodAvailability || '',
+        acAvailable: property.acAvailable || '',
+        roomSharing: property.roomSharing || '',
+        bathroomType: property.bathroomType || '',
+        facilities: Array.isArray(property.facilities) ? property.facilities : [],
+        commonFacilities: Array.isArray(property.commonFacilities) ? property.commonFacilities : [],
         depositAmount: property.depositAmount ?? '',
         bookingType: property.bookingType || 'paid',
         publishStatus: property.publishStatus || 'published',
@@ -120,7 +166,11 @@ export default function PropertyModal({ property, onClose, onSave }) {
         location: property.location || { lat: 12.9716, lng: 77.5946 }
       };
     }
-    return { ...EMPTY_FORM, location: { lat: 12.9716, lng: 77.5946 } };
+    return {
+      ...EMPTY_FORM,
+      type: initialType || 'apartment',
+      location: { lat: 12.9716, lng: 77.5946 }
+    };
   });
 
   const [mediaFiles, setMediaFiles] = useState([]); // Array of File objects with extra preview metadata
@@ -158,93 +208,90 @@ export default function PropertyModal({ property, onClose, onSave }) {
         file,
         id: Math.random().toString(36).substring(7),
         preview: URL.createObjectURL(file),
-        isVideo: file.type.startsWith('video/'),
+        type: file.type.startsWith('video') ? 'video' : 'image',
         name: file.name,
-        size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+        size: (file.size / (1024 * 1024)).toFixed(2)
       }));
       setMediaFiles(prev => [...prev, ...newMedia]);
     }
   });
 
-  const getMediaUrl = (rawUrl) => resolveMediaUrl(rawUrl);
-
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  // Cleanup preview Object URLs on unmount
+  // Handle Dynamic Leaflet Interactive Map Pin Sync
   useEffect(() => {
-    return () => {
-      mediaFiles.forEach(m => {
-        if (m.preview) URL.revokeObjectURL(m.preview);
-      });
-    };
-  }, [mediaFiles]);
-
-  // Sync Leaflet map when Location tab is active
-  useEffect(() => {
-    if (activeTab !== 'location') return;
-
-    const lat = Number(form.location?.lat) || 12.9716;
-    const lng = Number(form.location?.lng) || 77.5946;
-
-    const timer = setTimeout(() => {
-      if (!mapContainerRef.current) return;
+    if (activeTab === 'location' && mapContainerRef.current) {
+      const lat = Number(form.location?.lat) || 12.9716;
+      const lng = Number(form.location?.lng) || 77.5946;
 
       if (!mapInstanceRef.current) {
-        const map = L.map(mapContainerRef.current).setView([lat, lng], 13);
+        const map = L.map(mapContainerRef.current, {
+          center: [lat, lng],
+          zoom: 13,
+          zoomControl: true,
+        });
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19,
         }).addTo(map);
 
         const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-        
-        marker.on('dragend', () => {
-          const pos = marker.getLatLng();
+
+        marker.on('dragend', (e) => {
+          const position = e.target.getLatLng();
           setForm(p => ({
             ...p,
-            location: { lat: parseFloat(pos.lat.toFixed(6)), lng: parseFloat(pos.lng.toFixed(6)) }
+            location: {
+              lat: parseFloat(position.lat.toFixed(6)),
+              lng: parseFloat(position.lng.toFixed(6)),
+            }
           }));
         });
 
         map.on('click', (e) => {
-          const { lat: clickLat, lng: clickLng } = e.latlng;
-          marker.setLatLng([clickLat, clickLng]);
+          const { lat: clickedLat, lng: clickedLng } = e.latlng;
+          marker.setLatLng([clickedLat, clickedLng]);
           setForm(p => ({
             ...p,
-            location: { lat: parseFloat(clickLat.toFixed(6)), lng: parseFloat(clickLng.toFixed(6)) }
+            location: {
+              lat: parseFloat(clickedLat.toFixed(6)),
+              lng: parseFloat(clickedLng.toFixed(6)),
+            }
           }));
         });
 
         mapInstanceRef.current = map;
         markerInstanceRef.current = marker;
       } else {
-        mapInstanceRef.current.invalidateSize();
-        mapInstanceRef.current.setView([lat, lng]);
-        if (markerInstanceRef.current) {
-          markerInstanceRef.current.setLatLng([lat, lng]);
-        }
+        const map = mapInstanceRef.current;
+        const marker = markerInstanceRef.current;
+        map.setView([lat, lng], map.getZoom() || 13);
+        if (marker) marker.setLatLng([lat, lng]);
+        setTimeout(() => map.invalidateSize(), 200);
       }
-    }, 150);
-
-    return () => clearTimeout(timer);
+    }
   }, [activeTab, form.location?.lat, form.location?.lng]);
 
-  const handleStateChange = (stateVal) => {
+  const set = (key, value) => {
+    setForm(p => ({ ...p, [key]: value }));
+  };
+
+  const handleStateChange = (stateName) => {
+    const coords = COORDS_MAP[stateName];
     setForm(p => {
-      const updated = { ...p, state: stateVal };
-      const coords = COORDS_MAP[stateVal];
+      const updated = { ...p, state: stateName };
       if (coords) {
-        updated.location = coords;
+        updated.location = { lat: coords.lat, lng: coords.lng };
       }
       return updated;
     });
   };
 
-  const handleCityChange = (cityVal) => {
+  const handleCityChange = (cityName) => {
+    const coords = COORDS_MAP[cityName];
     setForm(p => {
-      const updated = { ...p, city: cityVal };
-      const match = Object.keys(COORDS_MAP).find(k => k.toLowerCase() === cityVal.trim().toLowerCase());
-      if (match) {
-        updated.location = COORDS_MAP[match];
+      const updated = { ...p, city: cityName };
+      if (coords) {
+        updated.location = { lat: coords.lat, lng: coords.lng };
       }
       return updated;
     });
@@ -286,6 +333,17 @@ export default function PropertyModal({ property, onClose, onSave }) {
     });
   };
 
+  const toggleArrayItem = (fieldKey, item) => {
+    setForm(p => {
+      const current = Array.isArray(p[fieldKey]) ? p[fieldKey] : [];
+      if (current.includes(item)) {
+        return { ...p, [fieldKey]: current.filter(a => a !== item) };
+      } else {
+        return { ...p, [fieldKey]: [...current, item] };
+      }
+    });
+  };
+
   const moveMedia = (fromIndex, toIndex) => {
     if (toIndex < 0 || toIndex >= mediaFiles.length) return;
     setMediaFiles(prev => {
@@ -312,6 +370,30 @@ export default function PropertyModal({ property, onClose, onSave }) {
     setUploadProgress(10);
 
     try {
+      // Basic common validations
+      if (!form.name || !form.name.trim()) {
+        setActiveTab('basic');
+        throw new Error('Property name is required.');
+      }
+      if (!form.rentAmount || Number(form.rentAmount) <= 0) {
+        setActiveTab('basic');
+        throw new Error('Please specify a valid monthly rent amount.');
+      }
+      if (!form.address || !form.address.trim()) {
+        setActiveTab('location');
+        throw new Error('Property address is required.');
+      }
+
+      // Type-specific dynamic validations
+      if ((form.type === 'commercial' || form.type === 'shop') && form.commercialArea && Number(form.commercialArea) <= 0) {
+        setActiveTab('details');
+        throw new Error('Commercial area must be greater than zero.');
+      }
+      if (form.type === 'hostel' && form.totalBeds && Number(form.totalBeds) <= 0) {
+        setActiveTab('details');
+        throw new Error('Total bed count must be greater than zero.');
+      }
+
       // Validate Coordinates
       const latNum = Number(form.location?.lat);
       const lngNum = Number(form.location?.lng);
@@ -329,10 +411,44 @@ export default function PropertyModal({ property, onClose, onSave }) {
         publishStatus: statusToUse,
         rentAmount: Number(form.rentAmount),
         depositAmount: Number(form.depositAmount) || 0,
-        bedrooms: Number(form.bedrooms) || 0,
-        bathrooms: Number(form.bathrooms) || 0,
-        squareFeet: Number(form.squareFeet) || 0,
+        bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : undefined,
+        squareFeet: form.squareFeet ? Number(form.squareFeet) : (form.commercialArea ? Number(form.commercialArea) : undefined),
+        floor: form.floor !== '' && form.floor !== undefined ? Number(form.floor) : undefined,
+        totalFloors: form.totalFloors !== '' && form.totalFloors !== undefined ? Number(form.totalFloors) : undefined,
+        balcony: form.balcony !== '' && form.balcony !== undefined ? Number(form.balcony) : undefined,
+        builtUpArea: form.builtUpArea ? Number(form.builtUpArea) : undefined,
+        commercialArea: form.commercialArea ? Number(form.commercialArea) : undefined,
+        totalBeds: form.totalBeds ? Number(form.totalBeds) : undefined,
+        occupancyCapacity: form.occupancyCapacity ? Number(form.occupancyCapacity) : undefined,
         amenities: Array.isArray(form.amenities) ? form.amenities : [],
+        suitableFor: Array.isArray(form.suitableFor) ? form.suitableFor : [],
+        facilities: Array.isArray(form.facilities) ? form.facilities : [],
+        commonFacilities: Array.isArray(form.commonFacilities) ? form.commonFacilities : [],
+        typeDetails: {
+          bhk: form.bhk,
+          floor: form.floor,
+          totalFloors: form.totalFloors,
+          balcony: form.balcony,
+          parking: form.parking,
+          garden: form.garden,
+          builtUpArea: form.builtUpArea,
+          commercialArea: form.commercialArea,
+          frontage: form.frontage,
+          washroom: form.washroom,
+          electricity: form.electricity,
+          suitableFor: form.suitableFor,
+          totalBeds: form.totalBeds,
+          roomType: form.roomType,
+          occupancyCapacity: form.occupancyCapacity,
+          genderPreference: form.genderPreference,
+          foodAvailability: form.foodAvailability,
+          acAvailable: form.acAvailable,
+          roomSharing: form.roomSharing,
+          bathroomType: form.bathroomType,
+          facilities: form.facilities,
+          commonFacilities: form.commonFacilities
+        },
         location: { lat: latNum, lng: lngNum },
         seo: { title: form.seoTitle, description: form.seoDescription, keywords: form.seoKeywords },
         openGraph: { title: form.ogTitle, description: form.ogDescription }
@@ -345,13 +461,13 @@ export default function PropertyModal({ property, onClose, onSave }) {
         await propertyService.updateProperty(propertyId, payload);
       } else {
         const res = await propertyService.createProperty(payload);
-        propertyId = res.data._id;
+        propertyId = res.data._id || res.data?.data?._id;
       }
 
       setUploadProgress(50);
 
       // Handle Real File Uploads
-      if (mediaFiles.length > 0) {
+      if (mediaFiles.length > 0 && propertyId) {
         try {
           const formData = new FormData();
           
@@ -389,15 +505,28 @@ export default function PropertyModal({ property, onClose, onSave }) {
     }
   };
 
-  const formattedGeoString = `${(Number(form.location?.lat) || 12.9716).toFixed(4)}, ${(Number(form.location?.lng) || 77.5946).toFixed(4)}`;
-
   const tabs = [
     { id: 'basic', label: '1. Basic Info', icon: Info },
-    { id: 'details', label: '2. Details & Amenities', icon: Layers },
+    { id: 'details', label: '2. Specifications & Amenities', icon: Layers },
     { id: 'location', label: '3. Location & Map', icon: Compass },
     { id: 'media', label: '4. Media & 3D Tour', icon: ImageIcon },
     { id: 'seo', label: '5. SEO & Publish', icon: Globe }
   ];
+
+  // Helper label for active property type
+  const getTypeDisplay = (typeVal) => {
+    switch (typeVal) {
+      case 'apartment': return { label: 'Apartment / Flat', icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+      case 'house': case 'villa': return { label: 'House / Villa', icon: Home, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
+      case 'commercial': case 'shop': return { label: 'Shop / Commercial', icon: Store, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' };
+      case 'hostel': return { label: 'Hostel', icon: Building, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' };
+      case 'pg': return { label: 'PG / Paying Guest', icon: KeyRound, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
+      default: return { label: typeVal ? (typeVal.charAt(0).toUpperCase() + typeVal.slice(1)) : 'Apartment', icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+    }
+  };
+
+  const currentTypeInfo = getTypeDisplay(form.type);
+  const TypeIcon = currentTypeInfo.icon;
 
   return (
     <motion.div
@@ -407,30 +536,36 @@ export default function PropertyModal({ property, onClose, onSave }) {
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 shadow-2xl overflow-hidden backdrop-blur-xl"
+        className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-[2.5rem] border border-border bg-card shadow-2xl overflow-hidden backdrop-blur-xl"
       >
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-border bg-muted/40">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-primary/10 text-primary border border-primary/20">
+            <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-inner">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                {property ? 'Edit Property Workspace' : 'Add New Real Estate Property'}
-              </h2>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                Enterprise Portfolio Management
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
+                  {property ? 'Edit Property Workspace' : 'Add Property'}
+                </h2>
+                <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border flex items-center gap-1", currentTypeInfo.color)}>
+                  <TypeIcon className="w-3 h-3" />
+                  <span>{currentTypeInfo.label}</span>
+                </span>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Tailored Real Estate Listing Configuration
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer">
+          <button onClick={onClose} className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Selection Header Bar */}
-        <div className="flex items-center gap-1 sm:gap-2 px-6 sm:px-8 py-3 bg-slate-100/60 dark:bg-slate-950/40 border-b border-slate-200/80 dark:border-slate-800 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 sm:gap-2 px-6 sm:px-8 py-3 bg-muted/50 border-b border-border overflow-x-auto scrollbar-none">
           {tabs.map((tab) => {
             const TabIcon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -442,8 +577,8 @@ export default function PropertyModal({ property, onClose, onSave }) {
                 className={cn(
                   "px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 whitespace-nowrap cursor-pointer border",
                   isActive
-                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-950 border-slate-900 dark:border-white shadow-md"
-                    : "bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-foreground text-background border-foreground shadow-md"
+                    : "bg-card/60 text-muted-foreground border-border hover:text-foreground hover:bg-muted"
                 )}
               >
                 <TabIcon className="w-3.5 h-3.5" />
@@ -473,32 +608,45 @@ export default function PropertyModal({ property, onClose, onSave }) {
           {activeTab === 'basic' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 1 — Basic Information</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Core listing identification, pricing, and category parameters.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 1 — Basic Information</h3>
+                <p className="text-xs text-muted-foreground">Core listing identification, category parameters, and monthly pricing.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Field label="Property Name *" required value={form.name} onChange={v => set('name', v)} placeholder="e.g. Oceanfront Luxury Villa" />
+                <Field label="Property Name / Title *" required value={form.name} onChange={v => set('name', v)} placeholder="e.g. Skyline Luxury 2BHK Residency" />
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Property Type *</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Property Category *</label>
+                    {onChangeType && (
+                      <button
+                        type="button"
+                        onClick={onChangeType}
+                        className="text-[10px] font-bold text-emerald-500 hover:underline cursor-pointer"
+                      >
+                        Change Type
+                      </button>
+                    )}
+                  </div>
                   <select value={form.type} onChange={e => set('type', e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
-                    <option value="apartment">Apartment</option>
-                    <option value="house">House</option>
+                    className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500 capitalize">
+                    <option value="apartment">Apartment / Flat</option>
+                    <option value="house">House / Villa</option>
+                    <option value="commercial">Shop / Commercial</option>
+                    <option value="hostel">Hostel</option>
+                    <option value="pg">PG / Paying Guest</option>
                     <option value="villa">Villa</option>
                     <option value="studio">Studio</option>
-                    <option value="commercial">Commercial</option>
-                    <option value="land">Land</option>
                     <option value="room">Room</option>
+                    <option value="land">Land</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Publish Status</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Publish Status</label>
                   <select value={form.publishStatus} onChange={e => set('publishStatus', e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
-                    <option value="published">Published (Visible in Tenant Directory)</option>
+                    className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                    <option value="published">Published (Live in Directory)</option>
                     <option value="draft">Draft (Private Portfolio Only)</option>
                     <option value="archived">Archived</option>
                   </select>
@@ -510,36 +658,370 @@ export default function PropertyModal({ property, onClose, onSave }) {
                 </div>
               </div>
 
-              <TextAreaField label="Property Description" value={form.description} onChange={v => set('description', v)} placeholder="Highlight key residence features, floor level, view, accessibility..." />
+              <TextAreaField label="Property Description" value={form.description} onChange={v => set('description', v)} placeholder="Highlight key residency highlights, floor level, view, proximity to transit, rules..." />
             </motion.div>
           )}
 
-          {/* TAB 2: DETAILS & AMENITIES */}
+          {/* TAB 2: SPECIFICATIONS & AMENITIES (DYNAMICALLY TAILORED) */}
           {activeTab === 'details' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 2 — Specifications & Amenities</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Physical layout dimensions and included residential facilities.</p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <Field label="Bedrooms" type="number" value={form.bedrooms} onChange={v => set('bedrooms', v)} placeholder="e.g. 3" />
-                <Field label="Bathrooms" type="number" value={form.bathrooms} onChange={v => set('bathrooms', v)} placeholder="e.g. 2" />
-                <Field label="Square Feet" type="number" value={form.squareFeet} onChange={v => set('squareFeet', v)} placeholder="e.g. 1450" />
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Furnishing</label>
-                  <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary">
-                    <option value="unfurnished">Unfurnished</option>
-                    <option value="semi-furnished">Semi-Furnished</option>
-                    <option value="fully-furnished">Fully-Furnished</option>
-                  </select>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
+                    Section 2 — Tailored Specifications ({currentTypeInfo.label})
+                  </h3>
                 </div>
+                <p className="text-xs text-muted-foreground">Detailed layout attributes tailored specifically for this property type.</p>
               </div>
 
-              {/* Amenity Badges Selector */}
-              <div className="space-y-3 pt-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Select Amenity Tags</label>
+              {/* ── TYPE 1: APARTMENT / FLAT ── */}
+              {form.type === 'apartment' && (
+                <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">BHK Layout</label>
+                      <select value={form.bhk || ''} onChange={e => set('bhk', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select BHK</option>
+                        <option value="Studio">Studio Apartment</option>
+                        <option value="1 BHK">1 BHK</option>
+                        <option value="2 BHK">2 BHK</option>
+                        <option value="3 BHK">3 BHK</option>
+                        <option value="4 BHK">4 BHK</option>
+                        <option value="4+ BHK">4+ BHK / Penthouse</option>
+                      </select>
+                    </div>
+
+                    <Field label="Bedrooms" type="number" value={form.bedrooms} onChange={v => set('bedrooms', v)} placeholder="e.g. 2" />
+                    <Field label="Bathrooms" type="number" value={form.bathrooms} onChange={v => set('bathrooms', v)} placeholder="e.g. 2" />
+                    <Field label="Square Feet (Area)" type="number" value={form.squareFeet} onChange={v => set('squareFeet', v)} placeholder="e.g. 1250" />
+                    <Field label="Floor Level" type="number" value={form.floor} onChange={v => set('floor', v)} placeholder="e.g. 4" />
+                    <Field label="Total Floors in Bldg" type="number" value={form.totalFloors} onChange={v => set('totalFloors', v)} placeholder="e.g. 12" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Furnishing Status</label>
+                      <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="unfurnished">Unfurnished</option>
+                        <option value="semi-furnished">Semi-Furnished</option>
+                        <option value="fully-furnished">Fully-Furnished</option>
+                      </select>
+                    </div>
+
+                    <Field label="Balconies Count" type="number" value={form.balcony} onChange={v => set('balcony', v)} placeholder="e.g. 2" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Parking Facility</label>
+                      <select value={form.parking || ''} onChange={e => set('parking', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Parking</option>
+                        <option value="Covered Parking">Covered Stilt Parking</option>
+                        <option value="Open Parking">Open Designated Parking</option>
+                        <option value="Two-Wheeler Only">Two-Wheeler Only</option>
+                        <option value="No Parking">No Parking Available</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── TYPE 2: HOUSE / VILLA ── */}
+              {(form.type === 'house' || form.type === 'villa') && (
+                <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <Field label="Bedrooms" type="number" value={form.bedrooms} onChange={v => set('bedrooms', v)} placeholder="e.g. 4" />
+                    <Field label="Bathrooms" type="number" value={form.bathrooms} onChange={v => set('bathrooms', v)} placeholder="e.g. 4" />
+                    <Field label="Built-up Area (Sq Ft)" type="number" value={form.builtUpArea || form.squareFeet} onChange={v => { set('builtUpArea', v); set('squareFeet', v); }} placeholder="e.g. 2800" />
+                    <Field label="Total House Stories" type="number" value={form.totalFloors} onChange={v => set('totalFloors', v)} placeholder="e.g. 2 (G + 1)" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Furnishing Status</label>
+                      <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="unfurnished">Unfurnished</option>
+                        <option value="semi-furnished">Semi-Furnished</option>
+                        <option value="fully-furnished">Fully-Furnished</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Garden / Outdoor Space</label>
+                      <select value={form.garden || ''} onChange={e => set('garden', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Garden Type</option>
+                        <option value="Private Front Lawn & Garden">Private Front Lawn & Garden</option>
+                        <option value="Terrace Garden">Rooftop Terrace Garden</option>
+                        <option value="Backyard Courtyard">Backyard Courtyard</option>
+                        <option value="No Garden">No Private Garden</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Driveway & Parking</label>
+                      <select value={form.parking || ''} onChange={e => set('parking', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Parking</option>
+                        <option value="Private Garage (2+ Cars)">Private Garage (2+ Cars)</option>
+                        <option value="Covered Driveway">Covered Driveway</option>
+                        <option value="Open Compound Parking">Open Compound Parking</option>
+                        <option value="Street Parking Only">Street Parking Only</option>
+                      </select>
+                    </div>
+
+                    <Field label="Balconies / Terraces" type="number" value={form.balcony} onChange={v => set('balcony', v)} placeholder="e.g. 3" />
+                  </div>
+                </div>
+              )}
+
+              {/* ── TYPE 3: SHOP / COMMERCIAL ── */}
+              {(form.type === 'commercial' || form.type === 'shop') && (
+                <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <Field label="Commercial Area (Sq Ft) *" type="number" value={form.commercialArea || form.squareFeet} onChange={v => { set('commercialArea', v); set('squareFeet', v); }} placeholder="e.g. 1200" />
+                    <Field label="Shop / Floor Level" type="number" value={form.floor} onChange={v => set('floor', v)} placeholder="e.g. 0 (Ground)" />
+                    <Field label="Frontage / Glass Width (ft)" value={form.frontage} onChange={v => set('frontage', v)} placeholder="e.g. 25 ft" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Washroom Setup</label>
+                      <select value={form.washroom || ''} onChange={e => set('washroom', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Washroom</option>
+                        <option value="Private Attached Washroom">Private Attached Washroom</option>
+                        <option value="Common Floor Washroom">Common Floor Washroom</option>
+                        <option value="No Washroom Inside">No Dedicated Washroom</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Electricity & Power</label>
+                      <select value={form.electricity || ''} onChange={e => set('electricity', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Power Setup</option>
+                        <option value="3-Phase Commercial Dedicated">3-Phase Commercial Dedicated</option>
+                        <option value="Single Phase Commercial">Single Phase Commercial</option>
+                        <option value="10+ kVA High Load Power">10+ kVA High Load Power</option>
+                        <option value="Full Power Backup DG">Full Power Backup DG</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fit-Out / Furnishing</label>
+                      <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="unfurnished">Bare Shell (Unfurnished)</option>
+                        <option value="semi-furnished">Warm Shell (Flooring & Lighting)</option>
+                        <option value="fully-furnished">Fully Fitted / Furnished Office</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Commercial Business Types Selector */}
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Suitable Business Types (Multi-Select)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {COMMERCIAL_BUSINESS_TYPES.map((biz) => {
+                        const isSelected = (form.suitableFor || []).includes(biz);
+                        return (
+                          <button
+                            key={biz}
+                            type="button"
+                            onClick={() => toggleArrayItem('suitableFor', biz)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer",
+                              isSelected
+                                ? "bg-blue-500 text-white border-blue-500 shadow-sm"
+                                : "bg-muted/70 text-muted-foreground border-border hover:text-foreground"
+                            )}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                            <span>{biz}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── TYPE 4: HOSTEL ── */}
+              {form.type === 'hostel' && (
+                <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <Field label="Total Beds Available *" type="number" value={form.totalBeds} onChange={v => set('totalBeds', v)} placeholder="e.g. 50" />
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Room Type / Sharing</label>
+                      <select value={form.roomType || ''} onChange={e => set('roomType', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Room Type</option>
+                        <option value="Single Private Room">Single Private Room</option>
+                        <option value="2-Bed Double Sharing">2-Bed Double Sharing</option>
+                        <option value="3-Bed Triple Sharing">3-Bed Triple Sharing</option>
+                        <option value="4-Bed Sharing Room">4-Bed Sharing Room</option>
+                        <option value="Dormitory (6+ Beds)">Dormitory (6+ Beds)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gender Preference</label>
+                      <select value={form.genderPreference || 'any'} onChange={e => set('genderPreference', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="male">Boys / Male Only</option>
+                        <option value="female">Girls / Female Only</option>
+                        <option value="co-ed">Co-ed / Unisex</option>
+                        <option value="any">Open / Any</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Food & Mess Availability</label>
+                      <select value={form.foodAvailability || ''} onChange={e => set('foodAvailability', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Food Plan</option>
+                        <option value="All 3 Meals Included">All 3 Meals Included (Breakfast, Lunch, Dinner)</option>
+                        <option value="Breakfast & Dinner Only">Breakfast & Dinner Only</option>
+                        <option value="Optional Mess Subscription">Optional Mess Subscription</option>
+                        <option value="Self Cooking Allowed">Self Cooking Allowed in Common Kitchen</option>
+                        <option value="No Food Facility">No Food Facility</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Air Conditioning</label>
+                      <select value={form.acAvailable || ''} onChange={e => set('acAvailable', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select AC Option</option>
+                        <option value="AC Rooms Available">AC Rooms Available</option>
+                        <option value="Non-AC Rooms">Non-AC Rooms</option>
+                        <option value="Both AC & Non-AC Available">Both AC & Non-AC Available</option>
+                      </select>
+                    </div>
+
+                    <Field label="Total Occupancy Capacity" type="number" value={form.occupancyCapacity} onChange={v => set('occupancyCapacity', v)} placeholder="e.g. 100" />
+                  </div>
+
+                  {/* Common Hostel Facilities */}
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Common Hostel Facilities (Multi-Select)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {HOSTEL_FACILITIES.map((fac) => {
+                        const isSelected = (form.commonFacilities || []).includes(fac);
+                        return (
+                          <button
+                            key={fac}
+                            type="button"
+                            onClick={() => toggleArrayItem('commonFacilities', fac)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer",
+                              isSelected
+                                ? "bg-purple-500 text-white border-purple-500 shadow-sm"
+                                : "bg-muted/70 text-muted-foreground border-border hover:text-foreground"
+                            )}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                            <span>{fac}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── TYPE 5: PG / PAYING GUEST ── */}
+              {form.type === 'pg' && (
+                <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Room Type</label>
+                      <select value={form.roomType || ''} onChange={e => set('roomType', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Room Type</option>
+                        <option value="Single Occupancy">Single Occupancy</option>
+                        <option value="Double Sharing">Double Sharing (2 Beds)</option>
+                        <option value="Triple Sharing">Triple Sharing (3 Beds)</option>
+                        <option value="Four Sharing">Four Sharing (4 Beds)</option>
+                      </select>
+                    </div>
+
+                    <Field label="Sharing Capacity (Persons/Room)" type="number" value={form.sharingCapacity || form.occupancyCapacity} onChange={v => { set('sharingCapacity', v); set('occupancyCapacity', v); }} placeholder="e.g. 2" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gender Preference</label>
+                      <select value={form.genderPreference || 'any'} onChange={e => set('genderPreference', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="male">Male / Boys PG</option>
+                        <option value="female">Female / Girls PG</option>
+                        <option value="co-ed">Co-ed / Unisex PG</option>
+                        <option value="any">Open / Any</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Food & Meals</label>
+                      <select value={form.foodAvailability || ''} onChange={e => set('foodAvailability', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Food Option</option>
+                        <option value="3 Meals Daily (Home Cooked)">3 Meals Daily (Home Cooked)</option>
+                        <option value="Breakfast & Dinner">Breakfast & Dinner Included</option>
+                        <option value="Optional Food Package">Optional Food Package</option>
+                        <option value="No Food Included">No Food Included</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bathroom Type</label>
+                      <select value={form.bathroomType || ''} onChange={e => set('bathroomType', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select Bathroom</option>
+                        <option value="Attached Bathroom (Private)">Attached Bathroom (Private)</option>
+                        <option value="Shared Bathroom on Floor">Shared Bathroom on Floor</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">AC / Non-AC</label>
+                      <select value={form.acAvailable || ''} onChange={e => set('acAvailable', e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
+                        <option value="">Select AC Type</option>
+                        <option value="AC Room">AC Room</option>
+                        <option value="Non-AC Room">Non-AC Room</option>
+                        <option value="Both Options Available">Both Options Available</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* PG In-Room & House Facilities */}
+                  <div className="space-y-2 pt-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PG Facilities (Multi-Select)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {PG_FACILITIES.map((fac) => {
+                        const isSelected = (form.facilities || []).includes(fac);
+                        return (
+                          <button
+                            key={fac}
+                            type="button"
+                            onClick={() => toggleArrayItem('facilities', fac)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer",
+                              isSelected
+                                ? "bg-rose-500 text-white border-rose-500 shadow-sm"
+                                : "bg-muted/70 text-muted-foreground border-border hover:text-foreground"
+                            )}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                            <span>{fac}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── GENERAL AMENITIES SELECTOR (APPLIES TO ALL TYPES) ── */}
+              <div className="space-y-3 pt-4 border-t border-border">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">General Property Amenities</label>
                 <div className="flex flex-wrap gap-2">
                   {COMMON_AMENITIES.map((item) => {
                     const isSelected = (form.amenities || []).includes(item);
@@ -552,7 +1034,7 @@ export default function PropertyModal({ property, onClose, onSave }) {
                           "px-4 py-2 rounded-2xl text-xs font-black transition-all border flex items-center gap-1.5 cursor-pointer",
                           isSelected
                             ? "bg-emerald-500 text-white border-emerald-500 shadow-md"
-                            : "bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white"
+                            : "bg-muted/60 text-muted-foreground border-border hover:text-foreground hover:bg-muted"
                         )}
                       >
                         {isSelected && <Check className="w-3.5 h-3.5" />}
@@ -569,15 +1051,15 @@ export default function PropertyModal({ property, onClose, onSave }) {
           {activeTab === 'location' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 3 — Geolocation & Interactive Map</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Search address or click on the interactive map to position the property pin.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 3 — Geolocation & Interactive Map</h3>
+                <p className="text-xs text-muted-foreground">Search address or click on the interactive map to position the property pin.</p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   {/* Address Input */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Address (Search / Text) *</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Address (Search / Text) *</label>
                     {isLoaded ? (
                       <Autocomplete
                         onLoad={setAutocompleteInstance}
@@ -598,10 +1080,10 @@ export default function PropertyModal({ property, onClose, onSave }) {
                         }}
                       >
                         <div className="relative">
-                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <input type="text" value={form.address} onChange={e => set('address', e.target.value)} required
                             placeholder="Search address or enter street..."
-                            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none focus:border-primary" />
+                            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500" />
                         </div>
                       </Autocomplete>
                     ) : (
@@ -611,24 +1093,24 @@ export default function PropertyModal({ property, onClose, onSave }) {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Country *</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Country *</label>
                       <select value={form.country} onChange={e => { set('country', e.target.value); set('state', ''); }}
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none">
+                        className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none">
                         {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">State *</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">State *</label>
                       {form.country === 'India' ? (
                         <select value={form.state} onChange={e => handleStateChange(e.target.value)}
-                          className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none">
+                          className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none">
                           <option value="">Select State</option>
                           {INDIA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       ) : (
                         <input type="text" value={form.state} onChange={e => handleStateChange(e.target.value)}
-                          className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-none" />
+                          className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none" />
                       )}
                     </div>
                   </div>
@@ -639,40 +1121,36 @@ export default function PropertyModal({ property, onClose, onSave }) {
                   </div>
 
                   {/* Latitude / Longitude & GPS Trigger */}
-                  <div className="p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-3">
+                  <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">GPS Coordinates</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">GPS Coordinates</span>
                       <button
                         type="button"
                         onClick={handleUseMyLocation}
                         disabled={gettingLocation}
-                        className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-primary/20 transition-all cursor-pointer"
+                        className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer"
                       >
-                        {gettingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : <Navigation className="w-3 h-3" />}
-                        {gettingLocation ? 'Locating...' : 'Use My Location'}
+                        <Navigation className="w-3 h-3" />
+                        <span>{gettingLocation ? 'Locating...' : 'Use My GPS'}</span>
                       </button>
                     </div>
-
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Latitude" type="number" step="any" value={form.location?.lat ?? 12.9716}
-                        onChange={v => setForm(p => ({ ...p, location: { ...(p.location || {}), lat: parseFloat(v) || 0 } }))} />
-                      <Field label="Longitude" type="number" step="any" value={form.location?.lng ?? 77.5946}
-                        onChange={v => setForm(p => ({ ...p, location: { ...(p.location || {}), lng: parseFloat(v) || 0 } }))} />
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Geo Coordinates:</span>
-                      <span className="font-black text-emerald-500 dark:text-emerald-400">{formattedGeoString}</span>
+                      <Field label="Latitude" type="number" step="any" value={form.location?.lat} onChange={v => set('location', { ...form.location, lat: v })} placeholder="12.9716" />
+                      <Field label="Longitude" type="number" step="any" value={form.location?.lng} onChange={v => set('location', { ...form.location, lng: v })} placeholder="77.5946" />
                     </div>
                   </div>
                 </div>
 
-                {/* Leaflet Map Picker Panel */}
-                <div className="flex flex-col h-[340px] sm:h-auto min-h-[320px] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-inner relative">
-                  <div ref={mapContainerRef} className="w-full h-full z-0" />
-                  <div className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/20 text-white text-[10px] font-black uppercase tracking-widest">
-                    📍 Click map to place marker
-                  </div>
+                {/* Leaflet Interactive Map Container */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <span>Interactive Pin Drop</span>
+                    <span className="text-[9px] text-emerald-500 font-bold">(Drag pin or click map)</span>
+                  </label>
+                  <div 
+                    ref={mapContainerRef} 
+                    className="w-full h-72 sm:h-80 rounded-2xl border border-border overflow-hidden shadow-inner z-0 bg-muted" 
+                  />
                 </div>
               </div>
             </motion.div>
@@ -682,89 +1160,101 @@ export default function PropertyModal({ property, onClose, onSave }) {
           {activeTab === 'media' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 4 — Real Photos, Videos & 3D Virtual Tour</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Upload high-resolution property photos, HD video walkthroughs, or Matterport 3D links.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 4 — Visual Media Assets</h3>
+                <p className="text-xs text-muted-foreground">Upload property photos, video tours, and set the primary portfolio cover image.</p>
               </div>
 
-              {/* Drag & Drop Zone */}
-              <div {...getRootProps()} className={cn(
-                "border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all backdrop-blur-sm",
-                isDragActive 
-                  ? "border-primary bg-primary/10 scale-[0.99]" 
-                  : "border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 hover:border-primary/50"
-              )}>
+              {/* Drag and Drop Zone */}
+              <div
+                {...getRootProps()}
+                className={cn(
+                  "p-8 border-2 border-dashed rounded-3xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3",
+                  isDragActive
+                    ? "border-emerald-500 bg-emerald-500/10 scale-[0.99]"
+                    : "border-border bg-muted/30 hover:bg-muted/50 hover:border-border"
+                )}
+              >
                 <input {...getInputProps()} />
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-3 border border-primary/20">
-                  <UploadCloud className="w-7 h-7" />
+                <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <UploadCloud className="w-8 h-8" />
                 </div>
-                <p className="text-sm font-black text-slate-900 dark:text-slate-100">Drag & drop photos & videos here, or click to browse</p>
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
-                  Supports JPG, PNG, WEBP, MP4, WEBM (Max 50MB per file)
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm font-black text-foreground">
+                    {isDragActive ? 'Drop images or videos here...' : 'Click to Browse or Drag & Drop Media Files'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Supports JPEG, PNG, WebP images and MP4, WebM videos (up to 50MB each)</p>
+                </div>
               </div>
 
-              {/* Media Preview Grid */}
+              {/* Media Previews Grid */}
               {mediaFiles.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Uploaded Media Staging ({mediaFiles.length} file{mediaFiles.length !== 1 ? 's' : ''})
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                      Cover: {mediaFiles[coverIndex]?.name || 'First Photo'}
-                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected Assets ({mediaFiles.length})</span>
+                    <span className="text-[10px] text-emerald-500 font-bold">First file marked as Primary Cover</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {mediaFiles.map((m, idx) => (
-                      <div key={m.id} className={cn(
-                        "relative group rounded-2xl overflow-hidden border bg-slate-100 dark:bg-slate-800 flex flex-col aspect-square justify-between p-2 shadow-sm transition-all",
-                        coverIndex === idx ? "border-emerald-500 ring-2 ring-emerald-500/30" : "border-slate-200 dark:border-slate-700"
-                      )}>
-                        {m.isVideo ? (
-                          <div className="absolute inset-0 bg-slate-900 flex items-center justify-center">
-                            <Video className="w-8 h-8 text-primary animate-pulse" />
-                          </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {mediaFiles.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "relative rounded-2xl overflow-hidden border aspect-video group bg-muted",
+                          coverIndex === idx ? "border-emerald-500 ring-2 ring-emerald-500/30" : "border-border"
+                        )}
+                      >
+                        {item.type === 'video' ? (
+                          <video src={item.preview} className="w-full h-full object-cover" />
                         ) : (
-                          <img src={m.preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                          <img src={item.preview} alt={item.name} className="w-full h-full object-cover" />
                         )}
 
-                        {/* Top Badges */}
-                        <div className="relative z-10 flex items-center justify-between w-full">
+                        {/* Badges & Actions */}
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
                           {coverIndex === idx && (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest">
-                              COVER
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest shadow-md">
+                              Primary Cover
                             </span>
                           )}
-                          <span className="px-2 py-0.5 rounded-full bg-black/60 text-white text-[8px] font-bold ml-auto backdrop-blur-sm">
-                            {m.isVideo ? 'VIDEO' : 'IMAGE'}
-                          </span>
+                          {item.type === 'video' && (
+                            <span className="p-1 rounded-md bg-black/60 text-white text-[9px] backdrop-blur-md">
+                              <Video className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
 
-                        {/* Action Overlays */}
-                        <div className="relative z-10 flex items-center justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 p-1 rounded-xl backdrop-blur-md">
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(idx)}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-rose-500 transition-colors backdrop-blur-md opacity-0 group-hover:opacity-100 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="absolute bottom-2 inset-x-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => moveMedia(idx, idx - 1)}
+                            className="p-1 rounded-md bg-black/70 text-white hover:bg-black disabled:opacity-30 cursor-pointer"
+                          >
+                            <MoveLeft className="w-3 h-3" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => setCoverIndex(idx)}
-                            className="text-[8px] font-black uppercase tracking-widest text-emerald-400 hover:underline px-1"
+                            className="px-2 py-0.5 rounded-md bg-black/70 text-white text-[9px] font-bold hover:bg-emerald-500 cursor-pointer"
                           >
                             Set Cover
                           </button>
-                          <div className="flex items-center gap-1">
-                            {idx > 0 && (
-                              <button type="button" onClick={() => moveMedia(idx, idx - 1)} className="text-white p-1 hover:bg-white/20 rounded">
-                                <MoveLeft className="w-3 h-3" />
-                              </button>
-                            )}
-                            {idx < mediaFiles.length - 1 && (
-                              <button type="button" onClick={() => moveMedia(idx, idx + 1)} className="text-white p-1 hover:bg-white/20 rounded">
-                                <MoveRight className="w-3 h-3" />
-                              </button>
-                            )}
-                            <button type="button" onClick={() => removeMedia(idx)} className="text-rose-400 p-1 hover:bg-rose-500/20 rounded">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            disabled={idx === mediaFiles.length - 1}
+                            onClick={() => moveMedia(idx, idx + 1)}
+                            className="p-1 rounded-md bg-black/70 text-white hover:bg-black disabled:opacity-30 cursor-pointer"
+                          >
+                            <MoveRight className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -772,43 +1262,8 @@ export default function PropertyModal({ property, onClose, onSave }) {
                 </div>
               )}
 
-              {/* Existing Server Media Preview */}
-              {property?.media?.length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    Existing Saved Media ({property.media.length})
-                  </span>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {property.media.map((m, i) => (
-                      <div key={i} className="relative w-20 h-20 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-900">
-                        {m.mediaType === 'video' ? (
-                          <div className="w-full h-full flex items-center justify-center text-primary">
-                            <Video className="w-6 h-6" />
-                          </div>
-                        ) : (
-                          <img 
-                            src={getMediaUrl(m.url)} 
-                            className="w-full h-full object-cover" 
-                            alt="" 
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
-                            }}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 3D Virtual Tour URL Input */}
-              <Field 
-                label="3D Virtual Tour URL (Matterport / Kuula / Polycam)" 
-                value={form.virtualTourUrl} 
-                onChange={v => set('virtualTourUrl', v)} 
-                placeholder="https://my.matterport.com/show/?m=..." 
-              />
+              {/* 3D Virtual Tour URL */}
+              <Field label="3D Virtual Tour / Matterport Link" value={form.virtualTourUrl} onChange={v => set('virtualTourUrl', v)} placeholder="https://my.matterport.com/show/?m=..." />
             </motion.div>
           )}
 
@@ -816,66 +1271,43 @@ export default function PropertyModal({ property, onClose, onSave }) {
           {activeTab === 'seo' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Section 5 — Search Engine Meta & Final Submission</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Optimize search engine visibility and publish property listing.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 5 — SEO & Social Meta</h3>
+                <p className="text-xs text-muted-foreground">Search engine discovery, snippet previews, and social media open graph cards.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <Field label="SEO Title" value={form.seoTitle} onChange={v => set('seoTitle', v)} placeholder="Luxury 3BHK Apartment for Rent in Koramangala" />
-                  <TextAreaField label="SEO Meta Description" value={form.seoDescription} onChange={v => set('seoDescription', v)} placeholder="Spacious 3 bedroom residence with modern amenities..." />
-                  <Field label="SEO Keywords" value={form.seoKeywords} onChange={v => set('seoKeywords', v)} placeholder="real estate, rental apartment, bangalore, 3bhk" />
-                </div>
-
-                {/* Live Preview Summary Card */}
-                <div className="p-6 rounded-3xl bg-slate-100/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Listing Card Preview</span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black uppercase">
-                      {form.publishStatus}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h4 className="text-base font-black text-slate-900 dark:text-slate-100">{form.name || 'Untitled Property'}</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-primary" /> {form.address || 'Location details pending'}
-                    </p>
-                    <p className="text-xl font-black text-emerald-500">₹{(Number(form.rentAmount) || 0).toLocaleString('en-IN')} <span className="text-xs text-slate-400 font-normal">/ month</span></p>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
-                    <span>📷 {mediaFiles.filter(m => !m.isVideo).length} Photos</span>
-                    <span>•</span>
-                    <span>▶ {mediaFiles.filter(m => m.isVideo).length} Videos</span>
-                    <span>•</span>
-                    <span>📍 {formattedGeoString}</span>
-                  </div>
-                </div>
+                <Field label="SEO Title Tag" value={form.seoTitle} onChange={v => set('seoTitle', v)} placeholder="e.g. 2 BHK Luxury Flat in Bangalore | TMS" />
+                <Field label="SEO Keywords" value={form.seoKeywords} onChange={v => set('seoKeywords', v)} placeholder="e.g. bangalore, flat, 2bhk, rent" />
               </div>
 
-              {/* Progress Bar during submit */}
-              {loading && uploadProgress > 0 && (
-                <div className="space-y-1.5 pt-2">
-                  <div className="flex justify-between text-xs font-black text-slate-500">
-                    <span>Uploading Property Media & Details...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-                  </div>
+              <TextAreaField label="SEO Meta Description" value={form.seoDescription} onChange={v => set('seoDescription', v)} placeholder="Brief summary displayed on Google Search results pages..." />
+
+              <div className="p-5 rounded-3xl bg-muted/40 border border-border space-y-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-emerald-500" /> Search Snippet Preview
+                </span>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer truncate">
+                    {form.seoTitle || form.name || 'Your Property Title'} | Tenant Management System
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    https://tms.app/properties/{form.name ? form.name.toLowerCase().replace(/\s+/g, '-') : 'property-slug'}
+                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {form.seoDescription || form.description || 'Explore this verified rental listing with real-time availability and transparent pricing.'}
+                  </p>
                 </div>
-              )}
+              </div>
             </motion.div>
           )}
         </div>
 
         {/* Modal Footer Bar */}
-        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-t border-border bg-muted/40">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-xl border border-border text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -885,7 +1317,7 @@ export default function PropertyModal({ property, onClose, onSave }) {
               type="button"
               disabled={loading}
               onClick={(e) => handleSubmit(e, 'draft')}
-              className="px-5 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50 cursor-pointer"
+              className="px-5 py-3 rounded-2xl border border-border text-foreground font-black text-xs hover:bg-muted transition-all disabled:opacity-50 cursor-pointer"
             >
               Save Draft
             </button>
@@ -893,7 +1325,7 @@ export default function PropertyModal({ property, onClose, onSave }) {
               type="button"
               disabled={loading}
               onClick={(e) => handleSubmit(e, 'published')}
-              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{loading ? 'Processing Property...' : (property ? 'Save Changes' : 'Create & Publish Property')}</span>
@@ -909,15 +1341,15 @@ export default function PropertyModal({ property, onClose, onSave }) {
 function Field({ label, value, onChange, type = 'text', required, placeholder, step }) {
   return (
     <div className="space-y-1.5">
-      {label && <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}{required && ' *'}</label>}
+      {label && <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}{required && ' *'}</label>}
       <input
         type={type}
         step={step}
-        value={value}
+        value={value ?? ''}
         onChange={e => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold placeholder-slate-400 focus:outline-none focus:border-primary transition-all"
+        className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold placeholder-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all"
       />
     </div>
   );
@@ -926,13 +1358,13 @@ function Field({ label, value, onChange, type = 'text', required, placeholder, s
 function TextAreaField({ label, value, onChange, placeholder }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
       <textarea
-        value={value}
+        value={value ?? ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         rows={3}
-        className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold placeholder-slate-400 focus:outline-none focus:border-primary transition-all resize-none"
+        className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold placeholder-muted-foreground/40 focus:outline-none focus:border-emerald-500 transition-all resize-none"
       />
     </div>
   );

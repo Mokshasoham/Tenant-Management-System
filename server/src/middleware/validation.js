@@ -89,7 +89,8 @@ export const validatePropertyCreation = [
     .notEmpty().withMessage('Address is required'),
   body('type')
     .trim()
-    .isIn(['apartment', 'house', 'commercial', 'land']).withMessage('Invalid property type'),
+    .toLowerCase()
+    .isIn(['apartment', 'house', 'commercial', 'land', 'room', 'villa', 'studio', 'hostel', 'pg', 'shop']).withMessage('Invalid property type'),
 ];
 
 export const validatePaginationQuery = [
