@@ -144,6 +144,7 @@ export default function PropertyVerificationPage() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState('');
   const activeRequestIdRef = useRef(0);
+  const selectorContainerRef = useRef(null);
 
   const propertyMapper = getVerificationMapper('PROPERTY');
 
@@ -157,18 +158,18 @@ export default function PropertyVerificationPage() {
       const validProps = Array.isArray(propList) ? propList : [];
       setProperties(validProps);
 
-      // Determine initial selected property
+      // Determine initial selected property from URL or fallback to first
       const queryPropId = searchParams.get('propertyId');
       if (queryPropId) {
         const found = validProps.find((p) => String(p._id) === String(queryPropId));
         if (found) {
           setSelectedPropertyId(found._id);
         } else if (validProps.length > 0) {
-          // Explicit invalid property ID passed in URL
-          setSelectedPropertyId(queryPropId); // Will trigger safe unauthorized/not found state
+          // Explicit invalid/unauthorized property ID in URL
+          setSelectedPropertyId(queryPropId);
         }
       } else if (validProps.length > 0) {
-        // Pre-select first property and update URL
+        // Pre-select first property and set URL param
         setSelectedPropertyId(validProps[0]._id);
         setSearchParams({ propertyId: validProps[0]._id }, { replace: true });
       }
@@ -184,7 +185,39 @@ export default function PropertyVerificationPage() {
     fetchManagerProperties();
   }, [fetchManagerProperties]);
 
-  // ── 2. Load Active Property Verification (Strict Isolation per property) ──
+  // ── 2. Sync selectedPropertyId when URL query param changes (Back/Forward support) ──
+  const queryPropId = searchParams.get('propertyId');
+  useEffect(() => {
+    if (queryPropId && queryPropId !== selectedPropertyId) {
+      setSelectedPropertyId(queryPropId);
+    }
+  }, [queryPropId, selectedPropertyId]);
+
+  // ── 3. Outside Click & Escape Key Handling for Dropdown ──
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (selectorContainerRef.current && !selectorContainerRef.current.contains(event.target)) {
+        setSelectorOpen(false);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setSelectorOpen(false);
+      }
+    }
+    if (selectorOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectorOpen]);
+
+  // ── 4. Load Active Property Verification (Strict Isolation per property) ──
   const loadPropertyVerificationData = useCallback(async (propertyId) => {
     if (!propertyId) {
       setActiveVerification(null);
@@ -246,14 +279,16 @@ export default function PropertyVerificationPage() {
     }
   }, [selectedPropertyId, loadPropertyVerificationData]);
 
-  // ── 3. Switch Selected Property Handler ──
+  // ── 5. Switch Selected Property Handler ──
   const handleSelectProperty = (propertyId) => {
     if (propertyId === selectedPropertyId) {
       setSelectorOpen(false);
       return;
     }
+    // Update local state immediately
     setSelectedPropertyId(propertyId);
-    setSearchParams({ propertyId }, { replace: true });
+    // Push new history state so Back/Forward works
+    setSearchParams({ propertyId }, { replace: false });
     setSelectorOpen(false);
     setPropertySearch('');
   };
@@ -300,7 +335,7 @@ export default function PropertyVerificationPage() {
     );
   }
 
-  // ── 4. ZERO PROPERTIES EMPTY STATE ──
+  // ── 6. ZERO PROPERTIES EMPTY STATE ──
   if (!loadingProperties && properties.length === 0) {
     return (
       <div className="p-6 sm:p-10 space-y-8">
@@ -336,7 +371,7 @@ export default function PropertyVerificationPage() {
     );
   }
 
-  // ── 5. INVALID / UNAUTHORIZED PROPERTY ID IN URL ──
+  // ── 7. INVALID / UNAUTHORIZED PROPERTY ID IN URL ──
   if (!activeProperty && selectedPropertyId && !loadingVerification) {
     return (
       <div className="p-6 sm:p-10 space-y-8">
@@ -367,7 +402,7 @@ export default function PropertyVerificationPage() {
     );
   }
 
-  // ── 6. MAP VERIFICATION DATA FOR ACTIVE PROPERTY ──
+  // ── 8. MAP VERIFICATION DATA FOR ACTIVE PROPERTY ──
   const isUnverified = !activeVerification || activeVerification.status === 'UNVERIFIED';
   const verification = activeVerification ? propertyMapper.mapVerification(activeVerification) : {};
   const trustData = activeVerification
@@ -423,7 +458,7 @@ export default function PropertyVerificationPage() {
       />
 
       {/* ══ 1. PROPERTY SELECTOR HERO SECTION ══ */}
-      <div className="p-5 rounded-[2rem] bg-card border border-border shadow-sm transition-all relative overflow-hidden">
+      <div className="p-5 rounded-[2rem] bg-card border border-border shadow-sm transition-all relative">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
           {/* Left: Active Property Preview */}
           <div className="flex items-center gap-4 min-w-0">
@@ -480,16 +515,21 @@ export default function PropertyVerificationPage() {
                 {activeProperty?.bathrooms != null && (
                   <span className="text-muted-foreground text-[11px] font-semibold">🚿 {activeProperty.bathrooms} Baths</span>
                 )}
+                {activeProperty?.areaSqFt != null && (
+                  <span className="text-muted-foreground text-[11px] font-semibold">📐 {activeProperty.areaSqFt} sqft</span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right: Property Switcher Trigger */}
-          <div className="relative w-full lg:w-auto flex-shrink-0">
+          {/* Right: Property Switcher Trigger and Popover */}
+          <div ref={selectorContainerRef} className="relative w-full lg:w-auto flex-shrink-0 z-50">
             <button
               type="button"
+              aria-haspopup="listbox"
+              aria-expanded={selectorOpen}
               onClick={() => setSelectorOpen((v) => !v)}
-              className="w-full lg:w-auto px-5 py-3 rounded-2xl bg-muted/80 hover:bg-muted border border-border text-foreground font-bold text-xs flex items-center justify-between lg:justify-start gap-3 transition-all cursor-pointer shadow-sm hover:border-primary/40"
+              className="w-full lg:w-auto px-5 py-3 rounded-2xl bg-muted/80 hover:bg-muted border border-border text-foreground font-bold text-xs flex items-center justify-between lg:justify-start gap-3 transition-all cursor-pointer shadow-sm hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <div className="flex items-center gap-2 text-left">
                 <Building2 className="w-4 h-4 text-primary" />
@@ -505,7 +545,9 @@ export default function PropertyVerificationPage() {
                   initial={{ opacity: 0, y: 8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                  className="absolute right-0 top-full mt-2 w-full sm:w-[380px] rounded-2xl bg-card border border-border shadow-2xl p-3 z-50 space-y-2"
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-full sm:w-[420px] rounded-2xl bg-card border border-border shadow-2xl p-3 z-[100] space-y-2 pointer-events-auto"
+                  role="listbox"
                 >
                   {/* Search Filter */}
                   {properties.length > 3 && (
@@ -515,14 +557,15 @@ export default function PropertyVerificationPage() {
                         type="text"
                         value={propertySearch}
                         onChange={(e) => setPropertySearch(e.target.value)}
-                        placeholder="Search property name or city…"
+                        placeholder="Search property name, address, or city…"
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
+                        autoFocus
                       />
                     </div>
                   )}
 
                   {/* Properties List */}
-                  <div className="max-h-[280px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-border">
+                  <div className="max-h-[320px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-border">
                     {filteredProperties.length === 0 ? (
                       <p className="p-4 text-center text-xs text-muted-foreground">No matching properties found.</p>
                     ) : (
@@ -534,29 +577,48 @@ export default function PropertyVerificationPage() {
                           <button
                             key={p._id}
                             type="button"
-                            onClick={() => handleSelectProperty(p._id)}
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleSelectProperty(p._id);
+                            }}
                             className={cn(
-                              "w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer group",
+                              "w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer select-none group relative",
                               isSelected
-                                ? "bg-primary/10 border-primary text-foreground shadow-sm"
-                                : "bg-card hover:bg-muted/60 border-border/60 text-muted-foreground hover:text-foreground"
+                                ? "bg-primary/10 border-primary text-foreground shadow-sm ring-1 ring-primary/30"
+                                : "bg-card hover:bg-muted/80 border-border/60 text-muted-foreground hover:text-foreground"
                             )}
                           >
-                            <div className="min-w-0 pr-2 space-y-0.5">
-                              <div className="flex items-center gap-1.5">
+                            <div className="min-w-0 pr-3 space-y-1 pointer-events-none">
+                              <div className="flex items-center gap-2">
                                 <span className="font-bold text-xs text-foreground truncate">{p.name}</span>
                                 <span
-                                  className="text-[7px] font-black text-white px-1 rounded uppercase tracking-tighter"
+                                  className="text-[8px] font-black text-white px-1.5 py-0.2 rounded uppercase tracking-tighter"
                                   style={{ backgroundColor: pColor }}
                                 >
                                   {p.type || 'apt'}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-muted-foreground/70 truncate">
-                                📍 {[p.city, p.state].filter(Boolean).join(', ') || 'India'} • ₹{(p.rentAmount || 0).toLocaleString('en-IN')}/mo
+                              <p className="text-[10px] text-muted-foreground/70 truncate flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-muted-foreground/50" />
+                                <span>{[p.address, p.city, p.state].filter(Boolean).join(', ') || 'India'}</span>
+                              </p>
+                              <p className="text-[10px] font-semibold text-foreground">
+                                ₹{(p.rentAmount || 0).toLocaleString('en-IN')}/mo
+                                {p.status && (
+                                  <span className="ml-2 text-[9px] uppercase tracking-wider text-emerald-500 font-bold">
+                                    • {p.status}
+                                  </span>
+                                )}
                               </p>
                             </div>
-                            {isSelected && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+                            {isSelected && (
+                              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-primary pointer-events-none">
+                                <Check className="w-4 h-4" />
+                              </div>
+                            )}
                           </button>
                         );
                       })
