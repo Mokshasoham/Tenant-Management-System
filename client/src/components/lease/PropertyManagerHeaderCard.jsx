@@ -98,40 +98,47 @@ export default function PropertyManagerHeaderCard({
                 return;
             }
 
-            // Always intercept wheel events over the card so the background page stays completely still
-            e.preventDefault();
-            e.stopPropagation();
+            const absX = Math.abs(e.deltaX);
+            const absY = Math.abs(e.deltaY);
 
-            if (scrollCooldownRef.current) return;
+            // Strictly respond ONLY when horizontal movement is dominant
+            if (absX > absY && absX > 5) {
+                // Prevent horizontal browser history back/forward gestures
+                e.preventDefault();
+                e.stopPropagation();
 
-            // Translate any vertical wheel movement (deltaY) or horizontal movement (deltaX) into horizontal lease navigation
-            const dominantDelta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-            wheelAccumulatorRef.current += dominantDelta;
+                if (scrollCooldownRef.current) return;
 
-            const SCROLL_THRESHOLD = 18;
+                wheelAccumulatorRef.current += e.deltaX;
 
-            if (wheelAccumulatorRef.current >= SCROLL_THRESHOLD) {
-                // Next leased property (Scroll down / Scroll right)
-                const nextIndex = (idx + 1) % leaseList.length;
-                selectFn(nextIndex);
-                scrollCooldownRef.current = true;
+                const HORIZONTAL_THRESHOLD = 15;
+
+                if (wheelAccumulatorRef.current >= HORIZONTAL_THRESHOLD) {
+                    // Horizontal scroll right -> Next property
+                    const nextIndex = (idx + 1) % leaseList.length;
+                    selectFn(nextIndex);
+                    scrollCooldownRef.current = true;
+                    wheelAccumulatorRef.current = 0;
+                    setTimeout(() => {
+                        scrollCooldownRef.current = false;
+                    }, 300);
+                } else if (wheelAccumulatorRef.current <= -HORIZONTAL_THRESHOLD) {
+                    // Horizontal scroll left -> Previous property
+                    const prevIndex = (idx - 1 + leaseList.length) % leaseList.length;
+                    selectFn(prevIndex);
+                    scrollCooldownRef.current = true;
+                    wheelAccumulatorRef.current = 0;
+                    setTimeout(() => {
+                        scrollCooldownRef.current = false;
+                    }, 300);
+                }
+            } else {
+                // Vertical movement (deltaY dominant): DO NOT preventDefault, DO NOT switch lease, let normal page scrolling proceed
                 wheelAccumulatorRef.current = 0;
-                setTimeout(() => {
-                    scrollCooldownRef.current = false;
-                }, 300);
-            } else if (wheelAccumulatorRef.current <= -SCROLL_THRESHOLD) {
-                // Previous leased property (Scroll up / Scroll left)
-                const prevIndex = (idx - 1 + leaseList.length) % leaseList.length;
-                selectFn(prevIndex);
-                scrollCooldownRef.current = true;
-                wheelAccumulatorRef.current = 0;
-                setTimeout(() => {
-                    scrollCooldownRef.current = false;
-                }, 300);
             }
         };
 
-        // Attach non-passive event listener so e.preventDefault() works reliably
+        // Attach non-passive event listener so e.preventDefault() works for horizontal gestures
         cardElement.addEventListener('wheel', handleWheel, { passive: false });
 
         return () => {
@@ -156,21 +163,25 @@ export default function PropertyManagerHeaderCard({
         if (!multi || !leaseList || leaseList.length <= 1 || typeof selectFn !== 'function') return;
         if (!e.changedTouches || e.changedTouches.length === 0) return;
 
-        const diffX = touchStartRef.current.x - e.changedTouches[0].clientX;
-        const diffY = touchStartRef.current.y - e.changedTouches[0].clientY;
-        const absX = Math.abs(diffX);
-        const absY = Math.abs(diffY);
+        const currentX = e.changedTouches[0].clientX;
+        const currentY = e.changedTouches[0].clientY;
+        const deltaX = currentX - touchStartRef.current.x;
+        const deltaY = currentY - touchStartRef.current.y;
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
 
-        // Only trigger horizontal switching when horizontal swipe is distinctly dominant
-        if (absX >= 35 && absX > absY * 1.2) {
-            if (diffX > 0) {
-                // Swiped left -> Next property
+        // Only trigger a property change when Math.abs(deltaX) > Math.abs(deltaY)
+        const SWIPE_THRESHOLD = 35;
+        if (absX > absY && absX >= SWIPE_THRESHOLD) {
+            if (deltaX < 0) {
+                // Swiped left (finger moved right to left) -> Next property
                 selectFn((idx + 1) % leaseList.length);
             } else {
-                // Swiped right -> Previous property
+                // Swiped right (finger moved left to right) -> Previous property
                 selectFn((idx - 1 + leaseList.length) % leaseList.length);
             }
         }
+        // Vertical swipe (absY >= absX) -> does nothing and allows normal page scrolling!
     };
 
     // ── Keyboard Arrow Navigation when Focused ──
@@ -178,10 +189,11 @@ export default function PropertyManagerHeaderCard({
         const { isMultiLease: multi, leases: leaseList, currentIndex: idx, onSelectLeaseIndex: selectFn } = stateRef.current;
         if (!multi || !leaseList || leaseList.length <= 1 || typeof selectFn !== 'function') return;
 
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        // Only respond to horizontal arrow keys (ArrowRight / ArrowLeft), let ArrowUp / ArrowDown scroll the page normally
+        if (e.key === 'ArrowRight') {
             e.preventDefault();
             selectFn((idx + 1) % leaseList.length);
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
             selectFn((idx - 1 + leaseList.length) % leaseList.length);
         }
@@ -329,7 +341,7 @@ export default function PropertyManagerHeaderCard({
 
                                     {isMultiLease && (
                                         <span className="text-[9px] font-bold text-muted-foreground/40 hidden sm:inline-flex items-center gap-1">
-                                            <MousePointer className="w-2.5 h-2.5" /> Scroll to switch
+                                            <MousePointer className="w-2.5 h-2.5" /> Swipe horizontally to switch
                                         </span>
                                     )}
                                 </div>
