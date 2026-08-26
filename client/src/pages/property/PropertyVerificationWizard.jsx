@@ -246,11 +246,28 @@ export default function PropertyVerificationWizard() {
     try {
       setSubmitting(true);
       setFormError(null);
+
+      if (propertyIdParam) {
+        try {
+          const initRes = await verificationService.initiateVerification({
+            entityType: 'PROPERTY',
+            entityId: propertyIdParam,
+          });
+          const vrfId = initRes?.data?._id || initRes?.data?.data?._id;
+          if (vrfId) {
+            await verificationService.submitVerification(vrfId);
+          }
+        } catch (e) {
+          if (activeVerification?._id) {
+            await verificationService.submitVerification(activeVerification._id);
+          }
+        }
+      }
+
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       setHasUnsavedChanges(false);
-      await refresh();
       trackEvent(VERIFICATION_EVENTS.PROPERTY_SUBMITTED);
-      navigate('/property/verification');
+      navigate(propertyIdParam ? `/property/verification?propertyId=${propertyIdParam}` : '/property/verification');
     } catch (err) {
       setFormError(err.message || 'Failed to submit property verification application');
     } finally {
@@ -268,7 +285,10 @@ export default function PropertyVerificationWizard() {
         icon={ShieldCheck}
         breadcrumbs={[
           { label: 'Property Operations', href: '/properties' },
-          { label: 'Property Verification', href: '/property/verification' },
+          {
+            label: 'Property Verification',
+            href: propertyIdParam ? `/property/verification?propertyId=${propertyIdParam}` : '/property/verification',
+          },
           { label: 'Wizard' },
         ]}
         actionSlot={

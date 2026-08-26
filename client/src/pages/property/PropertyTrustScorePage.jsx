@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Award, TrendingUp, Sparkles, CheckCircle2, AlertCircle, HelpCircle, Activity } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
@@ -15,7 +16,15 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function PropertyTrustScorePage() {
-  const { activeVerification } = useVerificationContext();
+  const [searchParams] = useSearchParams();
+  const propertyId = searchParams.get('propertyId') || '';
+  const { activeVerification, loadPropertyVerification } = useVerificationContext();
+
+  useEffect(() => {
+    if (propertyId && String(activeVerification?.entityId) !== String(propertyId)) {
+      loadPropertyVerification(propertyId);
+    }
+  }, [propertyId, activeVerification?.entityId, loadPropertyVerification]);
 
   const propertyMapper = getVerificationMapper('PROPERTY');
   const trustData = propertyMapper.mapTrustScore(activeVerification?.trustScoreData);
@@ -33,7 +42,10 @@ export default function PropertyTrustScorePage() {
         icon={Award}
         breadcrumbs={[
           { label: 'Property Operations', href: '/properties' },
-          { label: 'Property Verification', href: '/property/verification' },
+          {
+            label: 'Property Verification',
+            href: propertyId ? `/property/verification?propertyId=${propertyId}` : '/property/verification',
+          },
           { label: 'Trust Analytics' },
         ]}
       />

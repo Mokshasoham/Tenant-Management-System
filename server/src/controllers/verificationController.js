@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Property from '../models/Property.js';
 import verificationService from '../services/verificationService.js';
 import aadhaarVerificationService from '../services/aadhaarVerificationService.js';
 import panVerificationService from '../services/panVerificationService.js';
@@ -90,11 +91,23 @@ export const initiateVerification = asyncHandler(async (req, res) => {
     throw new AppError('Invalid target entityId format', 400);
   }
 
-  // Permission Boundary: Non-admins can only initiate for themselves (unless initiating property)
+  // Permission Boundary: Non-admins can only initiate for themselves (unless initiating property they own/manage)
   const isSelf = targetEntityId.toString() === requesterId.toString();
-  const isAdminOrManager = ['admin', 'manager'].includes(req.user.role);
+  const isAdmin = req.user.role === 'admin';
+  const isManager = req.user.role === 'manager';
 
-  if (!isSelf && !isAdminOrManager && entityType !== 'PROPERTY') {
+  if (entityType.toUpperCase() === 'PROPERTY') {
+    const property = await Property.findOne({ _id: targetEntityId, isDeleted: false });
+    if (!property) {
+      throw new AppError('Property not found', 404);
+    }
+    const isManagerOrOwner =
+      property.owner?.toString() === requesterId.toString() ||
+      property.manager?.toString() === requesterId.toString();
+    if (!isAdmin && !isManagerOrOwner) {
+      throw new AppError('Forbidden: You can only initiate verification for properties you manage or own', 403);
+    }
+  } else if (!isSelf && !isAdmin && !isManager) {
     throw new AppError('Forbidden: Cannot initiate verification for another user', 403);
   }
 
@@ -275,6 +288,93 @@ export const getHistoryByEntity = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: history,
+  });
+});
+
+// 11b. GET /api/verifications/property/:propertyId/active
+export const getActivePropertyVerification = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params;
+  const requesterId = (req.user?.userId || req.user?._id || req.user?.id || '').toString();
+
+  if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+    throw new AppError('Invalid property ID format', 400);
+  }
+
+  // 1. Verify property existence and manager ownership/assignment
+  const property = await Property.findOne({ _id: propertyId, isDeleted: false });
+  if (!property) {
+    throw new AppError('Property not found', 404);
+  }
+
+  const isAdmin = req.user?.role === 'admin';
+  const isManagerOrOwner =
+    property.owner?.toString() === requesterId ||
+    property.manager?.toString() === requesterId;
+
+  if (!isAdmin && !isManagerOrOwner) {
+    throw new AppError('Forbidden: Access denied to this property verification', 403);
+  }
+
+  // 2. Fetch latest verification record for this specific property
+  const verification = await verificationService.getLatestByEntity('PROPERTY', propertyId);
+
+  res.status(200).json({
+    success: true,
+    data: verification || null,
+    property: {
+      _id: property._id,
+      name: property.name,
+      type: property.type,
+      address: property.address,
+      city: property.city,
+      state: property.state,
+      country: property.country,
+      rentAmount: property.rentAmount,
+      depositAmount: property.depositAmount,
+      status: property.status,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      areaSqFt: property.areaSqFt || property.sqft,
+      images: property.images || [],
+      verificationStatus: property.verificationStatus,
+      verifiedBadge: property.verifiedBadge,
+    },
+  });
+});
+
+// 11c. GET /api/verifications/entity/:entityType/:entityId
+export const getLatestByEntity = asyncHandler(async (req, res) => {
+  const { entityType, entityId } = req.params;
+  const requesterId = (req.user?.userId || req.user?._id || req.user?.id || '').toString();
+
+  if (!ALLOWED_ENTITY_TYPES.includes(entityType.toUpperCase())) {
+    throw new AppError(`Invalid entityType. Allowed: ${ALLOWED_ENTITY_TYPES.join(', ')}`, 400);
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(entityId)) {
+    throw new AppError('Invalid entityId format', 400);
+  }
+
+  if (entityType.toUpperCase() === 'PROPERTY') {
+    const property = await Property.findOne({ _id: entityId, isDeleted: false });
+    if (!property) {
+      throw new AppError('Property not found', 404);
+    }
+    const isAdmin = req.user?.role === 'admin';
+    const isManagerOrOwner =
+      property.owner?.toString() === requesterId ||
+      property.manager?.toString() === requesterId;
+
+    if (!isAdmin && !isManagerOrOwner) {
+      throw new AppError('Forbidden: Access denied to this property verification', 403);
+    }
+  }
+
+  const verification = await verificationService.getLatestByEntity(entityType.toUpperCase(), entityId);
+
+  res.status(200).json({
+    success: true,
+    data: verification || null,
   });
 });
 

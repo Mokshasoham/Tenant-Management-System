@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileText, Folder, CheckCircle, Clock, XCircle, AlertTriangle, FileQuestion, RefreshCw } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
@@ -14,8 +15,16 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function PropertyVerificationDocuments() {
-  const { activeVerification } = useVerificationContext();
+  const [searchParams] = useSearchParams();
+  const propertyId = searchParams.get('propertyId') || '';
+  const { activeVerification, loadPropertyVerification } = useVerificationContext();
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+
+  useEffect(() => {
+    if (propertyId && String(activeVerification?.entityId) !== String(propertyId)) {
+      loadPropertyVerification(propertyId);
+    }
+  }, [propertyId, activeVerification?.entityId, loadPropertyVerification]);
 
   const propertyMapper = getVerificationMapper('PROPERTY');
   const documents = propertyMapper.mapDocuments(activeVerification?.documents);
@@ -46,7 +55,10 @@ export default function PropertyVerificationDocuments() {
         icon={FileText}
         breadcrumbs={[
           { label: 'Property Operations', href: '/properties' },
-          { label: 'Property Verification', href: '/property/verification' },
+          {
+            label: 'Property Verification',
+            href: propertyId ? `/property/verification?propertyId=${propertyId}` : '/property/verification',
+          },
           { label: 'Documents' },
         ]}
       />

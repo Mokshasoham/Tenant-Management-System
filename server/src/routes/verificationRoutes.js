@@ -12,6 +12,8 @@ import {
   approveVerification,
   rejectVerification,
   getHistoryByEntity,
+  getActivePropertyVerification,
+  getLatestByEntity,
   getWidgetData,
   getDocumentTemplates,
   getWorkflows,
@@ -100,6 +102,8 @@ router.get('/templates', getDocumentTemplates);
 router.get('/workflows', getWorkflows);
 router.get('/widget/:profile/:entityId?', getWidgetData);
 router.get('/history/:entityType/:entityId', getHistoryByEntity);
+router.get('/property/:propertyId/active', getActivePropertyVerification);
+router.get('/entity/:entityType/:entityId', getLatestByEntity);
 
 // ── Admin Queue Route (Admin only) ────────────────────────────────
 router.get('/', authorize('admin'), getVerifications);

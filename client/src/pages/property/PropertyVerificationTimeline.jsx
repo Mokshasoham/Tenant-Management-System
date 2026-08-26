@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { History, ShieldCheck } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
@@ -13,8 +14,16 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function PropertyVerificationTimeline() {
-  const { activeVerification } = useVerificationContext();
+  const [searchParams] = useSearchParams();
+  const propertyId = searchParams.get('propertyId') || '';
+  const { activeVerification, loadPropertyVerification } = useVerificationContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (propertyId && String(activeVerification?.entityId) !== String(propertyId)) {
+      loadPropertyVerification(propertyId);
+    }
+  }, [propertyId, activeVerification?.entityId, loadPropertyVerification]);
 
   const propertyMapper = getVerificationMapper('PROPERTY');
   const timelineEvents = propertyMapper.mapTimeline(activeVerification?.timeline);
@@ -32,7 +41,10 @@ export default function PropertyVerificationTimeline() {
         icon={History}
         breadcrumbs={[
           { label: 'Property Operations', href: '/properties' },
-          { label: 'Property Verification', href: '/property/verification' },
+          {
+            label: 'Property Verification',
+            href: propertyId ? `/property/verification?propertyId=${propertyId}` : '/property/verification',
+          },
           { label: 'Timeline & History' },
         ]}
         actionSlot={

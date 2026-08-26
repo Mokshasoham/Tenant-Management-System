@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import verificationRepository from '../repositories/verificationRepository.js';
 import trustScoreService from './trustScoreService.js';
 import identityVerificationService from './identityVerificationService.js';
@@ -700,6 +701,13 @@ export class VerificationService {
 
   async getPendingQueue(options = {}) {
     return await verificationRepository.findPendingQueue(options);
+  }
+
+  async getLatestByEntity(entityType, entityId) {
+    if (!entityId || !mongoose.Types.ObjectId.isValid(String(entityId))) {
+      return null;
+    }
+    return await verificationRepository.findLatestByEntity(entityType, entityId);
   }
 
   async getHistoryByEntity(entityType, entityId) {

@@ -42,6 +42,35 @@ export const VerificationProvider = ({ children }) => {
     }
   }, []);
 
+  const loadPropertyVerification = useCallback(async (propertyId) => {
+    if (!propertyId) {
+      setActiveVerification(null);
+      setWidgetData(null);
+      return null;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      // Immediately clear activeVerification to prevent cross-property data leakage
+      setActiveVerification(null);
+      const res = await verificationService.getActivePropertyVerification(propertyId);
+      const data = res?.data?.data !== undefined ? res.data.data : res?.data || null;
+      setActiveVerification(data);
+      await loadWidget('PROPERTY', propertyId);
+      return data;
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setActiveVerification(null);
+        setError(null);
+        return null;
+      }
+      setError(formatVerificationApiError(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [loadWidget]);
+
   const refresh = useCallback(async (id = null) => {
     if (id) {
       try {
@@ -1050,6 +1079,7 @@ export const VerificationProvider = ({ children }) => {
     rejectVerification,
     getHistory,
     getWidget,
+    loadPropertyVerification,
     getTemplates,
     getWorkflows,
     startIdentityVerification,
