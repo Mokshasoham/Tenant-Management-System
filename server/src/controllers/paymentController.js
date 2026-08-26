@@ -513,17 +513,46 @@ export const getPaymentStats = asyncHandler(async (req, res) => {
     filter.property = { $in: propIds };
   }
 
+  const now = new Date();
+
   const totalPayments = await Payment.countDocuments(filter);
   const paidPayments = await Payment.countDocuments({ ...filter, status: 'paid' });
-  const pendingPayments = await Payment.countDocuments({ ...filter, status: 'pending' });
-  const overduePayments = await Payment.countDocuments({ ...filter, status: 'overdue' });
+  const pendingPayments = await Payment.countDocuments({
+    ...filter,
+    status: { $in: ['pending', 'partially_paid'] },
+    $or: [
+      { dueDate: { $gte: now } },
+      { dueDate: { $exists: false } },
+      { dueDate: null }
+    ]
+  });
+  const overduePayments = await Payment.countDocuments({
+    ...filter,
+    $or: [
+      { status: 'overdue' },
+      { status: { $in: ['pending', 'partially_paid'] }, dueDate: { $lt: now } }
+    ]
+  });
 
-  const totalCollected = await Payment.aggregate([
-    { $match: { ...filter, status: 'paid' } },
-    { $group: { _id: null, total: { $sum: '$amountPaid' } } },
+  const totalCollectedAgg = await Payment.aggregate([
+    { $match: { ...filter, status: { $in: ['paid', 'partially_paid'] } } },
+    {
+      $group: {
+        _id: null,
+        total: {
+          $sum: {
+            $cond: [
+              { $eq: ['$status', 'paid'] },
+              { $ifNull: ['$amountPaid', '$amount'] },
+              { $ifNull: ['$amountPaid', 0] }
+            ]
+          }
+        }
+      }
+    },
   ]);
 
-  const totalOutstanding = await Payment.aggregate([
+  const totalOutstandingAgg = await Payment.aggregate([
     {
       $match: {
         ...filter,
@@ -533,10 +562,20 @@ export const getPaymentStats = asyncHandler(async (req, res) => {
     {
       $group: {
         _id: null,
-        total: { $sum: { $subtract: ['$amount', '$amountPaid'] } },
+        total: {
+          $sum: {
+            $subtract: [
+              { $ifNull: ['$amount', 0] },
+              { $ifNull: ['$amountPaid', 0] }
+            ]
+          }
+        },
       },
     },
   ]);
+
+  const totalCollected = totalCollectedAgg[0]?.total || 0;
+  const totalOutstanding = totalOutstandingAgg[0]?.total || 0;
 
   res.status(200).json({
     success: true,
@@ -545,8 +584,8 @@ export const getPaymentStats = asyncHandler(async (req, res) => {
       paidPayments,
       pendingPayments,
       overduePayments,
-      totalCollected: totalCollected[0]?.total || 0,
-      totalOutstanding: totalOutstanding[0]?.total || 0,
+      totalCollected,
+      totalOutstanding,
     },
   });
 });

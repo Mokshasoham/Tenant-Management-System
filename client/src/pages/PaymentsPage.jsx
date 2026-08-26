@@ -255,10 +255,17 @@ export default function PaymentsPage() {
           setActiveLeases(validLeases);
         }
       } else {
-        const payRes = await paymentService.getAllPayments({ limit: 50 });
-        setPayments(payRes.data?.data || payRes.data || []);
-        const statRes = await paymentService.getPaymentStats();
-        setStats(statRes.data?.data || {});
+        const payRes = await paymentService.getAllPayments({ limit: 100 });
+        const paymentList = payRes?.data || (Array.isArray(payRes) ? payRes : []);
+        setPayments(Array.isArray(paymentList) ? paymentList : []);
+
+        try {
+          const statRes = await paymentService.getPaymentStats();
+          const statData = statRes?.data !== undefined ? statRes.data : statRes;
+          setStats(statData || {});
+        } catch (sErr) {
+          console.error('Failed to fetch payment stats from API:', sErr);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch payments', e);
@@ -270,6 +277,53 @@ export default function PaymentsPage() {
     if (user) fetchPayments(); 
   }, [fetchPayments, user]);
 
+  // Authoritative computed stats from loaded payment dataset (with server stats backup)
+  const computedStats = React.useMemo(() => {
+    const rawPayments = Array.isArray(payments) ? payments : [];
+
+    const now = new Date();
+    let totalCollected = 0;
+    let paidCount = 0;
+    let pendingCount = 0;
+    let overdueCount = 0;
+
+    rawPayments.forEach((p) => {
+      const st = (p.status || '').toLowerCase().trim();
+      const amount = Number(p.amount) || 0;
+      const amountPaid = Number(p.amountPaid) || 0;
+      const isPastDue = p.dueDate && new Date(p.dueDate) < now;
+
+      if (st === 'paid') {
+        paidCount++;
+        totalCollected += (amountPaid > 0 ? amountPaid : amount);
+      } else if (st === 'partially_paid') {
+        totalCollected += amountPaid;
+        if (isPastDue) {
+          overdueCount++;
+        } else {
+          pendingCount++;
+        }
+      } else if (st === 'overdue') {
+        overdueCount++;
+      } else if (st === 'pending') {
+        if (isPastDue) {
+          overdueCount++;
+        } else {
+          pendingCount++;
+        }
+      }
+    });
+
+    const serverStats = stats?.data || stats || {};
+
+    return {
+      totalCollected: rawPayments.length > 0 ? totalCollected : (serverStats.totalCollected || 0),
+      paidPayments: rawPayments.length > 0 ? paidCount : (serverStats.paidPayments || 0),
+      pendingPayments: rawPayments.length > 0 ? pendingCount : (serverStats.pendingPayments || 0),
+      overduePayments: rawPayments.length > 0 ? overdueCount : (serverStats.overduePayments || 0),
+    };
+  }, [payments, stats]);
+
   if (!user) return null;
 
   const roleTheme = {
@@ -278,13 +332,26 @@ export default function PaymentsPage() {
     tenant: { from: 'from-emerald-600', to: 'to-teal-600', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' },
   }[role] || {};
 
-
   const handleStatusUpdate = async (paymentId, newStatus) => {
     setUpdateStatusId(paymentId);
     try {
       await paymentService.updatePaymentStatus(paymentId, newStatus);
-      setPayments(prev => prev.map(p => (p._id || p.id) === paymentId ? { ...p, status: newStatus } : p));
-    } catch { }
+      setPayments(prev => prev.map(p => {
+        if ((p._id || p.id) !== paymentId) return p;
+        return {
+          ...p,
+          status: newStatus,
+          amountPaid: newStatus === 'paid' ? (p.amountPaid || p.amount) : p.amountPaid,
+        };
+      }));
+      try {
+        const statRes = await paymentService.getPaymentStats();
+        const statData = statRes?.data !== undefined ? statRes.data : statRes;
+        setStats(statData || {});
+      } catch {}
+    } catch (err) {
+      console.error('Failed to update payment status:', err);
+    }
     setUpdateStatusId(null);
   };
 
@@ -340,10 +407,10 @@ export default function PaymentsPage() {
       {isManagerOrAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total Collected', value: `₹${(stats.totalCollected || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'from-emerald-600 to-teal-600' },
-            { label: 'Paid', value: stats.paidPayments || 0, icon: CheckCircle2, color: 'from-blue-600 to-cyan-600' },
-            { label: 'Pending', value: stats.pendingPayments || 0, icon: Clock, color: 'from-amber-600 to-orange-600' },
-            { label: 'Overdue', value: stats.overduePayments || 0, icon: AlertCircle, color: 'from-red-600 to-rose-600' },
+            { label: 'Total Collected', value: `₹${(computedStats.totalCollected || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'from-emerald-600 to-teal-600' },
+            { label: 'Paid', value: computedStats.paidPayments || 0, icon: CheckCircle2, color: 'from-blue-600 to-cyan-600' },
+            { label: 'Pending', value: computedStats.pendingPayments || 0, icon: Clock, color: 'from-amber-600 to-orange-600' },
+            { label: 'Overdue', value: computedStats.overduePayments || 0, icon: AlertCircle, color: 'from-red-600 to-rose-600' },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
