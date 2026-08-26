@@ -8,38 +8,97 @@ import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/errorHandling.js';
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export const getRevenueOverTime = asyncHandler(async (req, res) => {
     const months = parseInt(req.query.months) || 12;
-    const since = new Date();
-    since.setMonth(since.getMonth() - months);
+    const yearParam = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
     const userId = getAuthenticatedUserId(req);
 
-    const matchFilter = { status: 'paid', paymentDate: { $gte: since } };
+    const matchFilter = { status: 'paid' };
 
     if (req.user?.role === 'manager') {
         const propIds = await getManagerPropertyIds(userId);
         if (propIds.length === 0) {
-            return res.status(200).json({ success: true, data: [] });
+            const emptyMonths = MONTH_NAMES.map((name, i) => ({
+                _id: { year: yearParam, month: i + 1 },
+                month: name,
+                amount: 0,
+                total: 0,
+                count: 0,
+            }));
+            return res.status(200).json({
+                success: true,
+                data: emptyMonths,
+                monthlyCollections: emptyMonths.map((m) => ({ month: m.month, amount: 0 })),
+                monthlyCollectionsTotal: 0,
+                total: 0,
+            });
         }
         matchFilter.property = { $in: propIds };
     }
 
-    const revenue = await Payment.aggregate([
+    const revenueAgg = await Payment.aggregate([
         { $match: matchFilter },
+        {
+            $project: {
+                effectiveDate: {
+                    $ifNull: ['$paymentDate', { $ifNull: ['$paidAt', '$createdAt'] }]
+                },
+                effectiveAmount: {
+                    $ifNull: ['$amountPaid', '$amount']
+                }
+            }
+        },
+        {
+            $project: {
+                year: { $year: '$effectiveDate' },
+                month: { $month: '$effectiveDate' },
+                effectiveAmount: 1
+            }
+        },
         {
             $group: {
                 _id: {
-                    year: { $year: '$paymentDate' },
-                    month: { $month: '$paymentDate' },
+                    year: '$year',
+                    month: '$month',
                 },
-                total: { $sum: '$amountPaid' },
+                total: { $sum: '$effectiveAmount' },
                 count: { $sum: 1 },
             },
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } },
     ]);
 
-    res.status(200).json({ success: true, data: revenue });
+    const monthlyMap = new Map();
+    revenueAgg.forEach((item) => {
+        if (item._id && item._id.month >= 1 && item._id.month <= 12) {
+            const currentTotal = monthlyMap.get(item._id.month) || 0;
+            monthlyMap.set(item._id.month, currentTotal + (item.total || 0));
+        }
+    });
+
+    const monthlyCollections = MONTH_NAMES.map((name, index) => {
+        const monthNum = index + 1;
+        const amount = monthlyMap.get(monthNum) || 0;
+        return {
+            _id: { year: yearParam, month: monthNum },
+            month: name,
+            amount,
+            total: amount,
+            count: revenueAgg.find((r) => r._id?.month === monthNum)?.count || 0,
+        };
+    });
+
+    const monthlyCollectionsTotal = monthlyCollections.reduce((sum, item) => sum + item.amount, 0);
+
+    res.status(200).json({
+        success: true,
+        data: monthlyCollections,
+        monthlyCollections: monthlyCollections.map((m) => ({ month: m.month, amount: m.amount })),
+        monthlyCollectionsTotal,
+        total: monthlyCollectionsTotal,
+    });
 });
 
 export const getOccupancyStats = asyncHandler(async (req, res) => {
@@ -196,7 +255,7 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
             Payment.countDocuments({ property: { $in: propIds }, status: 'overdue' }),
             Payment.aggregate([
                 { $match: { property: { $in: propIds }, status: 'paid' } },
-                { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+                { $group: { _id: null, total: { $sum: { $ifNull: ['$amountPaid', '$amount'] } } } }
             ]),
             Payment.aggregate([
                 { $match: { property: { $in: propIds }, status: { $in: ['pending', 'overdue'] } } },

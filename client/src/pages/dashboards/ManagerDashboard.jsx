@@ -69,24 +69,57 @@ function RingChart({ percentage, color, size = 100 }) {
     );
 }
 
-// Bar chart placeholder
+const MONTH_FULL_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+// Interactive Monthly Collections Bar Chart Component
 function BarChartComp({ data, color }) {
-    const max = Math.max(...data, 1);
+    const rawValues = Array.isArray(data)
+        ? data.map((item) => (typeof item === 'number' ? item : item?.amount ?? item?.total ?? 0))
+        : new Array(12).fill(0);
+
+    const values = rawValues.length === 12
+        ? rawValues
+        : [...rawValues, ...new Array(Math.max(0, 12 - rawValues.length)).fill(0)].slice(0, 12);
+
+    const max = Math.max(...values, 1);
+
     return (
         <div className="flex items-end gap-1.5 h-28 pt-4">
-            {data.map((v, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                    <div className="w-full bg-muted/40 rounded-t-sm relative overflow-hidden h-24 flex items-end">
-                        <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${(v / max) * 100}%` }}
-                            transition={{ delay: i * 0.04, duration: 0.6 }}
-                            className="w-full rounded-t-sm"
-                            style={{ backgroundColor: color }}
-                        />
+            {values.map((v, i) => {
+                const heightPct = v > 0 ? Math.max((v / max) * 100, 8) : 0;
+                return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                        {/* Hover Tooltip */}
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-30 flex flex-col items-center whitespace-nowrap shadow-2xl">
+                            <div className="px-2.5 py-1 rounded-lg bg-popover/95 backdrop-blur-md border border-border shadow-xl text-[10px] font-bold text-foreground">
+                                <span className="text-muted-foreground mr-1">{MONTH_FULL_NAMES[i]}:</span>
+                                <span className={v > 0 ? "text-emerald-400 font-black" : "text-muted-foreground"}>
+                                    ₹{Number(v).toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                            <div className="w-1.5 h-1.5 bg-border rotate-45 -mt-1" />
+                        </div>
+
+                        {/* Bar Slot */}
+                        <div className="w-full bg-muted/30 hover:bg-muted/60 rounded-md relative overflow-hidden h-24 flex items-end transition-colors cursor-pointer">
+                            <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${heightPct}%` }}
+                                transition={{ delay: i * 0.03, duration: 0.5, ease: 'easeOut' }}
+                                className={cn(
+                                    "w-full rounded-md transition-all",
+                                    v > 0
+                                        ? "bg-gradient-to-t from-blue-600 to-indigo-400 group-hover:from-blue-500 group-hover:to-indigo-300 shadow-sm"
+                                        : "bg-transparent"
+                                )}
+                            />
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }
@@ -197,13 +230,21 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         const fetchRevenue = async () => {
             try {
                 const res = await analyticsService.getRevenue(12);
-                const data = res?.data?.data || res?.data || [];
-                if (Array.isArray(data) && data.length > 0) {
+                const list = res?.data?.monthlyCollections || res?.data?.data || res?.data || [];
+                const monthShorts = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                if (Array.isArray(list) && list.length > 0) {
                     const monthsData = new Array(12).fill(0);
-                    data.forEach(item => {
-                        const m = item._id?.month;
-                        if (m && m >= 1 && m <= 12) {
-                            monthsData[m - 1] = item.total || 0;
+                    list.forEach((item, idx) => {
+                        let m = item._id?.month;
+                        if (!m && item.month) {
+                            const foundIdx = monthShorts.indexOf(item.month);
+                            if (foundIdx !== -1) m = foundIdx + 1;
+                        }
+                        if (!m) m = idx + 1;
+
+                        const val = item.amount !== undefined ? item.amount : (item.total !== undefined ? item.total : 0);
+                        if (m >= 1 && m <= 12) {
+                            monthsData[m - 1] = Number(val) || 0;
                         }
                     });
                     setRevenueMonths(monthsData);
@@ -212,6 +253,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 }
             } catch (e) {
                 console.error('Error fetching revenue analytics:', e);
+                setRevenueMonths([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
             }
         };
 
@@ -404,16 +446,28 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Collections</p>
-                            <p className="text-2xl font-black text-foreground">₹{Number(stats?.totalRevenue || 0).toLocaleString('en-IN')}</p>
+                            <p className="text-2xl font-black text-foreground">
+                                ₹{Number(stats?.totalRevenue || revenueMonths.reduce((a, b) => a + b, 0) || 0).toLocaleString('en-IN')}
+                            </p>
                         </div>
                         <div className="p-2 rounded-xl bg-blue-500/20">
                             <BarChart3 className="w-5 h-5 text-blue-400" />
                         </div>
                     </div>
-                    <BarChartComp data={revenueMonths} color="var(--primary)" />
+                    <BarChartComp data={revenueMonths} />
                     <div className="flex gap-0.5 mt-2">
                         {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((m, i) => (
-                            <span key={i} className="flex-1 text-center text-[8px] text-muted-foreground/30 font-bold">{m}</span>
+                            <span
+                                key={i}
+                                className={cn(
+                                    "flex-1 text-center text-[9px] transition-colors",
+                                    revenueMonths[i] > 0
+                                        ? "text-blue-500 dark:text-blue-400 font-black"
+                                        : "text-muted-foreground/40 font-bold"
+                                )}
+                            >
+                                {m}
+                            </span>
                         ))}
                     </div>
                 </motion.div>
