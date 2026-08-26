@@ -525,7 +525,7 @@ export default function PropertiesPage() {
   };
 
   const handleView = (property) => {
-    navigate(`/properties/${property._id}`);
+    navigate(`/manager/properties/${property._id}`);
   };
 
   // Portfolio Statistics Calculations

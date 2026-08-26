@@ -33,6 +33,7 @@ import MyLeasePage from './pages/MyLeasePage';
 import PayNowPage from './pages/PayNowPage';
 import BrowsePropertiesPage from './pages/BrowsePropertiesPage';
 import PropertyDetailsPage from './pages/PropertyDetailsPage';
+import ManagerPropertyDetailsPage from './pages/ManagerPropertyDetailsPage';
 import BookingStatusPage from './pages/BookingStatusPage';
 import SavedPropertiesPage from './pages/SavedPropertiesPage';
 import ComparePropertiesPage from './pages/ComparePropertiesPage';
@@ -173,6 +174,27 @@ const PropertiesRouter = () => {
   return <PublicPropertiesPage />;
 };
 
+const PropertyDetailsRouter = () => {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  if (isAuthenticated && (user?.role === 'manager' || user?.role === 'admin')) {
+    return (
+      <ManagerRoute>
+        <DashboardLayout>
+          <ManagerPropertyDetailsPage />
+        </DashboardLayout>
+      </ManagerRoute>
+    );
+  }
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        <PropertyDetailsPage />
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
+};
+
 
 const PaymentRedirectHandler = () => {
   const [searchParams] = useSearchParams();
@@ -267,7 +289,8 @@ function App() {
                 <Route path="/pay-now" element={<ProtectedRoute><DashboardLayout><PayNowPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/browse" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/browse/*" element={<ProtectedRoute><DashboardLayout><BrowsePropertiesPage /></DashboardLayout></ProtectedRoute>} />
-                <Route path="/properties/:id" element={<ProtectedRoute><DashboardLayout><PropertyDetailsPage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/manager/properties/:id" element={<ManagerRoute><DashboardLayout><ManagerPropertyDetailsPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/properties/:id" element={<PropertyDetailsRouter />} />
                 <Route path="/bookings/:id" element={<ProtectedRoute><DashboardLayout><BookingStatusPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/saved" element={<ProtectedRoute><DashboardLayout><SavedPropertiesPage /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/compare" element={<ProtectedRoute><DashboardLayout><ComparePropertiesPage /></DashboardLayout></ProtectedRoute>} />

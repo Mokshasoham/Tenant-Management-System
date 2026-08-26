@@ -22,7 +22,7 @@ export function handleViewPropertyNavigation({ navigate, property, role, mode = 
 
     case 'manager':
     case 'regional_manager':
-      navigate(`/properties/${propertyId}`);
+      navigate(`/manager/properties/${propertyId}`);
       break;
 
     case 'tenant':
