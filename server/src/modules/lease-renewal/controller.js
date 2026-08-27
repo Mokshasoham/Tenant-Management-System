@@ -130,7 +130,8 @@ export const cancelRequest = asyncHandler(async (req, res) => {
  */
 export const getDashboard = asyncHandler(async (req, res) => {
   const auditContext = getAuditContext(req);
-  const result = await service.getTenantDashboardData(req.user.userId);
+  const { leaseId } = req.query;
+  const result = await service.getTenantDashboardData(req.user.userId, leaseId);
 
   res.status(200).json({
     success: true,

@@ -952,7 +952,7 @@ export default function MyLeasePage() {
                                                         </p>
                                                     </div>
                                                     <button
-                                                        onClick={() => navigate('/lease-decision')}
+                                                        onClick={() => navigate(currentLease?._id ? `/lease-decision?leaseId=${currentLease._id}` : '/lease-decision')}
                                                         className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-all w-full md:w-auto"
                                                     >
                                                         Renew or Move Out
@@ -1221,7 +1221,10 @@ export default function MyLeasePage() {
                     <LeaseDocuments lease={currentLease} />
                     <SecurityDepositCard lease={currentLease} />
                     {/* Lease Renewal Center Card */}
-                    <LeaseRenewalCard lease={currentLease} onRenew={() => navigate('/lease-renewal')} />
+                    <LeaseRenewalCard
+                      lease={currentLease}
+                      onRenew={() => navigate(currentLease?._id ? `/lease-renewal?leaseId=${currentLease._id}` : '/lease-renewal')}
+                    />
 
                     {/* ── Lease E-Signature & Agreement Panel ── */}
                     {isUnsigned && (

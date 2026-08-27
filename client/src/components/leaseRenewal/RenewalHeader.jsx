@@ -1,15 +1,29 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Clock, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, AlertTriangle, ShieldCheck, Home } from 'lucide-react';
 
-export function RenewalHeader({ lease, activeRenewal, eligibility, onBack }) {
+const formatCurrency = (val) => {
+  if (val === undefined || val === null) return '₹0';
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+};
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+};
+
+export function RenewalHeader({ lease, property, activeRenewal, eligibility, onBack }) {
   const navigate = useNavigate();
 
   const handleBack = () => {
     if (onBack) {
       onBack();
     } else {
-      navigate(-1);
+      navigate('/my-lease');
     }
   };
 
@@ -40,23 +54,41 @@ export function RenewalHeader({ lease, activeRenewal, eligibility, onBack }) {
     <div className="space-y-4">
       <button
         onClick={handleBack}
-        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition active:scale-95"
+        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition active:scale-95 cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
         <span>BACK</span>
       </button>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 inline-flex items-center gap-1">
+              <Home className="w-3 h-3" />
+              Renewing: {property?.name || 'Leased Property'}
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
             Lease Renewal Workspace
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Renew your current lease with confidence & transparent term reviews
-          </p>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span>
+              Lease ID: <strong className="text-slate-700 dark:text-slate-200 font-mono">{lease?.leaseNumber || (lease?.id ? String(lease.id).substring(0, 8) : 'ACTIVE')}</strong>
+            </span>
+            <span>•</span>
+            <span>
+              Monthly Rent: <strong className="text-slate-700 dark:text-slate-200 font-bold">{formatCurrency(lease?.rentAmount)}</strong>
+            </span>
+            <span>•</span>
+            <span>
+              Term: <strong className="text-slate-700 dark:text-slate-200">{formatDate(lease?.startDate)} – {formatDate(lease?.endDate)}</strong>
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             Lease ACTIVE

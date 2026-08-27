@@ -1,9 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldAlert, RefreshCw, LogOut } from 'lucide-react';
 
 export default function LeaseDecisionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const leaseId = searchParams.get('leaseId');
 
   return (
     <div className="min-h-[80vh] flex flex-col justify-center items-center px-4 py-8">
@@ -21,8 +23,8 @@ export default function LeaseDecisionPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
           <button
-            onClick={() => navigate('/lease-renewal')}
-            className="flex flex-col items-center justify-center p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all group text-center space-y-4"
+            onClick={() => navigate(leaseId ? `/lease-renewal?leaseId=${leaseId}` : '/lease-renewal')}
+            className="flex flex-col items-center justify-center p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all group text-center space-y-4 cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <RefreshCw className="w-6 h-6 text-emerald-500" />
@@ -34,8 +36,8 @@ export default function LeaseDecisionPage() {
           </button>
 
           <button
-            onClick={() => navigate('/move-out')}
-            className="flex flex-col items-center justify-center p-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all group text-center space-y-4"
+            onClick={() => navigate(leaseId ? `/move-out?leaseId=${leaseId}` : '/move-out')}
+            className="flex flex-col items-center justify-center p-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all group text-center space-y-4 cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <LogOut className="w-6 h-6 text-amber-500" />

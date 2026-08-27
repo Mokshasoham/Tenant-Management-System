@@ -33,7 +33,7 @@ export function CurrentLeaseCard({ lease, property }) {
           </div>
         </div>
         <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-          ID: {lease.id ? String(lease.id).substring(0, 8) : 'ACTIVE'}
+          ID: {lease.leaseNumber || (lease.id ? String(lease.id).substring(0, 8) : 'ACTIVE')}
         </span>
       </div>
 

@@ -424,13 +424,13 @@ export default function TenantDashboard({ user, navigate }) {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4 pt-2">
                         <button
-                            onClick={() => navigate('/lease-renewal')}
+                            onClick={() => navigate(lease?._id ? `/lease-renewal?leaseId=${lease._id}` : '/lease-renewal')}
                             className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all"
                         >
                             Renew Lease
                         </button>
                         <button
-                            onClick={() => navigate('/move-out')}
+                            onClick={() => navigate(lease?._id ? `/move-out?leaseId=${lease._id}` : '/move-out')}
                             className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all"
                         >
                             Move Out

@@ -7,8 +7,8 @@ export const leaseRenewalDashboardService = {
   /**
    * Fetch aggregated lease renewal dashboard metrics.
    */
-  getDashboardData: async () => {
-    const response = await apiClient.get('/v1/lease-renewals/dashboard');
+  getDashboardData: async (params = {}) => {
+    const response = await apiClient.get('/v1/lease-renewals/dashboard', { params });
     return response.data?.data || response.data;
   },
 

@@ -115,7 +115,23 @@ export const createRenewalRequest = async ({
     throw new DomainError(ErrorCatalog.LEASE_NOT_FOUND);
   }
 
-  const tenantRecord = await Tenant.findById(lease.tenant);
+  const user = await User.findById(userId).select('email phone firstName lastName');
+  const cleanEmail = (user?.email || '').trim();
+  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  const userTenants = await Tenant.find({
+    $or: [
+      ...(emailRegex ? [{ email: emailRegex }] : []),
+      { user: userId },
+      { userId: userId }
+    ]
+  });
+  const tenantIds = [userId, user?._id, ...userTenants.map(t => t._id)].filter(Boolean).map(id => id.toString());
+  const isTenantOwner = tenantIds.includes(lease.tenant?.toString());
+  if (!isTenantOwner) {
+    throw new DomainError(ErrorCatalog.AUTH.FORBIDDEN);
+  }
+
+  const tenantRecord = await Tenant.findById(lease.tenant) || userTenants[0];
   if (!tenantRecord) {
     throw new DomainError(ErrorCatalog.INACTIVE_PROPERTY);
   }

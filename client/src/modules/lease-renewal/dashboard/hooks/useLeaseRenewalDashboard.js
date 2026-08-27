@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { leaseRenewalDashboardService } from '../services/leaseRenewalDashboardService';
 
 /**
  * Custom hook managing the Tenant Lease Renewal Dashboard state lifecycle.
  */
 export const useLeaseRenewalDashboard = () => {
+  const [searchParams] = useSearchParams();
+  const leaseId = searchParams.get('leaseId');
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,18 +17,21 @@ export const useLeaseRenewalDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await leaseRenewalDashboardService.getDashboardData();
+      const res = await leaseRenewalDashboardService.getDashboardData(leaseId ? { leaseId } : {});
       setData(res);
     } catch (err) {
       console.error('Error fetching lease renewal dashboard:', err);
-      setError(err.response?.data?.error || {
-        message: 'Could not fetch lease renewal dashboard. Please try again.',
-        code: 'DASHBOARD_FETCH_FAILED'
+      const status = err.response?.status;
+      const respError = err.response?.data?.error || err.response?.data;
+      setError({
+        message: respError?.message || err.message || 'Could not fetch lease renewal dashboard. Please try again.',
+        code: respError?.code || (status === 403 ? 'AUTH_FORBIDDEN' : (status === 404 ? 'LEASE_NOT_FOUND' : 'DASHBOARD_FETCH_FAILED')),
+        statusCode: status || 500,
       });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [leaseId]);
 
   useEffect(() => {
     fetchDashboardData();
