@@ -3,7 +3,7 @@ import { FileText, Folder, CheckCircle, Clock, XCircle, AlertTriangle, FileQuest
 import { useVerificationContext } from '../../context/VerificationContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import { mapDocuments } from '../../mappers/tenantVerificationMapper';
-import { MOCK_DOCUMENT_CATEGORIES, MOCK_REQUIRED_DOC_TYPES } from '../../mocks/tenantVerificationMock';
+import { DOCUMENT_CATEGORIES, REQUIRED_DOC_TYPES } from '../../constants/verification/documentTypes';
 import {
   VerificationPageHeader,
   VerificationSectionCard,
@@ -24,12 +24,12 @@ export default function TenantVerificationDocuments() {
       ? documents
       : documents.filter((d) => (d.category || 'IDENTITY') === selectedCategory);
 
-  // Enhancement #4: Document Status KPI Cards calculation
+  // Document Status KPI Cards calculation
   const uploadedCount = documents.filter((d) => d.status === 'VERIFIED' || d.status === 'UPLOADED').length;
   const pendingCount = documents.filter((d) => d.status === 'PENDING' || d.status === 'DRAFT').length;
   const rejectedCount = documents.filter((d) => d.status === 'REJECTED').length;
   const expiredCount = documents.filter((d) => d.status === 'EXPIRED').length;
-  const requiredTypesCount = MOCK_REQUIRED_DOC_TYPES.length;
+  const requiredTypesCount = REQUIRED_DOC_TYPES.length;
   const missingCount = Math.max(0, requiredTypesCount - uploadedCount);
 
   const handleCategorySelect = (key) => {
@@ -105,7 +105,7 @@ export default function TenantVerificationDocuments() {
 
       {/* Category Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-border">
-        {MOCK_DOCUMENT_CATEGORIES.map((cat) => (
+        {DOCUMENT_CATEGORIES.map((cat) => (
           <button
             key={cat.key}
             type="button"

@@ -20,7 +20,7 @@ export default function TenantTrustScorePage() {
   const user = useAuthStore((state) => state.user);
   const { activeVerification } = useVerificationContext();
 
-  const trustData = mapTrustScore(activeVerification?.trustScoreData, user);
+  const trustData = mapTrustScore(activeVerification?.trustScoreData, user, activeVerification);
 
   const handleTipClick = (tipId) => {
     trackEvent(VERIFICATION_EVENTS.IMPROVEMENT_TIP_CLICKED, { tipId });
@@ -60,9 +60,7 @@ export default function TenantTrustScorePage() {
         </VerificationSectionCard>
 
         <div className="md:col-span-2">
-          <VerificationSectionCard title="Score Evolution Trend" subtitle="6-month credit & verification history" icon={TrendingUp}>
-            <TrustHistoryMiniChart />
-          </VerificationSectionCard>
+          <TrustHistoryMiniChart historyData={trustData?.history || []} />
         </div>
       </div>
 

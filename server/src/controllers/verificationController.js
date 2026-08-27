@@ -370,6 +370,14 @@ export const getLatestByEntity = asyncHandler(async (req, res) => {
     }
   }
 
+  if (entityType.toUpperCase() === 'TENANT') {
+    const isAdmin = req.user?.role === 'admin';
+    const isSelf = requesterId === entityId.toString();
+    if (!isAdmin && !isSelf) {
+      throw new AppError('Forbidden: Access denied to this tenant verification', 403);
+    }
+  }
+
   const verification = await verificationService.getLatestByEntity(entityType.toUpperCase(), entityId);
 
   res.status(200).json({
@@ -382,6 +390,15 @@ export const getLatestByEntity = asyncHandler(async (req, res) => {
 export const getWidgetData = asyncHandler(async (req, res) => {
   const { profile, entityId } = req.params;
   const targetEntityId = entityId || req.user.userId || req.user._id || req.user.id;
+  const requesterId = (req.user?.userId || req.user?._id || req.user?.id || '').toString();
+
+  if (profile.toUpperCase() === 'TENANT') {
+    const isAdmin = req.user?.role === 'admin';
+    const isSelf = requesterId === targetEntityId.toString();
+    if (!isAdmin && !isSelf) {
+      throw new AppError('Forbidden: Access denied to this tenant widget data', 403);
+    }
+  }
 
   const widgetData = await verificationService.getWidgetData(profile, targetEntityId);
 

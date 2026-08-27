@@ -575,15 +575,18 @@ export class VerificationService {
     const completed = verification?.completedSteps?.length || 0;
     const total = verification?.workflowId?.steps?.length || 4;
 
+    const isUserApproved = user?.verificationStatus === 'approved' || user?.verificationStatus === 'verified';
+    const status = verification ? verification.status : (isUserApproved ? 'APPROVED' : 'UNVERIFIED');
+
     return {
-      trustScore: user?.currentTrustScore || 0,
+      trustScore: user?.currentTrustScore || verification?.trustScore || 0,
       trustDelta: history?.[0]?.delta || 0,
-      verificationStatus: verification?.status || 'DRAFT',
-      verificationBadge: user?.verificationBadge || false,
+      verificationStatus: status,
+      verificationBadge: user?.verificationBadge || (verification?.status === 'APPROVED') || false,
       stepsCompleted: completed,
       stepsTotal: total,
       nextStep: verification?.currentStep || 'email',
-      completionPercent: Math.round((completed / total) * 100) || 0,
+      completionPercent: verification?.status === 'APPROVED' ? 100 : (Math.round((completed / total) * 100) || 0),
       timeline: verification?.timeline?.slice(-5) || [],
     };
   }

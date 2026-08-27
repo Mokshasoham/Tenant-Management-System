@@ -12,9 +12,9 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { verificationService } from '../../services/api';
 import useAuthStore from '../../context/authStore';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
-import { MOCK_REFERENCES } from '../../mocks/tenantVerificationMock';
 import {
   VerificationPageHeader,
   VerificationSectionCard,
@@ -38,9 +38,9 @@ const WIZARD_STEPS = [
 export default function TenantVerificationWizard() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { activeVerification, refresh } = useVerificationContext();
+  const { activeVerification, loadTenantVerification } = useVerificationContext();
 
-  const userId = user?.userId || user?._id || user?.id || 'demo';
+  const userId = user?.userId || user?._id || user?.id || '';
   const DRAFT_STORAGE_KEY = `tenant_verification_draft_${userId}`;
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -50,29 +50,30 @@ export default function TenantVerificationWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // Form State
+  // Form State initialized from real profile
   const [formData, setFormData] = useState({
-    emergencyContactName: 'Jane Doe',
-    emergencyContactPhone: '+1 (555) 987-6543',
-    occupation: 'Software Engineer',
-    employerName: 'TechCorp Solutions',
-    monthlyIncome: '8500',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    occupation: user?.occupation || user?.employmentProfile?.occupation || '',
+    employerName: '',
+    monthlyIncome: '',
   });
 
-  // Enhancement #14: References State
-  const [references, setReferences] = useState(MOCK_REFERENCES);
+  // References State
+  const [references, setReferences] = useState([]);
 
   // Documents State
   const [documents, setDocuments] = useState([]);
 
-  // Auto-restore Draft on Mount
+  // Auto-restore Draft on Mount (or populate from activeVerification)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.formData) setFormData(parsed.formData);
+        if (parsed.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
         if (parsed.references) setReferences(parsed.references);
+        if (parsed.documents) setDocuments(parsed.documents);
         if (parsed.currentStep) setCurrentStep(parsed.currentStep);
         setLastAutoSave(parsed.lastSaved || null);
       }
@@ -81,7 +82,21 @@ export default function TenantVerificationWizard() {
     }
   }, [DRAFT_STORAGE_KEY]);
 
-  // Enhancement #5: Unsaved Changes Leave Confirmation (beforeunload)
+  useEffect(() => {
+    if (activeVerification) {
+      if (activeVerification.formData) {
+        setFormData((prev) => ({ ...prev, ...activeVerification.formData }));
+      }
+      if (Array.isArray(activeVerification.references) && activeVerification.references.length > 0) {
+        setReferences(activeVerification.references);
+      }
+      if (Array.isArray(activeVerification.documents) && activeVerification.documents.length > 0) {
+        setDocuments(activeVerification.documents);
+      }
+    }
+  }, [activeVerification]);
+
+  // Leave Confirmation (beforeunload)
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
@@ -108,6 +123,30 @@ export default function TenantVerificationWizard() {
       };
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftPayload));
       setLastAutoSave(nowStr);
+
+      if (userId) {
+        try {
+          let verifId = activeVerification?._id;
+          if (!verifId) {
+            const initRes = await verificationService.initiateVerification({
+              entityType: 'TENANT',
+              entityId: userId,
+            });
+            const initData = initRes?.data?.data !== undefined ? initRes.data.data : (initRes?.data !== undefined ? initRes.data : initRes);
+            verifId = initData?._id;
+          }
+          if (verifId) {
+            await verificationService.updateDraft(verifId, {
+              formData,
+              references,
+              currentStep,
+            });
+          }
+        } catch (beErr) {
+          // LocalStorage will preserve state if backend call encounters error
+        }
+      }
+
       setSaveStatus('saved');
       setHasUnsavedChanges(false);
       trackEvent(VERIFICATION_EVENTS.DRAFT_SAVED, { currentStep });
@@ -115,7 +154,7 @@ export default function TenantVerificationWizard() {
     } catch (err) {
       setSaveStatus('idle');
     }
-  }, [formData, references, documents, currentStep, DRAFT_STORAGE_KEY]);
+  }, [formData, references, documents, currentStep, DRAFT_STORAGE_KEY, activeVerification, userId]);
 
   // 25-Second Autosave Interval
   useEffect(() => {
@@ -141,8 +180,8 @@ export default function TenantVerificationWizard() {
         documentType: docType,
         filename: file.name,
         uploadedAt: new Date().toISOString(),
-        status: 'VERIFIED',
-        category: docType === 'GOVT_ID' ? 'IDENTITY' : 'ADDRESS',
+        status: 'UPLOADED',
+        category: docType === 'GOVT_ID' ? 'IDENTITY' : (docType === 'ADDRESS_PROOF' ? 'ADDRESS' : 'OTHER'),
       };
       setDocuments((prev) => [...prev.filter((d) => d.documentType !== docType), newDoc]);
       setHasUnsavedChanges(true);
@@ -153,12 +192,11 @@ export default function TenantVerificationWizard() {
   };
 
   const handleRemoveDoc = (docId) => {
-    setDocuments((prev) => prev.filter((d) => d._id !== docId));
+    setDocuments((prev) => prev.filter((d) => (d._id || d.id) !== docId));
     setHasUnsavedChanges(true);
     trackEvent(VERIFICATION_EVENTS.DOCUMENT_REMOVED, { docId });
   };
 
-  // Enhancement #14: Add Reference Handler
   const handleAddReference = () => {
     const newRef = {
       id: `ref_${Date.now()}`,
@@ -166,7 +204,7 @@ export default function TenantVerificationWizard() {
       relationship: 'Previous Landlord',
       phone: '',
       email: '',
-      status: 'UNVERIFIED_DEMO',
+      status: 'PENDING',
     };
     setReferences((prev) => [...prev, newRef]);
     setHasUnsavedChanges(true);
@@ -175,13 +213,13 @@ export default function TenantVerificationWizard() {
 
   const handleUpdateReference = (id, key, value) => {
     setReferences((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [key]: value } : r))
+      prev.map((r) => ((r.id || r._id) === id ? { ...r, [key]: value } : r))
     );
     setHasUnsavedChanges(true);
   };
 
   const handleRemoveReference = (id) => {
-    setReferences((prev) => prev.filter((r) => r.id !== id));
+    setReferences((prev) => prev.filter((r) => (r.id || r._id) !== id));
     setHasUnsavedChanges(true);
   };
 
@@ -212,9 +250,45 @@ export default function TenantVerificationWizard() {
     try {
       setSubmitting(true);
       setFormError(null);
+
+      let verifId = activeVerification?._id;
+      if (!verifId) {
+        const initRes = await verificationService.initiateVerification({
+          entityType: 'TENANT',
+          entityId: userId,
+        });
+        const initData = initRes?.data?.data !== undefined ? initRes.data.data : (initRes?.data !== undefined ? initRes.data : initRes);
+        verifId = initData?._id;
+      }
+
+      if (verifId) {
+        for (const doc of documents) {
+          if (!doc._id || String(doc._id).startsWith('doc_')) {
+            try {
+              await verificationService.uploadDocument(verifId, {
+                documentType: doc.documentType,
+                filename: doc.filename,
+                url: doc.url || `https://storage.placeholder.com/${doc.filename}`,
+                category: doc.category,
+              });
+            } catch (dErr) {
+              console.warn('Doc upload sync error:', dErr);
+            }
+          }
+        }
+
+        await verificationService.updateDraft(verifId, {
+          formData,
+          references,
+          currentStep: 6,
+        });
+
+        await verificationService.submitVerification(verifId);
+      }
+
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       setHasUnsavedChanges(false);
-      await refresh();
+      await loadTenantVerification(userId);
       trackEvent(VERIFICATION_EVENTS.VERIFICATION_SUBMITTED);
       navigate('/tenant/verification');
     } catch (err) {
@@ -224,7 +298,6 @@ export default function TenantVerificationWizard() {
     }
   };
 
-  // Enhancement #17: Step Progress Text
   const progressPercent = Math.round((currentStep / WIZARD_STEPS.length) * 100);
 
   return (
@@ -240,7 +313,6 @@ export default function TenantVerificationWizard() {
         ]}
         actionSlot={
           <div className="flex items-center gap-3">
-            {/* Enhancement #5: Save Status Indicator */}
             <span className="text-xs font-semibold text-muted-foreground">
               {saveStatus === 'saving' && 'Saving...'}
               {saveStatus === 'saved' && 'Saved ✓'}
@@ -254,10 +326,8 @@ export default function TenantVerificationWizard() {
         }
       />
 
-      {/* Enhancement #9: Mobile-friendly Stepper Wrapper */}
       <div className="space-y-2">
         <VerificationProgressStepper steps={WIZARD_STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
-        {/* Enhancement #17: Step Progress Text */}
         <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-1">
           <span>Step {currentStep} of {WIZARD_STEPS.length}</span>
           <span className="text-primary">{progressPercent}% Complete</span>
@@ -272,12 +342,12 @@ export default function TenantVerificationWizard() {
           <div className="space-y-4">
             <Input label="Full Name" value={`${user?.firstName || ''} ${user?.lastName || ''}`} disabled />
             <Input label="Email Address" value={user?.email || ''} disabled />
-            <Input label="Phone Number" value={user?.phone || '+1 (555) 019-2831'} disabled />
+            <Input label="Phone Number" value={user?.phone || 'Not Provided'} disabled />
           </div>
         </VerificationSectionCard>
       )}
 
-      {/* Step 2: Contact & References (#14) */}
+      {/* Step 2: Contact & References */}
       {currentStep === 2 && (
         <div className="space-y-6">
           <VerificationSectionCard title="Step 2: Emergency Contact & Employment" subtitle="Rental application details">
@@ -290,7 +360,7 @@ export default function TenantVerificationWizard() {
               />
               <Input
                 label="Emergency Contact Phone"
-                placeholder="e.g. +1 (555) 987-6543"
+                placeholder="e.g. +91 9876543210"
                 value={formData.emergencyContactPhone}
                 onChange={(e) => updateForm({ emergencyContactPhone: e.target.value })}
               />
@@ -303,7 +373,7 @@ export default function TenantVerificationWizard() {
                 />
                 <Input
                   label="Employer / Company Name"
-                  placeholder="e.g. TechCorp Solutions"
+                  placeholder="e.g. Tech Solutions Pvt Ltd"
                   value={formData.employerName}
                   onChange={(e) => updateForm({ employerName: e.target.value })}
                 />
@@ -311,7 +381,7 @@ export default function TenantVerificationWizard() {
             </div>
           </VerificationSectionCard>
 
-          {/* Enhancement #14: Reference Verification Form */}
+          {/* Reference Verification Form */}
           <VerificationSectionCard
             title="Rental References"
             subtitle="Add previous landlords or employers to strengthen your trust profile"
@@ -319,12 +389,12 @@ export default function TenantVerificationWizard() {
           >
             <div className="space-y-4 pt-1">
               {references.map((ref, idx) => (
-                <div key={ref.id || idx} className="p-4 rounded-xl border border-border bg-muted/30 space-y-3 relative">
+                <div key={ref.id || ref._id || idx} className="p-4 rounded-xl border border-border bg-muted/30 space-y-3 relative">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">Reference #{idx + 1}</span>
                     <button
                       type="button"
-                      onClick={() => handleRemoveReference(ref.id)}
+                      onClick={() => handleRemoveReference(ref.id || ref._id)}
                       className="text-muted-foreground hover:text-rose-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -335,14 +405,14 @@ export default function TenantVerificationWizard() {
                       label="Reference Name"
                       placeholder="e.g. Robert Vance"
                       value={ref.name}
-                      onChange={(e) => handleUpdateReference(ref.id, 'name', e.target.value)}
+                      onChange={(e) => handleUpdateReference(ref.id || ref._id, 'name', e.target.value)}
                     />
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-foreground">Relationship</label>
                       <select
                         className="w-full h-10 px-3 text-xs rounded-xl border border-border bg-background text-foreground"
                         value={ref.relationship}
-                        onChange={(e) => handleUpdateReference(ref.id, 'relationship', e.target.value)}
+                        onChange={(e) => handleUpdateReference(ref.id || ref._id, 'relationship', e.target.value)}
                       >
                         <option value="Previous Landlord">Previous Landlord</option>
                         <option value="Employer / HR Manager">Employer / HR Manager</option>
@@ -351,15 +421,15 @@ export default function TenantVerificationWizard() {
                     </div>
                     <Input
                       label="Phone"
-                      placeholder="e.g. +1 (555) 234-5678"
+                      placeholder="e.g. +91 9876543210"
                       value={ref.phone}
-                      onChange={(e) => handleUpdateReference(ref.id, 'phone', e.target.value)}
+                      onChange={(e) => handleUpdateReference(ref.id || ref._id, 'phone', e.target.value)}
                     />
                     <Input
                       label="Email"
                       placeholder="e.g. landlord@example.com"
                       value={ref.email}
-                      onChange={(e) => handleUpdateReference(ref.id, 'email', e.target.value)}
+                      onChange={(e) => handleUpdateReference(ref.id || ref._id, 'email', e.target.value)}
                     />
                   </div>
                 </div>
@@ -381,12 +451,12 @@ export default function TenantVerificationWizard() {
             <FileUploader
               label="Upload Govt Photo ID"
               onFileSelect={(file) => handleFileUpload('GOVT_ID', file)}
-              hint="Passport, Drivers License, or National Identity Card"
+              hint="Passport, Drivers License, Aadhaar, or National Identity Card"
             />
             {documents
               .filter((d) => d.documentType === 'GOVT_ID')
               .map((doc) => (
-                <DocumentPreviewCard key={doc._id} document={doc} onRemove={() => handleRemoveDoc(doc._id)} />
+                <DocumentPreviewCard key={doc._id || doc.id} document={doc} onRemove={() => handleRemoveDoc(doc._id || doc.id)} />
               ))}
           </div>
         </VerificationSectionCard>
@@ -404,7 +474,7 @@ export default function TenantVerificationWizard() {
             {documents
               .filter((d) => d.documentType === 'ADDRESS_PROOF')
               .map((doc) => (
-                <DocumentPreviewCard key={doc._id} document={doc} onRemove={() => handleRemoveDoc(doc._id)} />
+                <DocumentPreviewCard key={doc._id || doc.id} document={doc} onRemove={() => handleRemoveDoc(doc._id || doc.id)} />
               ))}
           </div>
         </VerificationSectionCard>
@@ -418,26 +488,34 @@ export default function TenantVerificationWizard() {
               <p className="font-bold text-foreground">Tenant Name: {user?.firstName} {user?.lastName}</p>
               <p className="text-muted-foreground">Occupation: {formData.occupation || 'N/A'}</p>
               <p className="text-muted-foreground">Employer: {formData.employerName || 'N/A'}</p>
-              <p className="text-muted-foreground">Emergency Contact: {formData.emergencyContactName} ({formData.emergencyContactPhone})</p>
+              <p className="text-muted-foreground">Emergency Contact: {formData.emergencyContactName || 'N/A'} ({formData.emergencyContactPhone || 'N/A'})</p>
             </div>
 
             <p className="font-bold text-foreground">References Added ({references.length}):</p>
             <div className="space-y-2">
-              {references.map((r, i) => (
-                <div key={i} className="p-3 rounded-lg border border-border bg-muted/20 flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-foreground">{r.name || 'Unnamed'}</p>
-                    <p className="text-[10px] text-muted-foreground">{r.relationship} • {r.email || r.phone}</p>
+              {references.length === 0 ? (
+                <p className="text-muted-foreground italic">No references added</p>
+              ) : (
+                references.map((r, i) => (
+                  <div key={i} className="p-3 rounded-lg border border-border bg-muted/20 flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-foreground">{r.name || 'Unnamed'}</p>
+                      <p className="text-[10px] text-muted-foreground">{r.relationship} • {r.email || r.phone || 'No contact'}</p>
+                    </div>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">Saved</span>
                   </div>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600">Demo Storage Only</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <p className="font-bold text-foreground">Uploaded Documents ({documents.length}):</p>
-            {documents.map((doc) => (
-              <DocumentPreviewCard key={doc._id} document={doc} />
-            ))}
+            {documents.length === 0 ? (
+              <p className="text-muted-foreground italic">No documents uploaded</p>
+            ) : (
+              documents.map((doc) => (
+                <DocumentPreviewCard key={doc._id || doc.id} document={doc} />
+              ))
+            )}
           </div>
         </VerificationSectionCard>
       )}
@@ -458,7 +536,7 @@ export default function TenantVerificationWizard() {
         </VerificationSectionCard>
       )}
 
-      {/* Enhancement #9: Sticky Bottom Bar on Mobile */}
+      {/* Sticky Bottom Bar */}
       <div className="fixed sm:static bottom-0 left-0 right-0 p-4 sm:p-0 bg-background/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t sm:border-0 border-border z-30 flex items-center justify-between pt-4">
         <Button variant="ghost" onClick={handlePrev} disabled={currentStep === 1} className="text-xs">
           <ArrowLeft className="w-4 h-4 mr-1.5" />

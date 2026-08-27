@@ -71,11 +71,49 @@ export const VerificationProvider = ({ children }) => {
     }
   }, [loadWidget]);
 
-  const refresh = useCallback(async (id = null) => {
+  const loadTenantVerification = useCallback(async (tenantId) => {
+    if (!tenantId) {
+      setActiveVerification(null);
+      setWidgetData(null);
+      return null;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      // Immediately clear activeVerification to prevent cross-tenant data leakage
+      setActiveVerification(null);
+      const res = await verificationService.getLatestByEntity('TENANT', tenantId);
+      const data = res?.data?.data !== undefined ? res.data.data : (res?.data !== undefined ? res.data : res);
+      setActiveVerification(data || null);
+      await loadWidget('TENANT', tenantId);
+      return data || null;
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setActiveVerification(null);
+        setError(null);
+        return null;
+      }
+      setError(formatVerificationApiError(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [loadWidget]);
+
+  const refresh = useCallback(async (id = null, entityType = null, entityId = null) => {
     if (id) {
       try {
         const res = await verificationService.getVerificationById(id);
-        setActiveVerification(res?.data || res);
+        const data = res?.data?.data !== undefined ? res.data.data : (res?.data !== undefined ? res.data : res);
+        setActiveVerification(data || null);
+      } catch (err) {
+        setError(formatVerificationApiError(err));
+      }
+    } else if (entityType && entityId) {
+      try {
+        const res = await verificationService.getLatestByEntity(entityType, entityId);
+        const data = res?.data?.data !== undefined ? res.data.data : (res?.data !== undefined ? res.data : res);
+        setActiveVerification(data || null);
       } catch (err) {
         setError(formatVerificationApiError(err));
       }
@@ -1080,6 +1118,7 @@ export const VerificationProvider = ({ children }) => {
     getHistory,
     getWidget,
     loadPropertyVerification,
+    loadTenantVerification,
     getTemplates,
     getWorkflows,
     startIdentityVerification,

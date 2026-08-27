@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -32,10 +32,8 @@ import {
   mapRentalHistory,
   mapRenewalStatus,
 } from '../../mappers/tenantVerificationMapper';
-import {
-  MOCK_REQUIRED_DOC_TYPES,
-  MOCK_REFERENCES,
-} from '../../mocks/tenantVerificationMock';
+import { REQUIRED_DOC_TYPES } from '../../constants/verification/documentTypes';
+import { leaseService, paymentService } from '../../services/api';
 import {
   VerificationPageHeader,
   VerificationSectionCard,
@@ -55,16 +53,42 @@ import { Button } from '../../components/PremiumUI';
 export default function TenantVerificationPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { activeVerification, widgetData, loading, error, refresh, loadWidget } = useVerificationContext();
+  const { activeVerification, widgetData, loading, error, loadTenantVerification } = useVerificationContext();
+
+  const [activeLeases, setActiveLeases] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadTenantData = useCallback(async () => {
+    if (!user) return;
+    const userId = user.userId || user._id || user.id;
+    setRefreshing(true);
+    try {
+      await Promise.allSettled([
+        loadTenantVerification(userId),
+        leaseService.getMyLease().then((res) => {
+          const lData = res?.activeLeases || res?.leases || (res?.data ? (Array.isArray(res.data) ? res.data : [res.data]) : []);
+          setActiveLeases(Array.isArray(lData) ? lData : []);
+        }),
+        paymentService.getMyPayments().then((res) => {
+          const pData = res?.data || (Array.isArray(res) ? res : []);
+          setPayments(Array.isArray(pData) ? pData : []);
+        }),
+      ]);
+    } catch (e) {
+      console.error('Failed to load tenant verification data:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user, loadTenantVerification]);
 
   useEffect(() => {
     if (user) {
+      loadTenantData();
       const userId = user.userId || user._id || user.id;
-      loadWidget('TENANT', userId);
-      refresh();
       trackEvent(VERIFICATION_EVENTS.VERIFICATION_STARTED, { userId, role: 'tenant' });
     }
-  }, [user, loadWidget, refresh]);
+  }, [user, loadTenantData]);
 
   if (loading && !activeVerification) {
     return (
@@ -84,13 +108,13 @@ export default function TenantVerificationPage() {
     );
   }
 
-  // Map state through tenantVerificationMapper
-  const verification = mapVerification(activeVerification);
-  const trustData = mapTrustScore(activeVerification?.trustScoreData, user);
+  // Map state strictly from real backend records
+  const verification = mapVerification(activeVerification, user);
+  const trustData = mapTrustScore(activeVerification?.trustScoreData || widgetData, user, activeVerification);
   const timeline = mapTimeline(activeVerification?.timeline);
   const documents = mapDocuments(activeVerification?.documents);
-  const rentalHistory = mapRentalHistory(activeVerification?.rentalHistory);
-  const renewal = mapRenewalStatus(activeVerification?.renewalStatus);
+  const rentalHistory = mapRentalHistory(activeVerification?.rentalHistory, activeLeases, payments);
+  const renewal = mapRenewalStatus(activeVerification?.renewalStatus, activeVerification);
 
   const status = verification.status;
   const vrfNumber = verification.verificationNumber;
@@ -110,14 +134,14 @@ export default function TenantVerificationPage() {
         icon={ShieldCheck}
         breadcrumbs={[{ label: 'Tenant Portal', href: '/dashboard' }, { label: 'Verification Home' }]}
         actionSlot={
-          <Button variant="outline" type="button" onClick={() => refresh(activeVerification?._id)} className="text-xs">
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+          <Button variant="outline" type="button" onClick={loadTenantData} disabled={refreshing} className="text-xs">
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh Data
           </Button>
         }
       />
 
-      {error && <VerificationErrorState error={error} onRetry={refresh} />}
+      {error && <VerificationErrorState error={error} onRetry={loadTenantData} />}
 
       {/* Enhancement #10: Notification Banner */}
       <div className={`p-4 rounded-2xl border flex items-center justify-between text-xs font-semibold ${
@@ -138,7 +162,7 @@ export default function TenantVerificationPage() {
             {status === 'DRAFT' && 'You have an incomplete verification draft. Complete all steps to submit.'}
             {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && 'Your verification application is under active review.'}
             {status === 'REJECTED' && 'Your verification application requires attention. Review rejection remarks and resubmit.'}
-            {status === 'APPROVED' && 'Your tenant profile is fully verified and certified with a Gold badge.'}
+            {status === 'APPROVED' && 'Your tenant profile is fully verified and certified.'}
             {status === 'EXPIRED' && 'Your verification credential has expired. Please initiate renewal.'}
           </span>
         </div>
@@ -158,7 +182,7 @@ export default function TenantVerificationPage() {
 
       {/* Hero Overview Grid (3 columns) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Status Card + Enhancement #19 Tenant Verification Level */}
+        {/* Status Card */}
         <VerificationSectionCard title="Current Status" subtitle={`VRF Sequence: ${vrfNumber}`} icon={ShieldCheck}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
@@ -237,7 +261,7 @@ export default function TenantVerificationPage() {
           </div>
         </VerificationSectionCard>
 
-        {/* Enhancement #15: Enhanced Trust Score Hero */}
+        {/* Enhanced Trust Score Hero */}
         <VerificationSectionCard title="Rental Trust Score" subtitle={trustData.statusTitle} icon={Award}>
           <div className="flex flex-col items-center justify-center space-y-3 pt-1 text-center">
             <CircularProgress value={trustScore} max={100} size={110} strokeWidth={9} color="#10b981">
@@ -268,12 +292,12 @@ export default function TenantVerificationPage() {
           </div>
         </VerificationSectionCard>
 
-        {/* Enhancement #2 & #13: Rental Reputation Card */}
+        {/* Rental Reputation Card */}
         <VerificationSectionCard title="Rental Reputation" subtitle="Track record & completed leases" icon={Home}>
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">Current Residence</span>
-              <span className="font-bold text-foreground">{rentalHistory.currentResidence}</span>
+              <span className="font-bold text-foreground truncate max-w-[170px]">{rentalHistory.currentResidence}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-center">
@@ -293,7 +317,7 @@ export default function TenantVerificationPage() {
         </VerificationSectionCard>
       </div>
 
-      {/* Enhancement #6: Verification Widget (Google Account Security Style) */}
+      {/* Account Verification Widget */}
       <VerificationSectionCard title="Account Verification Widget" subtitle="Security & trust readiness indicator" icon={Zap}>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 rounded-2xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/20">
           <div className="space-y-2 text-center sm:text-left">
@@ -344,7 +368,11 @@ export default function TenantVerificationPage() {
 
       {/* Content Grid (2 columns): Document Requirements & Timeline Preview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <UploadRequirementsCard requiredTypes={MOCK_REQUIRED_DOC_TYPES} uploadedTypes={uploadedDocTypes} />
+        <UploadRequirementsCard
+          requiredTypes={REQUIRED_DOC_TYPES}
+          documents={documents}
+          uploadedTypes={uploadedDocTypes}
+        />
 
         {/* Timeline Preview */}
         <VerificationSectionCard title="Recent Activity Timeline" subtitle="Audit trail events" icon={History}>
@@ -362,7 +390,7 @@ export default function TenantVerificationPage() {
 
       {/* Content Grid Row 2: Renewal Status & Profile Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Enhancement #1: Renewal Status */}
+        {/* Renewal Status */}
         <VerificationSectionCard title="Verification Renewal Lifecycle" subtitle="Credential validity & expiry countdown" icon={Clock}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
@@ -389,7 +417,7 @@ export default function TenantVerificationPage() {
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">Tenant Name</span>
-              <span className="font-bold text-foreground">{`${user?.firstName || ''} ${user?.lastName || ''}`}</span>
+              <span className="font-bold text-foreground">{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'N/A'}</span>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">Email Address</span>
@@ -397,11 +425,11 @@ export default function TenantVerificationPage() {
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">Phone Number</span>
-              <span className="font-bold text-foreground">{user?.phone || '+1 (555) 019-2831'}</span>
+              <span className="font-bold text-foreground">{user?.phone || 'Not Provided'}</span>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">Occupation</span>
-              <span className="font-bold text-foreground">Software Engineer</span>
+              <span className="font-bold text-foreground">{user?.occupation || user?.employmentProfile?.occupation || activeVerification?.formData?.occupation || 'Not Provided'}</span>
             </div>
           </div>
         </VerificationSectionCard>
@@ -455,7 +483,7 @@ export default function TenantVerificationPage() {
         </div>
       </VerificationSectionCard>
 
-      {/* Enhancement #11: Future Production Hooks */}
+      {/* Future Production Hooks */}
       <VerificationSectionCard title="Production Integration Hooks" subtitle="Feature-flagged enterprise capabilities" icon={Lock}>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
