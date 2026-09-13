@@ -271,7 +271,9 @@ export const offerService = {
   createOffer: (data) => apiClient.post('/offers', data),
   getPropertyOffers: (propertyId) => apiClient.get(`/offers/property/${propertyId}`),
   getMyOffers: () => apiClient.get('/offers/my'),
-  respondToOffer: (id, action, data) =>
+  getManagerOffers: () => apiClient.get('/offers/manager'),
+  getOfferById: (id) => apiClient.get(`/offers/${id}`),
+  respondToOffer: (id, action, data = {}) =>
     apiClient.put(`/offers/${id}/respond`, { action, ...data }),
 };
 

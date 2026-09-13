@@ -17,6 +17,10 @@ const leaseSchema = new mongoose.Schema(
       ref: 'Tenant',
       required: true,
     },
+    booking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+    },
     startDate: {
       type: Date,
       required: [true, 'Start date is required'],

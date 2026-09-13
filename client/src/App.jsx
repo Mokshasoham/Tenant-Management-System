@@ -54,6 +54,8 @@ import WorkforceSchedulingPage from './pages/WorkforceSchedulingPage';
 import ActivateAccountPage from './pages/ActivateAccountPage';
 import PublicPropertyVerificationPage from './pages/public/PublicPropertyVerificationPage';
 import VerificationComponentGallery from './pages/internal/VerificationComponentGallery';
+import ManagerNegotiationsPage from './pages/manager/ManagerNegotiationsPage';
+import TenantNegotiationsPage from './pages/tenant/TenantNegotiationsPage';
 
 // Subscription Pages
 import TenantSubscriptionPage from './pages/tenant/subscription/TenantSubscriptionPage';
@@ -311,6 +313,7 @@ function App() {
                 <Route path="/tenant/verification/documents" element={<ProtectedRoute><DashboardLayout><TenantVerificationDocuments /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/tenant/verification/timeline" element={<ProtectedRoute><DashboardLayout><TenantVerificationTimeline /></DashboardLayout></ProtectedRoute>} />
                 <Route path="/tenant/trust-score" element={<ProtectedRoute><DashboardLayout><TenantTrustScorePage /></DashboardLayout></ProtectedRoute>} />
+                <Route path="/my-negotiations" element={<ProtectedRoute><DashboardLayout><TenantNegotiationsPage /></DashboardLayout></ProtectedRoute>} />
 
                 {/* Subscription Routes */}
                 <Route path="/subscription" element={<ProtectedRoute><DashboardLayout><SubscriptionRouter /></DashboardLayout></ProtectedRoute>} />
@@ -319,6 +322,8 @@ function App() {
                 <Route path="/admin/subscriptions" element={<AdminRoute><DashboardLayout><AdminSubscriptionPage /></DashboardLayout></AdminRoute>} />
 
                 {/* Manager + Admin */}
+                <Route path="/negotiations" element={<ManagerRoute><DashboardLayout><ManagerNegotiationsPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/manager/negotiations" element={<ManagerRoute><DashboardLayout><ManagerNegotiationsPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/tenants" element={<ManagerRoute><DashboardLayout><TenantsPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/leases" element={<ManagerRoute><DashboardLayout><LeasesPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/technicians" element={<ManagerRoute><DashboardLayout><TechniciansPage /></DashboardLayout></ManagerRoute>} />

@@ -4,6 +4,7 @@ import Property from '../models/Property.js';
 import Booking from '../models/Booking.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
+import Offer from '../models/Offer.js';
 
 export class MessagingAuthService {
   /**
@@ -117,6 +118,37 @@ export class MessagingAuthService {
         }
       }
 
+      // Add from active/accepted negotiations
+      const activeOffers = await Offer.find({
+        property: { $in: propIds },
+        status: { $in: ['pending', 'countered', 'accepted'] }
+      })
+      .populate('fromUser', 'firstName lastName email role avatar')
+      .populate('property', 'name title')
+      .lean();
+
+      for (const o of activeOffers) {
+        if (!o.fromUser) continue;
+        const tenantUserId = String(o.fromUser._id);
+        if (tenantUserId === String(userId)) continue;
+        if (!partnersMap.has(tenantUserId)) {
+          const propName = o.property?.name || o.property?.title || propMap.get(String(o.property?._id || o.property)) || 'Managed Property';
+          partnersMap.set(tenantUserId, {
+            _id: o.fromUser._id,
+            firstName: o.fromUser.firstName,
+            lastName: o.fromUser.lastName,
+            email: o.fromUser.email,
+            role: o.fromUser.role || 'tenant',
+            avatar: o.fromUser.avatar,
+            propertyId: o.property?._id || o.property,
+            propertyName: propName,
+            bookingId: null,
+            offerId: o._id,
+            bookingStatus: o.status === 'accepted' ? 'Accepted Deal' : 'Active Negotiation'
+          });
+        }
+      }
+
       return Array.from(partnersMap.values());
     }
 
@@ -216,6 +248,44 @@ export class MessagingAuthService {
         }
       }
 
+      // Add from active/accepted negotiations
+      const tenantOffers = await Offer.find({
+        fromUser: { $in: userIds },
+        status: { $in: ['pending', 'countered', 'accepted'] }
+      })
+      .populate('toUser', 'firstName lastName email role avatar')
+      .populate('property', 'name title manager owner')
+      .lean();
+
+      for (const o of tenantOffers) {
+        let managerUser = o.toUser;
+        if (!managerUser && o.property) {
+          managerUser = o.property.manager || o.property.owner;
+          if (managerUser && (typeof managerUser === 'string' || mongoose.Types.ObjectId.isValid(String(managerUser)))) {
+            managerUser = await User.findById(managerUser).select('firstName lastName email role avatar').lean();
+          }
+        }
+        if (!managerUser) continue;
+        const managerId = String(managerUser._id);
+        if (managerId === String(userId)) continue;
+        if (!partnersMap.has(managerId)) {
+          const propName = o.property?.name || o.property?.title || 'Negotiation Property';
+          partnersMap.set(managerId, {
+            _id: managerUser._id,
+            firstName: managerUser.firstName,
+            lastName: managerUser.lastName,
+            email: managerUser.email,
+            role: managerUser.role || 'manager',
+            avatar: managerUser.avatar,
+            propertyId: o.property?._id || o.property,
+            propertyName: propName,
+            bookingId: null,
+            offerId: o._id,
+            bookingStatus: o.status === 'accepted' ? 'Accepted Deal' : 'Active Negotiation'
+          });
+        }
+      }
+
       return Array.from(partnersMap.values());
     }
 
@@ -239,7 +309,7 @@ export class MessagingAuthService {
     const matchedPartner = partners.find(p => String(p._id) === String(receiverId));
 
     if (!matchedPartner) {
-      return { isAuthorized: false, reason: 'Forbidden: No active booking or lease relationship exists between these users.' };
+      return { isAuthorized: false, reason: 'Forbidden: No active booking, lease, or negotiation relationship exists between these users.' };
     }
 
     // Cross-property check: If propertyId is provided, verify it matches

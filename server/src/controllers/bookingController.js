@@ -4,6 +4,7 @@ import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
+import Offer from '../models/Offer.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 
@@ -317,6 +318,7 @@ export const verifyAndProcessPaymentInternal = async ({
             const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
             lease = await Lease.create({
                 leaseNumber,
+                booking: booking._id,
                 property: booking.property._id,
                 tenant: tenant._id,
                 startDate: booking.startDate,
@@ -343,6 +345,9 @@ export const verifyAndProcessPaymentInternal = async ({
                 await tenant.save();
             }
         } else {
+            if (!lease.booking) {
+                lease.booking = booking._id;
+            }
             // Keep lease pending signature unless already signed
             if (!lease.signature || !lease.signedAt) {
                 lease.status = 'pending';
@@ -498,6 +503,10 @@ export const verifyAndProcessPaymentInternal = async ({
             await booking.save();
         }
 
+        if (booking.offer) {
+            await Offer.findByIdAndUpdate(booking.offer, { status: 'completed' });
+        }
+
         logger.info(`[PAYMENT SUCCESS] bookingId=${booking._id}, paymentId=${razorpayPaymentId}, paymentStatus=paid`);
         logger.info(`[LEASE GENERATED] bookingId=${booking._id}, tenantId=${tenant._id}, propertyId=${booking.property._id}, leaseId=${lease?._id}, leaseStatus=${lease?.status}`);
 
@@ -650,6 +659,7 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
             const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
             lease = await Lease.create({
                 leaseNumber,
+                booking: booking._id,
                 property: booking.property._id,
                 tenant: tenant._id,
                 startDate: booking.startDate,
@@ -675,8 +685,14 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
                 tenant.leases.push(lease._id);
                 await tenant.save();
             }
+        } else {
+            if (!lease.booking) {
+                lease.booking = booking._id;
+                await lease.save();
+            }
         }
 
+        booking.lease = lease._id;
         booking.status = 'approved';
         booking.paymentStatus = 'pending';
         booking.approvalDate = new Date();
@@ -905,12 +921,13 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 
 // POST /api/bookings/request (original simplified flow)
 export const requestBooking = asyncHandler(async (req, res) => {
-    const { propertyId, startDate, endDate, totalAmount, paymentReference, includeMaintenance, maintenanceTermsAccepted } = req.body;
+    const { propertyId, startDate, endDate, totalAmount, paymentReference, includeMaintenance, maintenanceTermsAccepted, offerId } = req.body;
+    const userId = req.user.userId || req.user._id || req.user.id;
 
     // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD ══
-    if (req.user?.userId) {
+    if (userId) {
         const { checkSubscriptionLimit } = await import('../services/subscriptionService.js');
-        await checkSubscriptionLimit(req.user.userId, 'tenant', 'request_booking');
+        await checkSubscriptionLimit(userId, 'tenant', 'request_booking');
     }
 
     const property = await Property.findById(propertyId);
@@ -918,7 +935,38 @@ export const requestBooking = asyncHandler(async (req, res) => {
 
     // Enforce property validation rules: must be published and status must be available
     if (property.publishStatus !== 'published' || property.status !== 'available' || property.isTest || property.isInternal || property.isArchived || property.isDeleted) {
-        throw new AppError('This property is not actually available for booking (it may be inactive, occupied, rented, or under maintenance).', 400);
+        throw new AppError('This property is not currently available for booking (it may be inactive, occupied, rented, or under maintenance).', 400);
+    }
+
+    // ══ PRIVATE RENT DEAL RESOLUTION & VALIDATION ══
+    let validOffer = null;
+    if (offerId) {
+        validOffer = await Offer.findOne({
+            _id: offerId,
+            property: propertyId,
+            fromUser: userId,
+            status: 'accepted'
+        });
+        if (!validOffer) {
+            throw new AppError('Accepted private deal not found or you are not authorized to use this offer.', 404);
+        }
+        if (new Date() > new Date(validOffer.expiresAt)) {
+            validOffer.status = 'expired';
+            await validOffer.save();
+            throw new AppError('This private deal has expired. The property has reverted to standard public pricing.', 400);
+        }
+    } else {
+        // Automatically check if tenant has an active, accepted, unexpired private deal for this property
+        const activeAccepted = await Offer.findOne({
+            property: propertyId,
+            fromUser: userId,
+            status: 'accepted',
+            expiresAt: { $gt: new Date() },
+            booking: { $exists: false }
+        });
+        if (activeAccepted) {
+            validOffer = activeAccepted;
+        }
     }
 
     // Validate 7-day lead time rule (move-in date must be at least 7 days from now)
@@ -966,15 +1014,19 @@ export const requestBooking = asyncHandler(async (req, res) => {
         throw new AppError('You must accept the Maintenance Terms & Conditions to include Maintenance & Repairs coverage.', 400);
     }
 
-    const baseDepositOrRent = property.depositAmount || property.rentAmount || totalAmount || 0;
+    const effectiveRent = validOffer ? validOffer.agreedRent : property.rentAmount;
+    const baseDepositOrRent = property.depositAmount || effectiveRent || totalAmount || 0;
     const breakdown = isFree ? { totalPayable: 0, platformFee: 0, maintenanceFee: 0, maintenanceTermsVersion: '1.0' } : await calculatePaymentBreakdown(baseDepositOrRent, isMaintenanceSelected);
 
     const booking = await Booking.create({
-        user: req.user.userId,
+        user: userId,
         property: propertyId,
         manager: property.manager || property.owner,
         startDate,
         endDate,
+        offer: validOffer ? validOffer._id : undefined,
+        agreedRent: validOffer ? validOffer.agreedRent : undefined,
+        listedRent: property.rentAmount,
         totalAmount: isFree ? 0 : breakdown.totalPayable,
         depositAmount: isFree ? 0 : baseDepositOrRent,
         platformFee: isFree ? 0 : breakdown.platformFee,
@@ -989,6 +1041,11 @@ export const requestBooking = asyncHandler(async (req, res) => {
         escrowStatus: isFree ? 'not_started' : 'not_started',
         bookingDate: new Date(),
     });
+
+    if (validOffer) {
+        validOffer.booking = booking._id;
+        await validOffer.save();
+    }
 
     addTimeline(booking, 'request_sent');
     if (isFree) addTimeline(booking, 'payment_done');
@@ -1137,8 +1194,28 @@ export const getBookingById = asyncHandler(async (req, res) => {
 // This forces a booking into "Paid" status, creates a tenant/lease, and generates a PDF
 export const processMockPayment = asyncHandler(async (req, res, next) => {
     try {
-        let { propertyId, amount, method, startDate, endDate, leaseId } = req.body;
-        let userId = req.user?.userId;
+        let { propertyId, amount, method, startDate, endDate, leaseId, bookingId } = req.body;
+        let userId = req.user?.userId || req.user?._id || req.user?.id;
+
+        // If an existing bookingId is provided, execute payment & lease completion through verifyAndProcessPaymentInternal
+        if (bookingId) {
+            const booking = await Booking.findById(bookingId).populate('property');
+            if (booking) {
+                const paidBooking = await verifyAndProcessPaymentInternal({
+                    bookingId: booking._id,
+                    razorpayPaymentId: `mock_pay_${Date.now()}`,
+                    razorpayOrderId: `order_test_${Date.now()}`,
+                    razorpaySignature: 'mock_signature_data',
+                    signature: 'data:image/png;base64,mock_signature'
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: 'Mock payment verified and lease processed successfully',
+                    data: paidBooking
+                });
+            }
+        }
+
         if (!userId) {
             console.log('[MockPay] Trace: No user in request, finding demo user...');
             const demoUser = await User.findOne({ role: 'tenant' });
@@ -1255,7 +1332,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 tenant: tenant._id,
                 startDate: booking.startDate,
                 endDate: booking.endDate,
-                rentAmount: property.rentAmount || booking.totalAmount || 1, // Actual property rent
+                rentAmount: booking.agreedRent || property.rentAmount || booking.totalAmount || 1, // Actual property rent or agreed private rent
                 depositAmount: property.depositAmount || 0,
                 status: 'pending', // Always start as pending; cron job activates it and completes booking
                 createdBy: managerId,

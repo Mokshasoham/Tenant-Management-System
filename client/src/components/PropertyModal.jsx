@@ -5,7 +5,7 @@ import {
   X, UploadCloud, MapPin, XCircle, Video, Image as ImageIcon, Loader2, 
   CheckCircle2, Navigation, Layers, Compass, Sparkles, MoveLeft, MoveRight, 
   Eye, Globe, Shield, Star, Info, ArrowRight, Check, Building2, Home, Store,
-  Building, KeyRound, Bed, Bath, Square, Users, Utensils, Zap, ShieldCheck
+  Building, KeyRound, Bed, Bath, Square, Users, Utensils, Zap, ShieldCheck, Handshake
 } from 'lucide-react';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
@@ -115,7 +115,13 @@ const EMPTY_FORM = {
   rentAmount: '', depositAmount: '', description: '', notes: '',
   amenities: [], bookingType: 'paid', publishStatus: 'published',
   seoTitle: '', seoDescription: '', seoKeywords: '',
-  ogTitle: '', ogDescription: '', virtualTourUrl: ''
+  ogTitle: '', ogDescription: '', virtualTourUrl: '',
+  negotiationEnabled: false,
+  negotiationAvailability: 'all',
+  negotiationMaxDiscount: 10,
+  negotiationMinRent: '',
+  negotiationValidityHours: 48,
+  negotiationMaxRounds: 5
 };
 
 const libraries = ['places'];
@@ -163,7 +169,13 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
         ogTitle: property.openGraph?.title || '',
         ogDescription: property.openGraph?.description || '',
         virtualTourUrl: property.virtualTourUrl || '',
-        location: property.location || { lat: 12.9716, lng: 77.5946 }
+        location: property.location || { lat: 12.9716, lng: 77.5946 },
+        negotiationEnabled: property.negotiation?.enabled ?? false,
+        negotiationAvailability: property.negotiation?.availability || 'all',
+        negotiationMaxDiscount: property.negotiation?.maxDiscountPercentage ?? 10,
+        negotiationMinRent: property.negotiation?.minAcceptableRent ?? '',
+        negotiationValidityHours: property.negotiation?.offerValidityHours ?? 48,
+        negotiationMaxRounds: property.negotiation?.maxRounds ?? 5
       };
     }
     return {
@@ -451,7 +463,15 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
         },
         location: { lat: latNum, lng: lngNum },
         seo: { title: form.seoTitle, description: form.seoDescription, keywords: form.seoKeywords },
-        openGraph: { title: form.ogTitle, description: form.ogDescription }
+        openGraph: { title: form.ogTitle, description: form.ogDescription },
+        negotiation: {
+          enabled: Boolean(form.negotiationEnabled),
+          availability: form.negotiationAvailability || 'all',
+          maxDiscountPercentage: form.negotiationMaxDiscount !== '' ? Number(form.negotiationMaxDiscount) : 10,
+          minAcceptableRent: form.negotiationMinRent !== '' && form.negotiationMinRent !== null && form.negotiationMinRent !== undefined ? Number(form.negotiationMinRent) : undefined,
+          offerValidityHours: Number(form.negotiationValidityHours) || 48,
+          maxRounds: Number(form.negotiationMaxRounds) || 5
+        }
       };
 
       let propertyId = property?._id;
@@ -655,6 +675,119 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Monthly Rent (₹) *" type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} placeholder="e.g. 25000" />
                   <Field label="Security Deposit (₹)" type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} placeholder="e.g. 50000" />
+                </div>
+
+                {/* Private Rent Negotiation & DealFlow Configuration */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+                        <Handshake className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
+                          Private Rent Negotiation & DealFlow
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground">
+                          Allow qualified tenants to propose counter-offers 1-on-1 without altering your public listed rent.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.negotiationEnabled}
+                        onChange={e => set('negotiationEnabled', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-muted-foreground/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+
+                  {form.negotiationEnabled && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="pt-3 border-t border-border/60 space-y-4"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Eligible Prospective Tenants
+                          </label>
+                          <select
+                            value={form.negotiationAvailability}
+                            onChange={e => set('negotiationAvailability', e.target.value)}
+                            className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="all">All Verified Tenants (Open to All)</option>
+                            <option value="visit_requested">Only Tenants Who Requested a Visit (Exclusive)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Offer Validity Period
+                          </label>
+                          <select
+                            value={form.negotiationValidityHours}
+                            onChange={e => set('negotiationValidityHours', e.target.value)}
+                            className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value={24}>24 Hours</option>
+                            <option value={48}>48 Hours (Recommended)</option>
+                            <option value={72}>72 Hours (3 Days)</option>
+                            <option value={168}>7 Days</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <Field
+                          label="Max Discount (%)"
+                          type="number"
+                          value={form.negotiationMaxDiscount}
+                          onChange={v => set('negotiationMaxDiscount', v)}
+                          placeholder="10"
+                        />
+                        <Field
+                          label="Floor Min Rent (₹ - Optional)"
+                          type="number"
+                          value={form.negotiationMinRent}
+                          onChange={v => set('negotiationMinRent', v)}
+                          placeholder={form.rentAmount ? String(Math.round(Number(form.rentAmount) * (1 - (Number(form.negotiationMaxDiscount) || 10) / 100))) : "Min acceptable rent"}
+                        />
+                        <Field
+                          label="Max Rounds (Limit 5)"
+                          type="number"
+                          value={form.negotiationMaxRounds}
+                          onChange={v => set('negotiationMaxRounds', v)}
+                          placeholder="5"
+                        />
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[11px] leading-relaxed flex items-start gap-2">
+                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div>
+                          <span>
+                            <strong>Confidential Floor: </strong>
+                            {form.rentAmount ? (
+                              <>
+                                Based on a {form.negotiationMaxDiscount || 10}% max discount, the minimum deal price is{' '}
+                                <strong className="font-mono">
+                                  ₹{Math.round(Number(form.rentAmount) * (1 - (Number(form.negotiationMaxDiscount) || 10) / 100)).toLocaleString('en-IN')}
+                                </strong>
+                                .
+                              </>
+                            ) : (
+                              'Enter a monthly rent above to see the calculated floor price.'
+                            )}{' '}
+                            Tenants <em>never</em> see your discount or floor thresholds. Offers below this threshold cannot be accepted.
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               </div>
 

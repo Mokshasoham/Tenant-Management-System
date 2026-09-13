@@ -1,137 +1,506 @@
 import Offer from '../models/Offer.js';
 import Property from '../models/Property.js';
+import PropertyVisit from '../models/PropertyVisit.js';
+import User from '../models/User.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 import logger from '../utils/logger.js';
-
-// Backward-compatible Event proxy
-const Notification = {
-    create: async (data) => {
-        try {
-            return await EventService.publish({
-                recipient: data.recipient,
-                category: 'booking',
-                event: 'offer_update',
-                title: data.title,
-                description: data.message,
-                sourceModule: 'booking',
-                entityType: data.relatedModel || 'Offer',
-                entityId: data.relatedId,
-                redirectUrl: data.link || '/dashboard',
-                action: 'view',
-                priority: 'medium',
-                severity: 'information',
-                metadata: {
-                    relatedId: data.relatedId
-                }
-            });
-        } catch (err) {
-            logger.error('[Notification Wrapper] Failed: ' + err.message);
-            return await NotificationModel.create(data);
-        }
-    },
-    find: (...args) => NotificationModel.find(...args),
-    findOne: (...args) => NotificationModel.findOne(...args),
-    findOneAndUpdate: (...args) => NotificationModel.findOneAndUpdate(...args),
-    updateMany: (...args) => NotificationModel.updateMany(...args),
-    countDocuments: (...args) => NotificationModel.countDocuments(...args),
-    findOneAndDelete: (...args) => NotificationModel.findOneAndDelete(...args)
-};
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
+import { generateSequenceNumber } from '../platform/sequence/sequenceService.js';
+import { NotificationService } from '../services/NotificationService.js';
 
-// POST /api/offers — tenant sends rent offer to manager
+// Centralized notification dispatcher helper for negotiation events
+const sendNegotiationNotification = async ({ recipient, sender, title, message, propertyId, offerId, action = 'view' }) => {
+    try {
+        await NotificationService.notify({
+            recipient,
+            sender,
+            title,
+            message,
+            category: 'booking',
+            sourceModule: 'booking',
+            entityType: 'Offer',
+            entityId: offerId,
+            actionUrl: `/negotiations`,
+            link: `/negotiations`,
+            priority: 'high',
+            severity: 'information',
+            metadata: {
+                propertyId,
+                offerId,
+                action
+            }
+        });
+    } catch (err) {
+        logger.warn('[Negotiation Notification] Fallback: ' + err.message);
+        try {
+            await NotificationModel.create({
+                recipient,
+                sender,
+                title,
+                message,
+                type: 'booking',
+                link: `/negotiations`
+            });
+        } catch (e) {
+            logger.error('[Negotiation Notification] Failed completely: ' + e.message);
+        }
+    }
+};
+
+/**
+ * POST /api/offers — Tenant sends rent negotiation offer to property manager
+ */
 export const createOffer = asyncHandler(async (req, res) => {
-    const { propertyId, offeredRent, message, startDate, endDate } = req.body;
+    const offeredRent = req.body.offeredRent || req.body.offerAmount;
+    const { propertyId, message, leasePeriod, moveInDate, startDate, endDate } = req.body;
+    const userId = req.user.userId || req.user._id || req.user.id;
 
     const property = await Property.findById(propertyId);
     if (!property) throw new AppError('Property not found', 404);
 
-    const managerId = property.manager || property.owner;
+    // 1. Validate property negotiation is enabled
+    if (!property.negotiation?.enabled) {
+        throw new AppError('Rent negotiation is not available for this property.', 400);
+    }
 
-    // Expire any existing pending offer from this user for this property
+    // 2. Validate tenant serious-eligibility
+    if (property.negotiation.availability === 'visit_requested') {
+        const approvedVisit = await PropertyVisit.findOne({
+            property: propertyId,
+            tenant: userId,
+            status: { $in: ['approved', 'completed'] }
+        });
+        if (!approvedVisit) {
+            throw new AppError('You must request a visit and have it approved by the manager before negotiating rent for this property.', 403);
+        }
+    }
+
+    // 3. Enforce single active negotiation per tenant + property
+    const existingActive = await Offer.findOne({
+        property: propertyId,
+        fromUser: userId,
+        status: { $in: ['pending', 'countered', 'accepted'] }
+    });
+
+    if (existingActive) {
+        if (existingActive.status === 'accepted') {
+            const isUnexpired = new Date() < new Date(existingActive.expiresAt);
+            if (isUnexpired) {
+                throw new AppError('You already have an active, accepted private deal for this property. Please book it before it expires.', 409);
+            }
+        } else {
+            throw new AppError('You already have an active negotiation in progress for this property. Please continue your existing negotiation or wait for manager response.', 409);
+        }
+    }
+
+    // 4. Validate offer amount against manager constraints
+    const numericOfferedRent = Number(offeredRent);
+    if (isNaN(numericOfferedRent) || numericOfferedRent <= 0) {
+        throw new AppError('A valid monthly offer amount is required.', 400);
+    }
+
+    if (numericOfferedRent > property.rentAmount) {
+        throw new AppError('Offer amount cannot be higher than the listed public rent.', 400);
+    }
+
+    // Reconcile minimum acceptable threshold
+    let minAcceptable = property.negotiation.minAcceptableRent;
+    if (!minAcceptable && property.negotiation.maxDiscountPercentage) {
+        minAcceptable = Math.round(property.rentAmount * (1 - property.negotiation.maxDiscountPercentage / 100));
+    }
+
+    if (minAcceptable && numericOfferedRent < minAcceptable) {
+        throw new AppError('Your proposed offer is below the acceptable threshold for this property. Please propose a higher amount.', 400);
+    }
+
+    const managerId = property.manager || property.owner;
+    const validityHours = property.negotiation.offerValidityHours || 48;
+    const maxRounds = property.negotiation.maxRounds || 5;
+    const expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
+
+    // Generate atomic Deal Number (DEAL-2026-XXXXXX)
+    const dealNumber = await generateSequenceNumber('DEAL', 'deal');
+
+    const effectiveMoveIn = moveInDate || startDate || new Date();
+    const effectiveLeasePeriod = leasePeriod || '12 Months';
+
+    const offer = await Offer.create({
+        dealNumber,
+        property: propertyId,
+        fromUser: userId,
+        toUser: managerId,
+        originalRent: property.rentAmount,
+        offeredRent: numericOfferedRent,
+        currentOffer: numericOfferedRent,
+        currentOfferedBy: userId,
+        leasePeriod: effectiveLeasePeriod,
+        moveInDate: effectiveMoveIn,
+        startDate: startDate || effectiveMoveIn,
+        endDate,
+        message: message || '',
+        status: 'pending',
+        roundCount: 1,
+        maxRounds,
+        expiresAt,
+        offerHistory: [
+            {
+                sender: userId,
+                senderRole: 'tenant',
+                receiver: managerId,
+                proposedAmount: numericOfferedRent,
+                message: message || `Submitted rent offer of ₹${numericOfferedRent.toLocaleString('en-IN')}/mo`,
+                timestamp: new Date(),
+                action: 'offer'
+            }
+        ]
+    });
+
+    // Notify Manager
+    await sendNegotiationNotification({
+        recipient: managerId,
+        sender: userId,
+        title: 'New Rent Negotiation Offer',
+        message: `A tenant has offered ₹${numericOfferedRent.toLocaleString('en-IN')}/month for ${property.name} (Listed: ₹${property.rentAmount.toLocaleString('en-IN')}).`,
+        propertyId,
+        offerId: offer._id,
+        action: 'new_offer'
+    });
+
+    logger.info(`Rent negotiation offer created: ${dealNumber} for property ${property.name} by user ${userId}`);
+
+    res.status(201).json({
+        success: true,
+        message: 'Rent negotiation offer submitted successfully',
+        data: offer
+    });
+});
+
+/**
+ * PUT /api/offers/:id/respond — Respond to an offer (Accept, Counter, Reject, Cancel)
+ */
+export const respondToOffer = asyncHandler(async (req, res) => {
+    const action = req.body.action || ((req.body.counterRent || req.body.counterOffer) ? 'counter' : undefined);
+    const counterRent = req.body.counterRent || req.body.counterOffer;
+    const { message, counterMessage } = req.body;
+    const userId = req.user.userId || req.user._id || req.user.id;
+    const userRole = req.user.role || 'tenant';
+
+    const offer = await Offer.findById(req.params.id).populate('property');
+    if (!offer) throw new AppError('Negotiation offer not found', 404);
+
+    const property = offer.property;
+    const isTenant = String(offer.fromUser) === String(userId);
+    const isManager = String(offer.toUser) === String(userId) ||
+        String(property?.manager) === String(userId) ||
+        String(property?.owner) === String(userId) ||
+        userRole === 'admin';
+
+    if (!isTenant && !isManager) {
+        throw new AppError('Forbidden: You are not authorized to respond to this negotiation', 403);
+    }
+
+    // Concurrency & state machine guard
+    if (offer.status === 'accepted') {
+        throw new AppError('This private deal has already been accepted and locked.', 400);
+    }
+    if (['rejected', 'cancelled'].includes(offer.status)) {
+        throw new AppError('This negotiation has already concluded and cannot be modified.', 400);
+    }
+
+    // Expiration check
+    if (new Date() > new Date(offer.expiresAt)) {
+        offer.status = 'expired';
+        await offer.save();
+        throw new AppError('This negotiation offer has expired.', 400);
+    }
+
+    const validityHours = property?.negotiation?.offerValidityHours || 48;
+    const responseMsg = message || counterMessage || '';
+
+    if (action === 'accept') {
+        // Prevent party from accepting their own offer
+        if (String(offer.currentOfferedBy) === String(userId)) {
+            throw new AppError('You cannot accept your own proposed offer. Awaiting counterparty acceptance.', 400);
+        }
+
+        offer.status = 'accepted';
+        offer.agreedRent = offer.currentOffer || offer.offeredRent;
+        offer.acceptedAt = new Date();
+        // Reset validity window for private deal booking
+        offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
+
+        offer.offerHistory.push({
+            sender: userId,
+            senderRole: isManager ? 'manager' : 'tenant',
+            receiver: isManager ? offer.fromUser : offer.toUser,
+            proposedAmount: offer.agreedRent,
+            message: responseMsg || `Offer accepted at ₹${offer.agreedRent.toLocaleString('en-IN')}/mo. Private deal locked!`,
+            timestamp: new Date(),
+            action: 'accept'
+        });
+
+        await offer.save();
+
+        const recipientId = isManager ? offer.fromUser : offer.toUser;
+        await sendNegotiationNotification({
+            recipient: recipientId,
+            sender: userId,
+            title: '🎉 Rent Offer Accepted!',
+            message: `Your rent offer of ₹${offer.agreedRent.toLocaleString('en-IN')}/month for ${property.name} has been accepted! Lock your private deal before it expires.`,
+            propertyId: property._id,
+            offerId: offer._id,
+            action: 'deal_accepted'
+        });
+
+        logger.info(`Deal accepted: ${offer.dealNumber} for ₹${offer.agreedRent} by user ${userId}`);
+
+    } else if (action === 'counter') {
+        const numericCounterRent = Number(counterRent);
+        if (isNaN(numericCounterRent) || numericCounterRent <= 0) {
+            throw new AppError('A valid counter offer amount is required.', 400);
+        }
+
+        // Round limit guard
+        const currentRounds = offer.roundCount || 1;
+        const maxRounds = offer.maxRounds || 5;
+        if (currentRounds >= maxRounds) {
+            throw new AppError(`Negotiation limit reached (${maxRounds} rounds). Please accept, reject, or submit a new offer.`, 400);
+        }
+
+        // If manager is countering, validate against minimum threshold
+        if (isManager) {
+            let minAcceptable = property?.negotiation?.minAcceptableRent;
+            if (!minAcceptable && property?.negotiation?.maxDiscountPercentage) {
+                minAcceptable = Math.round(property.rentAmount * (1 - property.negotiation.maxDiscountPercentage / 100));
+            }
+            if (minAcceptable && numericCounterRent < minAcceptable) {
+                throw new AppError(`Counter rent cannot be lower than the configured minimum of ₹${minAcceptable.toLocaleString('en-IN')}.`, 400);
+            }
+        }
+
+        // Prevent counter exceeding listed public rent
+        if (numericCounterRent > property.rentAmount) {
+            throw new AppError(`Counter offer cannot exceed the listed public rent of ₹${property.rentAmount.toLocaleString('en-IN')}.`, 400);
+        }
+
+        offer.status = 'countered';
+        offer.currentOffer = numericCounterRent;
+        offer.currentOfferedBy = userId;
+        offer.roundCount = currentRounds + 1;
+        offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
+        offer.counterOffer = {
+            rent: numericCounterRent,
+            message: responseMsg,
+            createdAt: new Date()
+        };
+
+        offer.offerHistory.push({
+            sender: userId,
+            senderRole: isManager ? 'manager' : 'tenant',
+            receiver: isManager ? offer.fromUser : offer.toUser,
+            proposedAmount: numericCounterRent,
+            message: responseMsg || `Counter-offered ₹${numericCounterRent.toLocaleString('en-IN')}/mo`,
+            timestamp: new Date(),
+            action: 'counter'
+        });
+
+        await offer.save();
+
+        const recipientId = isManager ? offer.fromUser : offer.toUser;
+        await sendNegotiationNotification({
+            recipient: recipientId,
+            sender: userId,
+            title: 'New Counter Offer Received',
+            message: `${isManager ? 'Manager' : 'Tenant'} countered with ₹${numericCounterRent.toLocaleString('en-IN')}/month for ${property.name}.`,
+            propertyId: property._id,
+            offerId: offer._id,
+            action: 'counter_offer'
+        });
+
+    } else if (action === 'reject') {
+        offer.status = 'rejected';
+        offer.offerHistory.push({
+            sender: userId,
+            senderRole: isManager ? 'manager' : 'tenant',
+            receiver: isManager ? offer.fromUser : offer.toUser,
+            proposedAmount: offer.currentOffer || offer.offeredRent,
+            message: responseMsg || 'Offer rejected.',
+            timestamp: new Date(),
+            action: 'reject'
+        });
+
+        await offer.save();
+
+        const recipientId = isManager ? offer.fromUser : offer.toUser;
+        await sendNegotiationNotification({
+            recipient: recipientId,
+            sender: userId,
+            title: 'Rent Offer Declined',
+            message: `The rent negotiation for ${property.name} was declined.`,
+            propertyId: property._id,
+            offerId: offer._id,
+            action: 'rejected'
+        });
+
+    } else if (action === 'cancel') {
+        offer.status = 'cancelled';
+        offer.offerHistory.push({
+            sender: userId,
+            senderRole: isManager ? 'manager' : 'tenant',
+            receiver: isManager ? offer.fromUser : offer.toUser,
+            proposedAmount: offer.currentOffer || offer.offeredRent,
+            message: responseMsg || 'Negotiation cancelled.',
+            timestamp: new Date(),
+            action: 'cancel'
+        });
+
+        await offer.save();
+
+    } else {
+        throw new AppError('Invalid action specified. Must be accept, counter, reject, or cancel.', 400);
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Negotiation offer successfully updated (${action})`,
+        data: offer
+    });
+});
+
+/**
+ * GET /api/offers/my — Get all negotiations for authenticated tenant
+ */
+export const getMyOffers = asyncHandler(async (req, res) => {
+    const userId = req.user.userId || req.user._id || req.user.id;
+
+    // Auto-expire past deadline records on read
     await Offer.updateMany(
-        { property: propertyId, fromUser: req.user.userId, status: 'pending' },
+        {
+            fromUser: userId,
+            status: { $in: ['pending', 'countered'] },
+            expiresAt: { $lt: new Date() }
+        },
         { status: 'expired' }
     );
 
-    const offer = await Offer.create({
-        property: propertyId,
-        fromUser: req.user.userId,
-        toUser: managerId,
-        originalRent: property.rentAmount,
-        offeredRent,
-        message,
-        startDate,
-        endDate,
+    const offers = await Offer.find({ fromUser: userId })
+        .populate('property', 'name address city state images rentAmount depositAmount type status publishStatus bookedDates')
+        .populate('toUser', 'firstName lastName email phone avatar')
+        .sort({ updatedAt: -1 });
+
+    res.status(200).json({
+        success: true,
+        data: offers
     });
+});
 
-    // Notify manager
-    await Notification.create({
-        recipient: managerId,
-        sender: req.user.userId,
-        title: 'New Rent Negotiation Offer',
-        message: `A tenant has offered ₹${offeredRent.toLocaleString('en-IN')} for ${property.name} (original: ₹${property.rentAmount.toLocaleString('en-IN')}).`,
-        type: 'booking',
-        link: `/properties/${propertyId}`,
+/**
+ * GET /api/offers/manager — Get all negotiations for properties managed by authenticated manager
+ */
+export const getManagerOffers = asyncHandler(async (req, res) => {
+    const userId = req.user.userId || req.user._id || req.user.id;
+
+    // Resolve all properties owned or managed by this user
+    const properties = await Property.find({
+        $or: [{ manager: userId }, { owner: userId }]
+    }).select('_id');
+
+    const propertyIds = properties.map(p => p._id);
+
+    // Auto-expire past deadline records on read
+    await Offer.updateMany(
+        {
+            property: { $in: propertyIds },
+            status: { $in: ['pending', 'countered'] },
+            expiresAt: { $lt: new Date() }
+        },
+        { status: 'expired' }
+    );
+
+    const offers = await Offer.find({ property: { $in: propertyIds } })
+        .populate('property', 'name address city state images rentAmount depositAmount type status')
+        .populate('fromUser', 'firstName lastName email phone avatar')
+        .sort({ updatedAt: -1 });
+
+    const now = new Date();
+    const next24h = new Date(Date.now() + 24 * 3600 * 1000);
+
+    // Calculate manager summary metrics
+    const metrics = {
+        newOffers: offers.filter(o => o.status === 'pending' && String(o.currentOfferedBy) !== String(userId)).length,
+        awaitingYou: offers.filter(o => ['pending', 'countered'].includes(o.status) && String(o.currentOfferedBy) !== String(userId)).length,
+        accepted: offers.filter(o => o.status === 'accepted').length,
+        expiringSoon: offers.filter(o => ['pending', 'countered', 'accepted'].includes(o.status) && new Date(o.expiresAt) <= next24h && new Date(o.expiresAt) > now).length,
+        total: offers.length
+    };
+
+    res.status(200).json({
+        success: true,
+        metrics,
+        data: offers
     });
-
-    res.status(201).json({ success: true, data: offer });
 });
 
-// GET /api/offers/property/:propertyId — get offers for a property (manager)
-export const getPropertyOffers = asyncHandler(async (req, res) => {
-    const offers = await Offer.find({ property: req.params.propertyId })
-        .populate('fromUser', 'firstName lastName email')
-        .sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: offers });
-});
+/**
+ * GET /api/offers/:id — Get details of a single negotiation deal
+ */
+export const getOfferById = asyncHandler(async (req, res) => {
+    const userId = req.user.userId || req.user._id || req.user.id;
+    const userRole = req.user.role;
 
-// GET /api/offers/my — get my sent offers (tenant)
-export const getMyOffers = asyncHandler(async (req, res) => {
-    const offers = await Offer.find({ fromUser: req.user.userId })
-        .populate('property', 'name address images rentAmount')
-        .populate('toUser', 'firstName lastName')
-        .sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: offers });
-});
+    const offer = await Offer.findById(req.params.id)
+        .populate('property', 'name address city state images rentAmount depositAmount type status publishStatus negotiation')
+        .populate('fromUser', 'firstName lastName email phone avatar')
+        .populate('toUser', 'firstName lastName email phone avatar')
+        .populate('offerHistory.sender', 'firstName lastName avatar role')
+        .populate('offerHistory.receiver', 'firstName lastName avatar role');
 
-// PUT /api/offers/:id/respond — manager accepts, rejects, or counters
-export const respondToOffer = asyncHandler(async (req, res) => {
-    const { action, counterRent, counterMessage } = req.body;
-    const offer = await Offer.findById(req.params.id).populate('property');
-    if (!offer) throw new AppError('Offer not found', 404);
+    if (!offer) throw new AppError('Negotiation deal not found', 404);
 
-    const isManager = offer.toUser.toString() === req.user.userId;
-    if (!isManager && req.user.role !== 'admin') throw new AppError('Not authorized', 403);
+    const isTenant = String(offer.fromUser?._id || offer.fromUser) === String(userId);
+    const isManager = String(offer.toUser?._id || offer.toUser) === String(userId) ||
+        String(offer.property?.manager) === String(userId) ||
+        String(offer.property?.owner) === String(userId) ||
+        userRole === 'admin';
 
-    if (action === 'accept') {
-        offer.status = 'accepted';
-    } else if (action === 'reject') {
-        offer.status = 'rejected';
-    } else if (action === 'counter') {
-        if (!counterRent) throw new AppError('Counter rent is required', 400);
-        offer.status = 'countered';
-        offer.counterOffer = { rent: counterRent, message: counterMessage, createdAt: new Date() };
-    } else {
-        throw new AppError('Invalid action', 400);
+    if (!isTenant && !isManager) {
+        throw new AppError('Forbidden: You are not authorized to view this negotiation', 403);
     }
 
-    await offer.save();
+    // If requester is tenant, hide property manager internal thresholds
+    if (isTenant && !isManager && offer.property?.negotiation) {
+        offer.property.negotiation = {
+            enabled: offer.property.negotiation.enabled,
+            availability: offer.property.negotiation.availability,
+            offerValidityHours: offer.property.negotiation.offerValidityHours,
+            maxRounds: offer.property.negotiation.maxRounds
+        };
+    }
 
-    // Notify tenant
-    const msgs = {
-        accept: `Your rent offer of ₹${offer.offeredRent.toLocaleString('en-IN')} for ${offer.property?.name} has been accepted!`,
-        reject: `Your rent offer for ${offer.property?.name} was declined.`,
-        counter: `Manager countered with ₹${counterRent?.toLocaleString('en-IN')} for ${offer.property?.name}.`,
-    };
-    await Notification.create({
-        recipient: offer.fromUser,
-        sender: req.user.userId,
-        title: `Offer ${action === 'counter' ? 'Countered' : action === 'accept' ? 'Accepted' : 'Rejected'}`,
-        message: msgs[action],
-        type: action === 'accept' ? 'success' : action === 'counter' ? 'booking' : 'alert',
-        link: `/properties/${offer.property?._id}`,
+    res.status(200).json({
+        success: true,
+        data: offer
     });
+});
 
-    res.status(200).json({ success: true, data: offer });
+/**
+ * GET /api/offers/property/:propertyId — Get negotiations for a specific property (Manager only)
+ */
+export const getPropertyOffers = asyncHandler(async (req, res) => {
+    const userId = req.user.userId || req.user._id || req.user.id;
+    const property = await Property.findById(req.params.propertyId);
+    if (!property) throw new AppError('Property not found', 404);
+
+    const isAuthorized = req.user.role === 'admin' ||
+        String(property.manager) === String(userId) ||
+        String(property.owner) === String(userId);
+
+    if (!isAuthorized) throw new AppError('Forbidden: Access denied to property negotiations', 403);
+
+    const offers = await Offer.find({ property: req.params.propertyId })
+        .populate('fromUser', 'firstName lastName email avatar')
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: offers });
 });

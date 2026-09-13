@@ -3,10 +3,65 @@ import PropertyVisit from '../models/PropertyVisit.js';
 import Booking from '../models/Booking.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
+import Offer from '../models/Offer.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import sharp from 'sharp';
 import { uploadFileBuffer } from '../services/fileService.js';
+
+export const validateAndReconcileNegotiation = (negotiation, rentAmount) => {
+  if (!negotiation) return undefined;
+  const enabled = Boolean(negotiation.enabled);
+  if (!enabled) {
+    return {
+      enabled: false,
+      availability: negotiation.availability || 'all',
+      maxDiscountPercentage: 10,
+      minAcceptableRent: undefined,
+      offerValidityHours: 48,
+      maxRounds: 5
+    };
+  }
+
+  const rent = Number(rentAmount) || 0;
+  let maxDiscount = Number(negotiation.maxDiscountPercentage);
+  if (isNaN(maxDiscount) || maxDiscount < 0) maxDiscount = 10;
+  if (maxDiscount > 100) maxDiscount = 100;
+
+  let minRent = negotiation.minAcceptableRent !== undefined && negotiation.minAcceptableRent !== null && negotiation.minAcceptableRent !== ''
+    ? Number(negotiation.minAcceptableRent)
+    : undefined;
+
+  const floorFromDiscount = rent > 0 ? Math.round(rent * (1 - maxDiscount / 100)) : 0;
+
+  // Reconcile consistency (Adjustment #1):
+  // If minRent is provided, ensure it does not contradict maxDiscountPercentage
+  if (minRent !== undefined) {
+    if (minRent > rent) {
+      minRent = rent;
+    }
+    if (minRent < floorFromDiscount) {
+      // Conflicting low minimum: enforce floor dictated by maxDiscountPercentage
+      minRent = floorFromDiscount;
+    } else {
+      maxDiscount = rent > 0 ? Math.round(((rent - minRent) / rent) * 100) : 0;
+    }
+  } else if (rent > 0) {
+    minRent = floorFromDiscount;
+  }
+
+  const offerValidityHours = Number(negotiation.offerValidityHours) || 48;
+  const maxRounds = Number(negotiation.maxRounds) || 5;
+
+  return {
+    enabled: true,
+    availability: ['all', 'visit_requested'].includes(negotiation.availability) ? negotiation.availability : 'all',
+    maxDiscountPercentage: maxDiscount,
+    minAcceptableRent: minRent,
+    offerValidityHours: Math.max(1, offerValidityHours),
+    maxRounds: Math.max(1, Math.min(20, maxRounds))
+  };
+};
 
 export const resolvePropertyUrls = (property, req) => {
   if (!property) return property;
@@ -299,6 +354,65 @@ export const getPropertyById = asyncHandler(async (req, res) => {
     resolved.manager = resolved.owner;
   }
 
+  // If not manager/admin, sanitize negotiation internal thresholds and attach privateDeal & eligibility
+  if (!isManagerOrAdmin) {
+    if (resolved.negotiation) {
+      resolved.negotiation = {
+        enabled: Boolean(resolved.negotiation.enabled),
+        availability: resolved.negotiation.availability || 'all',
+        offerValidityHours: resolved.negotiation.offerValidityHours || 48,
+        maxRounds: resolved.negotiation.maxRounds || 5,
+      };
+    } else {
+      resolved.negotiation = { enabled: false, availability: 'all', offerValidityHours: 48, maxRounds: 5 };
+    }
+
+    // Check if requester has an active, accepted, unexpired private deal
+    if (requesterId) {
+      const activeDeal = await Offer.findOne({
+        property: property._id,
+        fromUser: requesterId,
+        status: 'accepted',
+        expiresAt: { $gt: new Date() },
+        booking: { $exists: false },
+      }).select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate');
+
+      if (activeDeal) {
+        resolved.privateDeal = {
+          id: activeDeal._id,
+          dealNumber: activeDeal.dealNumber,
+          agreedRent: activeDeal.agreedRent,
+          status: 'ACCEPTED',
+          expiresAt: activeDeal.expiresAt,
+          leasePeriod: activeDeal.leasePeriod,
+          moveInDate: activeDeal.moveInDate,
+        };
+      } else {
+        resolved.privateDeal = null;
+      }
+
+      // Check tenant negotiation eligibility
+      if (!resolved.negotiation.enabled) {
+        resolved.negotiationEligibility = { eligible: false, isEligible: false, reason: 'disabled' };
+      } else if (resolved.negotiation.availability === 'visit_requested') {
+        const approvedVisit = await PropertyVisit.findOne({
+          property: property._id,
+          tenant: requesterId,
+          status: { $in: ['approved', 'completed'] },
+        });
+        if (approvedVisit) {
+          resolved.negotiationEligibility = { eligible: true, isEligible: true, reason: 'approved_visit' };
+        } else {
+          resolved.negotiationEligibility = { eligible: false, isEligible: false, reason: 'visit_required' };
+        }
+      } else {
+        resolved.negotiationEligibility = { eligible: true, isEligible: true, reason: 'all_tenants' };
+      }
+    } else {
+      resolved.negotiationEligibility = { eligible: false, isEligible: false, reason: 'unauthenticated' };
+    }
+  }
+
   res.status(200).json({
     success: true,
     data: resolved,
@@ -319,7 +433,8 @@ export const createProperty = asyncHandler(async (req, res) => {
     name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, manager, description, bookingType, publishStatus, location, seo, openGraph, virtualTourUrl,
     bhk, floor, totalFloors, furnishing, balcony, parking, garden, builtUpArea,
     commercialArea, frontage, washroom, electricity, suitableFor,
-    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails
+    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails,
+    negotiation
   } = req.body;
 
   let geo = undefined;
@@ -330,11 +445,14 @@ export const createProperty = asyncHandler(async (req, res) => {
     };
   }
 
+  const reconciledNegotiation = validateAndReconcileNegotiation(negotiation, rentAmount);
+
   const property = await Property.create({
     name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl,
     bhk, floor, totalFloors, furnishing, balcony, parking, garden, builtUpArea,
     commercialArea, frontage, washroom, electricity, suitableFor,
-    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails
+    totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails,
+    negotiation: reconciledNegotiation
   });
 
   logger.info(`New property created: ${property.name}`);
@@ -358,7 +476,7 @@ export const createProperty = asyncHandler(async (req, res) => {
 export const updateProperty = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = getAuthenticatedUserId(req);
-  const { manager, location, ...rest } = req.body;
+  const { manager, location, negotiation, ...rest } = req.body;
 
   const existing = await Property.findById(id);
   if (!existing) {
@@ -378,6 +496,11 @@ export const updateProperty = asyncHandler(async (req, res) => {
       type: 'Point',
       coordinates: [Number(location.lng), Number(location.lat)]
     };
+  }
+
+  if (negotiation !== undefined) {
+    const effectiveRent = rest.rentAmount || existing.rentAmount;
+    updateData.negotiation = validateAndReconcileNegotiation(negotiation, effectiveRent);
   }
 
   const property = await Property.findByIdAndUpdate(id, updateData, {

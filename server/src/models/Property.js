@@ -170,6 +170,19 @@ const propertySchema = new mongoose.Schema(
       enum: ['flexible', 'moderate', 'strict'],
       default: 'flexible',
     },
+    // Private Rent Negotiation & DealFlow Settings
+    negotiation: {
+      enabled: { type: Boolean, default: false },
+      availability: {
+        type: String,
+        enum: ['all', 'visit_requested'],
+        default: 'all',
+      },
+      maxDiscountPercentage: { type: Number, min: 0, max: 100, default: 10 },
+      minAcceptableRent: { type: Number, min: 0 },
+      offerValidityHours: { type: Number, default: 48, min: 1 },
+      maxRounds: { type: Number, default: 5, min: 1, max: 20 },
+    },
     publishStatus: {
       type: String,
       enum: ['draft', 'published', 'archived'],

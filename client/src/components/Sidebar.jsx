@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, FileText, CreditCard, X,
   Building2, Wrench, UserCog, MessageSquare, Home, LogOut, BarChart2, Wallet, Compass,
   Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar, ShieldCheck,
-  PanelLeftClose, PanelLeftOpen, Sparkles
+  PanelLeftClose, PanelLeftOpen, Sparkles, Handshake
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -93,9 +93,11 @@ const ALL_NAV_ITEMS = [
   { label: 'Workforce', key: 'technicians', icon: UserCheck, path: '/technicians', roles: ['admin', 'manager'] },
   { label: 'Dispatch Board', key: 'workforceScheduling', icon: Calendar, path: '/workforce-scheduling', roles: ['admin', 'manager'] },
   { label: 'Leases', key: 'leases', icon: FileText, path: '/leases', roles: ['admin', 'manager'] },
+  { label: 'Negotiations', key: 'negotiations', icon: Handshake, path: '/negotiations', roles: ['admin', 'manager'] },
   { label: 'Payments', key: 'payments', icon: CreditCard, path: '/payments', roles: ['admin', 'manager', 'tenant'] },
   { label: 'Bills', key: 'bills', icon: Receipt, path: '/bills', roles: ['tenant'] },
   { label: 'My Lease', key: 'myLease', icon: FileText, path: '/my-lease', roles: ['tenant'] },
+  { label: 'My Offers', key: 'myNegotiations', icon: Handshake, path: '/my-negotiations', roles: ['tenant'] },
   { label: 'Pay Now', key: 'payNow', icon: Wallet, path: '/pay-now', roles: ['tenant'] },
   { label: 'Verification', key: 'tenantVerification', icon: ShieldCheck, path: '/tenant/verification', roles: ['tenant'] },
   { label: 'Maintenance', key: 'maintenance', icon: Wrench, path: '/maintenance', roles: ['admin', 'manager', 'tenant'] },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { propertyService, bookingService, visitService } from '../services/api';
+import { propertyService, bookingService, visitService, offerService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
 import useAuthStore from '../context/authStore';
 import {
@@ -12,7 +12,7 @@ import {
     ChevronLeft, ChevronRight, ArrowRight, Wallet, Hammer, Video, XCircle, AlertTriangle,
     Loader2, X, ShieldCheck, Check, Maximize2, Minimize2,
     Edit2, Trash2, Users, Wrench, Phone, Mail, Scale, Heart,
-    Lock, Navigation, Compass, ExternalLink, Clock, Store, Utensils
+    Lock, Navigation, Compass, ExternalLink, Clock, Store, Utensils, Handshake, Sparkles
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
@@ -252,8 +252,52 @@ export default function PropertyDetailsPage() {
     const [visitSlot, setVisitSlot] = useState('10:00 AM - 11:00 AM');
     const [visitLoading, setVisitLoading] = useState(false);
     const [visitSuccess, setVisitSuccess] = useState(false);
-    const [visitError, setVisitError] = useState('');
     const [existingVisit, setExistingVisit] = useState(null);
+
+    // Private Rent Negotiation States
+    const [showNegotiationModal, setShowNegotiationModal] = useState(false);
+    const [offerRent, setOfferRent] = useState('');
+    const [offerLeasePeriod, setOfferLeasePeriod] = useState('12 months');
+    const [offerMoveInDate, setOfferMoveInDate] = useState('');
+    const [offerMessage, setOfferMessage] = useState('');
+    const [offerLoading, setOfferLoading] = useState(false);
+    const [offerSuccess, setOfferSuccess] = useState(false);
+    const [offerError, setOfferError] = useState('');
+
+    const handleProposeOffer = async (e) => {
+        e.preventDefault();
+        if (!user) {
+            navigate('/login', { state: { from: `/properties/${id}` } });
+            return;
+        }
+        const rentNum = Number(offerRent);
+        if (!rentNum || rentNum <= 0) {
+            setOfferError('Please enter a valid monthly offer amount.');
+            return;
+        }
+        setOfferLoading(true);
+        setOfferError('');
+        try {
+            await offerService.createOffer({
+                propertyId: id,
+                offerAmount: rentNum,
+                leasePeriod: offerLeasePeriod || '12 months',
+                moveInDate: offerMoveInDate || undefined,
+                message: offerMessage
+            });
+            setOfferSuccess(true);
+            setTimeout(() => {
+                setShowNegotiationModal(false);
+                setOfferSuccess(false);
+                fetchProperty();
+            }, 1200);
+        } catch (err) {
+            const errMsg = err?.message || err?.error?.message || 'Failed to submit offer.';
+            setOfferError(errMsg);
+        } finally {
+            setOfferLoading(false);
+        }
+    };
 
     // Feedback review states
     const [feedbackRating, setFeedbackRating] = useState(5);
@@ -562,7 +606,8 @@ export default function PropertyDetailsPage() {
                 propertyId: id,
                 startDate,
                 endDate,
-                totalAmount: property.rentAmount || 0,
+                totalAmount: property.privateDeal?.agreedRent || property.rentAmount || 0,
+                offerId: property.privateDeal?._id,
                 includeMaintenance,
                 maintenanceTermsAccepted: includeMaintenance && maintenanceTermsAccepted
             });
@@ -1177,8 +1222,40 @@ export default function PropertyDetailsPage() {
                             </div>
 
                             <div className="text-right">
-                                <p className="text-4xl font-black text-foreground">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
-                                <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-widest">Per Month + ₹{property.depositAmount?.toLocaleString('en-IN')} Deposit</p>
+                                {property.privateDeal ? (
+                                    <>
+                                        <div className="flex items-center justify-end gap-2 mb-1">
+                                            <span className="line-through text-muted-foreground text-sm font-semibold">
+                                                ₹{property.rentAmount?.toLocaleString('en-IN')}
+                                            </span>
+                                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 flex items-center gap-1">
+                                                <Sparkles className="w-3 h-3" /> Special Deal
+                                            </span>
+                                        </div>
+                                        <p className="text-4xl font-black text-emerald-500">
+                                            ₹{property.privateDeal.agreedRent?.toLocaleString('en-IN')}
+                                        </p>
+                                        <p className="text-muted-foreground/50 text-[10px] font-black uppercase tracking-widest">
+                                            Private Rate • + ₹{property.depositAmount?.toLocaleString('en-IN')} Deposit
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-4xl font-black text-foreground">₹{property.rentAmount?.toLocaleString('en-IN')}</p>
+                                        <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-widest">Per Month + ₹{property.depositAmount?.toLocaleString('en-IN')} Deposit</p>
+                                        <div className="mt-1 flex justify-end">
+                                            {property.negotiation?.enabled ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                                    <Handshake className="w-3 h-3" /> Price Negotiable
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 bg-muted px-2 py-0.5 rounded-full border border-border">
+                                                    Fixed Price
+                                                </span>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -1774,15 +1851,86 @@ export default function PropertyDetailsPage() {
                                                     </div>
                                                 )
                                             ) : (
-                                                <button
-                                                    type="button"
-                                                    disabled={bookingLoading || isNotBookable}
-                                                    onClick={handleBooking}
-                                                    className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                                >
-                                                    <Wallet className="w-5 h-5 text-primary" />
-                                                    {bookingLoading ? 'Processing Booking...' : (property.bookingType === 'free' ? 'Submit Free Booking' : 'Proceed to Book')}
-                                                </button>
+                                                <div className="space-y-3">
+                                                    {property.privateDeal && (
+                                                        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-white space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 flex items-center gap-1.5">
+                                                                    <Sparkles className="w-3.5 h-3.5" /> Approved Private Deal
+                                                                </span>
+                                                                <span className="text-[10px] font-mono font-bold text-emerald-200 bg-emerald-500/30 px-2 py-0.5 rounded-full border border-emerald-500/40">
+                                                                    {property.privateDeal.dealNumber}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-baseline justify-between">
+                                                                <span className="text-xs text-white/70">Exclusive Rent:</span>
+                                                                <span className="text-2xl font-black text-emerald-300">
+                                                                    ₹{property.privateDeal.agreedRent?.toLocaleString('en-IN')}
+                                                                    <span className="text-xs font-normal text-white/60">/mo</span>
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-white/75 leading-relaxed">
+                                                                Locked for your account until {new Date(property.privateDeal.expiresAt).toLocaleDateString()}.
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={bookingLoading || isNotBookable}
+                                                        onClick={handleBooking}
+                                                        className="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 bg-white text-primary hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                    >
+                                                        <Wallet className="w-5 h-5 text-primary" />
+                                                        {bookingLoading
+                                                            ? 'Processing Booking...'
+                                                            : property.bookingType === 'free'
+                                                            ? 'Submit Free Booking'
+                                                            : property.privateDeal
+                                                            ? `Proceed to Book at ₹${property.privateDeal.agreedRent?.toLocaleString('en-IN')}`
+                                                            : 'Proceed to Book'}
+                                                    </button>
+
+                                                    {!property.privateDeal && user?.role !== 'manager' && (
+                                                        <>
+                                                            {property.negotiation?.enabled ? (
+                                                                property.negotiationEligibility?.eligible ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setOfferRent(String(Math.round((property.rentAmount || 0) * 0.95)));
+                                                                            setShowNegotiationModal(true);
+                                                                        }}
+                                                                        className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white transition-all text-xs border border-white/20 uppercase tracking-wider"
+                                                                    >
+                                                                        <Handshake className="w-4 h-4 text-emerald-400" />
+                                                                        Negotiate Rent / Make an Offer
+                                                                    </button>
+                                                                ) : property.negotiationEligibility?.reason === 'active_negotiation_exists' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => navigate('/my-negotiations')}
+                                                                        className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 transition-all text-xs border border-blue-500/40 uppercase tracking-wider"
+                                                                    >
+                                                                        <Clock className="w-4 h-4 text-blue-400" />
+                                                                        Active Deal in Progress → View Offer
+                                                                    </button>
+                                                                ) : property.negotiationEligibility?.reason === 'requires_visit' ? (
+                                                                    <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs flex items-center gap-2">
+                                                                        <Info className="w-4 h-4 text-blue-400 shrink-0" />
+                                                                        <span>Rent negotiation is unlocked after requesting a visit.</span>
+                                                                    </div>
+                                                                ) : null
+                                                            ) : (
+                                                                <div className="text-center py-1">
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                                                                        Fixed Listing Price
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             )}
                                         </>
                                     ) : (
@@ -2697,6 +2845,151 @@ export default function PropertyDetailsPage() {
                 isOpen={showLeaseLimitModal}
                 onClose={() => setShowLeaseLimitModal(false)}
             />
+
+            {/* ══ TENANT PRIVATE RENT OFFER MODAL ══ */}
+            <AnimatePresence>
+                {showNegotiationModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-card w-full max-w-lg rounded-3xl border border-border p-6 shadow-2xl space-y-5 overflow-hidden relative"
+                        >
+                            <button
+                                onClick={() => {
+                                    setShowNegotiationModal(false);
+                                    setOfferError('');
+                                }}
+                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+                                    <Handshake className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-foreground">Propose Private Rent Offer</h3>
+                                    <p className="text-xs text-muted-foreground">{property.name} • Listed at ₹{property.rentAmount?.toLocaleString('en-IN')}/mo</p>
+                                </div>
+                            </div>
+
+                            {offerSuccess ? (
+                                <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
+                                    <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                                    <p className="font-bold text-foreground">Offer Submitted Successfully!</p>
+                                    <p className="text-xs text-muted-foreground">The property manager has been notified. You can track this deal in your offers dashboard.</p>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleProposeOffer} className="space-y-4">
+                                    <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">Official Listed Rent:</span>
+                                        <span className="font-black text-foreground font-mono">₹{property.rentAmount?.toLocaleString('en-IN')}/mo</span>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                            Your Proposed Rent (₹ / Month) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="1000"
+                                            max={property.rentAmount}
+                                            value={offerRent}
+                                            onChange={(e) => setOfferRent(e.target.value)}
+                                            placeholder="e.g. 23000"
+                                            className="w-full px-4 py-3.5 rounded-2xl bg-muted/60 border border-border text-foreground font-black text-sm focus:outline-none focus:border-emerald-500 transition-all font-mono"
+                                        />
+                                        {offerRent && Number(offerRent) < property.rentAmount && (
+                                            <p className="text-[11px] text-emerald-500 font-bold pl-1">
+                                                Proposed discount: ₹{(property.rentAmount - Number(offerRent)).toLocaleString('en-IN')} ({Math.round(((property.rentAmount - Number(offerRent)) / property.rentAmount) * 100)}% off)
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                Lease Term
+                                            </label>
+                                            <select
+                                                value={offerLeasePeriod}
+                                                onChange={(e) => setOfferLeasePeriod(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
+                                            >
+                                                <option value="6 months">6 Months</option>
+                                                <option value="12 months">12 Months (Standard)</option>
+                                                <option value="24 months">24 Months (Long Term)</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                Target Move-In Date
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={offerMoveInDate}
+                                                onChange={(e) => setOfferMoveInDate(e.target.value)}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                            Note / Context for Manager
+                                        </label>
+                                        <textarea
+                                            rows={3}
+                                            value={offerMessage}
+                                            onChange={(e) => setOfferMessage(e.target.value)}
+                                            placeholder="Introduce yourself, desired move-in timeline, or any payment preference..."
+                                            className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-medium focus:outline-none focus:border-emerald-500 resize-none"
+                                        />
+                                    </div>
+
+                                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] leading-relaxed flex items-start gap-2">
+                                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                                        <span>
+                                            🔒 <strong>Private & Confidential:</strong> Your offer is visible only to the property manager. If accepted, you will have a limited window to lock and book this property at your exclusive rate.
+                                        </span>
+                                    </div>
+
+                                    {offerError && (
+                                        <div className="p-3 bg-rose-500/20 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-2">
+                                            <XCircle className="w-4 h-4 shrink-0" />
+                                            <span>{offerError}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNegotiationModal(false)}
+                                            className="w-1/3 py-3 rounded-2xl font-bold bg-muted hover:bg-muted/80 text-foreground transition-all text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={offerLoading || !offerRent}
+                                            className="w-2/3 py-3 rounded-2xl font-black bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            {offerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Handshake className="w-4 h-4" />}
+                                            Submit Private Offer
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
