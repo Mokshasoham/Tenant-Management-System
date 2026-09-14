@@ -41,7 +41,7 @@ export default function ManagerNegotiationsPage() {
       setOffers(list);
       setMetrics({
         total: m.total ?? list.length,
-        actionRequired: m.actionRequired ?? list.filter(o => o.status === 'pending' || (o.status === 'countered' && o.currentOfferedBy === 'tenant')).length,
+        actionRequired: m.actionRequired ?? list.filter(o => o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager')).length,
         accepted: m.accepted ?? list.filter(o => o.status === 'accepted').length,
         expiringSoon: m.expiringSoon ?? list.filter(o => o.status !== 'accepted' && o.status !== 'rejected' && o.status !== 'cancelled' && new Date(o.expiresAt) - new Date() < 24 * 3600 * 1000 && new Date(o.expiresAt) > new Date()).length
       });
@@ -57,8 +57,10 @@ export default function ManagerNegotiationsPage() {
   }, [fetchOffers]);
 
   const handleOpenAction = (offer, defaultAction = 'counter') => {
+    const canCounter = offer.canManagerCounter !== false && (offer.roundCount || 1) < (offer.maxRounds || 5);
+    const initialAction = (!canCounter && defaultAction === 'counter') ? 'accept' : defaultAction;
     setSelectedOffer(offer);
-    setResponseAction(defaultAction);
+    setResponseAction(initialAction);
     setCounterRent(String(offer.currentOffer || ''));
     setCounterLeasePeriod(offer.leasePeriod || '12 months');
     setCounterMoveInDate(offer.moveInDate ? new Date(offer.moveInDate).toISOString().split('T')[0] : '');
@@ -92,17 +94,31 @@ export default function ManagerNegotiationsPage() {
       setSelectedOffer(null);
       fetchOffers();
     } catch (err) {
-      const msg = err?.message || err?.error?.message || 'Failed to submit response.';
+      const msg = err?.response?.data?.message || err?.message || 'Failed to submit response.';
       setActionError(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const formatHistoryDate = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // Filtered offers
   const filteredOffers = offers.filter(o => {
     const propName = o.property?.name || '';
-    const tenantName = `${o.tenant?.firstName || ''} ${o.tenant?.lastName || ''}`;
+    const tenantObj = o.tenant || o.fromUser || {};
+    const tenantName = `${tenantObj.firstName || ''} ${tenantObj.lastName || ''}`;
     const dealNum = o.dealNumber || '';
     const matchesSearch = propName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tenantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,7 +127,7 @@ export default function ManagerNegotiationsPage() {
     if (!matchesSearch) return false;
 
     if (statusFilter === 'action_required') {
-      return o.status === 'pending' || (o.status === 'countered' && o.currentOfferedBy === 'tenant');
+      return o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager');
     }
     if (statusFilter === 'accepted') return o.status === 'accepted';
     if (statusFilter === 'countered') return o.status === 'countered';
@@ -236,13 +252,13 @@ export default function ManagerNegotiationsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredOffers.map((offer) => {
             const prop = offer.property || {};
-            const tenant = offer.tenant || {};
-            const isAwaitingManager = offer.status === 'pending' || (offer.status === 'countered' && offer.currentOfferedBy === 'tenant');
+            const tenant = offer.tenant || offer.fromUser || {};
             const listedRent = prop.rentAmount || 0;
-            const offerRent = offer.currentOffer || 0;
+            const offerRent = offer.currentOffer || offer.offeredRent || 0;
             const diff = listedRent - offerRent;
             const discountPct = listedRent ? Math.round((diff / listedRent) * 100) : 0;
             const isExpired = new Date(offer.expiresAt) < new Date() && offer.status !== 'accepted';
+            const isAwaitingManager = (offer.canManagerRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'manager')) && !isExpired;
 
             return (
               <motion.div
@@ -265,6 +281,8 @@ export default function ManagerNegotiationsPage() {
                       "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border",
                       offer.status === 'accepted'
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        : isAwaitingManager
+                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse"
                         : offer.status === 'countered'
                         ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
                         : isExpired
@@ -273,7 +291,15 @@ export default function ManagerNegotiationsPage() {
                         ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
                         : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                     )}>
-                      {offer.status === 'accepted' ? 'Accepted Deal' : isExpired ? 'Expired' : offer.status}
+                      {offer.status === 'accepted'
+                        ? 'Locked Deal'
+                        : isAwaitingManager
+                        ? 'Review Needed'
+                        : isExpired
+                        ? 'Expired'
+                        : offer.status === 'countered'
+                        ? 'Awaiting Tenant'
+                        : offer.status}
                     </span>
                   </div>
 
@@ -302,10 +328,12 @@ export default function ManagerNegotiationsPage() {
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">Proposed Offer</span>
+                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">
+                        {offer.status === 'accepted' ? 'Locked Rent' : 'Current Offer'}
+                      </span>
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="text-lg font-black text-foreground font-mono">
-                          ₹{offerRent.toLocaleString('en-IN')}
+                          ₹{(offer.status === 'accepted' ? (offer.agreedRent || offerRent) : offerRent).toLocaleString('en-IN')}
                         </span>
                         {discountPct > 0 && (
                           <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
@@ -353,11 +381,11 @@ export default function ManagerNegotiationsPage() {
 
                 {/* Card Actions */}
                 <div className="pt-2 border-t border-border/60 flex items-center gap-2">
-                  {isAwaitingManager && !isExpired ? (
+                  {isAwaitingManager ? (
                     <>
                       <button
-                        onClick={() => handleOpenAction(offer, 'counter')}
-                        className="flex-1 py-2.5 px-3 rounded-2xl bg-foreground text-background hover:opacity-90 active:scale-95 transition-all text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5"
+                        onClick={() => handleOpenAction(offer, (offer.canManagerCounter !== false && (offer.roundCount || 1) < (offer.maxRounds || 5)) ? 'counter' : 'accept')}
+                        className="flex-1 py-2.5 px-3 rounded-2xl bg-foreground text-background hover:opacity-90 active:scale-95 transition-all text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow"
                       >
                         <Handshake className="w-3.5 h-3.5" />
                         Respond
@@ -371,6 +399,7 @@ export default function ManagerNegotiationsPage() {
                       <button
                         onClick={() => handleOpenAction(offer, 'reject')}
                         className="py-2.5 px-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 active:scale-95 transition-all text-xs font-black"
+                        title="Reject Offer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -417,7 +446,12 @@ export default function ManagerNegotiationsPage() {
                     Deal #{selectedOffer.dealNumber} — {selectedOffer.property?.name}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Tenant: {selectedOffer.tenant?.firstName} {selectedOffer.tenant?.lastName} • Round {selectedOffer.roundCount || 1} of {selectedOffer.maxRounds || 5}
+                    Tenant: {selectedOffer.tenant?.firstName || selectedOffer.fromUser?.firstName} {selectedOffer.tenant?.lastName || selectedOffer.fromUser?.lastName} • Round {selectedOffer.roundCount || 1} of {selectedOffer.maxRounds || 5}
+                    {selectedOffer.roundsRemaining !== undefined && (
+                      <span className="ml-1 text-emerald-400 font-semibold">
+                        ({selectedOffer.roundsRemaining} {selectedOffer.roundsRemaining === 1 ? 'round' : 'rounds'} left)
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -426,41 +460,61 @@ export default function ManagerNegotiationsPage() {
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Negotiation History</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto p-3 rounded-2xl bg-muted/40 border border-border/70 divide-y divide-border/40">
-                  {(selectedOffer.offerHistory || []).map((round, idx) => (
-                    <div key={idx} className="pt-2 first:pt-0 space-y-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold capitalize text-foreground flex items-center gap-1.5">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            round.offeredBy === 'tenant' ? "bg-emerald-400" : "bg-blue-400"
-                          )} />
-                          {round.offeredBy === 'tenant' ? `${selectedOffer.tenant?.firstName} (Tenant)` : 'You (Manager)'}
-                        </span>
-                        <span className="font-mono font-bold text-foreground">₹{round.amount?.toLocaleString('en-IN')}/mo</span>
+                  {(selectedOffer.offerHistory || []).map((round, idx) => {
+                    const senderRole = round.offeredBy || round.senderRole;
+                    const isTenant = senderRole === 'tenant';
+                    const rentAmount = round.amount ?? round.proposedAmount;
+                    const noteText = round.note || round.message;
+                    const tenantObj = selectedOffer.tenant || selectedOffer.fromUser;
+                    const tenantName = tenantObj ? `${tenantObj.firstName || ''} ${tenantObj.lastName || ''}`.trim() : 'Tenant';
+                    const dateStr = formatHistoryDate(round.offeredAt || round.timestamp);
+
+                    return (
+                      <div key={idx} className="pt-2 first:pt-0 space-y-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold capitalize text-foreground flex items-center gap-1.5">
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              isTenant ? "bg-emerald-400" : "bg-blue-400"
+                            )} />
+                            {isTenant ? `${tenantName} (Tenant)` : 'You (Manager)'}
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              (Round {round.roundNumber || idx + 1})
+                            </span>
+                          </span>
+                          <span className="font-mono font-bold text-foreground">
+                            ₹{rentAmount ? rentAmount.toLocaleString('en-IN') : '—'}/mo
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span className="line-clamp-1 italic">{noteText || 'No message provided'}</span>
+                          <span className="font-mono text-[10px] shrink-0 ml-2">{dateStr}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>{round.note || 'No message provided'}</span>
-                        <span>{new Date(round.offeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Action Tabs if can respond */}
-              {selectedOffer.status !== 'accepted' && selectedOffer.status !== 'rejected' && selectedOffer.status !== 'cancelled' && (
+              {/* Action Tabs if manager's turn */}
+              {(selectedOffer.canManagerRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'manager')) && !isExpired ? (
                 <div className="space-y-4 pt-2 border-t border-border">
-                  <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-muted/60 border border-border">
-                    <button
-                      type="button"
-                      onClick={() => setResponseAction('counter')}
-                      className={cn(
-                        "py-2 rounded-xl text-xs font-black transition-all",
-                        responseAction === 'counter' ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      Counter Offer
-                    </button>
+                  <div className={cn(
+                    "grid gap-2 p-1 rounded-2xl bg-muted/60 border border-border",
+                    (selectedOffer.canManagerCounter !== false && (selectedOffer.roundCount || 1) < (selectedOffer.maxRounds || 5)) ? "grid-cols-3" : "grid-cols-2"
+                  )}>
+                    {(selectedOffer.canManagerCounter !== false && (selectedOffer.roundCount || 1) < (selectedOffer.maxRounds || 5)) && (
+                      <button
+                        type="button"
+                        onClick={() => setResponseAction('counter')}
+                        className={cn(
+                          "py-2 rounded-xl text-xs font-black transition-all",
+                          responseAction === 'counter' ? "bg-foreground text-background shadow" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Counter Offer
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setResponseAction('accept')}
@@ -528,6 +582,13 @@ export default function ManagerNegotiationsPage() {
                               className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
                             />
                           </div>
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border flex items-center justify-between">
+                          <span>Upcoming Round:</span>
+                          <span className="font-bold text-foreground">
+                            Round {(selectedOffer.roundCount || 1) + 1} of {selectedOffer.maxRounds || 5}
+                          </span>
                         </div>
                       </>
                     )}
@@ -605,6 +666,24 @@ export default function ManagerNegotiationsPage() {
                       </button>
                     </div>
                   </form>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-border">
+                  {selectedOffer.status === 'accepted' ? (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs text-center space-y-1">
+                      <p className="font-bold text-sm">🎉 Deal Accepted & Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/mo</p>
+                      <p className="text-[11px] text-muted-foreground">Waiting for tenant to finalize their booking at this private rate.</p>
+                    </div>
+                  ) : ['pending', 'countered'].includes(selectedOffer.status) ? (
+                    <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs text-center space-y-1">
+                      <p className="font-bold">Awaiting Tenant Response</p>
+                      <p className="text-[11px] text-muted-foreground">You have countered. We will notify you as soon as the tenant counters or accepts.</p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-center text-xs text-muted-foreground">
+                      This negotiation is {selectedOffer.status}.
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>

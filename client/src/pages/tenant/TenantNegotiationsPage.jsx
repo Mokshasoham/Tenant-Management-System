@@ -15,8 +15,10 @@ export default function TenantNegotiationsPage() {
   const [loading, setLoading] = useState(true);
   const [offers, setOffers] = useState([]);
   const [selectedOffer, setSelectedOffer] = useState(null);
-  const [responseAction, setResponseAction] = useState('accept'); // 'accept' | 'counter' | 'cancel'
+  const [responseAction, setResponseAction] = useState('accept'); // 'accept' | 'counter' | 'cancel' | 'history'
   const [counterRent, setCounterRent] = useState('');
+  const [counterLeasePeriod, setCounterLeasePeriod] = useState('12 months');
+  const [counterMoveInDate, setCounterMoveInDate] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -42,6 +44,8 @@ export default function TenantNegotiationsPage() {
     setSelectedOffer(offer);
     setResponseAction(defaultAction);
     setCounterRent(String(offer.currentOffer || ''));
+    setCounterLeasePeriod(offer.leasePeriod || '12 months');
+    setCounterMoveInDate(offer.moveInDate ? new Date(offer.moveInDate).toISOString().split('T')[0] : '');
     setCounterMessage('');
     setActionError('');
   };
@@ -63,18 +67,39 @@ export default function TenantNegotiationsPage() {
           setSubmitting(false);
           return;
         }
+        const listedRent = selectedOffer.property?.rentAmount || 0;
+        if (listedRent > 0 && rentNum > listedRent) {
+          setActionError(`Counter offer cannot exceed the listed rent of ₹${listedRent.toLocaleString('en-IN')}.`);
+          setSubmitting(false);
+          return;
+        }
         payload.counterOffer = rentNum;
+        payload.leasePeriod = counterLeasePeriod;
+        payload.moveInDate = counterMoveInDate || undefined;
       }
 
       await offerService.respondToOffer(selectedOffer._id, responseAction, payload);
       setSelectedOffer(null);
       fetchOffers();
     } catch (err) {
-      const msg = err?.message || err?.error?.message || 'Failed to submit response.';
+      const msg = err?.response?.data?.message || err?.message || 'Failed to submit response.';
       setActionError(msg);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const formatHistoryDate = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -131,12 +156,12 @@ export default function TenantNegotiationsPage() {
           {offers.map((offer) => {
             const prop = offer.property || {};
             const listedRent = prop.rentAmount || 0;
-            const offerRent = offer.currentOffer || 0;
+            const offerRent = offer.currentOffer || offer.offeredRent || 0;
             const diff = listedRent - offerRent;
             const discountPct = listedRent ? Math.round((diff / listedRent) * 100) : 0;
-            const isCounterWaitingForTenant = offer.status === 'countered' && offer.currentOfferedBy === 'manager';
             const isAccepted = offer.status === 'accepted';
             const isExpired = new Date(offer.expiresAt) < new Date() && !isAccepted;
+            const canRespond = (offer.canTenantRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'tenant')) && !isExpired;
 
             return (
               <motion.div
@@ -148,7 +173,7 @@ export default function TenantNegotiationsPage() {
                   "rounded-3xl bg-card border transition-all p-5 flex flex-col justify-between space-y-5",
                   isAccepted
                     ? "border-emerald-500/40 shadow-xl shadow-emerald-500/5 ring-1 ring-emerald-500/20"
-                    : isCounterWaitingForTenant
+                    : canRespond
                     ? "border-blue-500/40 shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/20"
                     : "border-border"
                 )}
@@ -163,7 +188,7 @@ export default function TenantNegotiationsPage() {
                       "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border",
                       isAccepted
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                        : isCounterWaitingForTenant
+                        : canRespond
                         ? "bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse"
                         : isExpired
                         ? "bg-gray-500/10 text-gray-400 border-gray-500/30"
@@ -173,12 +198,14 @@ export default function TenantNegotiationsPage() {
                     )}>
                       {isAccepted
                         ? '🎉 Deal Locked!'
-                        : isCounterWaitingForTenant
-                        ? 'Manager Countered'
+                        : canRespond
+                        ? 'Your Turn to Respond'
                         : isExpired
                         ? 'Expired'
                         : offer.status === 'pending'
                         ? 'Awaiting Review'
+                        : offer.status === 'countered'
+                        ? 'Awaiting Manager'
                         : offer.status}
                     </span>
                   </div>
@@ -252,8 +279,11 @@ export default function TenantNegotiationsPage() {
                           ? 'Deal expired'
                           : `Valid until ${new Date(offer.expiresAt).toLocaleDateString()}`}
                       </span>
-                      <span className="text-muted-foreground/80">
-                        {isCounterWaitingForTenant ? 'Action: Your response needed' : ''}
+                      <span className={cn(
+                        "font-semibold",
+                        canRespond ? "text-blue-400" : "text-muted-foreground/80"
+                      )}>
+                        {canRespond ? 'Action needed from you' : ''}
                       </span>
                     </div>
 
@@ -275,29 +305,38 @@ export default function TenantNegotiationsPage() {
                       <Sparkles className="w-4 h-4" />
                       Book at ₹{(offer.agreedRent || offerRent).toLocaleString('en-IN')} Rate
                     </button>
-                  ) : isCounterWaitingForTenant && !isExpired ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenAction(offer, 'accept')}
-                        className="flex-1 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Accept Counter
-                      </button>
-                      {(offer.roundCount || 1) < (offer.maxRounds || 5) && (
+                  ) : canRespond ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleOpenAction(offer, 'counter')}
-                          className="px-3 py-2.5 rounded-2xl bg-muted hover:bg-muted/80 text-foreground font-bold text-xs active:scale-95 transition-all"
+                          onClick={() => handleOpenAction(offer, 'accept')}
+                          className="flex-1 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
                         >
-                          Counter
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Accept ₹{(offer.currentOffer || 0).toLocaleString('en-IN')}
                         </button>
-                      )}
+                        {offer.canTenantCounter !== false && (offer.roundCount || 1) < (offer.maxRounds || 5) && (
+                          <button
+                            onClick={() => handleOpenAction(offer, 'counter')}
+                            className="px-3.5 py-2.5 rounded-2xl bg-foreground text-background hover:opacity-90 font-black text-xs active:scale-95 transition-all shadow"
+                          >
+                            Counter
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOpenAction(offer, 'cancel')}
+                          className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs active:scale-95 transition-all border border-rose-500/20"
+                          title="Decline / Cancel Deal"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <button
-                        onClick={() => handleOpenAction(offer, 'cancel')}
-                        className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs active:scale-95 transition-all border border-rose-500/20"
-                        title="Decline / Cancel Deal"
+                        onClick={() => handleOpenAction(offer, 'history')}
+                        className="w-full py-2 rounded-xl text-muted-foreground hover:text-foreground text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <Clock className="w-3 h-3" />
+                        <span>View Deal Timeline & Notes</span>
                       </button>
                     </div>
                   ) : (
@@ -343,6 +382,11 @@ export default function TenantNegotiationsPage() {
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {selectedOffer.property?.name} • Round {selectedOffer.roundCount || 1} of {selectedOffer.maxRounds || 5}
+                    {selectedOffer.roundsRemaining !== undefined && (
+                      <span className="ml-1 text-emerald-400 font-semibold">
+                        ({selectedOffer.roundsRemaining} {selectedOffer.roundsRemaining === 1 ? 'round' : 'rounds'} left)
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -351,29 +395,42 @@ export default function TenantNegotiationsPage() {
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Deal Rounds</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto p-3 rounded-2xl bg-muted/40 border border-border/70 divide-y divide-border/40">
-                  {(selectedOffer.offerHistory || []).map((round, idx) => (
-                    <div key={idx} className="pt-2 first:pt-0 space-y-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold capitalize text-foreground flex items-center gap-1.5">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            round.offeredBy === 'tenant' ? "bg-emerald-400" : "bg-blue-400"
-                          )} />
-                          {round.offeredBy === 'tenant' ? 'You' : 'Property Manager'}
-                        </span>
-                        <span className="font-mono font-bold text-foreground">₹{round.amount?.toLocaleString('en-IN')}/mo</span>
+                  {(selectedOffer.offerHistory || []).map((round, idx) => {
+                    const senderRole = round.offeredBy || round.senderRole;
+                    const isTenant = senderRole === 'tenant';
+                    const rentAmount = round.amount ?? round.proposedAmount;
+                    const noteText = round.note || round.message;
+                    const dateStr = formatHistoryDate(round.offeredAt || round.timestamp);
+
+                    return (
+                      <div key={idx} className="pt-2 first:pt-0 space-y-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold capitalize text-foreground flex items-center gap-1.5">
+                            <span className={cn(
+                              "w-2 h-2 rounded-full",
+                              isTenant ? "bg-emerald-400" : "bg-blue-400"
+                            )} />
+                            {isTenant ? 'You (Tenant)' : 'Property Manager'}
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              (Round {round.roundNumber || idx + 1})
+                            </span>
+                          </span>
+                          <span className="font-mono font-bold text-foreground">
+                            ₹{rentAmount ? rentAmount.toLocaleString('en-IN') : '—'}/mo
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span className="line-clamp-1 italic">{noteText || 'No note attached'}</span>
+                          <span className="font-mono text-[10px] shrink-0 ml-2">{dateStr}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>{round.note || 'No note attached'}</span>
-                        <span>{new Date(round.offeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Action Form if responding */}
-              {selectedOffer.status === 'countered' && selectedOffer.currentOfferedBy === 'manager' && (
+              {(selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant')) && (
                 <form onSubmit={handleExecuteResponse} className="space-y-4 pt-2 border-t border-border">
                   <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-muted/60 border border-border">
                     <button
@@ -386,13 +443,13 @@ export default function TenantNegotiationsPage() {
                     >
                       Accept (₹{selectedOffer.currentOffer?.toLocaleString('en-IN')})
                     </button>
-                    {(selectedOffer.roundCount || 1) < (selectedOffer.maxRounds || 5) && (
+                    {selectedOffer.canTenantCounter !== false && (selectedOffer.roundCount || 1) < (selectedOffer.maxRounds || 5) && (
                       <button
                         type="button"
                         onClick={() => setResponseAction('counter')}
                         className={cn(
                           "py-2 rounded-xl text-xs font-black transition-all",
-                          responseAction === 'counter' ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"
+                          responseAction === 'counter' ? "bg-foreground text-background shadow" : "text-muted-foreground hover:text-foreground"
                         )}
                       >
                         Counter Again
@@ -411,26 +468,74 @@ export default function TenantNegotiationsPage() {
                   </div>
 
                   {responseAction === 'counter' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Your Proposed Rent (₹ / Month) *
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={counterRent}
-                        onChange={(e) => setCounterRent(e.target.value)}
-                        placeholder="e.g. 23500"
-                        className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground font-black text-sm focus:outline-none focus:border-emerald-500 font-mono"
-                      />
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          Your Proposed Rent (₹ / Month) *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={counterRent}
+                          onChange={(e) => setCounterRent(e.target.value)}
+                          placeholder="e.g. 23500"
+                          className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground font-black text-sm focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Lease Period
+                          </label>
+                          <select
+                            value={counterLeasePeriod}
+                            onChange={(e) => setCounterLeasePeriod(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
+                          >
+                            <option value="6 months">6 Months</option>
+                            <option value="12 months">12 Months</option>
+                            <option value="24 months">24 Months</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Move-In Date
+                          </label>
+                          <input
+                            type="date"
+                            value={counterMoveInDate}
+                            onChange={(e) => setCounterMoveInDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border flex items-center justify-between">
+                        <span>Upcoming Round:</span>
+                        <span className="font-bold text-foreground">
+                          Round {(selectedOffer.roundCount || 1) + 1} of {selectedOffer.maxRounds || 5}
+                        </span>
+                      </div>
                     </div>
                   )}
 
                   {responseAction === 'accept' && (
                     <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs space-y-1">
-                      <p className="font-bold">Accept Manager's Counter Offer</p>
+                      <p className="font-bold">Accept Counter Offer</p>
                       <p className="text-[11px] text-muted-foreground">
                         This will lock in the deal at ₹{selectedOffer.currentOffer?.toLocaleString('en-IN')}/month and enable immediate booking.
+                      </p>
+                    </div>
+                  )}
+
+                  {responseAction === 'cancel' && (
+                    <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs space-y-1">
+                      <p className="font-bold">Decline Negotiation</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        This will withdraw and cancel this private rent negotiation.
                       </p>
                     </div>
                   )}
@@ -484,6 +589,37 @@ export default function TenantNegotiationsPage() {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {/* Status footer if not currently tenant's turn */}
+              {!(selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant')) && (
+                <div className="pt-2 border-t border-border">
+                  {selectedOffer.status === 'accepted' ? (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 space-y-2 text-xs text-center">
+                      <p className="font-bold text-sm">🎉 Deal Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/month</p>
+                      <p className="text-muted-foreground text-[11px]">
+                        You can now complete the booking with your negotiated private rate.
+                      </p>
+                      <button
+                        onClick={() => navigate(`/properties/${selectedOffer.property?._id || selectedOffer.property?.id}`)}
+                        className="mt-2 w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
+                      >
+                        Proceed to Booking
+                      </button>
+                    </div>
+                  ) : ['pending', 'countered'].includes(selectedOffer.status) ? (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs space-y-1 text-center">
+                      <p className="font-bold">Awaiting Property Manager Response</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Your proposal is with the landlord/manager. You will be notified as soon as they counter or accept.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-center text-xs text-muted-foreground">
+                      This negotiation is {selectedOffer.status}.
+                    </div>
+                  )}
+                </div>
               )}
             </motion.div>
           </div>

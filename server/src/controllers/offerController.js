@@ -10,7 +10,8 @@ import { generateSequenceNumber } from '../platform/sequence/sequenceService.js'
 import { NotificationService } from '../services/NotificationService.js';
 
 // Centralized notification dispatcher helper for negotiation events
-const sendNegotiationNotification = async ({ recipient, sender, title, message, propertyId, offerId, action = 'view' }) => {
+const sendNegotiationNotification = async ({ recipient, sender, title, message, propertyId, offerId, action = 'view', isRecipientTenant = false }) => {
+    const targetUrl = isRecipientTenant ? '/my-negotiations' : '/negotiations';
     try {
         await NotificationService.notify({
             recipient,
@@ -21,8 +22,8 @@ const sendNegotiationNotification = async ({ recipient, sender, title, message, 
             sourceModule: 'booking',
             entityType: 'Offer',
             entityId: offerId,
-            actionUrl: `/negotiations`,
-            link: `/negotiations`,
+            actionUrl: targetUrl,
+            link: targetUrl,
             priority: 'high',
             severity: 'information',
             metadata: {
@@ -40,12 +41,100 @@ const sendNegotiationNotification = async ({ recipient, sender, title, message, 
                 title,
                 message,
                 type: 'booking',
-                link: `/negotiations`
+                link: targetUrl
             });
         } catch (e) {
             logger.error('[Negotiation Notification] Failed completely: ' + e.message);
         }
     }
+};
+
+/**
+ * Normalizes offer state at read-time without mutating the database document.
+ * Computes explicit turn indicator, roles, round availability, and safely maps history.
+ */
+export const enrichOfferWithState = (offerDoc, reqUserId) => {
+    if (!offerDoc) return offerDoc;
+    const offer = offerDoc.toObject ? offerDoc.toObject() : { ...offerDoc };
+
+    const fromUserId = offer.fromUser?._id ? String(offer.fromUser._id) : String(offer.fromUser || '');
+    const toUserId = offer.toUser?._id ? String(offer.toUser._id) : String(offer.toUser || '');
+    const currentOfferedById = offer.currentOfferedBy?._id ? String(offer.currentOfferedBy._id) : String(offer.currentOfferedBy || '');
+
+    // Determine role of the party who made the current/latest offer
+    let currentOfferedByRole = 'tenant';
+    if (currentOfferedById && toUserId && currentOfferedById === toUserId) {
+        currentOfferedByRole = 'manager';
+    } else if (currentOfferedById && fromUserId && currentOfferedById === fromUserId) {
+        currentOfferedByRole = 'tenant';
+    } else if (offer.offerHistory && offer.offerHistory.length > 0) {
+        const lastHist = offer.offerHistory[offer.offerHistory.length - 1];
+        currentOfferedByRole = lastHist.senderRole || lastHist.offeredBy || 'tenant';
+    }
+
+    // Determine whose turn it is to act
+    let currentTurn = 'none';
+    if (['pending', 'countered'].includes(offer.status)) {
+        if (offer.status === 'pending') {
+            currentTurn = 'manager';
+        } else if (offer.status === 'countered') {
+            currentTurn = currentOfferedByRole === 'manager' ? 'tenant' : 'manager';
+        }
+    }
+
+    const currentRounds = Number(offer.roundCount) || 1;
+    const maxRounds = Number(offer.maxRounds) || 5;
+    const roundsRemaining = Math.max(0, maxRounds - currentRounds);
+    const isExpired = new Date() > new Date(offer.expiresAt);
+
+    const canTenantRespond = !isExpired && ['pending', 'countered'].includes(offer.status) && currentTurn === 'tenant';
+    const canTenantCounter = canTenantRespond && currentRounds < maxRounds;
+    const canTenantAccept = canTenantRespond;
+
+    const canManagerRespond = !isExpired && ['pending', 'countered'].includes(offer.status) && currentTurn === 'manager';
+    const canManagerCounter = canManagerRespond && currentRounds < maxRounds;
+    const canManagerAccept = canManagerRespond;
+
+    // Normalizing history items safely for read-time presentation
+    const normalizedHistory = (offer.offerHistory || []).map((h, idx) => {
+        const hObj = h.toObject ? h.toObject() : { ...h };
+        const amount = Number(hObj.proposedAmount ?? hObj.amount ?? offer.currentOffer ?? offer.offeredRent ?? 0);
+        const timestamp = hObj.timestamp || hObj.offeredAt || hObj.createdAt || offer.createdAt || new Date();
+        const role = hObj.senderRole || hObj.offeredBy || (idx === 0 ? 'tenant' : (idx % 2 === 1 ? 'manager' : 'tenant'));
+        const message = hObj.message || hObj.note || '';
+        const roundNum = Number(hObj.roundNumber) || (idx + 1);
+
+        return {
+            ...hObj,
+            roundNumber: roundNum,
+            proposedAmount: amount,
+            amount: amount,
+            senderRole: role,
+            offeredBy: role,
+            message: message,
+            note: message,
+            timestamp: timestamp,
+            offeredAt: timestamp,
+            leasePeriod: hObj.leasePeriod || offer.leasePeriod || '12 months',
+            action: hObj.action || (idx === 0 ? 'offer' : 'counter')
+        };
+    });
+
+    return {
+        ...offer,
+        currentOfferedByRole,
+        currentTurn,
+        roundsRemaining,
+        canTenantRespond,
+        canTenantCounter,
+        canTenantAccept,
+        canManagerRespond,
+        canManagerCounter,
+        canManagerAccept,
+        tenant: offer.fromUser, // alias for convenience
+        manager: offer.toUser,  // alias for convenience
+        offerHistory: normalizedHistory
+    };
 };
 
 /**
@@ -145,10 +234,12 @@ export const createOffer = asyncHandler(async (req, res) => {
         expiresAt,
         offerHistory: [
             {
+                roundNumber: 1,
                 sender: userId,
                 senderRole: 'tenant',
                 receiver: managerId,
                 proposedAmount: numericOfferedRent,
+                leasePeriod: effectiveLeasePeriod,
                 message: message || `Submitted rent offer of ₹${numericOfferedRent.toLocaleString('en-IN')}/mo`,
                 timestamp: new Date(),
                 action: 'offer'
@@ -164,7 +255,8 @@ export const createOffer = asyncHandler(async (req, res) => {
         message: `A tenant has offered ₹${numericOfferedRent.toLocaleString('en-IN')}/month for ${property.name} (Listed: ₹${property.rentAmount.toLocaleString('en-IN')}).`,
         propertyId,
         offerId: offer._id,
-        action: 'new_offer'
+        action: 'new_offer',
+        isRecipientTenant: false
     });
 
     logger.info(`Rent negotiation offer created: ${dealNumber} for property ${property.name} by user ${userId}`);
@@ -172,7 +264,7 @@ export const createOffer = asyncHandler(async (req, res) => {
     res.status(201).json({
         success: true,
         message: 'Rent negotiation offer submitted successfully',
-        data: offer
+        data: enrichOfferWithState(offer, userId)
     });
 });
 
@@ -182,7 +274,7 @@ export const createOffer = asyncHandler(async (req, res) => {
 export const respondToOffer = asyncHandler(async (req, res) => {
     const action = req.body.action || ((req.body.counterRent || req.body.counterOffer) ? 'counter' : undefined);
     const counterRent = req.body.counterRent || req.body.counterOffer;
-    const { message, counterMessage } = req.body;
+    const { message, counterMessage, leasePeriod, moveInDate } = req.body;
     const userId = req.user.userId || req.user._id || req.user.id;
     const userRole = req.user.role || 'tenant';
 
@@ -215,20 +307,25 @@ export const respondToOffer = asyncHandler(async (req, res) => {
         throw new AppError('This negotiation offer has expired.', 400);
     }
 
+    // Consecutive offer guard: a party cannot counter or accept their own offer
+    if (['accept', 'counter'].includes(action)) {
+        if (String(offer.currentOfferedBy) === String(userId)) {
+            throw new AppError('You cannot counter or accept your own offer. Please wait for the other party to respond.', 400);
+        }
+    }
+
     const validityHours = property?.negotiation?.offerValidityHours || 48;
     const responseMsg = message || counterMessage || '';
 
     if (action === 'accept') {
-        // Prevent party from accepting their own offer
-        if (String(offer.currentOfferedBy) === String(userId)) {
-            throw new AppError('You cannot accept your own proposed offer. Awaiting counterparty acceptance.', 400);
-        }
-
         offer.status = 'accepted';
         offer.agreedRent = offer.currentOffer || offer.offeredRent;
         offer.acceptedAt = new Date();
         // Reset validity window for private deal booking
         offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
+
+        if (leasePeriod) offer.leasePeriod = leasePeriod;
+        if (moveInDate) offer.moveInDate = new Date(moveInDate);
 
         offer.offerHistory.push({
             sender: userId,
@@ -236,6 +333,9 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: offer.agreedRent,
             message: responseMsg || `Offer accepted at ₹${offer.agreedRent.toLocaleString('en-IN')}/mo. Private deal locked!`,
+            roundNumber: offer.roundCount || 1,
+            leasePeriod: offer.leasePeriod,
+            moveInDate: offer.moveInDate,
             timestamp: new Date(),
             action: 'accept'
         });
@@ -250,7 +350,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             message: `Your rent offer of ₹${offer.agreedRent.toLocaleString('en-IN')}/month for ${property.name} has been accepted! Lock your private deal before it expires.`,
             propertyId: property._id,
             offerId: offer._id,
-            action: 'deal_accepted'
+            action: 'deal_accepted',
+            isRecipientTenant: isManager
         });
 
         logger.info(`Deal accepted: ${offer.dealNumber} for ₹${offer.agreedRent} by user ${userId}`);
@@ -284,6 +385,9 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             throw new AppError(`Counter offer cannot exceed the listed public rent of ₹${property.rentAmount.toLocaleString('en-IN')}.`, 400);
         }
 
+        if (leasePeriod) offer.leasePeriod = leasePeriod;
+        if (moveInDate) offer.moveInDate = new Date(moveInDate);
+
         offer.status = 'countered';
         offer.currentOffer = numericCounterRent;
         offer.currentOfferedBy = userId;
@@ -301,6 +405,9 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: numericCounterRent,
             message: responseMsg || `Counter-offered ₹${numericCounterRent.toLocaleString('en-IN')}/mo`,
+            roundNumber: currentRounds + 1,
+            leasePeriod: offer.leasePeriod,
+            moveInDate: offer.moveInDate,
             timestamp: new Date(),
             action: 'counter'
         });
@@ -315,7 +422,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             message: `${isManager ? 'Manager' : 'Tenant'} countered with ₹${numericCounterRent.toLocaleString('en-IN')}/month for ${property.name}.`,
             propertyId: property._id,
             offerId: offer._id,
-            action: 'counter_offer'
+            action: 'counter_offer',
+            isRecipientTenant: isManager
         });
 
     } else if (action === 'reject') {
@@ -326,6 +434,7 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: offer.currentOffer || offer.offeredRent,
             message: responseMsg || 'Offer rejected.',
+            roundNumber: offer.roundCount || 1,
             timestamp: new Date(),
             action: 'reject'
         });
@@ -340,7 +449,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             message: `The rent negotiation for ${property.name} was declined.`,
             propertyId: property._id,
             offerId: offer._id,
-            action: 'rejected'
+            action: 'rejected',
+            isRecipientTenant: isManager
         });
 
     } else if (action === 'cancel') {
@@ -351,6 +461,7 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: offer.currentOffer || offer.offeredRent,
             message: responseMsg || 'Negotiation cancelled.',
+            roundNumber: offer.roundCount || 1,
             timestamp: new Date(),
             action: 'cancel'
         });
@@ -364,7 +475,7 @@ export const respondToOffer = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: `Negotiation offer successfully updated (${action})`,
-        data: offer
+        data: enrichOfferWithState(offer, userId)
     });
 });
 
@@ -389,9 +500,11 @@ export const getMyOffers = asyncHandler(async (req, res) => {
         .populate('toUser', 'firstName lastName email phone avatar')
         .sort({ updatedAt: -1 });
 
+    const enrichedOffers = offers.map(o => enrichOfferWithState(o, userId));
+
     res.status(200).json({
         success: true,
-        data: offers
+        data: enrichedOffers
     });
 });
 
@@ -423,22 +536,24 @@ export const getManagerOffers = asyncHandler(async (req, res) => {
         .populate('fromUser', 'firstName lastName email phone avatar')
         .sort({ updatedAt: -1 });
 
+    const enrichedOffers = offers.map(o => enrichOfferWithState(o, userId));
+
     const now = new Date();
     const next24h = new Date(Date.now() + 24 * 3600 * 1000);
 
     // Calculate manager summary metrics
     const metrics = {
-        newOffers: offers.filter(o => o.status === 'pending' && String(o.currentOfferedBy) !== String(userId)).length,
-        awaitingYou: offers.filter(o => ['pending', 'countered'].includes(o.status) && String(o.currentOfferedBy) !== String(userId)).length,
-        accepted: offers.filter(o => o.status === 'accepted').length,
-        expiringSoon: offers.filter(o => ['pending', 'countered', 'accepted'].includes(o.status) && new Date(o.expiresAt) <= next24h && new Date(o.expiresAt) > now).length,
-        total: offers.length
+        newOffers: enrichedOffers.filter(o => o.status === 'pending' && o.currentTurn === 'manager').length,
+        awaitingYou: enrichedOffers.filter(o => ['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager').length,
+        accepted: enrichedOffers.filter(o => o.status === 'accepted').length,
+        expiringSoon: enrichedOffers.filter(o => ['pending', 'countered', 'accepted'].includes(o.status) && new Date(o.expiresAt) <= next24h && new Date(o.expiresAt) > now).length,
+        total: enrichedOffers.length
     };
 
     res.status(200).json({
         success: true,
         metrics,
-        data: offers
+        data: enrichedOffers
     });
 });
 
@@ -468,19 +583,21 @@ export const getOfferById = asyncHandler(async (req, res) => {
         throw new AppError('Forbidden: You are not authorized to view this negotiation', 403);
     }
 
+    const enriched = enrichOfferWithState(offer, userId);
+
     // If requester is tenant, hide property manager internal thresholds
-    if (isTenant && !isManager && offer.property?.negotiation) {
-        offer.property.negotiation = {
-            enabled: offer.property.negotiation.enabled,
-            availability: offer.property.negotiation.availability,
-            offerValidityHours: offer.property.negotiation.offerValidityHours,
-            maxRounds: offer.property.negotiation.maxRounds
+    if (isTenant && !isManager && enriched.property?.negotiation) {
+        enriched.property.negotiation = {
+            enabled: enriched.property.negotiation.enabled,
+            availability: enriched.property.negotiation.availability,
+            offerValidityHours: enriched.property.negotiation.offerValidityHours,
+            maxRounds: enriched.property.negotiation.maxRounds
         };
     }
 
     res.status(200).json({
         success: true,
-        data: offer
+        data: enriched
     });
 });
 
@@ -502,5 +619,7 @@ export const getPropertyOffers = asyncHandler(async (req, res) => {
         .populate('fromUser', 'firstName lastName email avatar')
         .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, data: offers });
+    const enrichedOffers = offers.map(o => enrichOfferWithState(o, userId));
+
+    res.status(200).json({ success: true, data: enrichedOffers });
 });

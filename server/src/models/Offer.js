@@ -107,6 +107,15 @@ const offerSchema = new mongoose.Schema(
                     type: Date,
                     default: Date.now,
                 },
+                roundNumber: {
+                    type: Number,
+                },
+                leasePeriod: {
+                    type: String,
+                },
+                moveInDate: {
+                    type: Date,
+                },
                 action: {
                     type: String,
                     enum: ['offer', 'counter', 'accept', 'reject', 'cancel'],
