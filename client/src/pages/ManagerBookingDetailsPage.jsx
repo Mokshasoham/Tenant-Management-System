@@ -23,6 +23,11 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
     const [loading, setLoading] = useState(!initialBooking);
     const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
+    // Decision Action State
+    const [actionLoading, setActionLoading] = useState(false); // false | 'approved' | 'rejected'
+    const [actionError, setActionError] = useState('');
+    const [actionSuccess, setActionSuccess] = useState('');
+
     // Manager Counter-Sign Modal State
     const [showCounterSignModal, setShowCounterSignModal] = useState(false);
     const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -38,8 +43,10 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
     const [isDrawing, setIsDrawing] = useState(false);
 
     const fetchBooking = async () => {
+        const bookingId = id || booking?._id || initialBooking?._id;
+        if (!bookingId) return;
         try {
-            const res = await bookingService.getBookingById(id);
+            const res = await bookingService.getBookingById(bookingId);
             setBooking(res.data?.data || res.data || res);
         } catch (e) {
             console.error('[ManagerBookingDetailsPage] Error fetching booking:', e);
@@ -53,6 +60,34 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
             fetchBooking();
         }
     }, [id, initialBooking]);
+
+    const handleUpdateStatus = async (status) => {
+        const targetBookingId = booking?._id || id;
+        if (!targetBookingId) return;
+
+        let reason = '';
+        if (status === 'rejected') {
+            const inputReason = window.prompt('Please enter a reason for rejecting this booking (optional):', 'Property already booked');
+            if (inputReason === null) return; // Cancelled
+            reason = inputReason.trim() || 'Property already booked';
+        }
+
+        setActionLoading(status);
+        setActionError('');
+        setActionSuccess('');
+        try {
+            await bookingService.updateBookingStatus(targetBookingId, { status, rejectionReason: reason });
+            setActionSuccess(status === 'approved' ? 'Booking approved successfully! Lease agreement initiated.' : 'Booking request rejected.');
+            await fetchBooking();
+            if (onRefresh) onRefresh();
+        } catch (e) {
+            console.error(e);
+            const errorMsg = e.response?.data?.message || e.message || 'Unknown error';
+            setActionError(`Failed to ${status} booking: ${errorMsg}`);
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     const handleDownloadReceipt = async () => {
         if (!booking?._id) return;
@@ -256,6 +291,10 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
 
     const depositAmount = booking.depositAmount || booking.totalAmount || booking.property?.depositAmount || (booking.property?.rentAmount ? booking.property.rentAmount * 2 : 0) || 0;
     const isDepositPaid = booking.paymentStatus === 'paid' || booking.status === 'active' || booking.status === 'completed';
+    const isPending = booking.status === 'pending';
+    const isRejected = booking.status === 'rejected';
+    const isCancelled = booking.status === 'cancelled';
+    const canTakeAction = isPending;
     const linkedLease = booking.linkedLease;
     const isTenantSigned = Boolean(linkedLease?.signature && linkedLease?.signedBy && linkedLease?.signedAt);
     const isManagerSigned = Boolean(linkedLease?.managerSignature || linkedLease?.managerSignedAt);
@@ -276,9 +315,25 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                     </span>
                     <span className={cn(
                         "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border",
-                        isDepositPaid ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                        isPending
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse"
+                            : isRejected
+                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            : isCancelled
+                            ? "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                            : isDepositPaid
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                     )}>
-                        {isDepositPaid ? 'Deposit Paid' : 'Awaiting Deposit'}
+                        {isPending
+                            ? 'Pending Review'
+                            : isRejected
+                            ? 'Rejected'
+                            : isCancelled
+                            ? 'Cancelled'
+                            : isDepositPaid
+                            ? 'Deposit Paid'
+                            : 'Awaiting Deposit'}
                     </span>
                 </div>
             </div>
@@ -299,10 +354,24 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Manager Security Escrow View</span>
                             </div>
                             <h2 className="text-2xl font-black text-foreground tracking-tight mt-0.5">
-                                {isDepositPaid ? 'Security Deposit Secured in Escrow' : 'Booking Approved – Awaiting Deposit'}
+                                {isPending
+                                    ? 'Booking Request – Pending Review'
+                                    : isRejected
+                                    ? 'Booking Request Declined'
+                                    : isCancelled
+                                    ? 'Booking Request Cancelled'
+                                    : isDepositPaid
+                                    ? 'Security Deposit Secured in Escrow'
+                                    : 'Booking Approved – Awaiting Deposit'}
                             </h2>
                             <p className="text-xs text-muted-foreground/70 mt-1 max-w-xl">
-                                {isDepositPaid
+                                {isPending
+                                    ? 'Review this booking request and choose whether to approve or reject the reservation.'
+                                    : isRejected
+                                    ? (booking.rejectionReason ? `Reason: ${booking.rejectionReason}` : 'This booking was rejected by the property manager.')
+                                    : isCancelled
+                                    ? (booking.cancellationReason ? `Reason: ${booking.cancellationReason}` : 'This booking was cancelled.')
+                                    : isDepositPaid
                                     ? `Security deposit of ₹${depositAmount.toLocaleString('en-IN')} is verified and held securely in escrow for ${booking.property?.name || 'the property'}.`
                                     : 'Tenant has been approved and is required to deposit the security amount to proceed with lease execution.'}
                             </p>
@@ -345,16 +414,26 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                     <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
                         <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Payment Status</span>
                         <div className="flex items-center gap-1.5 pt-0.5">
-                            <span className={cn("w-2 h-2 rounded-full", isDepositPaid ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                            <p className={cn("text-xs font-black uppercase", isDepositPaid ? "text-emerald-400" : "text-amber-400")}>
-                                {isDepositPaid ? 'PAID' : 'PENDING'}
+                            <span className={cn(
+                                "w-2 h-2 rounded-full",
+                                isDepositPaid ? "bg-emerald-400 animate-pulse" : isRejected ? "bg-rose-400" : "bg-amber-400"
+                            )} />
+                            <p className={cn(
+                                "text-xs font-black uppercase",
+                                isDepositPaid ? "text-emerald-400" : isRejected ? "text-rose-400" : "text-amber-400"
+                            )}>
+                                {isRejected ? 'REJECTED' : (isDepositPaid ? 'PAID' : 'PENDING')}
                             </p>
                         </div>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
                         <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Escrow Status</span>
                         <p className="text-xs font-black text-indigo-400 uppercase pt-0.5">
-                            {isDepositPaid ? 'HELD IN ESCROW' : 'NOT STARTED'}
+                            {booking.escrowStatus === 'held' || isDepositPaid
+                                ? 'HELD IN ESCROW'
+                                : booking.escrowStatus === 'refunded'
+                                ? 'REFUNDED'
+                                : 'NOT STARTED'}
                         </p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
@@ -365,6 +444,63 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                     </div>
                 </div>
             </motion.div>
+
+            {/* Booking Decision Section (Only when PENDING) */}
+            {canTakeAction && (
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 md:p-7 rounded-[2rem] bg-card border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-card to-card shadow-xl space-y-4"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                                <h3 className="text-base font-black text-foreground uppercase tracking-wider">Booking Decision</h3>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Review this booking request and choose whether to approve or reject it.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => handleUpdateStatus('approved')}
+                                disabled={Boolean(actionLoading)}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                            >
+                                {actionLoading === 'approved' ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                )}
+                                APPROVE BOOKING
+                            </button>
+                            <button
+                                onClick={() => handleUpdateStatus('rejected')}
+                                disabled={Boolean(actionLoading)}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 hover:text-white hover:bg-rose-600 font-black text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                            >
+                                {actionLoading === 'rejected' ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <XCircle className="w-4 h-4" />
+                                )}
+                                REJECT BOOKING
+                            </button>
+                        </div>
+                    </div>
+                    {actionError && (
+                        <p className="text-xs text-rose-400 font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                            {actionError}
+                        </p>
+                    )}
+                    {actionSuccess && (
+                        <p className="text-xs text-emerald-400 font-medium bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
+                            {actionSuccess}
+                        </p>
+                    )}
+                </motion.div>
+            )}
 
             {/* Core Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -524,6 +660,8 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                                     {isTenantSigned
                                         ? `Signed by ${linkedLease?.signedBy || booking.user?.firstName} on ${new Date(linkedLease?.signedAt || Date.now()).toLocaleDateString()}`
+                                        : isPending
+                                        ? 'Lease agreement will be generated once booking is approved'
                                         : 'Awaiting tenant e-signature review'}
                                 </p>
                             </div>
@@ -544,6 +682,8 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                                     {isManagerSigned
                                         ? `Counter-signed on ${new Date(linkedLease?.managerSignedAt || Date.now()).toLocaleDateString()}`
+                                        : isPending
+                                        ? 'Locked until booking is approved & deposit is secured'
                                         : (isTenantSigned ? 'Ready for manager counter-signature' : 'Waiting for tenant signature')}
                                 </p>
                             </div>

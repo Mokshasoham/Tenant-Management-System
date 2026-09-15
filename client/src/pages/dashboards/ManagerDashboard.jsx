@@ -568,8 +568,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex items-center gap-3">
@@ -590,18 +589,34 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => handleUpdateBooking(b._id, 'approved')}
-                                                className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUpdateBooking(b._id, 'approved');
+                                                }}
+                                                className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
                                             >
                                                 APPROVE
                                             </button>
                                             <button
-                                                onClick={() => handleUpdateBooking(b._id, 'rejected', 'Property already booked')}
-                                                className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUpdateBooking(b._id, 'rejected', 'Property already booked');
+                                                }}
+                                                className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
                                             >
                                                 DECLINE
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/bookings/${b._id}`);
+                                                }}
+                                                title="View Details"
+                                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                            >
+                                                <ArrowUpRight className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     </motion.div>
@@ -621,8 +636,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -634,13 +648,25 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Awaiting Deposit
-                                                </span>
-                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
-                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
-                                                </p>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="text-right">
+                                                    <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                        Awaiting Deposit
+                                                    </span>
+                                                    <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                        ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/bookings/${b._id}`);
+                                                    }}
+                                                    title="View Details"
+                                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                                >
+                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -660,8 +686,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -673,13 +698,25 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Deposit Paid
-                                                </span>
-                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
-                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
-                                                </p>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="text-right">
+                                                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                        Deposit Paid
+                                                    </span>
+                                                    <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                        ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/bookings/${b._id}`);
+                                                    }}
+                                                    title="View Details"
+                                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                                >
+                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -699,8 +736,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -712,13 +748,25 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Completed
-                                                </span>
-                                                <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
-                                                    ₹{b.totalAmount?.toLocaleString('en-IN')}
-                                                </p>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="text-right">
+                                                    <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                        Completed
+                                                    </span>
+                                                    <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
+                                                        ₹{b.totalAmount?.toLocaleString('en-IN')}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/bookings/${b._id}`);
+                                                    }}
+                                                    title="View Details"
+                                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                                >
+                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -738,8 +786,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -751,13 +798,25 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Rejected
-                                                </span>
-                                                <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-rose-400">
-                                                    {b.rejectionReason || 'No reason'}
-                                                </p>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="text-right">
+                                                    <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                        Rejected
+                                                    </span>
+                                                    <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-rose-400">
+                                                        {b.rejectionReason || 'No reason'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/bookings/${b._id}`);
+                                                    }}
+                                                    title="View Details"
+                                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                                >
+                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -777,8 +836,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all cursor-pointer"
-                                        onClick={() => navigate(`/bookings/${b._id}`)}
+                                        className="p-4 rounded-xl bg-white/3 border border-white/5 hover:bg-white/5 transition-all"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
@@ -790,13 +848,25 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                                     <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.property?.name}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="px-2 py-0.5 rounded bg-gray-500/10 border border-gray-500/20 text-gray-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                    Cancelled
-                                                </span>
-                                                <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-muted-foreground/60">
-                                                    {b.cancellationReason || 'No reason'}
-                                                </p>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="text-right">
+                                                    <span className="px-2 py-0.5 rounded bg-gray-500/10 border border-gray-500/20 text-gray-500 text-[8px] font-black uppercase tracking-wider block mb-1">
+                                                        Cancelled
+                                                    </span>
+                                                    <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-muted-foreground/60">
+                                                        {b.cancellationReason || 'No reason'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/bookings/${b._id}`);
+                                                    }}
+                                                    title="View Details"
+                                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                                >
+                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         </div>
                                     </motion.div>
