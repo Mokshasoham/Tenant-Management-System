@@ -10,6 +10,13 @@ import {
 import { cn } from '../../utils/cn';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 
+const isOfferExpired = (offer) => Boolean(
+  offer && (
+    offer.status === 'expired' ||
+    (offer.expiresAt && new Date(offer.expiresAt) < new Date() && offer.status !== 'accepted')
+  )
+);
+
 export default function ManagerNegotiationsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -41,7 +48,7 @@ export default function ManagerNegotiationsPage() {
       setOffers(list);
       setMetrics({
         total: m.total ?? list.length,
-        actionRequired: m.actionRequired ?? list.filter(o => o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager')).length,
+        actionRequired: m.actionRequired ?? list.filter(o => (o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager')) && !isOfferExpired(o)).length,
         accepted: m.accepted ?? list.filter(o => o.status === 'accepted').length,
         expiringSoon: m.expiringSoon ?? list.filter(o => o.status !== 'accepted' && o.status !== 'rejected' && o.status !== 'cancelled' && new Date(o.expiresAt) - new Date() < 24 * 3600 * 1000 && new Date(o.expiresAt) > new Date()).length
       });
@@ -116,6 +123,7 @@ export default function ManagerNegotiationsPage() {
 
   // Filtered offers
   const filteredOffers = offers.filter(o => {
+    if (!o) return false;
     const propName = o.property?.name || '';
     const tenantObj = o.tenant || o.fromUser || {};
     const tenantName = `${tenantObj.firstName || ''} ${tenantObj.lastName || ''}`;
@@ -127,11 +135,11 @@ export default function ManagerNegotiationsPage() {
     if (!matchesSearch) return false;
 
     if (statusFilter === 'action_required') {
-      return o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager');
+      return (o.canManagerRespond || (['pending', 'countered'].includes(o.status) && o.currentTurn === 'manager')) && !isOfferExpired(o);
     }
     if (statusFilter === 'accepted') return o.status === 'accepted';
-    if (statusFilter === 'countered') return o.status === 'countered';
-    if (statusFilter === 'closed') return ['rejected', 'expired', 'cancelled'].includes(o.status);
+    if (statusFilter === 'countered') return o.status === 'countered' && !isOfferExpired(o);
+    if (statusFilter === 'closed') return ['rejected', 'expired', 'cancelled'].includes(o.status) || isOfferExpired(o);
     return true;
   });
 
@@ -251,13 +259,14 @@ export default function ManagerNegotiationsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredOffers.map((offer) => {
+            if (!offer) return null;
             const prop = offer.property || {};
             const tenant = offer.tenant || offer.fromUser || {};
             const listedRent = prop.rentAmount || 0;
             const offerRent = offer.currentOffer || offer.offeredRent || 0;
             const diff = listedRent - offerRent;
             const discountPct = listedRent ? Math.round((diff / listedRent) * 100) : 0;
-            const isExpired = new Date(offer.expiresAt) < new Date() && offer.status !== 'accepted';
+            const isExpired = isOfferExpired(offer);
             const isAwaitingManager = (offer.canManagerRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'manager')) && !isExpired;
 
             return (
@@ -422,14 +431,16 @@ export default function ManagerNegotiationsPage() {
 
       {/* Response / Negotiation Modal */}
       <AnimatePresence>
-        {selectedOffer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card w-full max-w-xl rounded-3xl border border-border p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative"
-            >
+        {selectedOffer && (() => {
+          const isExpired = isOfferExpired(selectedOffer);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-card w-full max-w-xl rounded-3xl border border-border p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative"
+              >
               <button
                 onClick={() => setSelectedOffer(null)}
                 className="absolute top-5 right-5 p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
@@ -674,6 +685,11 @@ export default function ManagerNegotiationsPage() {
                       <p className="font-bold text-sm">🎉 Deal Accepted & Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/mo</p>
                       <p className="text-[11px] text-muted-foreground">Waiting for tenant to finalize their booking at this private rate.</p>
                     </div>
+                  ) : isExpired ? (
+                    <div className="p-4 rounded-2xl bg-gray-500/10 border border-gray-500/20 text-gray-400 text-xs text-center space-y-1">
+                      <p className="font-bold">Deal Expired</p>
+                      <p className="text-[11px] text-muted-foreground">This negotiation offer has passed its expiration deadline and can no longer be modified.</p>
+                    </div>
                   ) : ['pending', 'countered'].includes(selectedOffer.status) ? (
                     <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs text-center space-y-1">
                       <p className="font-bold">Awaiting Tenant Response</p>
@@ -688,8 +704,9 @@ export default function ManagerNegotiationsPage() {
               )}
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+        );
+      })()}
+    </AnimatePresence>
+  </div>
+);
 }
