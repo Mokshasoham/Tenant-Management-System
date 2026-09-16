@@ -49,7 +49,7 @@ export default function ProfilePage() {
   const completionInfo = useProfileCompletion(user, form);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-24 px-4 sm:px-6">
+    <div className="space-y-6 pb-24">
       
       {/* 1. Account Hero Header */}
       <AccountHero
@@ -67,7 +67,7 @@ export default function ProfilePage() {
       <ProfileCompletion completionInfo={completionInfo} />
 
       {/* 3. Core Editable Information Cards (Spacious Responsive Layout) */}
-      <div id="personal-info-section" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div id="personal-info-section" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <PersonalInformationCard
           form={form}
           errors={errors}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
           Loading Security Modules...
         </div>
       }>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           <ChangePasswordCard disabled={saveState === 'saving'} />
           <TwoFactorCard disabled={saveState === 'saving'} />
           <KYCCard disabled={saveState === 'saving'} />

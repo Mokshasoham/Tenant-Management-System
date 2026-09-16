@@ -38,9 +38,6 @@ export const PersonalInformationCard = memo(({
             icon={User}
             placeholder="Doe"
           />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <EditableField
             label="Preferred Name"
             value={form.preferredName}
@@ -68,9 +65,6 @@ export const PersonalInformationCard = memo(({
               <option value="prefer_not_to_say">Prefer not to say</option>
             </select>
           </EditableField>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <EditableField
             label="Date of Birth"
             type="date"
@@ -89,15 +83,17 @@ export const PersonalInformationCard = memo(({
             icon={Briefcase}
             placeholder="Software Engineer"
           />
-          <EditableField
-            label="Nationality"
-            value={form.nationality}
-            onChange={v => updateField('nationality', v)}
-            error={errors.nationality}
-            disabled={disabled}
-            icon={Globe}
-            placeholder="United States"
-          />
+          <div className="sm:col-span-2">
+            <EditableField
+              label="Nationality"
+              value={form.nationality}
+              onChange={v => updateField('nationality', v)}
+              error={errors.nationality}
+              disabled={disabled}
+              icon={Globe}
+              placeholder="United States"
+            />
+          </div>
         </div>
       </div>
     </SettingsCard>

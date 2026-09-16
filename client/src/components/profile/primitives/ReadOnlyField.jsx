@@ -11,7 +11,8 @@ export const ReadOnlyField = memo(({ label, value, icon: Icon }) => (
         readOnly
         disabled
         value={value || ''}
-        className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-10 py-3 rounded-xl bg-muted/60 border border-border/60 text-foreground/70 text-sm cursor-not-allowed select-all`}
+        title={value || ''}
+        className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-10 py-3 rounded-xl bg-muted/60 border border-border/60 text-foreground/70 text-sm cursor-not-allowed select-all truncate`}
       />
       <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
     </div>

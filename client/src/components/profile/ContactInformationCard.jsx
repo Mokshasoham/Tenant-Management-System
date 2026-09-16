@@ -51,9 +51,7 @@ export const ContactInformationCard = memo(({
                 ) : null
               }
             />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <EditableField
               label="Secondary Email"
               type="email"
@@ -80,7 +78,7 @@ export const ContactInformationCard = memo(({
         <SettingsDivider />
 
         <FormSection title="Emergency Contact Details" description="Designated contact person for emergencies">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <EditableField
               label="Contact Name"
               value={form.emergencyContact?.name}
@@ -100,14 +98,16 @@ export const ContactInformationCard = memo(({
               icon={Phone}
               placeholder="+1 (555) 999-8888"
             />
-            <EditableField
-              label="Relationship"
-              value={form.emergencyContact?.relationship}
-              onChange={v => updateEmergencyField('relationship', v)}
-              error={errors.emergencyRelationship}
-              disabled={disabled}
-              placeholder="Spouse / Parent / Sibling"
-            />
+            <div className="sm:col-span-2">
+              <EditableField
+                label="Relationship"
+                value={form.emergencyContact?.relationship}
+                onChange={v => updateEmergencyField('relationship', v)}
+                error={errors.emergencyRelationship}
+                disabled={disabled}
+                placeholder="Spouse / Parent / Sibling"
+              />
+            </div>
           </div>
         </FormSection>
       </div>
