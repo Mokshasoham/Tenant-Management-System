@@ -744,9 +744,39 @@ export const rejectBooking = asyncHandler(async (req, res) => {
         throw new AppError('Tenants cannot approve or reject their own bookings.', 403);
     }
 
-    // ══ IDEMPOTENCY GUARD ══
-    // If booking is already rejected, return existing state without duplicate history or re-expiring
+    // ══ IDEMPOTENCY GUARD & RECONCILIATION ══
+    // If booking is already rejected, ensure associated offer is reconciled to expired without duplicate history
     if (booking.status === 'rejected') {
+        let offer = null;
+        if (booking.offer) {
+            offer = await Offer.findById(booking.offer);
+        }
+        if (!offer) {
+            offer = await Offer.findOne({ booking: booking._id });
+        }
+        if (offer && offer.status !== 'expired') {
+            const now = booking.updatedAt || new Date();
+            offer.status = 'expired';
+            offer.expiredAt = now;
+            offer.expirationReason = 'booking_rejected_by_manager';
+            const hasExpiredAction = offer.offerHistory?.some(h => h.action === 'expired');
+            if (!hasExpiredAction) {
+                offer.offerHistory.push({
+                    sender: booking.manager,
+                    senderRole: 'manager',
+                    receiver: booking.user,
+                    proposedAmount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                    amount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                    startDate: offer.agreedStartDate || offer.startDate,
+                    endDate: offer.agreedEndDate || offer.endDate,
+                    message: `Deal expired: Booking request was declined by manager (${booking.rejectionReason || 'No reason provided'})`,
+                    timestamp: now,
+                    action: 'expired'
+                });
+            }
+            await offer.save();
+            logger.info(`[DEAL EXPIRED ON RECONCILE] Offer ${offer.dealNumber || offer._id} reconciled to expired for rejected booking ${booking._id}`);
+        }
         return res.status(200).json({ success: true, data: booking });
     }
 
@@ -786,18 +816,21 @@ export const rejectBooking = asyncHandler(async (req, res) => {
             offer.status = 'expired';
             offer.expiredAt = now;
             offer.expirationReason = 'booking_rejected_by_manager';
-            offer.offerHistory.push({
-                sender: req.user.userId,
-                senderRole: 'manager',
-                receiver: booking.user,
-                proposedAmount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
-                amount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
-                startDate: offer.agreedStartDate || offer.startDate,
-                endDate: offer.agreedEndDate || offer.endDate,
-                message: `Deal expired: Booking request was declined by manager (${booking.rejectionReason})`,
-                timestamp: now,
-                action: 'expired'
-            });
+            const hasExpiredAction = offer.offerHistory?.some(h => h.action === 'expired');
+            if (!hasExpiredAction) {
+                offer.offerHistory.push({
+                    sender: req.user.userId,
+                    senderRole: 'manager',
+                    receiver: booking.user,
+                    proposedAmount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                    amount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                    startDate: offer.agreedStartDate || offer.startDate,
+                    endDate: offer.agreedEndDate || offer.endDate,
+                    message: `Deal expired: Booking request was declined by manager (${booking.rejectionReason || 'No reason provided'})`,
+                    timestamp: now,
+                    action: 'expired'
+                });
+            }
             await offer.save(useTransaction ? { session } : undefined);
             logger.info(`[DEAL EXPIRED ON REJECTION] Offer ${offer.dealNumber || offer._id} expired due to rejection of booking ${booking._id}`);
         }

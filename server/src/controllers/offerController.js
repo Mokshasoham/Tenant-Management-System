@@ -87,9 +87,10 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
     const currentRounds = Number(offer.roundCount) || 1;
     const maxRounds = Number(offer.maxRounds) || 5;
     const roundsRemaining = Math.max(0, maxRounds - currentRounds);
-    const isOfferDateExpired = offer.expiresAt && new Date() > new Date(offer.expiresAt);
-    const isExpired = offer.status === 'expired' || (isOfferDateExpired && offer.status !== 'accepted');
-    const isAccepted = offer.status === 'accepted' && !isExpired;
+    const isOfferDateExpired = Boolean(offer.expiresAt) && new Date() > new Date(offer.expiresAt);
+    const isBookingRejected = Boolean(offer.booking && (offer.booking.status === 'rejected' || offer.bookingStatus === 'rejected'));
+    const isExpired = offer.status === 'expired' || isBookingRejected || (isOfferDateExpired && !['rejected', 'cancelled'].includes(offer.status));
+    const isAccepted = offer.status === 'accepted' && !isExpired && !isBookingRejected;
 
     const canTenantRespond = !isExpired && !isAccepted && ['pending', 'countered'].includes(offer.status) && currentTurn === 'tenant';
     const canTenantCounter = canTenantRespond && currentRounds < maxRounds;
@@ -170,7 +171,7 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
  * POST /api/offers — Tenant sends rent negotiation offer to property manager
  */
 export const createOffer = asyncHandler(async (req, res) => {
-    const offeredRent = req.body.offeredRent || req.body.offerAmount;
+    const offeredRent = req.body.offeredRent || req.body.offerAmount || req.body.proposedRent;
     const { propertyId, message, leasePeriod, moveInDate, startDate, endDate } = req.body;
     const userId = req.user.userId || req.user._id || req.user.id;
 
@@ -195,19 +196,59 @@ export const createOffer = asyncHandler(async (req, res) => {
     }
 
     // 3. Enforce single active negotiation per tenant + property
-    const existingActive = await Offer.findOne({
+    // Check unexpired active negotiations. Sort by newest first.
+    const existingOffers = await Offer.find({
         property: propertyId,
         fromUser: userId,
         status: { $in: ['pending', 'countered', 'accepted'] }
-    });
+    }).sort({ createdAt: -1 });
 
-    if (existingActive) {
-        const isUnexpired = new Date() < new Date(existingActive.expiresAt);
+    for (const existingActive of existingOffers) {
+        // If accepted, check if its linked booking was rejected
+        let isLinkedBookingRejected = false;
+        if (existingActive.status === 'accepted') {
+            const bookingId = existingActive.booking;
+            let bDoc = null;
+            if (bookingId) {
+                bDoc = await Booking.findById(bookingId).select('status rejectionReason updatedAt');
+            } else {
+                bDoc = await Booking.findOne({ offer: existingActive._id }).select('status rejectionReason updatedAt');
+            }
+            if (bDoc && bDoc.status === 'rejected') {
+                isLinkedBookingRejected = true;
+                // Auto-reconcile to expired in DB
+                existingActive.status = 'expired';
+                existingActive.expiredAt = bDoc.updatedAt || existingActive.expiredAt || new Date();
+                existingActive.expirationReason = 'booking_rejected_by_manager';
+                const hasExpiredAction = existingActive.offerHistory?.some(h => h.action === 'expired');
+                if (!hasExpiredAction) {
+                    existingActive.offerHistory.push({
+                        sender: existingActive.toUser,
+                        senderRole: 'manager',
+                        receiver: existingActive.fromUser,
+                        proposedAmount: existingActive.agreedRent || existingActive.currentOffer || 0,
+                        amount: existingActive.agreedRent || existingActive.currentOffer || 0,
+                        startDate: existingActive.agreedStartDate || existingActive.startDate,
+                        endDate: existingActive.agreedEndDate || existingActive.endDate,
+                        message: `Deal expired: Booking request was declined by manager (${bDoc.rejectionReason || 'No reason provided'})`,
+                        timestamp: existingActive.expiredAt,
+                        action: 'expired'
+                    });
+                }
+                await existingActive.save();
+            }
+        }
+
+        if (isLinkedBookingRejected) {
+            continue; // Not active, move on to next offer or allow creation
+        }
+
+        const isUnexpired = Boolean(existingActive.expiresAt) && new Date() < new Date(existingActive.expiresAt);
         if (existingActive.status === 'accepted') {
             if (isUnexpired) {
                 throw new AppError('You already have an active, accepted private deal for this property. Please book it before it expires.', 409);
             }
-        } else {
+        } else if (['pending', 'countered'].includes(existingActive.status)) {
             if (isUnexpired) {
                 throw new AppError('You already have an active negotiation in progress for this property. Please continue your existing negotiation or wait for manager response.', 409);
             }
@@ -308,9 +349,9 @@ export const createOffer = asyncHandler(async (req, res) => {
  * PUT /api/offers/:id/respond — Respond to an offer (Accept, Counter, Reject, Cancel)
  */
 export const respondToOffer = asyncHandler(async (req, res) => {
-    const action = req.body.action || ((req.body.counterRent || req.body.counterOffer) ? 'counter' : undefined);
-    const counterRent = req.body.counterRent || req.body.counterOffer;
-    const { message, counterMessage, leasePeriod, moveInDate } = req.body;
+    const counterRent = req.body.counterRent || req.body.counterOffer || req.body.counterAmount;
+    const action = req.body.action || (counterRent ? 'counter' : undefined);
+    const { message, counterMessage, leasePeriod, moveInDate, counterStartDate, counterEndDate } = req.body;
     const userId = req.user.userId || req.user._id || req.user.id;
     const userRole = req.user.role || 'tenant';
 
@@ -553,7 +594,49 @@ export const getMyOffers = asyncHandler(async (req, res) => {
     const offers = await Offer.find({ fromUser: userId })
         .populate('property', 'name address city state images rentAmount depositAmount type status publishStatus bookedDates')
         .populate('toUser', 'firstName lastName email phone avatar')
+        .populate('booking', '_id status rejectionReason updatedAt')
         .sort({ updatedAt: -1 });
+
+    // Self-heal any accepted offers whose linked booking was rejected or whose validity window expired
+    for (const o of offers) {
+        if (o.status === 'accepted') {
+            const isBookingRejected = o.booking && o.booking.status === 'rejected';
+            const isWindowExpired = Boolean(o.expiresAt) && new Date() > new Date(o.expiresAt);
+            if (isBookingRejected || isWindowExpired) {
+                o.status = 'expired';
+                o.expiredAt = o.expiredAt || (isBookingRejected ? (o.booking.updatedAt || new Date()) : o.expiresAt);
+                o.expirationReason = o.expirationReason || (isBookingRejected ? 'booking_rejected_by_manager' : 'deal_validity_expired');
+                const hasExpiredAction = o.offerHistory?.some(h => h.action === 'expired');
+                if (!hasExpiredAction) {
+                    o.offerHistory.push({
+                        sender: o.toUser?._id || o.toUser,
+                        senderRole: 'manager',
+                        receiver: o.fromUser,
+                        proposedAmount: o.agreedRent || o.currentOffer || 0,
+                        amount: o.agreedRent || o.currentOffer || 0,
+                        startDate: o.agreedStartDate || o.startDate,
+                        endDate: o.agreedEndDate || o.endDate,
+                        message: isBookingRejected
+                            ? `Deal expired: Booking request was declined by manager (${o.booking.rejectionReason || 'No reason provided'})`
+                            : 'Deal expired: Validity period elapsed without booking',
+                        timestamp: o.expiredAt,
+                        action: 'expired'
+                    });
+                }
+                await Offer.updateOne(
+                    { _id: o._id },
+                    {
+                        $set: {
+                            status: 'expired',
+                            expiredAt: o.expiredAt,
+                            expirationReason: o.expirationReason,
+                            offerHistory: o.offerHistory
+                        }
+                    }
+                );
+            }
+        }
+    }
 
     const enrichedOffers = offers.map(o => enrichOfferWithState(o, userId));
 
@@ -589,6 +672,7 @@ export const getManagerOffers = asyncHandler(async (req, res) => {
     const offers = await Offer.find({ property: { $in: propertyIds } })
         .populate('property', 'name address city state images rentAmount depositAmount type status')
         .populate('fromUser', 'firstName lastName email phone avatar')
+        .populate('booking', '_id status rejectionReason updatedAt')
         .sort({ updatedAt: -1 });
 
     const enrichedOffers = offers.map(o => enrichOfferWithState(o, userId));
@@ -623,10 +707,19 @@ export const getOfferById = asyncHandler(async (req, res) => {
         .populate('property', 'name address city state images rentAmount depositAmount type status publishStatus negotiation')
         .populate('fromUser', 'firstName lastName email phone avatar')
         .populate('toUser', 'firstName lastName email phone avatar')
+        .populate('booking', '_id status rejectionReason updatedAt')
         .populate('offerHistory.sender', 'firstName lastName avatar role')
         .populate('offerHistory.receiver', 'firstName lastName avatar role');
 
     if (!offer) throw new AppError('Negotiation deal not found', 404);
+
+    // Auto-heal accepted offer if linked booking was rejected
+    if (offer.status === 'accepted' && offer.booking && offer.booking.status === 'rejected') {
+        offer.status = 'expired';
+        offer.expiredAt = offer.booking.updatedAt || new Date();
+        offer.expirationReason = 'booking_rejected_by_manager';
+        await offer.save();
+    }
 
     const isTenant = String(offer.fromUser?._id || offer.fromUser) === String(userId);
     const isManager = String(offer.toUser?._id || offer.toUser) === String(userId) ||

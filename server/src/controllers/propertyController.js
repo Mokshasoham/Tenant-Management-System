@@ -374,10 +374,14 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         fromUser: requesterId,
         status: 'accepted',
         expiresAt: { $gt: new Date() },
-        booking: { $exists: false },
-      }).select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate startDate endDate agreedStartDate agreedEndDate');
+      })
+        .populate('booking', '_id status rejectionReason updatedAt')
+        .sort({ createdAt: -1 })
+        .select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate startDate endDate agreedStartDate agreedEndDate booking');
 
-      if (activeDeal) {
+      const isBookingRejected = Boolean(activeDeal?.booking && activeDeal.booking.status === 'rejected');
+
+      if (activeDeal && !isBookingRejected) {
         resolved.privateDeal = {
           id: activeDeal._id,
           _id: activeDeal._id,
@@ -391,8 +395,28 @@ export const getPropertyById = asyncHandler(async (req, res) => {
           endDate: activeDeal.agreedEndDate || activeDeal.endDate,
           agreedStartDate: activeDeal.agreedStartDate || activeDeal.startDate,
           agreedEndDate: activeDeal.agreedEndDate || activeDeal.endDate,
+          booking: activeDeal.booking ? {
+            _id: activeDeal.booking._id,
+            status: activeDeal.booking.status,
+          } : null,
         };
       } else {
+        if (activeDeal && isBookingRejected) {
+          // Auto-heal offer to expired in DB
+          activeDeal.status = 'expired';
+          activeDeal.expiredAt = activeDeal.booking?.updatedAt || new Date();
+          activeDeal.expirationReason = 'booking_rejected_by_manager';
+          await Offer.updateOne(
+            { _id: activeDeal._id },
+            {
+              $set: {
+                status: 'expired',
+                expiredAt: activeDeal.expiredAt,
+                expirationReason: activeDeal.expirationReason,
+              },
+            }
+          );
+        }
         resolved.privateDeal = null;
       }
 

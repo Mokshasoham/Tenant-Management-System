@@ -174,8 +174,9 @@ export default function TenantNegotiationsPage() {
             const offerRent = offer.currentOffer || offer.offeredRent || 0;
             const diff = listedRent - offerRent;
             const discountPct = listedRent ? Math.round((diff / listedRent) * 100) : 0;
-            const isExpired = offer.status === 'expired' || (Boolean(offer.expiresAt) && new Date(offer.expiresAt) < new Date() && offer.status !== 'accepted');
-            const isAccepted = offer.status === 'accepted' && !isExpired;
+            const isBookingRejected = Boolean(offer.booking && (offer.booking.status === 'rejected' || offer.bookingStatus === 'rejected')) || offer.expirationReason === 'booking_rejected_by_manager';
+            const isExpired = offer.status === 'expired' || isBookingRejected || (Boolean(offer.expiresAt) && new Date(offer.expiresAt) < new Date());
+            const isAccepted = offer.status === 'accepted' && !isExpired && !isBookingRejected;
             const canRespond = !isExpired && !isAccepted && (offer.canTenantRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'tenant'));
 
             return (
@@ -437,8 +438,9 @@ export default function TenantNegotiationsPage() {
       {/* Response / Counter / Timeline Modal */}
       <AnimatePresence>
         {selectedOffer && (() => {
-          const isSelectedOfferExpired = selectedOffer.status === 'expired' || (Boolean(selectedOffer.expiresAt) && new Date(selectedOffer.expiresAt) < new Date() && selectedOffer.status !== 'accepted');
-          const isSelectedOfferAccepted = selectedOffer.status === 'accepted' && !isSelectedOfferExpired;
+          const isSelectedBookingRejected = Boolean(selectedOffer.booking && (selectedOffer.booking.status === 'rejected' || selectedOffer.bookingStatus === 'rejected')) || selectedOffer.expirationReason === 'booking_rejected_by_manager';
+          const isSelectedOfferExpired = selectedOffer.status === 'expired' || isSelectedBookingRejected || (Boolean(selectedOffer.expiresAt) && new Date(selectedOffer.expiresAt) < new Date());
+          const isSelectedOfferAccepted = selectedOffer.status === 'accepted' && !isSelectedOfferExpired && !isSelectedBookingRejected;
           const canRespondToSelectedOffer = !isSelectedOfferExpired && !isSelectedOfferAccepted && responseAction !== 'history' && (selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant'));
 
           return (
