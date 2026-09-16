@@ -174,9 +174,9 @@ export default function TenantNegotiationsPage() {
             const offerRent = offer.currentOffer || offer.offeredRent || 0;
             const diff = listedRent - offerRent;
             const discountPct = listedRent ? Math.round((diff / listedRent) * 100) : 0;
-            const isAccepted = offer.status === 'accepted';
-            const isExpired = new Date(offer.expiresAt) < new Date() && !isAccepted;
-            const canRespond = (offer.canTenantRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'tenant')) && !isExpired;
+            const isExpired = offer.status === 'expired' || (Boolean(offer.expiresAt) && new Date(offer.expiresAt) < new Date() && offer.status !== 'accepted');
+            const isAccepted = offer.status === 'accepted' && !isExpired;
+            const canRespond = !isExpired && !isAccepted && (offer.canTenantRespond || (['pending', 'countered'].includes(offer.status) && offer.currentTurn === 'tenant'));
 
             return (
               <motion.div
@@ -188,6 +188,8 @@ export default function TenantNegotiationsPage() {
                   "rounded-3xl bg-card border transition-all p-5 flex flex-col justify-between space-y-5",
                   isAccepted
                     ? "border-emerald-500/40 shadow-xl shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                    : isExpired
+                    ? "border-border/60 opacity-95"
                     : canRespond
                     ? "border-blue-500/40 shadow-lg shadow-blue-500/5 ring-1 ring-blue-500/20"
                     : "border-border"
@@ -206,7 +208,7 @@ export default function TenantNegotiationsPage() {
                         : canRespond
                         ? "bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse"
                         : isExpired
-                        ? "bg-gray-500/10 text-gray-400 border-gray-500/30"
+                        ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
                         : offer.status === 'rejected'
                         ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
                         : "bg-amber-500/10 text-amber-400 border-amber-500/30"
@@ -216,7 +218,7 @@ export default function TenantNegotiationsPage() {
                         : canRespond
                         ? 'Your Turn to Respond'
                         : isExpired
-                        ? 'Expired'
+                        ? 'Deal Expired'
                         : offer.status === 'pending'
                         ? 'Awaiting Review'
                         : offer.status === 'countered'
@@ -249,7 +251,11 @@ export default function TenantNegotiationsPage() {
                   {/* Pricing Comparison */}
                   <div className={cn(
                     "p-4 rounded-2xl border flex items-center justify-between",
-                    isAccepted ? "bg-emerald-500/10 border-emerald-500/25" : "bg-muted/40 border-border/80"
+                    isAccepted
+                      ? "bg-emerald-500/10 border-emerald-500/25"
+                      : isExpired
+                      ? "bg-muted/30 border-border/60"
+                      : "bg-muted/40 border-border/80"
                   )}>
                     <div>
                       <span className="text-[10px] uppercase font-bold text-muted-foreground block">Listed Rent</span>
@@ -260,18 +266,18 @@ export default function TenantNegotiationsPage() {
                     <div className="text-right">
                       <span className={cn(
                         "text-[10px] uppercase font-bold block",
-                        isAccepted ? "text-emerald-400" : "text-foreground"
+                        isAccepted ? "text-emerald-400" : isExpired ? "text-muted-foreground" : "text-foreground"
                       )}>
-                        {isAccepted ? 'Locked Rent' : 'Current Offer'}
+                        {isAccepted ? 'Locked Rent' : isExpired ? 'Expired Offer' : 'Current Offer'}
                       </span>
                       <div className="flex items-center justify-end gap-1.5">
                         <span className={cn(
                           "text-xl font-black font-mono",
-                          isAccepted ? "text-emerald-400" : "text-foreground"
+                          isAccepted ? "text-emerald-400" : isExpired ? "text-muted-foreground line-through" : "text-foreground"
                         )}>
                           ₹{(isAccepted ? (offer.agreedRent || offerRent) : offerRent).toLocaleString('en-IN')}
                         </span>
-                        {discountPct > 0 && (
+                        {discountPct > 0 && !isExpired && (
                           <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             -{discountPct}%
                           </span>
@@ -301,7 +307,9 @@ export default function TenantNegotiationsPage() {
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3 text-muted-foreground" />
                         {isExpired
-                          ? 'Deal expired'
+                          ? offer.expirationReason === 'booking_rejected_by_manager'
+                            ? 'Deal expired (booking declined)'
+                            : 'Deal expired'
                           : `Valid until ${new Date(offer.expiresAt).toLocaleDateString()}`}
                       </span>
                       <span className={cn(
@@ -339,6 +347,42 @@ export default function TenantNegotiationsPage() {
                         <Sparkles className="w-4 h-4" />
                         Proceed to Book at ₹{(offer.agreedRent || offerRent).toLocaleString('en-IN')} Rate
                       </button>
+                    </div>
+                  ) : isExpired ? (
+                    <div className="space-y-2">
+                      <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/80 text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-rose-400">
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Deal Expired</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {offer.expirationReason === 'booking_rejected_by_manager'
+                            ? (() => {
+                                const expHist = offer.offerHistory?.slice().reverse().find(h => h.action === 'expired');
+                                const reasonMatch = expHist?.message?.replace(/^Deal expired:\s*/i, '');
+                                return reasonMatch || 'Booking request was declined by the manager.';
+                              })()
+                            : offer.expirationReason === 'deal_validity_expired'
+                            ? 'Deal validity window expired without booking.'
+                            : 'This negotiated deal has expired and cannot be booked.'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => navigate(`/properties/${prop._id || prop.id}`, { state: { openNegotiation: true } })}
+                          className="flex-1 py-2.5 rounded-2xl bg-foreground text-background hover:opacity-90 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Negotiate Again
+                        </button>
+                        <button
+                          onClick={() => handleOpenAction(offer, 'history')}
+                          className="py-2.5 px-3 rounded-2xl bg-muted hover:bg-muted/80 text-foreground transition-all text-xs font-bold flex items-center justify-center cursor-pointer"
+                          title="View Deal History"
+                        >
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                      </div>
                     </div>
                   ) : canRespond ? (
                     <div className="space-y-2">
@@ -392,8 +436,13 @@ export default function TenantNegotiationsPage() {
 
       {/* Response / Counter / Timeline Modal */}
       <AnimatePresence>
-        {selectedOffer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        {selectedOffer && (() => {
+          const isSelectedOfferExpired = selectedOffer.status === 'expired' || (Boolean(selectedOffer.expiresAt) && new Date(selectedOffer.expiresAt) < new Date() && selectedOffer.status !== 'accepted');
+          const isSelectedOfferAccepted = selectedOffer.status === 'accepted' && !isSelectedOfferExpired;
+          const canRespondToSelectedOffer = !isSelectedOfferExpired && !isSelectedOfferAccepted && responseAction !== 'history' && (selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant'));
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -475,7 +524,7 @@ export default function TenantNegotiationsPage() {
               </div>
 
               {/* Action Form if responding */}
-              {(selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant')) && (
+              {canRespondToSelectedOffer && (
                 <form onSubmit={handleExecuteResponse} className="space-y-4 pt-2 border-t border-border">
                   <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-muted/60 border border-border">
                     <button
@@ -646,16 +695,49 @@ export default function TenantNegotiationsPage() {
               )}
 
               {/* Status footer if not currently tenant's turn */}
-              {!(selectedOffer.canTenantRespond || (['pending', 'countered'].includes(selectedOffer.status) && selectedOffer.currentTurn === 'tenant')) && (
+              {!canRespondToSelectedOffer && (
                 <div className="pt-2 border-t border-border">
-                  {selectedOffer.status === 'accepted' ? (
+                  {isSelectedOfferExpired ? (
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-400 space-y-2 text-xs text-center">
+                      <div className="flex items-center justify-center gap-1.5 font-bold text-sm">
+                        <XCircle className="w-4 h-4" />
+                        <span>Deal Expired</span>
+                      </div>
+                      <p className="text-muted-foreground text-[11px]">
+                        {selectedOffer.expirationReason === 'booking_rejected_by_manager'
+                          ? (() => {
+                              const expHist = selectedOffer.offerHistory?.slice().reverse().find(h => h.action === 'expired');
+                              const reasonMatch = expHist?.message?.replace(/^Deal expired:\s*/i, '');
+                              return reasonMatch || 'Booking request was declined by the manager.';
+                            })()
+                          : selectedOffer.expirationReason === 'deal_validity_expired'
+                          ? 'Deal validity window expired without booking.'
+                          : 'This private deal has expired and cannot be booked.'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          const propId = selectedOffer.property?._id || selectedOffer.property?.id;
+                          setSelectedOffer(null);
+                          navigate(`/properties/${propId}`, { state: { openNegotiation: true } });
+                        }}
+                        className="mt-2 w-full py-2.5 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Negotiate Again
+                      </button>
+                    </div>
+                  ) : isSelectedOfferAccepted ? (
                     <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 space-y-2 text-xs text-center">
                       <p className="font-bold text-sm">🎉 Deal Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/month</p>
                       <p className="text-muted-foreground text-[11px]">
                         You can now complete the booking with your negotiated private rate.
                       </p>
                       <button
-                        onClick={() => navigate(`/properties/${selectedOffer.property?._id || selectedOffer.property?.id}`)}
+                        onClick={() => {
+                          const propId = selectedOffer.property?._id || selectedOffer.property?.id;
+                          setSelectedOffer(null);
+                          navigate(`/properties/${propId}`);
+                        }}
                         className="mt-2 w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
                       >
                         Proceed to Booking
@@ -677,7 +759,8 @@ export default function TenantNegotiationsPage() {
               )}
             </motion.div>
           </div>
-        )}
+        );
+      })()}
       </AnimatePresence>
     </div>
   );

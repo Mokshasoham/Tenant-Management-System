@@ -87,13 +87,15 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
     const currentRounds = Number(offer.roundCount) || 1;
     const maxRounds = Number(offer.maxRounds) || 5;
     const roundsRemaining = Math.max(0, maxRounds - currentRounds);
-    const isExpired = new Date() > new Date(offer.expiresAt);
+    const isOfferDateExpired = offer.expiresAt && new Date() > new Date(offer.expiresAt);
+    const isExpired = offer.status === 'expired' || (isOfferDateExpired && offer.status !== 'accepted');
+    const isAccepted = offer.status === 'accepted' && !isExpired;
 
-    const canTenantRespond = !isExpired && ['pending', 'countered'].includes(offer.status) && currentTurn === 'tenant';
+    const canTenantRespond = !isExpired && !isAccepted && ['pending', 'countered'].includes(offer.status) && currentTurn === 'tenant';
     const canTenantCounter = canTenantRespond && currentRounds < maxRounds;
     const canTenantAccept = canTenantRespond;
 
-    const canManagerRespond = !isExpired && ['pending', 'countered'].includes(offer.status) && currentTurn === 'manager';
+    const canManagerRespond = !isExpired && !isAccepted && ['pending', 'countered'].includes(offer.status) && currentTurn === 'manager';
     const canManagerCounter = canManagerRespond && currentRounds < maxRounds;
     const canManagerAccept = canManagerRespond;
 
@@ -154,6 +156,10 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
         canManagerRespond,
         canManagerCounter,
         canManagerAccept,
+        isExpired,
+        isAccepted,
+        expiredAt: offer.expiredAt,
+        expirationReason: offer.expirationReason,
         tenant: offer.fromUser, // alias for convenience
         manager: offer.toUser,  // alias for convenience
         offerHistory: normalizedHistory
@@ -196,13 +202,15 @@ export const createOffer = asyncHandler(async (req, res) => {
     });
 
     if (existingActive) {
+        const isUnexpired = new Date() < new Date(existingActive.expiresAt);
         if (existingActive.status === 'accepted') {
-            const isUnexpired = new Date() < new Date(existingActive.expiresAt);
             if (isUnexpired) {
                 throw new AppError('You already have an active, accepted private deal for this property. Please book it before it expires.', 409);
             }
         } else {
-            throw new AppError('You already have an active negotiation in progress for this property. Please continue your existing negotiation or wait for manager response.', 409);
+            if (isUnexpired) {
+                throw new AppError('You already have an active negotiation in progress for this property. Please continue your existing negotiation or wait for manager response.', 409);
+            }
         }
     }
 
@@ -324,14 +332,18 @@ export const respondToOffer = asyncHandler(async (req, res) => {
     if (offer.status === 'accepted') {
         throw new AppError('This private deal has already been accepted and locked.', 400);
     }
-    if (['rejected', 'cancelled'].includes(offer.status)) {
-        throw new AppError('This negotiation has already concluded and cannot be modified.', 400);
+    if (['rejected', 'cancelled', 'expired'].includes(offer.status)) {
+        throw new AppError('This negotiation has expired or concluded and cannot be modified.', 400);
     }
 
     // Expiration check
-    if (new Date() > new Date(offer.expiresAt)) {
-        offer.status = 'expired';
-        await offer.save();
+    if (offer.status === 'expired' || (offer.expiresAt && new Date() > new Date(offer.expiresAt))) {
+        if (offer.status !== 'expired') {
+            offer.status = 'expired';
+            offer.expiredAt = new Date();
+            offer.expirationReason = 'deal_validity_expired';
+            await offer.save();
+        }
         throw new AppError('This negotiation offer has expired.', 400);
     }
 

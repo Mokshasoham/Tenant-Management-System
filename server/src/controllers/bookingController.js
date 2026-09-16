@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
 import Lease from '../models/Lease.js';
@@ -730,7 +731,7 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
 
 // PUT /api/bookings/:id/reject
 export const rejectBooking = asyncHandler(async (req, res) => {
-    const { rejectionReason } = req.body;
+    const rejectionReason = req.body.rejectionReason || req.body.reason;
     const booking = await Booking.findById(req.params.id).populate('property');
     if (!booking) throw new AppError('Booking not found', 404);
 
@@ -743,19 +744,84 @@ export const rejectBooking = asyncHandler(async (req, res) => {
         throw new AppError('Tenants cannot approve or reject their own bookings.', 403);
     }
 
-    booking.status = 'rejected';
-    booking.rejectionReason = rejectionReason || 'No reason provided';
-    booking.escrowStatus = 'refunded';
-    booking.paymentStatus = 'refunded';
-    addTimeline(booking, 'rejected', `Rejected: ${booking.rejectionReason}`);
-    addTimeline(booking, 'refunded', 'Refund initiated');
-    await booking.save();
+    // ══ IDEMPOTENCY GUARD ══
+    // If booking is already rejected, return existing state without duplicate history or re-expiring
+    if (booking.status === 'rejected') {
+        return res.status(200).json({ success: true, data: booking });
+    }
 
-    // Remove pending dates from property
-    await Property.updateOne(
-        { _id: booking.property._id },
-        { $pull: { bookedDates: { bookingId: booking._id } } }
-    );
+    let session = null;
+    let useTransaction = false;
+    try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+        useTransaction = true;
+    } catch (sessionErr) {
+        // Fallback for standalone MongoDB instances where replica set transactions aren't enabled
+        session = null;
+        useTransaction = false;
+    }
+
+    try {
+        booking.status = 'rejected';
+        booking.rejectionReason = rejectionReason || 'No reason provided';
+        booking.escrowStatus = 'refunded';
+        booking.paymentStatus = 'refunded';
+        addTimeline(booking, 'rejected', `Rejected: ${booking.rejectionReason}`);
+        addTimeline(booking, 'refunded', 'Refund initiated');
+        await booking.save(useTransaction ? { session } : undefined);
+
+        // ══ ATOMIC DEAL EXPIRATION ON BOOKING REJECTION ══
+        // Strict lookup per user rule: booking.offer -> exact Offer, fallback to Offer.findOne({ booking: booking._id })
+        let offer = null;
+        if (booking.offer) {
+            offer = await Offer.findById(booking.offer).session(useTransaction ? session : null);
+        }
+        if (!offer) {
+            offer = await Offer.findOne({ booking: booking._id }).session(useTransaction ? session : null);
+        }
+
+        if (offer && offer.status !== 'expired') {
+            const now = new Date();
+            offer.status = 'expired';
+            offer.expiredAt = now;
+            offer.expirationReason = 'booking_rejected_by_manager';
+            offer.offerHistory.push({
+                sender: req.user.userId,
+                senderRole: 'manager',
+                receiver: booking.user,
+                proposedAmount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                amount: offer.agreedRent || offer.currentOffer || offer.offeredRent || 0,
+                startDate: offer.agreedStartDate || offer.startDate,
+                endDate: offer.agreedEndDate || offer.endDate,
+                message: `Deal expired: Booking request was declined by manager (${booking.rejectionReason})`,
+                timestamp: now,
+                action: 'expired'
+            });
+            await offer.save(useTransaction ? { session } : undefined);
+            logger.info(`[DEAL EXPIRED ON REJECTION] Offer ${offer.dealNumber || offer._id} expired due to rejection of booking ${booking._id}`);
+        }
+
+        // Remove pending dates from property
+        await Property.updateOne(
+            { _id: booking.property._id },
+            { $pull: { bookedDates: { bookingId: booking._id } } },
+            useTransaction ? { session } : undefined
+        );
+
+        if (useTransaction) {
+            await session.commitTransaction();
+        }
+    } catch (err) {
+        if (useTransaction && session) {
+            await session.abortTransaction();
+        }
+        throw err;
+    } finally {
+        if (session) {
+            session.endSession();
+        }
+    }
 
     // Notify tenant
     await Notification.create({
@@ -941,20 +1007,27 @@ export const requestBooking = asyncHandler(async (req, res) => {
     // ══ PRIVATE RENT DEAL RESOLUTION & VALIDATION ══
     let validOffer = null;
     if (offerId) {
-        validOffer = await Offer.findOne({
+        const targetOffer = await Offer.findOne({
             _id: offerId,
             property: propertyId,
-            fromUser: userId,
-            status: 'accepted'
+            fromUser: userId
         });
-        if (!validOffer) {
-            throw new AppError('Accepted private deal not found or you are not authorized to use this offer.', 404);
+        if (!targetOffer) {
+            throw new AppError('Private deal offer not found or you are not authorized to use this offer.', 404);
         }
-        if (new Date() > new Date(validOffer.expiresAt)) {
-            validOffer.status = 'expired';
-            await validOffer.save();
-            throw new AppError('This private deal has expired. The property has reverted to standard public pricing.', 400);
+        if (targetOffer.status === 'expired' || (targetOffer.expiresAt && new Date() > new Date(targetOffer.expiresAt))) {
+            if (targetOffer.status !== 'expired') {
+                targetOffer.status = 'expired';
+                targetOffer.expiredAt = new Date();
+                targetOffer.expirationReason = 'deal_validity_expired';
+                await targetOffer.save();
+            }
+            throw new AppError('This private deal has expired and cannot be used for booking. Please start a new negotiation.', 400);
         }
+        if (targetOffer.status !== 'accepted') {
+            throw new AppError('This private deal is not in an accepted state and cannot be used for booking.', 400);
+        }
+        validOffer = targetOffer;
     } else {
         // Automatically check if tenant has an active, accepted, unexpired private deal for this property
         const activeAccepted = await Offer.findOne({

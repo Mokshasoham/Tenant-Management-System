@@ -128,7 +128,7 @@ const offerSchema = new mongoose.Schema(
                 },
                 action: {
                     type: String,
-                    enum: ['offer', 'counter', 'accept', 'reject', 'cancel'],
+                    enum: ['offer', 'counter', 'accept', 'reject', 'cancel', 'expired'],
                     required: true,
                 },
             },
@@ -137,6 +137,12 @@ const offerSchema = new mongoose.Schema(
             type: Date,
             default: () => new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h default
             index: true,
+        },
+        expiredAt: {
+            type: Date,
+        },
+        expirationReason: {
+            type: String,
         },
         acceptedAt: {
             type: Date,

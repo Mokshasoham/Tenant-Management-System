@@ -256,7 +256,7 @@ export default function PropertyDetailsPage() {
     const [existingVisit, setExistingVisit] = useState(null);
 
     // Private Rent Negotiation States
-    const [showNegotiationModal, setShowNegotiationModal] = useState(false);
+    const [showNegotiationModal, setShowNegotiationModal] = useState(Boolean(location.state?.openNegotiation));
     const [offerRent, setOfferRent] = useState('');
     const [offerStartDate, setOfferStartDate] = useState('');
     const [offerEndDate, setOfferEndDate] = useState('');
@@ -264,6 +264,12 @@ export default function PropertyDetailsPage() {
     const [offerLoading, setOfferLoading] = useState(false);
     const [offerSuccess, setOfferSuccess] = useState(false);
     const [offerError, setOfferError] = useState('');
+
+    useEffect(() => {
+        if (location.state?.openNegotiation) {
+            setShowNegotiationModal(true);
+        }
+    }, [location.state]);
 
     const handleProposeOffer = async (e) => {
         e.preventDefault();
