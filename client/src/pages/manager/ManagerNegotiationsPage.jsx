@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
+import { calculateLeaseDuration, formatDateRange, formatDateSingle } from '../../utils/dateDurationHelper';
 
 const isOfferExpired = (offer) => Boolean(
   offer && (
@@ -33,8 +34,8 @@ export default function ManagerNegotiationsPage() {
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [responseAction, setResponseAction] = useState('counter'); // 'counter' | 'accept' | 'reject'
   const [counterRent, setCounterRent] = useState('');
-  const [counterLeasePeriod, setCounterLeasePeriod] = useState('12 months');
-  const [counterMoveInDate, setCounterMoveInDate] = useState('');
+  const [counterStartDate, setCounterStartDate] = useState('');
+  const [counterEndDate, setCounterEndDate] = useState('');
   const [responseMessage, setResponseMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -69,8 +70,10 @@ export default function ManagerNegotiationsPage() {
     setSelectedOffer(offer);
     setResponseAction(initialAction);
     setCounterRent(String(offer.currentOffer || ''));
-    setCounterLeasePeriod(offer.leasePeriod || '12 months');
-    setCounterMoveInDate(offer.moveInDate ? new Date(offer.moveInDate).toISOString().split('T')[0] : '');
+    const startVal = offer.startDate || offer.moveInDate;
+    const endVal = offer.endDate;
+    setCounterStartDate(startVal ? new Date(startVal).toISOString().split('T')[0] : '');
+    setCounterEndDate(endVal ? new Date(endVal).toISOString().split('T')[0] : '');
     setResponseMessage('');
     setActionError('');
   };
@@ -92,9 +95,21 @@ export default function ManagerNegotiationsPage() {
           setSubmitting(false);
           return;
         }
+        if (!counterStartDate || !counterEndDate) {
+          setActionError('Please select both start date and end date for your counter offer.');
+          setSubmitting(false);
+          return;
+        }
+        if (new Date(counterEndDate) <= new Date(counterStartDate)) {
+          setActionError('Lease end date must be after the start date.');
+          setSubmitting(false);
+          return;
+        }
+        const dur = calculateLeaseDuration(counterStartDate, counterEndDate);
         payload.counterOffer = rentNum;
-        payload.leasePeriod = counterLeasePeriod;
-        payload.moveInDate = counterMoveInDate || undefined;
+        payload.startDate = counterStartDate;
+        payload.endDate = counterEndDate;
+        payload.leasePeriod = dur?.durationText || '12 months';
       }
 
       await offerService.respondToOffer(selectedOffer._id, responseAction, payload);
@@ -365,18 +380,34 @@ export default function ManagerNegotiationsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5 text-[11px]">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{offer.leasePeriod || '12 months'}</span>
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5 font-medium text-foreground">
+                          <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>
+                            {offer.startDate && offer.endDate
+                              ? formatDateRange(offer.startDate, offer.endDate)
+                              : (offer.leasePeriod || '12 months')}
+                          </span>
+                        </div>
+                        {offer.durationText && (
+                          <span className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-bold text-foreground">
+                            {offer.durationText}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1 text-[11px]">
-                        <Clock className="w-3 h-3 text-muted-foreground" />
-                        <span>
-                          {isExpired
-                            ? 'Offer expired'
-                            : `Expires ${new Date(offer.expiresAt).toLocaleDateString()}`}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground text-[10px]">
+                          {offer.status === 'accepted' ? 'Locked Lease Term' : 'Proposed Lease Term'}
                         </span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          <span>
+                            {isExpired
+                              ? 'Offer expired'
+                              : `Expires ${new Date(offer.expiresAt).toLocaleDateString()}`}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -501,6 +532,16 @@ export default function ManagerNegotiationsPage() {
                           <span className="line-clamp-1 italic">{noteText || 'No message provided'}</span>
                           <span className="font-mono text-[10px] shrink-0 ml-2">{dateStr}</span>
                         </div>
+                        {round.startDate && round.endDate && (
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                            <span className="flex items-center gap-1 font-mono text-[10px]">
+                              📅 {formatDateRange(round.startDate, round.endDate)}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-bold text-foreground">
+                              {round.durationText || calculateLeaseDuration(round.startDate, round.endDate).durationText}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -567,33 +608,42 @@ export default function ManagerNegotiationsPage() {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              Lease Period
-                            </label>
-                            <select
-                              value={counterLeasePeriod}
-                              onChange={(e) => setCounterLeasePeriod(e.target.value)}
-                              className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
-                            >
-                              <option value="6 months">6 Months</option>
-                              <option value="12 months">12 Months</option>
-                              <option value="24 months">24 Months</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              Move-In Date
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                              <span>Start Date *</span>
                             </label>
                             <input
                               type="date"
-                              value={counterMoveInDate}
-                              onChange={(e) => setCounterMoveInDate(e.target.value)}
+                              required
+                              value={counterStartDate}
+                              onChange={(e) => setCounterStartDate(e.target.value)}
                               min={new Date().toISOString().split('T')[0]}
-                              className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                              className="w-full px-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                              <span>End Date *</span>
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              value={counterEndDate}
+                              onChange={(e) => setCounterEndDate(e.target.value)}
+                              min={counterStartDate || new Date().toISOString().split('T')[0]}
+                              className="w-full px-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
                             />
                           </div>
                         </div>
+
+                        {counterStartDate && counterEndDate && (
+                          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between">
+                            <span className="text-muted-foreground text-[11px] font-medium">Calculated Duration:</span>
+                            <span className="font-bold text-emerald-400">
+                              {calculateLeaseDuration(counterStartDate, counterEndDate).durationText}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border flex items-center justify-between">
                           <span>Upcoming Round:</span>
@@ -681,9 +731,14 @@ export default function ManagerNegotiationsPage() {
               ) : (
                 <div className="pt-2 border-t border-border">
                   {selectedOffer.status === 'accepted' ? (
-                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs text-center space-y-1">
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs text-center space-y-1.5">
                       <p className="font-bold text-sm">🎉 Deal Accepted & Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/mo</p>
-                      <p className="text-[11px] text-muted-foreground">Waiting for tenant to finalize their booking at this private rate.</p>
+                      {(selectedOffer.agreedStartDate || selectedOffer.startDate) && (selectedOffer.agreedEndDate || selectedOffer.endDate) && (
+                        <p className="text-xs font-mono font-bold text-foreground">
+                          📅 {formatDateRange(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate)} • {selectedOffer.durationText || calculateLeaseDuration(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate).durationText}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">Waiting for tenant to finalize their booking at this private rate and locked dates.</p>
                     </div>
                   ) : isExpired ? (
                     <div className="p-4 rounded-2xl bg-gray-500/10 border border-gray-500/20 text-gray-400 text-xs text-center space-y-1">

@@ -969,10 +969,18 @@ export const requestBooking = asyncHandler(async (req, res) => {
         }
     }
 
+    // ══ BACKEND AUTHORITY: STRICT DEAL DATE ENFORCEMENT ══
+    let effectiveStartDate = startDate;
+    let effectiveEndDate = endDate;
+    if (validOffer && validOffer.status === 'accepted') {
+        effectiveStartDate = validOffer.agreedStartDate || validOffer.startDate || startDate;
+        effectiveEndDate = validOffer.agreedEndDate || validOffer.endDate || endDate;
+    }
+
     // Validate 7-day lead time rule (move-in date must be at least 7 days from now)
     const now = new Date();
-    const reqStart = new Date(startDate);
-    const reqEnd = new Date(endDate);
+    const reqStart = new Date(effectiveStartDate);
+    const reqEnd = new Date(effectiveEndDate);
 
     const getLocalDateString = (d) => {
         const year = d.getFullYear();
@@ -982,7 +990,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
     };
 
     const nowStr = getLocalDateString(now);
-    const startStr = startDate.split('T')[0];
+    const startStr = typeof effectiveStartDate === 'string' ? effectiveStartDate.split('T')[0] : getLocalDateString(reqStart);
 
     const d1 = new Date(nowStr);
     const d2 = new Date(startStr);
@@ -1022,10 +1030,12 @@ export const requestBooking = asyncHandler(async (req, res) => {
         user: userId,
         property: propertyId,
         manager: property.manager || property.owner,
-        startDate,
-        endDate,
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
         offer: validOffer ? validOffer._id : undefined,
         agreedRent: validOffer ? validOffer.agreedRent : undefined,
+        agreedStartDate: validOffer ? (validOffer.agreedStartDate || validOffer.startDate) : undefined,
+        agreedEndDate: validOffer ? (validOffer.agreedEndDate || validOffer.endDate) : undefined,
         listedRent: property.rentAmount,
         totalAmount: isFree ? 0 : breakdown.totalPayable,
         depositAmount: isFree ? 0 : baseDepositOrRent,
@@ -1056,8 +1066,8 @@ export const requestBooking = asyncHandler(async (req, res) => {
     await Property.findByIdAndUpdate(propertyId, {
         $push: {
             bookedDates: {
-                startDate,
-                endDate,
+                startDate: effectiveStartDate,
+                endDate: effectiveEndDate,
                 bookingId: booking._id,
                 status: 'pending'
             }
@@ -1140,7 +1150,8 @@ export const getBookingById = asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id)
         .populate('property')
         .populate('user', 'firstName lastName email phone avatar')
-        .populate('manager', 'firstName lastName email phone');
+        .populate('manager', 'firstName lastName email phone')
+        .populate('offer');
 
     if (!booking) throw new AppError('Booking not found', 404);
 

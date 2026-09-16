@@ -57,6 +57,12 @@ const offerSchema = new mongoose.Schema(
         },
         startDate: Date,
         endDate: Date,
+        agreedStartDate: Date,
+        agreedEndDate: Date,
+        acceptedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
         status: {
             type: String,
             enum: ['pending', 'countered', 'accepted', 'rejected', 'cancelled', 'expired'],
@@ -75,6 +81,8 @@ const offerSchema = new mongoose.Schema(
         },
         counterOffer: {
             rent: Number,
+            startDate: Date,
+            endDate: Date,
             message: String,
             createdAt: Date,
         },
@@ -99,6 +107,8 @@ const offerSchema = new mongoose.Schema(
                     type: Number,
                     required: true,
                 },
+                startDate: Date,
+                endDate: Date,
                 message: {
                     type: String,
                     maxlength: 1000,

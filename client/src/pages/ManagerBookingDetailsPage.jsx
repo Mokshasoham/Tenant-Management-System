@@ -13,6 +13,7 @@ import {
 import { cn } from '../utils/cn';
 import apiClient from '../services/apiClient';
 import { openSecureFile } from '../utils/fileAccess';
+import { calculateLeaseDuration, formatDateRange } from '../utils/dateDurationHelper';
 
 export default function ManagerBookingDetailsPage({ booking: initialBooking, onRefresh }) {
     const { id } = useParams();
@@ -439,8 +440,25 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                     <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1">
                         <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Tenancy Term</span>
                         <p className="text-[11px] font-black text-foreground pt-0.5">
-                            {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
+                            {formatDateRange(booking.startDate, booking.endDate)}
                         </p>
+                        {calculateLeaseDuration(booking.startDate, booking.endDate)?.text && (
+                            <p className="text-[10px] font-bold text-cyan-400">
+                                {calculateLeaseDuration(booking.startDate, booking.endDate).text}
+                            </p>
+                        )}
+                        {booking.agreedRent ? (
+                            <div className="pt-1.5 border-t border-white/5 space-y-0.5">
+                                <span className="text-[9px] font-black text-emerald-400 block uppercase tracking-wider">
+                                    Negotiated: ₹{booking.agreedRent.toLocaleString('en-IN')} / mo
+                                </span>
+                                {(booking.offer?.dealNumber || booking.offerId) && (
+                                    <span className="text-[9px] font-mono text-muted-foreground block">
+                                        Deal #{booking.offer?.dealNumber || booking.offerId}
+                                    </span>
+                                )}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             </motion.div>

@@ -375,17 +375,22 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         status: 'accepted',
         expiresAt: { $gt: new Date() },
         booking: { $exists: false },
-      }).select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate');
+      }).select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate startDate endDate agreedStartDate agreedEndDate');
 
       if (activeDeal) {
         resolved.privateDeal = {
           id: activeDeal._id,
+          _id: activeDeal._id,
           dealNumber: activeDeal.dealNumber,
           agreedRent: activeDeal.agreedRent,
           status: 'ACCEPTED',
           expiresAt: activeDeal.expiresAt,
           leasePeriod: activeDeal.leasePeriod,
           moveInDate: activeDeal.moveInDate,
+          startDate: activeDeal.agreedStartDate || activeDeal.startDate,
+          endDate: activeDeal.agreedEndDate || activeDeal.endDate,
+          agreedStartDate: activeDeal.agreedStartDate || activeDeal.startDate,
+          agreedEndDate: activeDeal.agreedEndDate || activeDeal.endDate,
         };
       } else {
         resolved.privateDeal = null;

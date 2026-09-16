@@ -24,6 +24,7 @@ import NearbyPlacesSection from '../components/property/NearbyPlacesSection';
 import TopNearbyPlacesCTA from '../components/property/TopNearbyPlacesCTA';
 import NearbyPropertiesSection from '../components/property/NearbyPropertiesSection';
 import SimilarPropertiesSection from '../components/property/SimilarPropertiesSection';
+import { calculateLeaseDuration, formatDateRange, formatDateSingle } from '../utils/dateDurationHelper';
 
 
 
@@ -257,8 +258,8 @@ export default function PropertyDetailsPage() {
     // Private Rent Negotiation States
     const [showNegotiationModal, setShowNegotiationModal] = useState(false);
     const [offerRent, setOfferRent] = useState('');
-    const [offerLeasePeriod, setOfferLeasePeriod] = useState('12 months');
-    const [offerMoveInDate, setOfferMoveInDate] = useState('');
+    const [offerStartDate, setOfferStartDate] = useState('');
+    const [offerEndDate, setOfferEndDate] = useState('');
     const [offerMessage, setOfferMessage] = useState('');
     const [offerLoading, setOfferLoading] = useState(false);
     const [offerSuccess, setOfferSuccess] = useState(false);
@@ -275,14 +276,24 @@ export default function PropertyDetailsPage() {
             setOfferError('Please enter a valid monthly offer amount.');
             return;
         }
+        if (!offerStartDate || !offerEndDate) {
+            setOfferError('Please select both start date and end date for the lease period.');
+            return;
+        }
+        if (new Date(offerEndDate) <= new Date(offerStartDate)) {
+            setOfferError('Lease end date must be after the start date.');
+            return;
+        }
         setOfferLoading(true);
         setOfferError('');
         try {
+            const dur = calculateLeaseDuration(offerStartDate, offerEndDate);
             await offerService.createOffer({
                 propertyId: id,
                 offerAmount: rentNum,
-                leasePeriod: offerLeasePeriod || '12 months',
-                moveInDate: offerMoveInDate || undefined,
+                startDate: offerStartDate,
+                endDate: offerEndDate,
+                leasePeriod: dur?.text || '12 months',
                 message: offerMessage
             });
             setOfferSuccess(true);
@@ -292,7 +303,7 @@ export default function PropertyDetailsPage() {
                 fetchProperty();
             }, 1200);
         } catch (err) {
-            const errMsg = err?.message || err?.error?.message || 'Failed to submit offer.';
+            const errMsg = err?.response?.data?.message || err?.message || err?.error?.message || 'Failed to submit offer.';
             setOfferError(errMsg);
         } finally {
             setOfferLoading(false);
@@ -372,18 +383,25 @@ export default function PropertyDetailsPage() {
                 }
             }
 
-            const activeLease = prop?.leases?.find(l => l && l.status === 'active');
-            if (activeLease && new Date(activeLease.endDate) > new Date()) {
-                let nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
-                const sevenDaysOut = new Date();
-                sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
-                if (nextAvail < sevenDaysOut) {
-                    nextAvail = sevenDaysOut;
+            if (prop?.privateDeal) {
+                const dealStart = prop.privateDeal.agreedStartDate || prop.privateDeal.startDate;
+                const dealEnd = prop.privateDeal.agreedEndDate || prop.privateDeal.endDate;
+                if (dealStart) setStartDate(typeof dealStart === 'string' ? dealStart.split('T')[0] : getLocalFormattedDate(new Date(dealStart)));
+                if (dealEnd) setEndDate(typeof dealEnd === 'string' ? dealEnd.split('T')[0] : getLocalFormattedDate(new Date(dealEnd)));
+            } else {
+                const activeLease = prop?.leases?.find(l => l && l.status === 'active');
+                if (activeLease && new Date(activeLease.endDate) > new Date()) {
+                    let nextAvail = new Date(new Date(activeLease.endDate).getTime() + 24 * 60 * 60 * 1000);
+                    const sevenDaysOut = new Date();
+                    sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+                    if (nextAvail < sevenDaysOut) {
+                        nextAvail = sevenDaysOut;
+                    }
+                    setStartDate(getLocalFormattedDate(nextAvail));
+                    const end = new Date(nextAvail);
+                    end.setMonth(end.getMonth() + 1);
+                    setEndDate(getLocalFormattedDate(end));
                 }
-                setStartDate(getLocalFormattedDate(nextAvail));
-                const end = new Date(nextAvail);
-                end.setMonth(end.getMonth() + 1);
-                setEndDate(getLocalFormattedDate(end));
             }
 
             // Fetch similar properties
@@ -1690,31 +1708,53 @@ export default function PropertyDetailsPage() {
                                             )}
 
                                             {/* Booking Schedule Selector */}
-                                            <div className="flex gap-4">
-                                                <div className="flex-1 space-y-1">
-                                                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Start Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={startDate}
-                                                        onChange={(e) => setStartDate(e.target.value)}
-                                                        min={minAvailableDate}
-                                                        disabled={isNotBookable}
-                                                        className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        style={{ colorScheme: 'dark' }}
-                                                    />
+                                            <div className="space-y-2">
+                                                <div className="flex gap-4">
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-center justify-between pl-1">
+                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Start Date</label>
+                                                            {property.privateDeal && (
+                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                                                                    <Lock className="w-2.5 h-2.5" /> Locked
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            type="date"
+                                                            value={startDate}
+                                                            onChange={(e) => setStartDate(e.target.value)}
+                                                            min={minAvailableDate}
+                                                            disabled={isNotBookable || Boolean(property.privateDeal)}
+                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            style={{ colorScheme: 'dark' }}
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-center justify-between pl-1">
+                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">End Date</label>
+                                                            {property.privateDeal && (
+                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                                                                    <Lock className="w-2.5 h-2.5" /> Locked
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            type="date"
+                                                            value={endDate}
+                                                            onChange={(e) => setEndDate(e.target.value)}
+                                                            min={startDate}
+                                                            disabled={isNotBookable || Boolean(property.privateDeal)}
+                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            style={{ colorScheme: 'dark' }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 space-y-1">
-                                                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">End Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={endDate}
-                                                        onChange={(e) => setEndDate(e.target.value)}
-                                                        min={startDate}
-                                                        disabled={isNotBookable}
-                                                        className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        style={{ colorScheme: 'dark' }}
-                                                    />
-                                                </div>
+                                                {property.privateDeal && (
+                                                    <p className="text-[10px] text-emerald-300/80 pl-1 font-semibold flex items-center gap-1">
+                                                        <Lock className="w-3 h-3 text-emerald-400" />
+                                                        Lease period locked by your accepted private agreement ({calculateLeaseDuration(startDate, endDate)?.text || ''})
+                                                    </p>
+                                                )}
                                             </div>
 
                                             {/* ══ OPTIONAL MAINTENANCE & REPAIRS ADD-ON ══ */}
@@ -1853,7 +1893,7 @@ export default function PropertyDetailsPage() {
                                             ) : (
                                                 <div className="space-y-3">
                                                     {property.privateDeal && (
-                                                        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-white space-y-2">
+                                                        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-white space-y-2.5">
                                                             <div className="flex items-center justify-between">
                                                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 flex items-center gap-1.5">
                                                                     <Sparkles className="w-3.5 h-3.5" /> Approved Private Deal
@@ -1864,13 +1904,24 @@ export default function PropertyDetailsPage() {
                                                             </div>
                                                             <div className="flex items-baseline justify-between">
                                                                 <span className="text-xs text-white/70">Exclusive Rent:</span>
-                                                                <span className="text-2xl font-black text-emerald-300">
+                                                                <span className="text-2xl font-black text-emerald-300 font-mono">
                                                                     ₹{property.privateDeal.agreedRent?.toLocaleString('en-IN')}
                                                                     <span className="text-xs font-normal text-white/60">/mo</span>
                                                                 </span>
                                                             </div>
-                                                            <p className="text-[11px] text-white/75 leading-relaxed">
-                                                                Locked for your account until {new Date(property.privateDeal.expiresAt).toLocaleDateString()}.
+                                                            <div className="p-2.5 rounded-xl bg-black/20 border border-white/10 text-xs space-y-1">
+                                                                <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-wider block">Agreed Lease Period:</span>
+                                                                <div className="font-bold text-white flex items-center justify-between">
+                                                                    <span>{formatDateRange(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)}</span>
+                                                                </div>
+                                                                {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)?.text && (
+                                                                    <span className="text-[10px] font-mono text-emerald-300 block">
+                                                                        {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate).text}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[10px] text-white/75 leading-relaxed italic">
+                                                                🔒 This price and lease period are locked for your booking until {new Date(property.privateDeal.expiresAt).toLocaleDateString()}.
                                                             </p>
                                                         </div>
                                                     )}
@@ -1899,6 +1950,8 @@ export default function PropertyDetailsPage() {
                                                                         type="button"
                                                                         onClick={() => {
                                                                             setOfferRent(String(Math.round((property.rentAmount || 0) * 0.95)));
+                                                                            setOfferStartDate(startDate || getSevenDaysOutStr());
+                                                                            setOfferEndDate(endDate || getOneMonthSevenDaysOutStr());
                                                                             setShowNegotiationModal(true);
                                                                         }}
                                                                         className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white transition-all text-xs border border-white/20 uppercase tracking-wider"
@@ -2910,34 +2963,50 @@ export default function PropertyDetailsPage() {
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
+                                    <div className="space-y-2 p-3.5 rounded-2xl bg-muted/40 border border-border/80">
+                                        <div className="flex items-center justify-between">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                                Lease Term
+                                                Lease Period (Start Date → End Date) *
                                             </label>
-                                            <select
-                                                value={offerLeasePeriod}
-                                                onChange={(e) => setOfferLeasePeriod(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
-                                            >
-                                                <option value="6 months">6 Months</option>
-                                                <option value="12 months">12 Months (Standard)</option>
-                                                <option value="24 months">24 Months (Long Term)</option>
-                                            </select>
+                                            {calculateLeaseDuration(offerStartDate, offerEndDate)?.text && (
+                                                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                                    {calculateLeaseDuration(offerStartDate, offerEndDate).text}
+                                                </span>
+                                            )}
                                         </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                                Target Move-In Date
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={offerMoveInDate}
-                                                onChange={(e) => setOfferMoveInDate(e.target.value)}
-                                                min={new Date().toISOString().split('T')[0]}
-                                                className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
-                                            />
+                                        <div className="grid grid-cols-2 gap-3 items-center">
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black text-muted-foreground/70 uppercase pl-1">Start Date</span>
+                                                <input
+                                                    type="date"
+                                                    required
+                                                    value={offerStartDate}
+                                                    onChange={(e) => setOfferStartDate(e.target.value)}
+                                                    min={minAvailableDate}
+                                                    className="w-full px-3 py-2.5 rounded-2xl bg-card border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                                                    style={{ colorScheme: 'dark' }}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black text-muted-foreground/70 uppercase pl-1">End Date</span>
+                                                <input
+                                                    type="date"
+                                                    required
+                                                    value={offerEndDate}
+                                                    onChange={(e) => setOfferEndDate(e.target.value)}
+                                                    min={offerStartDate || minAvailableDate}
+                                                    className="w-full px-3 py-2.5 rounded-2xl bg-card border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500"
+                                                    style={{ colorScheme: 'dark' }}
+                                                />
+                                            </div>
                                         </div>
+                                        {offerStartDate && offerEndDate && (
+                                            <div className="pt-1 text-center">
+                                                <span className="text-[11px] font-mono font-black text-emerald-400">
+                                                    {formatDateRange(offerStartDate, offerEndDate)}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="space-y-1.5">

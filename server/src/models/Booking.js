@@ -77,6 +77,8 @@ const bookingSchema = new mongoose.Schema(
             ref: 'Offer',
         },
         agreedRent: Number,   // the final negotiated rent
+        agreedStartDate: Date, // negotiated locked start date
+        agreedEndDate: Date,   // negotiated locked end date
         listedRent: Number,   // original public listing rent at booking time
 
         // Timeline events for tracker

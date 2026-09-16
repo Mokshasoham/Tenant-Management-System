@@ -9,6 +9,8 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import { generateSequenceNumber } from '../platform/sequence/sequenceService.js';
 import { NotificationService } from '../services/NotificationService.js';
 
+import { calculateLeaseDuration, formatDateRange } from '../utils/dateDurationHelper.js';
+
 // Centralized notification dispatcher helper for negotiation events
 const sendNegotiationNotification = async ({ recipient, sender, title, message, propertyId, offerId, action = 'view', isRecipientTenant = false }) => {
     const targetUrl = isRecipientTenant ? '/my-negotiations' : '/negotiations';
@@ -95,6 +97,12 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
     const canManagerCounter = canManagerRespond && currentRounds < maxRounds;
     const canManagerAccept = canManagerRespond;
 
+    const activeStart = offer.agreedStartDate || offer.startDate || offer.moveInDate;
+    const activeEnd = offer.agreedEndDate || offer.endDate;
+    const duration = calculateLeaseDuration(activeStart, activeEnd);
+    const durationText = duration?.text || offer.leasePeriod || '12 months';
+    const durationDays = duration?.days || null;
+
     // Normalizing history items safely for read-time presentation
     const normalizedHistory = (offer.offerHistory || []).map((h, idx) => {
         const hObj = h.toObject ? h.toObject() : { ...h };
@@ -103,6 +111,10 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
         const role = hObj.senderRole || hObj.offeredBy || (idx === 0 ? 'tenant' : (idx % 2 === 1 ? 'manager' : 'tenant'));
         const message = hObj.message || hObj.note || '';
         const roundNum = Number(hObj.roundNumber) || (idx + 1);
+
+        const hStart = hObj.startDate || (idx === 0 ? (offer.startDate || offer.moveInDate) : offer.startDate);
+        const hEnd = hObj.endDate || (idx === 0 ? offer.endDate : offer.endDate);
+        const hDur = calculateLeaseDuration(hStart, hEnd);
 
         return {
             ...hObj,
@@ -115,13 +127,24 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
             note: message,
             timestamp: timestamp,
             offeredAt: timestamp,
-            leasePeriod: hObj.leasePeriod || offer.leasePeriod || '12 months',
+            startDate: hStart,
+            endDate: hEnd,
+            durationDays: hDur?.days || null,
+            durationText: hDur?.text || hObj.leasePeriod || durationText,
+            leasePeriod: hDur?.text || hObj.leasePeriod || offer.leasePeriod || '12 months',
             action: hObj.action || (idx === 0 ? 'offer' : 'counter')
         };
     });
 
     return {
         ...offer,
+        startDate: offer.startDate,
+        endDate: offer.endDate,
+        agreedStartDate: offer.agreedStartDate,
+        agreedEndDate: offer.agreedEndDate,
+        durationDays,
+        durationText,
+        agreedDuration: durationText,
         currentOfferedByRole,
         currentTurn,
         roundsRemaining,
@@ -211,8 +234,10 @@ export const createOffer = asyncHandler(async (req, res) => {
     // Generate atomic Deal Number (DEAL-2026-XXXXXX)
     const dealNumber = await generateSequenceNumber('DEAL', 'deal');
 
-    const effectiveMoveIn = moveInDate || startDate || new Date();
-    const effectiveLeasePeriod = leasePeriod || '12 Months';
+    const effectiveStartDate = startDate ? new Date(startDate) : (moveInDate ? new Date(moveInDate) : new Date());
+    const effectiveEndDate = endDate ? new Date(endDate) : undefined;
+    const dur = calculateLeaseDuration(effectiveStartDate, effectiveEndDate);
+    const effectiveLeasePeriod = dur?.text || leasePeriod || '12 Months';
 
     const offer = await Offer.create({
         dealNumber,
@@ -224,9 +249,9 @@ export const createOffer = asyncHandler(async (req, res) => {
         currentOffer: numericOfferedRent,
         currentOfferedBy: userId,
         leasePeriod: effectiveLeasePeriod,
-        moveInDate: effectiveMoveIn,
-        startDate: startDate || effectiveMoveIn,
-        endDate,
+        moveInDate: effectiveStartDate,
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
         message: message || '',
         status: 'pending',
         roundCount: 1,
@@ -239,7 +264,10 @@ export const createOffer = asyncHandler(async (req, res) => {
                 senderRole: 'tenant',
                 receiver: managerId,
                 proposedAmount: numericOfferedRent,
+                startDate: effectiveStartDate,
+                endDate: effectiveEndDate,
                 leasePeriod: effectiveLeasePeriod,
+                moveInDate: effectiveStartDate,
                 message: message || `Submitted rent offer of ₹${numericOfferedRent.toLocaleString('en-IN')}/mo`,
                 timestamp: new Date(),
                 action: 'offer'
@@ -320,22 +348,27 @@ export const respondToOffer = asyncHandler(async (req, res) => {
     if (action === 'accept') {
         offer.status = 'accepted';
         offer.agreedRent = offer.currentOffer || offer.offeredRent;
+        offer.agreedStartDate = offer.startDate || offer.moveInDate;
+        offer.agreedEndDate = offer.endDate;
+        offer.acceptedBy = userId;
         offer.acceptedAt = new Date();
         // Reset validity window for private deal booking
         offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
 
-        if (leasePeriod) offer.leasePeriod = leasePeriod;
-        if (moveInDate) offer.moveInDate = new Date(moveInDate);
+        const dur = calculateLeaseDuration(offer.agreedStartDate, offer.agreedEndDate);
+        if (dur) offer.leasePeriod = dur.text;
 
         offer.offerHistory.push({
             sender: userId,
             senderRole: isManager ? 'manager' : 'tenant',
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: offer.agreedRent,
+            startDate: offer.agreedStartDate,
+            endDate: offer.agreedEndDate,
             message: responseMsg || `Offer accepted at ₹${offer.agreedRent.toLocaleString('en-IN')}/mo. Private deal locked!`,
             roundNumber: offer.roundCount || 1,
             leasePeriod: offer.leasePeriod,
-            moveInDate: offer.moveInDate,
+            moveInDate: offer.agreedStartDate,
             timestamp: new Date(),
             action: 'accept'
         });
@@ -385,16 +418,24 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             throw new AppError(`Counter offer cannot exceed the listed public rent of ₹${property.rentAmount.toLocaleString('en-IN')}.`, 400);
         }
 
-        if (leasePeriod) offer.leasePeriod = leasePeriod;
-        if (moveInDate) offer.moveInDate = new Date(moveInDate);
+        const counterStartDate = req.body.startDate ? new Date(req.body.startDate) : offer.startDate;
+        const counterEndDate = req.body.endDate ? new Date(req.body.endDate) : offer.endDate;
+        const dur = calculateLeaseDuration(counterStartDate, counterEndDate);
+        const effectiveLeasePeriod = dur?.text || leasePeriod || offer.leasePeriod;
 
         offer.status = 'countered';
         offer.currentOffer = numericCounterRent;
         offer.currentOfferedBy = userId;
+        offer.startDate = counterStartDate;
+        offer.endDate = counterEndDate;
+        offer.moveInDate = counterStartDate;
+        offer.leasePeriod = effectiveLeasePeriod;
         offer.roundCount = currentRounds + 1;
         offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
         offer.counterOffer = {
             rent: numericCounterRent,
+            startDate: counterStartDate,
+            endDate: counterEndDate,
             message: responseMsg,
             createdAt: new Date()
         };
@@ -404,10 +445,12 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             senderRole: isManager ? 'manager' : 'tenant',
             receiver: isManager ? offer.fromUser : offer.toUser,
             proposedAmount: numericCounterRent,
+            startDate: counterStartDate,
+            endDate: counterEndDate,
             message: responseMsg || `Counter-offered ₹${numericCounterRent.toLocaleString('en-IN')}/mo`,
             roundNumber: currentRounds + 1,
-            leasePeriod: offer.leasePeriod,
-            moveInDate: offer.moveInDate,
+            leasePeriod: effectiveLeasePeriod,
+            moveInDate: counterStartDate,
             timestamp: new Date(),
             action: 'counter'
         });
