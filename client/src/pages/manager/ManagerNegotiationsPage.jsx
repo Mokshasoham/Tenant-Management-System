@@ -368,6 +368,15 @@ export default function ManagerNegotiationsPage() {
                     </div>
                   </div>
 
+                  {offer.maintenanceIncluded && (
+                    <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                      <span className="font-bold">Maintenance: Included</span>
+                      <span className="font-mono font-bold">
+                        +₹{(offer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo (Total: ₹{((offer.status === 'accepted' ? (offer.agreedRent || offerRent) : offerRent) + (offer.maintenanceAmount || 500)).toLocaleString('en-IN')}/mo)
+                      </span>
+                    </div>
+                  )}
+
                   {/* Tenant Details & Rounds */}
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between text-xs">
@@ -651,6 +660,13 @@ export default function ManagerNegotiationsPage() {
                             Round {(selectedOffer.roundCount || 1) + 1} of {selectedOffer.maxRounds || 5}
                           </span>
                         </div>
+
+                        {selectedOffer.maintenanceIncluded && (
+                          <div className="text-[11px] text-cyan-400 bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20 flex items-center justify-between">
+                            <span>Maintenance &amp; Repairs:</span>
+                            <span className="font-bold">Preserved (+₹{(selectedOffer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo)</span>
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -660,6 +676,11 @@ export default function ManagerNegotiationsPage() {
                           <CheckCircle2 className="w-4 h-4" />
                           <span>Ready to Lock Deal at ₹{selectedOffer.currentOffer?.toLocaleString('en-IN')}/month</span>
                         </div>
+                        {selectedOffer.maintenanceIncluded && (
+                          <p className="text-[11px] text-cyan-400 font-bold">
+                            + Includes Maintenance &amp; Repairs: +₹{(selectedOffer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo (Total Monthly: ₹{((selectedOffer.currentOffer || 0) + (selectedOffer.maintenanceAmount || 500)).toLocaleString('en-IN')}/mo)
+                          </p>
+                        )}
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
                           Accepting this offer grants the tenant a private, reserved window to book and pay deposit at this rate. The public listing price stays at ₹{selectedOffer.property?.rentAmount?.toLocaleString('en-IN')}.
                         </p>
@@ -733,6 +754,11 @@ export default function ManagerNegotiationsPage() {
                   {selectedOffer.status === 'accepted' ? (
                     <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs text-center space-y-1.5">
                       <p className="font-bold text-sm">🎉 Deal Accepted & Locked at ₹{(selectedOffer.agreedRent || selectedOffer.currentOffer)?.toLocaleString('en-IN')}/mo</p>
+                      {selectedOffer.maintenanceIncluded && (
+                        <p className="text-xs font-mono font-bold text-cyan-400">
+                          🔧 Maintenance Included (+₹{(selectedOffer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo • Total: ₹{((selectedOffer.agreedRent || selectedOffer.currentOffer || 0) + (selectedOffer.maintenanceAmount || 500)).toLocaleString('en-IN')}/mo)
+                        </p>
+                      )}
                       {(selectedOffer.agreedStartDate || selectedOffer.startDate) && (selectedOffer.agreedEndDate || selectedOffer.endDate) && (
                         <p className="text-xs font-mono font-bold text-foreground">
                           📅 {formatDateRange(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate)} • {selectedOffer.durationText || calculateLeaseDuration(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate).durationText}

@@ -300,7 +300,8 @@ export default function PropertyDetailsPage() {
                 startDate: offerStartDate,
                 endDate: offerEndDate,
                 leasePeriod: dur?.text || '12 months',
-                message: offerMessage
+                message: offerMessage,
+                maintenanceIncluded: Boolean(includeMaintenance)
             });
             setOfferSuccess(true);
             setTimeout(() => {
@@ -394,6 +395,10 @@ export default function PropertyDetailsPage() {
                 const dealEnd = prop.privateDeal.agreedEndDate || prop.privateDeal.endDate;
                 if (dealStart) setStartDate(typeof dealStart === 'string' ? dealStart.split('T')[0] : getLocalFormattedDate(new Date(dealStart)));
                 if (dealEnd) setEndDate(typeof dealEnd === 'string' ? dealEnd.split('T')[0] : getLocalFormattedDate(new Date(dealEnd)));
+                setIncludeMaintenance(Boolean(prop.privateDeal.maintenanceIncluded));
+                if (prop.privateDeal.maintenanceIncluded) {
+                    setMaintenanceTermsAccepted(true);
+                }
             } else {
                 const activeLease = prop?.leases?.find(l => l && l.status === 'active');
                 if (activeLease && new Date(activeLease.endDate) > new Date()) {
@@ -625,6 +630,8 @@ export default function PropertyDetailsPage() {
         setBookingLoading(true);
         setBookingError('');
         try {
+            const isDealMaint = property.privateDeal ? Boolean(property.privateDeal.maintenanceIncluded) : includeMaintenance;
+            const termsAccepted = isDealMaint ? (property.privateDeal ? true : maintenanceTermsAccepted) : false;
             // apiClient already unwraps response.data, so res is the backend JSON body directly
             const res = await bookingService.requestBooking({
                 propertyId: id,
@@ -632,8 +639,9 @@ export default function PropertyDetailsPage() {
                 endDate,
                 totalAmount: property.privateDeal?.agreedRent || property.rentAmount || 0,
                 offerId: property.privateDeal?._id,
-                includeMaintenance,
-                maintenanceTermsAccepted: includeMaintenance && maintenanceTermsAccepted
+                includeMaintenance: isDealMaint,
+                maintenanceIncluded: isDealMaint,
+                maintenanceTermsAccepted: termsAccepted
             });
             // res = { success: true, data: booking }
             const createdBooking = res.data;
@@ -1770,8 +1778,10 @@ export default function PropertyDetailsPage() {
                                                         <input
                                                             type="checkbox"
                                                             id="include-maintenance-checkbox"
-                                                            checked={includeMaintenance}
+                                                            checked={property.privateDeal ? Boolean(property.privateDeal.maintenanceIncluded) : includeMaintenance}
+                                                            disabled={Boolean(property.privateDeal)}
                                                             onChange={(e) => {
+                                                                if (property.privateDeal) return;
                                                                 if (e.target.checked) {
                                                                     if (!maintenanceTermsAccepted) {
                                                                         setShowMaintenanceTermsModal(true);
@@ -1782,12 +1792,22 @@ export default function PropertyDetailsPage() {
                                                                     setIncludeMaintenance(false);
                                                                 }
                                                             }}
-                                                            className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-white/30 cursor-pointer"
+                                                            className={cn(
+                                                                "mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-white/30",
+                                                                property.privateDeal ? "cursor-not-allowed opacity-80" : "cursor-pointer"
+                                                            )}
                                                         />
                                                         <div>
-                                                            <label htmlFor="include-maintenance-checkbox" className="text-xs font-black text-white cursor-pointer select-none">
-                                                                Include Maintenance &amp; Repairs
-                                                            </label>
+                                                            <div className="flex items-center gap-2">
+                                                                <label htmlFor="include-maintenance-checkbox" className={cn("text-xs font-black text-white select-none", property.privateDeal ? "cursor-not-allowed" : "cursor-pointer")}>
+                                                                    Include Maintenance &amp; Repairs
+                                                                </label>
+                                                                {property.privateDeal && (
+                                                                    <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                                                        <Lock className="w-2.5 h-2.5" /> Locked by deal
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <p className="text-[11px] text-white/60 mt-0.5 leading-snug">
                                                                 Get access to maintenance requests, technician support, repair tracking and maintenance history.
                                                             </p>
@@ -1803,26 +1823,32 @@ export default function PropertyDetailsPage() {
                                                             Read Terms &amp; Conditions
                                                         </button>
                                                         <span className="font-mono font-bold text-white/90">
-                                                            +₹{maintenanceConfig.fee} / {maintenanceConfig.frequency}
+                                                            +₹{property.privateDeal?.maintenanceIncluded ? (property.privateDeal.maintenanceAmount || maintenanceConfig.fee) : maintenanceConfig.fee} / {maintenanceConfig.frequency}
                                                         </span>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Live Pricing Breakdown */}
-                                            {includeMaintenance && property.bookingType !== 'free' && (
+                                            {(property.privateDeal ? property.privateDeal.maintenanceIncluded : includeMaintenance) && property.bookingType !== 'free' && (
                                                 <div className="p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 space-y-1.5 text-xs">
                                                     <div className="flex justify-between text-white/70">
                                                         <span>Monthly Rent</span>
-                                                        <span className="font-mono text-white">₹{property.rentAmount?.toLocaleString('en-IN')}</span>
+                                                        <span className="font-mono text-white">
+                                                            ₹{(property.privateDeal?.agreedRent || property.rentAmount)?.toLocaleString('en-IN')}
+                                                        </span>
                                                     </div>
                                                     <div className="flex justify-between text-indigo-300 font-medium">
                                                         <span>Maintenance &amp; Repairs</span>
-                                                        <span className="font-mono font-bold">+₹{maintenanceConfig.fee?.toLocaleString('en-IN')}</span>
+                                                        <span className="font-mono font-bold">
+                                                            +₹{(property.privateDeal?.maintenanceIncluded ? (property.privateDeal.maintenanceAmount || maintenanceConfig.fee) : maintenanceConfig.fee)?.toLocaleString('en-IN')}
+                                                        </span>
                                                     </div>
                                                     <div className="flex justify-between text-white font-bold pt-1.5 border-t border-white/10">
                                                         <span>Total Monthly Amount</span>
-                                                        <span className="font-mono text-indigo-400">₹{((property.rentAmount || 0) + maintenanceConfig.fee)?.toLocaleString('en-IN')}</span>
+                                                        <span className="font-mono text-indigo-400">
+                                                            ₹{(((property.privateDeal?.agreedRent || property.rentAmount) || 0) + (property.privateDeal?.maintenanceIncluded ? (property.privateDeal.maintenanceAmount || maintenanceConfig.fee) : maintenanceConfig.fee))?.toLocaleString('en-IN')}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             )}
@@ -1915,19 +1941,38 @@ export default function PropertyDetailsPage() {
                                                                     <span className="text-xs font-normal text-white/60">/mo</span>
                                                                 </span>
                                                             </div>
-                                                            <div className="p-2.5 rounded-xl bg-black/20 border border-white/10 text-xs space-y-1">
-                                                                <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-wider block">Agreed Lease Period:</span>
-                                                                <div className="font-bold text-white flex items-center justify-between">
-                                                                    <span>{formatDateRange(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)}</span>
-                                                                </div>
-                                                                {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)?.text && (
-                                                                    <span className="text-[10px] font-mono text-emerald-300 block">
-                                                                        {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate).text}
+                                                            <div className="p-2.5 rounded-xl bg-black/20 border border-white/10 text-xs space-y-1.5">
+                                                                <div className="flex items-center justify-between text-xs">
+                                                                    <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-wider">Maintenance &amp; Repairs:</span>
+                                                                    <span className={cn(
+                                                                        "font-mono text-xs font-bold",
+                                                                        property.privateDeal.maintenanceIncluded ? "text-cyan-300" : "text-white/40"
+                                                                    )}>
+                                                                        {property.privateDeal.maintenanceIncluded
+                                                                            ? `Included (+₹${(property.privateDeal.maintenanceAmount || maintenanceConfig.fee).toLocaleString('en-IN')}/mo)`
+                                                                            : 'Not Included'}
                                                                     </span>
-                                                                )}
+                                                                </div>
+                                                                <div className="flex items-center justify-between text-xs pt-1 border-t border-white/10">
+                                                                    <span className="text-[10px] font-bold text-white uppercase tracking-wider">Total Monthly Amount:</span>
+                                                                    <span className="font-mono text-sm font-black text-emerald-300">
+                                                                        ₹{((property.privateDeal.agreedRent || 0) + (property.privateDeal.maintenanceIncluded ? (property.privateDeal.maintenanceAmount || maintenanceConfig.fee) : 0)).toLocaleString('en-IN')}/mo
+                                                                    </span>
+                                                                </div>
+                                                                <div className="pt-1 border-t border-white/10">
+                                                                    <span className="text-[10px] font-bold text-emerald-200/80 uppercase tracking-wider block">Agreed Lease Period:</span>
+                                                                    <div className="font-bold text-white flex items-center justify-between pt-0.5">
+                                                                        <span>{formatDateRange(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)}</span>
+                                                                    </div>
+                                                                    {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate)?.text && (
+                                                                        <span className="text-[10px] font-mono text-emerald-300 block">
+                                                                            {calculateLeaseDuration(property.privateDeal.agreedStartDate || property.privateDeal.startDate, property.privateDeal.agreedEndDate || property.privateDeal.endDate).text}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                             <p className="text-[10px] text-white/75 leading-relaxed italic">
-                                                                🔒 This price and lease period are locked for your booking until {new Date(property.privateDeal.expiresAt).toLocaleDateString()}.
+                                                                🔒 This price, maintenance coverage, and lease period are locked for your booking until {new Date(property.privateDeal.expiresAt).toLocaleDateString()}.
                                                             </p>
                                                         </div>
                                                     )}
@@ -3027,6 +3072,46 @@ export default function PropertyDetailsPage() {
                                             className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-medium focus:outline-none focus:border-emerald-500 resize-none"
                                         />
                                     </div>
+
+                                    {property.bookingType !== 'free' && (
+                                        <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 space-y-2">
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="modal-include-maintenance-checkbox"
+                                                    checked={includeMaintenance}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            if (!maintenanceTermsAccepted) {
+                                                                setShowMaintenanceTermsModal(true);
+                                                            } else {
+                                                                setIncludeMaintenance(true);
+                                                            }
+                                                        } else {
+                                                            setIncludeMaintenance(false);
+                                                        }
+                                                    }}
+                                                    className="mt-1 w-4 h-4 rounded border-border bg-card text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                                                />
+                                                <div>
+                                                    <label htmlFor="modal-include-maintenance-checkbox" className="text-xs font-bold text-foreground cursor-pointer select-none">
+                                                        Include Maintenance &amp; Repairs (+₹{maintenanceConfig.fee}/mo)
+                                                    </label>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                                                        Access to priority repairs, technician support, and tracking.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {includeMaintenance && (
+                                                <div className="pt-2 border-t border-border/50 flex justify-between text-xs">
+                                                    <span className="text-muted-foreground">Total Proposed Monthly:</span>
+                                                    <span className="font-mono font-bold text-emerald-400">
+                                                        ₹{((Number(offerRent) || 0) + (maintenanceConfig.fee || 500)).toLocaleString('en-IN')}/mo
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] leading-relaxed flex items-start gap-2">
                                         <Info className="w-4 h-4 shrink-0 mt-0.5" />

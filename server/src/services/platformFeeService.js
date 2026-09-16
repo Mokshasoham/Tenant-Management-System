@@ -35,6 +35,21 @@ export async function getPlatformFeeConfig() {
 }
 
 /**
+ * Server-side resolution of configured maintenance fee
+ * NEVER trust client-submitted maintenance fee amounts!
+ */
+export async function resolveMaintenanceFee(rentAmountInput, includeMaintenance = false) {
+  if (!includeMaintenance) return 0;
+  const config = await getPlatformFeeConfig();
+  if (!config.maintenanceFeatureEnabled) return 0;
+  const rentAmount = Math.max(0, Number(rentAmountInput) || 0);
+  if (config.maintenanceFeeType === 'percentage') {
+    return Math.round((rentAmount * ((config.maintenanceFee || 0) / 100)) * 100) / 100;
+  }
+  return Math.round((config.maintenanceFee !== undefined ? config.maintenanceFee : 500) * 100) / 100;
+}
+
+/**
  * Server-side calculation of payment breakdown
  * NEVER trust client-submitted platform fee or total amounts!
  *
@@ -49,14 +64,7 @@ export async function calculatePaymentBreakdown(rentAmountInput, includeMaintena
   const config = await getPlatformFeeConfig();
 
   // Maintenance Add-on calculation
-  let maintenanceFee = 0;
-  if (includeMaintenance && config.maintenanceFeatureEnabled) {
-    if (config.maintenanceFeeType === 'percentage') {
-      maintenanceFee = Math.round((rentAmount * ((config.maintenanceFee || 0) / 100)) * 100) / 100;
-    } else {
-      maintenanceFee = Math.round((config.maintenanceFee !== undefined ? config.maintenanceFee : 500) * 100) / 100;
-    }
-  }
+  const maintenanceFee = await resolveMaintenanceFee(rentAmount, includeMaintenance);
 
   let platformFee = 0;
   if (config.platformFeeEnabled && rentAmount > 0) {

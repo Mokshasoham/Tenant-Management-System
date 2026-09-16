@@ -1122,15 +1122,39 @@ export const requestBooking = asyncHandler(async (req, res) => {
     }
 
     const isFree = property.bookingType === 'free';
-    const isMaintenanceSelected = Boolean(includeMaintenance);
+    // If a locked private deal exists, maintenance MUST be inherited authoritatively from validOffer!
+    const isMaintenanceSelected = validOffer
+        ? Boolean(validOffer.maintenanceIncluded)
+        : Boolean(includeMaintenance !== undefined ? includeMaintenance : req.body.maintenanceIncluded);
 
-    if (isMaintenanceSelected && !isFree && !maintenanceTermsAccepted) {
+    // If deal locked maintenance, terms were agreed as part of the locked agreement
+    const termsAccepted = validOffer
+        ? (validOffer.maintenanceIncluded ? true : false)
+        : Boolean(maintenanceTermsAccepted);
+
+    if (isMaintenanceSelected && !isFree && !termsAccepted) {
         throw new AppError('You must accept the Maintenance Terms & Conditions to include Maintenance & Repairs coverage.', 400);
     }
 
     const effectiveRent = validOffer ? validOffer.agreedRent : property.rentAmount;
     const baseDepositOrRent = property.depositAmount || effectiveRent || totalAmount || 0;
     const breakdown = isFree ? { totalPayable: 0, platformFee: 0, maintenanceFee: 0, maintenanceTermsVersion: '1.0' } : await calculatePaymentBreakdown(baseDepositOrRent, isMaintenanceSelected);
+
+    // If validOffer has a locked maintenanceAmount, preserve the exact locked fee
+    if (validOffer && isMaintenanceSelected && validOffer.maintenanceAmount !== undefined && validOffer.maintenanceAmount !== null) {
+        breakdown.maintenanceFee = validOffer.maintenanceAmount;
+        const feePayer = breakdown.feePayer || 'tenant';
+        const pFee = breakdown.platformFee || 0;
+        const tTax = breakdown.taxAmount || 0;
+        if (feePayer === 'tenant') {
+            breakdown.totalPayable = Math.round((baseDepositOrRent + breakdown.maintenanceFee + pFee + tTax) * 100) / 100;
+        } else if (feePayer === 'split') {
+            const halfFee = Math.round(((pFee + tTax) / 2) * 100) / 100;
+            breakdown.totalPayable = Math.round((baseDepositOrRent + breakdown.maintenanceFee + halfFee) * 100) / 100;
+        } else {
+            breakdown.totalPayable = Math.round((baseDepositOrRent + breakdown.maintenanceFee) * 100) / 100;
+        }
+    }
 
     const booking = await Booking.create({
         user: userId,
@@ -1148,7 +1172,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
         platformFee: isFree ? 0 : breakdown.platformFee,
         maintenanceSelected: isFree ? false : isMaintenanceSelected,
         maintenanceFeeAtBooking: isFree ? 0 : (breakdown.maintenanceFee || 0),
-        maintenanceTermsAccepted: isFree ? false : (isMaintenanceSelected && Boolean(maintenanceTermsAccepted)),
+        maintenanceTermsAccepted: isFree ? false : (isMaintenanceSelected && termsAccepted),
         maintenanceTermsAcceptedAt: (isMaintenanceSelected && !isFree) ? new Date() : null,
         maintenanceTermsVersion: (isMaintenanceSelected && !isFree) ? (breakdown.maintenanceTermsVersion || '1.0') : null,
         paymentStatus: isFree ? 'paid' : 'pending',
@@ -1208,6 +1232,7 @@ export const requestBooking = asyncHandler(async (req, res) => {
 export const getMyBookings = asyncHandler(async (req, res) => {
     const bookings = await Booking.find({ user: req.user.userId })
         .populate('property', 'name address images city rating rentAmount depositAmount price')
+        .populate('offer', 'dealNumber agreedRent maintenanceIncluded maintenanceAmount')
         .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: bookings });
 });
@@ -1224,8 +1249,9 @@ export const getManagerBookings = asyncHandler(async (req, res) => {
             { property: { $in: propIds } }
         ]
     })
-        .populate('property', 'name address city')
-        .populate('user', 'firstName lastName email')
+        .populate('property', 'name address city rentAmount depositAmount price')
+        .populate('user', 'firstName lastName email avatar phone')
+        .populate('offer', 'dealNumber agreedRent maintenanceIncluded maintenanceAmount')
         .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: bookings });
 });
@@ -1393,7 +1419,8 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         console.log('[MockPay] Trace: Step 1 (Booking)');
         const start = startDate ? new Date(startDate) : new Date();
 
-        const isMaint = req.body.includeMaintenance === true;
+        const isMaint = req.body.includeMaintenance === true || req.body.maintenanceIncluded === true;
+        const maintFeeAtBooking = isMaint ? (req.body.maintenanceFee || 500) : 0;
         const booking = await Booking.create({
             user: userId,
             property: propertyId,
@@ -1408,7 +1435,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             bookingDate: new Date(),
             paymentDate: new Date(),
             maintenanceSelected: isMaint,
-            maintenanceFeeAtBooking: isMaint ? 500 : 0,
+            maintenanceFeeAtBooking: maintFeeAtBooking,
             maintenanceTermsAccepted: isMaint,
             maintenanceTermsAcceptedAt: isMaint ? new Date() : null,
             maintenanceTermsVersion: isMaint ? '1.0' : null,
@@ -1461,7 +1488,7 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 maintenanceEnabled: isMaint,
                 maintenanceAccessStatus: isMaint ? 'included' : 'locked',
                 maintenancePlan: isMaint ? 'included' : 'none',
-                maintenanceFee: isMaint ? 500 : 0,
+                maintenanceFee: maintFeeAtBooking,
                 maintenanceTermsAccepted: isMaint,
                 maintenanceTermsAcceptedAt: isMaint ? new Date() : null,
                 maintenanceTermsVersion: isMaint ? '1.0' : null,

@@ -452,11 +452,22 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                                 <span className="text-[9px] font-black text-emerald-400 block uppercase tracking-wider">
                                     Negotiated: ₹{booking.agreedRent.toLocaleString('en-IN')} / mo
                                 </span>
+                                {booking.maintenanceSelected && (
+                                    <span className="text-[9px] font-bold text-cyan-400 block">
+                                        + Maint: ₹{(booking.maintenanceFeeAtBooking || 500).toLocaleString('en-IN')} (Total: ₹{((booking.agreedRent || 0) + (booking.maintenanceFeeAtBooking || 500)).toLocaleString('en-IN')}/mo)
+                                    </span>
+                                )}
                                 {(booking.offer?.dealNumber || booking.offerId) && (
                                     <span className="text-[9px] font-mono text-muted-foreground block">
                                         Deal #{booking.offer?.dealNumber || booking.offerId}
                                     </span>
                                 )}
+                            </div>
+                        ) : booking.maintenanceSelected ? (
+                            <div className="pt-1.5 border-t border-white/5 space-y-0.5">
+                                <span className="text-[9px] font-bold text-cyan-400 block">
+                                    Maint: Included (+₹{(booking.maintenanceFeeAtBooking || 500).toLocaleString('en-IN')}/mo)
+                                </span>
                             </div>
                         ) : null}
                     </div>
@@ -602,9 +613,34 @@ export default function ManagerBookingDetailsPage({ booking: initialBooking, onR
                         <div className="flex justify-between py-2 border-b border-border/40">
                             <span className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[10px]">Monthly Rent</span>
                             <span className="font-black text-foreground">
-                                ₹{(booking.property?.rentAmount || 0).toLocaleString('en-IN')}
+                                {booking.agreedRent ? (
+                                    <span className="text-emerald-400">
+                                        ₹{booking.agreedRent.toLocaleString('en-IN')}{' '}
+                                        <span className="text-[10px] text-muted-foreground line-through font-normal">
+                                            ₹{(booking.property?.rentAmount || 0).toLocaleString('en-IN')}
+                                        </span>
+                                    </span>
+                                ) : (
+                                    `₹${(booking.property?.rentAmount || 0).toLocaleString('en-IN')}`
+                                )}
                             </span>
                         </div>
+                        {booking.maintenanceSelected && (
+                            <>
+                                <div className="flex justify-between py-2 border-b border-border/40 text-cyan-400">
+                                    <span className="font-bold uppercase tracking-wider text-[10px]">Maintenance &amp; Repairs</span>
+                                    <span className="font-black font-mono">
+                                        +₹{(booking.maintenanceFeeAtBooking || 500).toLocaleString('en-IN')} / mo
+                                    </span>
+                                </div>
+                                <div className="flex justify-between py-2 border-b border-border/40">
+                                    <span className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[10px]">Total Monthly Amount</span>
+                                    <span className="font-black text-foreground font-mono">
+                                        ₹{((booking.agreedRent || booking.property?.rentAmount || 0) + (booking.maintenanceFeeAtBooking || 500)).toLocaleString('en-IN')} / mo
+                                    </span>
+                                </div>
+                            </>
+                        )}
                         <div className="flex justify-between py-2">
                             <span className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[10px]">Security Deposit</span>
                             <span className="font-black text-cyan-400">

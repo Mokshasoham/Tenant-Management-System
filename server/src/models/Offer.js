@@ -79,11 +79,21 @@ const offerSchema = new mongoose.Schema(
             default: 5,
             min: 1,
         },
+        maintenanceIncluded: {
+            type: Boolean,
+            default: false,
+        },
+        maintenanceAmount: {
+            type: Number,
+            default: 0,
+        },
         counterOffer: {
             rent: Number,
             startDate: Date,
             endDate: Date,
             message: String,
+            maintenanceIncluded: Boolean,
+            maintenanceAmount: Number,
             createdAt: Date,
         },
         offerHistory: [
@@ -126,6 +136,12 @@ const offerSchema = new mongoose.Schema(
                 moveInDate: {
                     type: Date,
                 },
+                maintenanceIncluded: {
+                    type: Boolean,
+                },
+                maintenanceAmount: {
+                    type: Number,
+                },
                 action: {
                     type: String,
                     enum: ['offer', 'counter', 'accept', 'reject', 'cancel', 'expired'],
@@ -154,6 +170,11 @@ const offerSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Virtual alias to support includeMaintenance transparently without duplicate database fields
+offerSchema.virtual('includeMaintenance')
+    .get(function () { return this.maintenanceIncluded; })
+    .set(function (v) { this.maintenanceIncluded = Boolean(v); });
 
 offerSchema.index({ property: 1, fromUser: 1, status: 1 });
 offerSchema.index({ property: 1, toUser: 1 });

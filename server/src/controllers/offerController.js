@@ -10,6 +10,7 @@ import { generateSequenceNumber } from '../platform/sequence/sequenceService.js'
 import { NotificationService } from '../services/NotificationService.js';
 
 import { calculateLeaseDuration, formatDateRange } from '../utils/dateDurationHelper.js';
+import { resolveMaintenanceFee } from '../services/platformFeeService.js';
 
 // Centralized notification dispatcher helper for negotiation events
 const sendNegotiationNotification = async ({ recipient, sender, title, message, propertyId, offerId, action = 'view', isRecipientTenant = false }) => {
@@ -118,6 +119,8 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
         const hStart = hObj.startDate || (idx === 0 ? (offer.startDate || offer.moveInDate) : offer.startDate);
         const hEnd = hObj.endDate || (idx === 0 ? offer.endDate : offer.endDate);
         const hDur = calculateLeaseDuration(hStart, hEnd);
+        const hMaint = hObj.maintenanceIncluded !== undefined ? Boolean(hObj.maintenanceIncluded) : Boolean(offer.maintenanceIncluded);
+        const hMaintAmt = hObj.maintenanceAmount !== undefined ? Number(hObj.maintenanceAmount) : (hMaint ? (offer.maintenanceAmount || 0) : 0);
 
         return {
             ...hObj,
@@ -135,9 +138,16 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
             durationDays: hDur?.days || null,
             durationText: hDur?.text || hObj.leasePeriod || durationText,
             leasePeriod: hDur?.text || hObj.leasePeriod || offer.leasePeriod || '12 months',
+            maintenanceIncluded: hMaint,
+            maintenanceAmount: hMaintAmt,
             action: hObj.action || (idx === 0 ? 'offer' : 'counter')
         };
     });
+
+    const isMaintenanceIncluded = Boolean(offer.maintenanceIncluded);
+    const maintenanceAmount = isMaintenanceIncluded ? (offer.maintenanceAmount || 0) : 0;
+    const baseMonthlyRent = Number(offer.agreedRent || offer.currentOffer || offer.offeredRent || 0);
+    const totalMonthlyAmount = baseMonthlyRent + (isMaintenanceIncluded ? maintenanceAmount : 0);
 
     return {
         ...offer,
@@ -163,6 +173,9 @@ export const enrichOfferWithState = (offerDoc, reqUserId) => {
         expirationReason: offer.expirationReason,
         tenant: offer.fromUser, // alias for convenience
         manager: offer.toUser,  // alias for convenience
+        maintenanceIncluded: isMaintenanceIncluded,
+        maintenanceAmount,
+        totalMonthlyAmount,
         offerHistory: normalizedHistory
     };
 };
@@ -288,6 +301,9 @@ export const createOffer = asyncHandler(async (req, res) => {
     const dur = calculateLeaseDuration(effectiveStartDate, effectiveEndDate);
     const effectiveLeasePeriod = dur?.text || leasePeriod || '12 Months';
 
+    const isMaintenanceSelected = Boolean(req.body.maintenanceIncluded !== undefined ? req.body.maintenanceIncluded : req.body.includeMaintenance);
+    const maintenanceAmount = isMaintenanceSelected ? await resolveMaintenanceFee(numericOfferedRent, true) : 0;
+
     const offer = await Offer.create({
         dealNumber,
         property: propertyId,
@@ -306,6 +322,8 @@ export const createOffer = asyncHandler(async (req, res) => {
         roundCount: 1,
         maxRounds,
         expiresAt,
+        maintenanceIncluded: isMaintenanceSelected,
+        maintenanceAmount,
         offerHistory: [
             {
                 roundNumber: 1,
@@ -317,6 +335,8 @@ export const createOffer = asyncHandler(async (req, res) => {
                 endDate: effectiveEndDate,
                 leasePeriod: effectiveLeasePeriod,
                 moveInDate: effectiveStartDate,
+                maintenanceIncluded: isMaintenanceSelected,
+                maintenanceAmount,
                 message: message || `Submitted rent offer of ₹${numericOfferedRent.toLocaleString('en-IN')}/mo`,
                 timestamp: new Date(),
                 action: 'offer'
@@ -411,6 +431,16 @@ export const respondToOffer = asyncHandler(async (req, res) => {
         const dur = calculateLeaseDuration(offer.agreedStartDate, offer.agreedEndDate);
         if (dur) offer.leasePeriod = dur.text;
 
+        // Authoritatively lock maintenance selection and fee
+        offer.maintenanceIncluded = Boolean(offer.maintenanceIncluded);
+        if (offer.maintenanceIncluded) {
+            if (!offer.maintenanceAmount || offer.maintenanceAmount <= 0) {
+                offer.maintenanceAmount = await resolveMaintenanceFee(offer.agreedRent, true);
+            }
+        } else {
+            offer.maintenanceAmount = 0;
+        }
+
         offer.offerHistory.push({
             sender: userId,
             senderRole: isManager ? 'manager' : 'tenant',
@@ -422,6 +452,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             roundNumber: offer.roundCount || 1,
             leasePeriod: offer.leasePeriod,
             moveInDate: offer.agreedStartDate,
+            maintenanceIncluded: offer.maintenanceIncluded,
+            maintenanceAmount: offer.maintenanceAmount,
             timestamp: new Date(),
             action: 'accept'
         });
@@ -476,6 +508,17 @@ export const respondToOffer = asyncHandler(async (req, res) => {
         const dur = calculateLeaseDuration(counterStartDate, counterEndDate);
         const effectiveLeasePeriod = dur?.text || leasePeriod || offer.leasePeriod;
 
+        // Maintenance selection must survive counter rounds unless explicitly updated
+        const counterMaint = req.body.maintenanceIncluded !== undefined
+            ? Boolean(req.body.maintenanceIncluded)
+            : (req.body.includeMaintenance !== undefined
+                ? Boolean(req.body.includeMaintenance)
+                : Boolean(offer.maintenanceIncluded));
+
+        const counterMaintAmount = counterMaint
+            ? (offer.maintenanceAmount || await resolveMaintenanceFee(numericCounterRent, true))
+            : 0;
+
         offer.status = 'countered';
         offer.currentOffer = numericCounterRent;
         offer.currentOfferedBy = userId;
@@ -485,11 +528,15 @@ export const respondToOffer = asyncHandler(async (req, res) => {
         offer.leasePeriod = effectiveLeasePeriod;
         offer.roundCount = currentRounds + 1;
         offer.expiresAt = new Date(Date.now() + validityHours * 3600 * 1000);
+        offer.maintenanceIncluded = counterMaint;
+        offer.maintenanceAmount = counterMaintAmount;
         offer.counterOffer = {
             rent: numericCounterRent,
             startDate: counterStartDate,
             endDate: counterEndDate,
             message: responseMsg,
+            maintenanceIncluded: counterMaint,
+            maintenanceAmount: counterMaintAmount,
             createdAt: new Date()
         };
 
@@ -504,6 +551,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             roundNumber: currentRounds + 1,
             leasePeriod: effectiveLeasePeriod,
             moveInDate: counterStartDate,
+            maintenanceIncluded: counterMaint,
+            maintenanceAmount: counterMaintAmount,
             timestamp: new Date(),
             action: 'counter'
         });
@@ -531,6 +580,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             proposedAmount: offer.currentOffer || offer.offeredRent,
             message: responseMsg || 'Offer rejected.',
             roundNumber: offer.roundCount || 1,
+            maintenanceIncluded: Boolean(offer.maintenanceIncluded),
+            maintenanceAmount: offer.maintenanceAmount || 0,
             timestamp: new Date(),
             action: 'reject'
         });
@@ -558,6 +609,8 @@ export const respondToOffer = asyncHandler(async (req, res) => {
             proposedAmount: offer.currentOffer || offer.offeredRent,
             message: responseMsg || 'Negotiation cancelled.',
             roundNumber: offer.roundCount || 1,
+            maintenanceIncluded: Boolean(offer.maintenanceIncluded),
+            maintenanceAmount: offer.maintenanceAmount || 0,
             timestamp: new Date(),
             action: 'cancel'
         });

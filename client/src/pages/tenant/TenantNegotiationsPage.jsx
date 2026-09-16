@@ -287,6 +287,15 @@ export default function TenantNegotiationsPage() {
                     </div>
                   </div>
 
+                  {offer.maintenanceIncluded && (
+                    <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+                      <span className="font-bold">Maintenance &amp; Repairs:</span>
+                      <span className="font-mono font-bold">
+                        +₹{(offer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo (Total: ₹{((isAccepted ? (offer.agreedRent || offerRent) : offerRent) + (offer.maintenanceAmount || 500)).toLocaleString('en-IN')}/mo)
+                      </span>
+                    </div>
+                  )}
+
                   {/* Terms & Validity */}
                   <div className="space-y-2 text-xs text-muted-foreground">
                     <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/70 space-y-1">

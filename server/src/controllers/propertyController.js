@@ -377,11 +377,13 @@ export const getPropertyById = asyncHandler(async (req, res) => {
       })
         .populate('booking', '_id status rejectionReason updatedAt')
         .sort({ createdAt: -1 })
-        .select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate startDate endDate agreedStartDate agreedEndDate booking');
+        .select('_id dealNumber agreedRent status expiresAt leasePeriod moveInDate startDate endDate agreedStartDate agreedEndDate maintenanceIncluded maintenanceAmount booking');
 
       const isBookingRejected = Boolean(activeDeal?.booking && activeDeal.booking.status === 'rejected');
 
       if (activeDeal && !isBookingRejected) {
+        const isMaint = Boolean(activeDeal.maintenanceIncluded);
+        const maintAmt = isMaint ? (activeDeal.maintenanceAmount || 0) : 0;
         resolved.privateDeal = {
           id: activeDeal._id,
           _id: activeDeal._id,
@@ -395,6 +397,9 @@ export const getPropertyById = asyncHandler(async (req, res) => {
           endDate: activeDeal.agreedEndDate || activeDeal.endDate,
           agreedStartDate: activeDeal.agreedStartDate || activeDeal.startDate,
           agreedEndDate: activeDeal.agreedEndDate || activeDeal.endDate,
+          maintenanceIncluded: isMaint,
+          maintenanceAmount: maintAmt,
+          totalMonthlyAmount: (activeDeal.agreedRent || 0) + maintAmt,
           booking: activeDeal.booking ? {
             _id: activeDeal.booking._id,
             status: activeDeal.booking.status,
