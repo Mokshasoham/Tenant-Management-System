@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Heart, Scale } from 'lucide-react';
+import { Building2, Heart, Scale, Star } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
@@ -39,6 +39,10 @@ export default function TenantCompactCard({
     const coverUrl = resolveMediaUrl(
         p.images?.[0] || allMedia.find(m => m.mediaType === 'image')?.url
     );
+
+    const reviewCount = p?.verifiedReviewCount !== undefined ? p.verifiedReviewCount : (p?.reviewCount || 0);
+    const rating = Number(p?.rating || 0);
+    const hasReviews = reviewCount > 0 && rating > 0;
 
     return (
         <motion.div
@@ -112,6 +116,17 @@ export default function TenantCompactCard({
                     <p className="text-[10px] text-muted-foreground/70 truncate my-0.5 font-medium">
                         📍 {[p.city, p.state].filter(Boolean).join(', ') || 'India'}
                     </p>
+                    {hasReviews ? (
+                        <div className="flex items-center gap-1 text-[10px] text-amber-500 font-bold my-0.5">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                            <span>{rating.toFixed(1)}</span>
+                            <span className="text-muted-foreground/70 font-normal">({reviewCount})</span>
+                        </div>
+                    ) : (
+                        <p className="text-[10px] text-muted-foreground/50 italic my-0.5">
+                            No reviews yet
+                        </p>
+                    )}
                 </div>
 
                 <div>

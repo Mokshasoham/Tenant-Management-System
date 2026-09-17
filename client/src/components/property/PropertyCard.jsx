@@ -70,7 +70,10 @@ export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick 
     const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
-    const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
+    const reviewCount = p.verifiedReviewCount !== undefined ? p.verifiedReviewCount : (p.reviewCount || 0);
+    const rating = Number(p.rating || 0);
+    const hasReviews = reviewCount > 0 && rating > 0;
+
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
             className="flex gap-3 p-3 rounded-2xl cursor-pointer bg-card border border-border hover:border-primary/50 transition-all shadow-sm">
@@ -101,7 +104,17 @@ export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick 
             </div>
             <div className="flex-1 min-w-0">
                 <p className="font-black text-sm text-foreground truncate">{p.name}</p>
-                <p className="text-[10px] text-muted-foreground/60 truncate my-0.5">📍 {p.city}</p>
+                <div className="flex items-center justify-between gap-1 my-0.5">
+                    <p className="text-[10px] text-muted-foreground/60 truncate">📍 {p.city}</p>
+                    {hasReviews ? (
+                        <span className="text-[10px] font-bold text-foreground flex items-center gap-0.5 shrink-0">
+                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                            {rating.toFixed(1)}
+                        </span>
+                    ) : (
+                        <span className="text-[9px] text-muted-foreground/45 shrink-0">No reviews yet</span>
+                    )}
+                </div>
                 <p className="text-base font-black text-foreground" style={{ color: theme === 'light' ? color : 'inherit' }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span className="text-[9px] font-bold text-muted-foreground/40">/mo</span></p>
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-muted-foreground/60">🛏 {p.bedrooms || 0}</span>
@@ -133,6 +146,9 @@ export function PropertyCard({
     const { theme } = useTheme();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
+    const reviewCount = p.verifiedReviewCount !== undefined ? p.verifiedReviewCount : (p.reviewCount || 0);
+    const rating = Number(p.rating || 0);
+    const hasReviews = reviewCount > 0 && rating > 0;
 
     // Extract real images
     const allMedia = p.media || [];
@@ -341,10 +357,10 @@ export function PropertyCard({
                     <p className="text-2xl font-black mb-0 tracking-tight">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
                     <p className="text-[10px] font-black opacity-70 uppercase tracking-widest leading-none mt-0.5">per month</p>
                 </div>
-                {p.rating > 0 && (
+                {hasReviews && (
                     <div className="absolute bottom-3.5 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg z-10 pointer-events-none">
                         <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span className="text-white text-xs font-black">{p.rating}</span>
+                        <span className="text-white text-xs font-black">{rating.toFixed(1)}</span>
                     </div>
                 )}
             </div>
@@ -359,6 +375,43 @@ export function PropertyCard({
                         <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
                         <span className="truncate">{p.city}{p.address ? `, ${p.address}` : ''}</span>
                     </p>
+                    {/* Verified Tenant Rating Row */}
+                    <div className="flex items-center gap-1.5 mt-2 min-h-[18px]">
+                        {hasReviews ? (
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <div className="flex items-center gap-0.5" aria-label={`${rating.toFixed(1)} stars`}>
+                                    {[1, 2, 3, 4, 5].map((star) => {
+                                        const isFull = rating >= star;
+                                        const isHalf = !isFull && rating >= star - 0.5;
+                                        return (
+                                            <span key={star} className="relative inline-flex items-center justify-center text-amber-400">
+                                                {isFull ? (
+                                                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                                ) : isHalf ? (
+                                                    <span className="relative inline-block w-3.5 h-3.5">
+                                                        <Star className="w-3.5 h-3.5 text-muted-foreground/25" />
+                                                        <span className="absolute inset-0 overflow-hidden w-1/2">
+                                                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                                        </span>
+                                                    </span>
+                                                ) : (
+                                                    <Star className="w-3.5 h-3.5 text-muted-foreground/25" />
+                                                )}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                                <span className="font-bold text-foreground text-xs">{rating.toFixed(1)}</span>
+                                <span className="text-[11px] font-medium text-muted-foreground/60">
+                                    · {reviewCount} verified {reviewCount === 1 ? 'review' : 'reviews'}
+                                </span>
+                            </div>
+                        ) : (
+                            <span className="text-[11px] font-medium text-muted-foreground/50">
+                                No reviews yet
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-4 sm:gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground flex-wrap">

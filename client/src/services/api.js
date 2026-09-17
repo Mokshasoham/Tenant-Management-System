@@ -421,6 +421,15 @@ export const verificationService = {
   downloadCompliancePackage: (id, params = {}) => apiClient.get(`/verifications/${id}/compliance/export`, { params }),
 };
 
+export const feedbackService = {
+  submitFeedback: (data) => apiClient.post('/feedback', data),
+  getEligibility: (leaseId) => apiClient.get(`/feedback/eligibility/${leaseId}`),
+  getMyFeedback: () => apiClient.get('/feedback/my'),
+  getLeaseFeedback: (leaseId) => apiClient.get(`/feedback/lease/${leaseId}`),
+  getPropertyFeedback: (propertyId) => apiClient.get(`/feedback/property/${propertyId}`),
+  updateFeedbackStatus: (id, status) => apiClient.put(`/feedback/${id}/status`, { status }),
+};
+
 export default apiClient;
 
 

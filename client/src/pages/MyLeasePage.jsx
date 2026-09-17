@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { leaseService, paymentService } from '../services/api';
+import { leaseService, paymentService, feedbackService } from '../services/api';
 import {
     Home, Calendar, CreditCard, FileText, CheckCircle2, Clock,
     AlertTriangle, Building2, Wifi, Car, Droplets, Zap, Wind,
@@ -20,6 +20,8 @@ import {
     LeasePropertyMediaGallery,
     PropertyManagerHeaderCard,
 } from '../components/lease';
+import LeaseFeedbackCard from '../components/feedback/LeaseFeedbackCard';
+import TenantFeedbackModal from '../components/feedback/TenantFeedbackModal';
 
 const AMENITY_ICON = {
     wifi: Wifi, parking: Car, water: Droplets,
@@ -301,6 +303,60 @@ export default function MyLeasePage() {
             setChecklist(null);
         } finally {
             setChecklistLoading(false);
+        }
+    };
+
+    // Verified Resident Feedback State & Authoritative Server Fetcher
+    const [feedbackEligibility, setFeedbackEligibility] = useState(null);
+    const [feedbackEligibilityLoading, setFeedbackEligibilityLoading] = useState(false);
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+    const fetchFeedbackEligibility = async (leaseId) => {
+        if (!leaseId) {
+            setFeedbackEligibility(null);
+            return;
+        }
+        setFeedbackEligibilityLoading(true);
+        try {
+            const res = await feedbackService.getEligibility(leaseId);
+            setFeedbackEligibility(res?.data?.data || res?.data || null);
+        } catch (err) {
+            console.warn('Could not fetch feedback eligibility for lease:', leaseId, err);
+            setFeedbackEligibility(null);
+        } finally {
+            setFeedbackEligibilityLoading(false);
+        }
+    };
+
+    // Fetch authoritative eligibility whenever selected active lease changes
+    useEffect(() => {
+        const currentLease = selectedPastLease || activeLeases[selectedLeaseIndex];
+        if (currentLease && currentLease._id && currentLease.status === 'active') {
+            fetchFeedbackEligibility(currentLease._id);
+        } else {
+            setFeedbackEligibility(null);
+        }
+    }, [selectedLeaseIndex, selectedPastLease, activeLeases]);
+
+    // Deep-link support: open feedback modal if URL explicitly contains ?openFeedback=true
+    useEffect(() => {
+        const currentLease = selectedPastLease || activeLeases[selectedLeaseIndex];
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('openFeedback') === 'true' && currentLease && currentLease.status === 'active') {
+            setIsFeedbackModalOpen(true);
+        }
+    }, [location.search, selectedLeaseIndex, selectedPastLease, activeLeases]);
+
+    const handleCloseFeedbackModal = () => {
+        setIsFeedbackModalOpen(false);
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('openFeedback')) {
+            searchParams.delete('openFeedback');
+            const newSearch = searchParams.toString();
+            navigate({
+                pathname: location.pathname,
+                search: newSearch ? `?${newSearch}` : ''
+            }, { replace: true });
         }
     };
 
@@ -963,6 +1019,13 @@ export default function MyLeasePage() {
                                         return null;
                                     })()}
 
+                                    {/* Verified Resident Feedback Indicator */}
+                                    <LeaseFeedbackCard
+                                        eligibility={feedbackEligibility}
+                                        loading={feedbackEligibilityLoading}
+                                        onOpenModal={() => setIsFeedbackModalOpen(true)}
+                                    />
+
                                     {/* Key dates grid */}
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                         {[
@@ -1553,6 +1616,19 @@ export default function MyLeasePage() {
                     </motion.div>
                 </>
             )}
+
+            {/* Verified Resident Feedback Modal */}
+            <TenantFeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onClose={handleCloseFeedbackModal}
+                lease={currentLease}
+                eligibility={feedbackEligibility}
+                onSuccess={() => {
+                    if (currentLease?._id) {
+                        fetchFeedbackEligibility(currentLease._id);
+                    }
+                }}
+            />
         </div>
     );
 }

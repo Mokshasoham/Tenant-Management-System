@@ -134,6 +134,16 @@ const propertySchema = new mongoose.Schema(
     // Ratings & reviews summary
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
+    verifiedReviewCount: { type: Number, default: 0 },
+    ratingBreakdown: {
+      propertyCondition: { type: Number, default: 0 },
+      cleanliness: { type: Number, default: 0 },
+      maintenance: { type: Number, default: 0 },
+      location: { type: Number, default: 0 },
+      valueForMoney: { type: Number, default: 0 },
+      safety: { type: Number, default: 0 },
+      management: { type: Number, default: 0 },
+    },
     verifiedBadge: { type: Boolean, default: false },
 
     // Verification & Trust Platform Fields (Phase 3.5 — 100% Backward Compatible)

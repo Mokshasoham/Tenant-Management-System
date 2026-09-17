@@ -24,6 +24,7 @@ import NearbyPlacesSection from '../components/property/NearbyPlacesSection';
 import TopNearbyPlacesCTA from '../components/property/TopNearbyPlacesCTA';
 import NearbyPropertiesSection from '../components/property/NearbyPropertiesSection';
 import SimilarPropertiesSection from '../components/property/SimilarPropertiesSection';
+import TenantRatingsAndReviews from '../components/property/TenantRatingsAndReviews';
 import { calculateLeaseDuration, formatDateRange, formatDateSingle } from '../utils/dateDurationHelper';
 
 
@@ -1251,6 +1252,31 @@ export default function PropertyDetailsPage() {
                                 <p className="text-muted-foreground flex items-center gap-2">
                                     <MapPin className="w-4 h-4 text-rose-500" /> {property.city}, {property.address}
                                 </p>
+                                {(() => {
+                                    const reviewCount = property?.verifiedReviewCount !== undefined ? property.verifiedReviewCount : (property?.reviewCount || 0);
+                                    const rating = Number(property?.rating || 0);
+                                    const hasReviews = reviewCount > 0 && rating > 0;
+                                    return (
+                                        <div className="flex items-center gap-2 pt-1">
+                                            {hasReviews ? (
+                                                <a
+                                                    href="#tenant-ratings-and-reviews"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-xs font-bold text-amber-500 transition-colors"
+                                                >
+                                                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                                    <span>{rating.toFixed(1)}</span>
+                                                    <span className="text-muted-foreground font-normal">
+                                                        · {reviewCount} verified {reviewCount === 1 ? 'review' : 'reviews'}
+                                                    </span>
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground/60 font-medium">
+                                                    No verified reviews yet
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             <div className="text-right">
@@ -1473,6 +1499,9 @@ export default function PropertyDetailsPage() {
                         {/* Explore Nearby Places Section */}
                         <NearbyPlacesSection property={property} />
                     </div>
+
+                    {/* Verified Tenant Ratings & Reviews Section */}
+                    <TenantRatingsAndReviews property={property} propertyId={id} />
                 </div>
 
                 {/* Right Column: Manager Operations vs Tenant Booking */}

@@ -67,7 +67,10 @@ import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
 import { sendLateFeeAppliedEmail, sendRentReminderEmail } from '../services/emailService.js';
 import verificationService from '../services/verificationService.js';
+import NotificationService from '../services/NotificationService.js';
+import { getLeaseFeedbackEligibility } from '../services/feedbackService.js';
 import logger from './logger.js';
+
 
 
 export const startCronJobs = () => {
@@ -613,4 +616,131 @@ export const startCronJobs = () => {
         }
     });
 
+    // Daily sweep to send automated feedback reminder notifications for active leases
+    cron.schedule('0 0 * * *', async () => {
+        logger.info('[CRON] Initializing Daily Feedback Reminder sweep...');
+        try {
+            await sendFeedbackReminders();
+        } catch (error) {
+            logger.error(`[CRON ERROR] Feedback Reminder daemon exception: ${error.message}`);
+        }
+    });
 };
+
+/**
+ * Daily sweep to check for active leases with due feedback periods
+ * and dispatch idempotent feedback reminder notifications to tenants.
+ * 
+ * Uses feedbackService.getLeaseFeedbackEligibility as the single source of truth.
+ * Ensures strict idempotency via key: feedback:{leaseId}:{periodIndex}
+ * 
+ * @param {Date} [now=new Date()] Reference date for evaluation
+ * @returns {Promise<{ scanned: number, reminded: number, skipped: number, errors: number }>}
+ */
+export async function sendFeedbackReminders(now = new Date()) {
+    logger.info('[CRON] Executing Tenant Feedback Reminder sweep...');
+    const stats = { scanned: 0, reminded: 0, skipped: 0, errors: 0 };
+
+    try {
+        const activeLeases = await Lease.find({ status: 'active' }).populate('property').populate('tenant');
+        stats.scanned = activeLeases.length;
+
+        for (const lease of activeLeases) {
+            try {
+                if (lease.status !== 'active') {
+                    stats.skipped++;
+                    continue;
+                }
+
+                // Resolve tenant user account
+                let tenantUser = null;
+                if (lease.tenant) {
+                    if (lease.tenant.user) {
+                        tenantUser = await User.findById(lease.tenant.user);
+                    }
+                    if (!tenantUser && lease.tenant.userId) {
+                        tenantUser = await User.findById(lease.tenant.userId);
+                    }
+                    if (!tenantUser && lease.tenant.email) {
+                        tenantUser = await User.findOne({ email: lease.tenant.email.trim().toLowerCase() });
+                    }
+                }
+
+                if (!tenantUser && lease.tenant) {
+                    const tenantId = lease.tenant._id || lease.tenant;
+                    tenantUser = await User.findById(tenantId);
+                }
+
+                if (!tenantUser && lease.user) {
+                    tenantUser = await User.findById(lease.user._id || lease.user);
+                }
+
+                if (!tenantUser) {
+                    logger.warn(`[CRON] Feedback reminder skipped for lease ${lease.leaseNumber || lease._id}: tenant User record could not be resolved.`);
+                    stats.skipped++;
+                    continue;
+                }
+
+                // Authoritative eligibility check from single source of truth (feedbackService)
+                const eligibility = await getLeaseFeedbackEligibility(lease._id, tenantUser._id, now);
+
+                if (!eligibility || eligibility.status !== 'DUE') {
+                    stats.skipped++;
+                    continue;
+                }
+
+                // Strict Idempotency Key: feedback:{leaseId}:{periodIndex}
+                const idempotencyKey = `feedback:${lease._id}:${eligibility.periodIndex}`;
+
+                // Pre-check existing notification
+                const existingNotif = await NotificationModel.findOne({ idempotencyKey });
+                if (existingNotif) {
+                    stats.skipped++;
+                    continue;
+                }
+
+                const propertyName = lease.property?.name || eligibility.propertyName || 'your residence';
+
+                // Dispatch notification via centralized NotificationService
+                const notif = await NotificationService.notify({
+                    recipient: tenantUser._id,
+                    title: 'Feedback Requested',
+                    message: `Your feedback for ${propertyName} is due. Share your experience with the property.`,
+                    category: 'lease',
+                    type: 'info',
+                    priority: 'medium',
+                    severity: 'information',
+                    link: `/my-lease?leaseId=${lease._id}&openFeedback=true`,
+                    actionUrl: `/my-lease?leaseId=${lease._id}&openFeedback=true`,
+                    redirectUrl: `/my-lease?leaseId=${lease._id}&openFeedback=true`,
+                    idempotencyKey,
+                    entityType: 'Lease',
+                    entityId: lease._id,
+                    sourceModule: 'lease',
+                    metadata: {
+                        leaseId: lease._id,
+                        periodIndex: eligibility.periodIndex,
+                        propertyId: lease.property?._id
+                    }
+                });
+
+                if (notif) {
+                    stats.reminded++;
+                    logger.info(`[CRON] Feedback reminder dispatched to ${tenantUser.email} for lease ${lease.leaseNumber || lease._id} (period ${eligibility.periodIndex})`);
+                } else {
+                    stats.skipped++;
+                }
+            } catch (leaseErr) {
+                stats.errors++;
+                logger.error(`[CRON ERROR] Feedback reminder error on lease ${lease?._id || 'unknown'}: ${leaseErr.message}`);
+            }
+        }
+
+        logger.info(`[CRON] Tenant Feedback Reminder sweep completed. Scanned: ${stats.scanned}, Reminded: ${stats.reminded}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`);
+        return stats;
+    } catch (err) {
+        logger.error(`[CRON ERROR] Tenant Feedback Reminder sweep critical error: ${err.message}`);
+        return stats;
+    }
+}
+
