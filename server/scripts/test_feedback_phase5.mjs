@@ -55,9 +55,11 @@ function mockResponse() {
   return res;
 }
 
+let testOwner, tenantA, tenantB, tenantDocA, tenantDocB, propertyA, propertyB, leaseA, leaseB;
+
 try {
   console.log('\n--- SETUP: Creating Isolated Test Entities ---');
-  const testOwner = await User.create({
+  testOwner = await User.create({
     firstName: 'Phase5',
     lastName: 'Manager',
     email: `phase5_manager_${Date.now()}@example.com`,
@@ -65,7 +67,7 @@ try {
     role: 'manager',
   });
 
-  const tenantA = await User.create({
+  tenantA = await User.create({
     firstName: 'Aarav',
     lastName: 'Sharma',
     email: `aarav_tenant_${Date.now()}@example.com`,
@@ -73,7 +75,7 @@ try {
     role: 'tenant',
   });
 
-  const tenantB = await User.create({
+  tenantB = await User.create({
     firstName: 'Bhavna',
     lastName: 'Patel',
     email: `bhavna_tenant_${Date.now()}@example.com`,
@@ -81,7 +83,7 @@ try {
     role: 'tenant',
   });
 
-  const tenantDocA = await Tenant.create({
+  tenantDocA = await Tenant.create({
     firstName: tenantA.firstName,
     lastName: tenantA.lastName,
     email: tenantA.email,
@@ -91,7 +93,7 @@ try {
     managedBy: testOwner._id,
   });
 
-  const tenantDocB = await Tenant.create({
+  tenantDocB = await Tenant.create({
     firstName: tenantB.firstName,
     lastName: tenantB.lastName,
     email: tenantB.email,
@@ -101,7 +103,7 @@ try {
     managedBy: testOwner._id,
   });
 
-  const propertyA = await Property.create({
+  propertyA = await Property.create({
     owner: testOwner._id,
     name: 'Phase 5 Residency Block A',
     description: 'High-end suburban apartments',
@@ -128,7 +130,7 @@ try {
     },
   });
 
-  const propertyB = await Property.create({
+  propertyB = await Property.create({
     owner: testOwner._id,
     name: 'Phase 5 Residency Block B',
     description: 'Modern urban units',
@@ -154,7 +156,7 @@ try {
   const leaseBEnd = new Date(leaseBStart.getTime() + 365 * 86400000); // 1-year lease (21-day interval)
 
   // 60-day lease for Tenant A on Property A
-  const leaseA = await Lease.create({
+  leaseA = await Lease.create({
     property: propertyA._id,
     tenant: tenantDocA._id,
     createdBy: testOwner._id,
@@ -166,7 +168,7 @@ try {
   });
 
   // 1-year lease for Tenant B on Property B
-  const leaseB = await Lease.create({
+  leaseB = await Lease.create({
     property: propertyB._id,
     tenant: tenantDocB._id,
     createdBy: testOwner._id,
@@ -557,24 +559,31 @@ try {
   }
 
   // =========================================================================
-  // CLEANUP
-  // =========================================================================
-  console.log('\n--- CLEANUP: Removing Phase 5 Test Data ---');
-  await Feedback.deleteMany({ property: { $in: [propertyA._id, propertyB._id] } });
-  await NotificationModel.deleteMany({ recipient: { $in: [tenantA._id, tenantB._id] } });
-  await Lease.deleteMany({ _id: { $in: [leaseA._id, leaseB._id] } });
-  await Tenant.deleteMany({ _id: { $in: [tenantDocA._id, tenantDocB._id] } });
-  await Property.deleteMany({ _id: { $in: [propertyA._id, propertyB._id] } });
-  await User.deleteMany({ _id: { $in: [testOwner._id, tenantA._id, tenantB._id] } });
-  console.log('Cleanup complete.');
-
-} catch (err) {
-  console.error('Fatal error during Phase 5 QA test:', err);
-  failures++;
-} finally {
-  await mongoose.disconnect();
-  console.log('MongoDB disconnected.');
-}
+  } catch (err) {
+    console.error('Fatal error during Phase 5 QA test:', err);
+    failures++;
+  } finally {
+    console.log('\n--- CLEANUP: Removing Phase 5 Test Data ---');
+    try {
+      if (propertyA?._id || propertyB?._id) {
+        const propIds = [propertyA?._id, propertyB?._id].filter(Boolean);
+        await Feedback.deleteMany({ property: { $in: propIds } });
+        await Lease.deleteMany({ property: { $in: propIds } });
+        await Property.deleteMany({ _id: { $in: propIds } });
+      }
+      if (tenantA?._id || tenantB?._id) {
+        const userIds = [tenantA?._id, tenantB?._id].filter(Boolean);
+        await NotificationModel.deleteMany({ recipient: { $in: userIds } });
+        await Tenant.deleteMany({ user: { $in: userIds } });
+        await User.deleteMany({ _id: { $in: [testOwner?._id, ...userIds].filter(Boolean) } });
+      }
+      console.log('Cleanup complete.');
+    } catch (cleanErr) {
+      console.warn('Cleanup error:', cleanErr.message);
+    }
+    await mongoose.disconnect();
+    console.log('MongoDB disconnected.');
+  }
 
 console.log('\n========================================');
 console.log(`Phase 5 Comprehensive QA Results: ${failures === 0 ? 'ALL PASSED' : failures + ' FAILURES'}`);

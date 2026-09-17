@@ -41,9 +41,11 @@ function mockResponse() {
   return res;
 }
 
+let testOwner, zeroReviewProp, reviewedProp, testTenant, testLease;
+
 try {
   // Create a test owner/manager
-  const testOwner = await User.create({
+  testOwner = await User.create({
     firstName: 'Phase4',
     lastName: 'Owner',
     email: `phase4_owner_${Date.now()}@example.com`,
@@ -53,7 +55,7 @@ try {
 
   console.log('\n=== TEST 1: Zero-Review Property Empty State Contract ===');
   // Create a clean dummy property with 0 reviews
-  const zeroReviewProp = await Property.create({
+  zeroReviewProp = await Property.create({
     owner: testOwner._id,
     name: 'Phase 4 Zero Review Test Property',
     description: 'Empty reviews test',
@@ -107,7 +109,7 @@ try {
   }
 
   console.log('\n=== TEST 2: Active Reviews Display & Mathematical Calculation ===');
-  const reviewedProp = await Property.create({
+  reviewedProp = await Property.create({
     owner: testOwner._id,
     name: 'Phase 4 Reviewed Test Property',
     description: 'Reviewed property test',
@@ -122,7 +124,7 @@ try {
     country: 'India',
   });
 
-  const testTenant = await User.create({
+  testTenant = await User.create({
     firstName: 'Confidential',
     lastName: 'Tenant',
     email: `confidential_tenant_${Date.now()}@example.com`,
@@ -130,7 +132,7 @@ try {
     role: 'tenant',
   });
 
-  const testLease = await Lease.create({
+  testLease = await Lease.create({
     property: reviewedProp._id,
     tenant: testTenant._id,
     createdBy: testOwner._id,
@@ -256,21 +258,26 @@ try {
   } else {
     console.log('PASS: Cross-property data isolation verified. Zero reviews returned for unreviewed property.');
   }
-
-  await Feedback.deleteMany({ property: { $in: [zeroReviewProp._id, reviewedProp._id] } });
-  await Lease.deleteOne({ _id: testLease._id });
-  await User.deleteOne({ _id: testTenant._id });
-  await User.deleteOne({ _id: testOwner._id });
-  await Property.deleteMany({ _id: { $in: [zeroReviewProp._id, reviewedProp._id] } });
-  console.log('Test cleanup completed.');
-
 } catch (err) {
   console.error('Error running Phase 4 tests:', err);
   failures++;
 } finally {
-  await mongoose.disconnect();
-  console.log('MongoDB disconnected.');
-}
+    try {
+      if (zeroReviewProp?._id || reviewedProp?._id) {
+        const propIds = [zeroReviewProp?._id, reviewedProp?._id].filter(Boolean);
+        await Feedback.deleteMany({ property: { $in: propIds } });
+        await Lease.deleteMany({ property: { $in: propIds } });
+        await Property.deleteMany({ _id: { $in: propIds } });
+      }
+      if (testTenant?._id) await User.deleteOne({ _id: testTenant._id });
+      if (testOwner?._id) await User.deleteOne({ _id: testOwner._id });
+      console.log('Test cleanup completed in finally block.');
+    } catch (cleanErr) {
+      console.warn('Cleanup warning:', cleanErr.message);
+    }
+    await mongoose.disconnect();
+    console.log('MongoDB disconnected.');
+  }
 
 console.log('\n========================================');
 console.log(`Phase 4 Test Suite Results: ${failures === 0 ? 'ALL PASSED' : failures + ' FAILURES'}`);
