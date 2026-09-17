@@ -1,14 +1,71 @@
+const parseDateSafe = (val) => {
+    if (!val) return null;
+    if (val instanceof Date) {
+        return isNaN(val.getTime()) ? null : val;
+    }
+    if (typeof val === 'number') {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof val === 'string') {
+        const str = val.trim();
+        const match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (match) {
+            const year = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1;
+            const day = parseInt(match[3], 10);
+            return new Date(year, month, day);
+        }
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+};
+
 export const getDisplayStatus = (property) => {
     if (!property) return 'Available';
-    if (property.displayStatus) {
-        return property.displayStatus.replace(/, \d{4}$/, '');
-    }
-    
-    // Frontend fallback calculation
-    if (property.status === 'maintenance') {
+
+    // 1. Maintenance status check
+    if (property.status === 'maintenance' || property.displayStatus === 'Under Maintenance') {
         return 'Under Maintenance';
     }
-    
+
+    // 2. Explicit availability date check (e.g. availableFrom, availableDate, etc.)
+    const rawDate =
+        property.availableFrom ||
+        property.availableDate ||
+        property.availabilityDate ||
+        property.availableFromDate ||
+        property.availability?.availableFrom ||
+        property.availability?.date;
+
+    if (rawDate) {
+        const targetDate = parseDateSafe(rawDate);
+        if (targetDate) {
+            const now = new Date();
+            const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            const targetMidnight = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+
+            if (targetMidnight.getTime() > todayMidnight.getTime()) {
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const day = targetDate.getDate();
+                const month = monthNames[targetDate.getMonth()];
+                return `Available from ${day} ${month}`;
+            } else {
+                return 'Available';
+            }
+        }
+    }
+
+    // 3. Pre-computed displayStatus from backend
+    if (property.displayStatus) {
+        const cleaned = property.displayStatus.replace(/, \d{4}$/, '');
+        if (cleaned !== 'Available') {
+            return cleaned;
+        }
+    }
+
+    // 4. Frontend fallback calculation for occupied / rented properties
     if (property.status === 'occupied' || property.status === 'rented') {
         // 1. Try to find the active lease
         const activeLease = property.activeLease || property.leases?.find(l => l && l.status === 'active');
