@@ -136,14 +136,51 @@ export default function ManagerPropertyDetailsPage() {
             const propData = res.data?.data || res.data || res;
             setProperty(propData);
 
-            // Fetch active leases if available
+            // Fetch active leases scoped strictly to this property
             try {
-                const leaseRes = await leaseService.getAllLeases({ property: id });
+                const leaseRes = await leaseService.getAllLeases({ propertyId: id });
                 const leases = leaseRes.data?.data || leaseRes.data || [];
-                const active = Array.isArray(leases) ? leases.find(l => ['active', 'signed'].includes(l.status)) : null;
-                setActiveLease(active);
+
+                const now = new Date();
+                const isValidActiveLease = (l) => {
+                    if (!l) return false;
+                    const leasePropId = String(l.property?._id || l.property || '');
+                    if (leasePropId && leasePropId !== String(id)) return false;
+                    const status = String(l.status || '').toLowerCase();
+                    if (status !== 'active') return false;
+                    if (l.endDate && new Date(l.endDate) <= now) return false;
+                    if (!l.tenant) return false;
+                    return true;
+                };
+
+                const validLeases = Array.isArray(leases) ? leases.filter(isValidActiveLease) : [];
+                validLeases.sort((a, b) => new Date(b.startDate || b.createdAt) - new Date(a.startDate || a.createdAt));
+
+                let resolvedActiveLease = validLeases[0] || null;
+
+                // Fallback to backend-authoritative propData.activeLease if not in getAllLeases
+                if (!resolvedActiveLease && propData.activeLease && isValidActiveLease(propData.activeLease)) {
+                    resolvedActiveLease = propData.activeLease;
+                }
+
+                setActiveLease(resolvedActiveLease);
             } catch (leaseErr) {
                 console.warn('Could not fetch active lease for manager property details:', leaseErr);
+                const now = new Date();
+                const isValidActiveLease = (l) => {
+                    if (!l) return false;
+                    const leasePropId = String(l.property?._id || l.property || '');
+                    if (leasePropId && leasePropId !== String(id)) return false;
+                    if (String(l.status || '').toLowerCase() !== 'active') return false;
+                    if (l.endDate && new Date(l.endDate) <= now) return false;
+                    if (!l.tenant) return false;
+                    return true;
+                };
+                if (propData.activeLease && isValidActiveLease(propData.activeLease)) {
+                    setActiveLease(propData.activeLease);
+                } else {
+                    setActiveLease(null);
+                }
             }
         } catch (err) {
             console.error('Failed to fetch manager property details:', err);
@@ -155,6 +192,9 @@ export default function ManagerPropertyDetailsPage() {
 
     useEffect(() => {
         if (id) {
+            setActiveImage(0);
+            setActiveLease(null);
+            setProperty(null);
             fetchPropertyData();
         }
     }, [id]);
@@ -226,9 +266,12 @@ export default function ManagerPropertyDetailsPage() {
         );
     }
 
-    const images = Array.isArray(property.images) && property.images.length > 0
+    const allMedia = property.media || [];
+    const rawImages = (Array.isArray(property.images) && property.images.length > 0)
         ? property.images
-        : [DEFAULT_PLACEHOLDER_SVG];
+        : allMedia.filter(m => m.mediaType === 'image' || !m.mediaType).map(m => m.url).filter(Boolean);
+    const resolvedImages = rawImages.map(resolveMediaUrl).filter(Boolean);
+    const images = resolvedImages.length > 0 ? resolvedImages : [DEFAULT_PLACEHOLDER_SVG];
 
     const displayStatus = getDisplayStatus(property);
     const typeInfo = getTypeDisplay(property.type);
@@ -293,9 +336,13 @@ export default function ManagerPropertyDetailsPage() {
                     <div className="space-y-4">
                         <div className="relative rounded-[2.5rem] overflow-hidden border border-border shadow-2xl aspect-[16/9] bg-muted group">
                             <img
-                                src={resolveMediaUrl(images[activeImage])}
+                                src={images[activeImage]}
                                 alt={property.name}
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                                }}
                             />
 
                             {/* Gallery Navigation Controls */}
@@ -372,7 +419,15 @@ export default function ManagerPropertyDetailsPage() {
                                                 : "border-border/80 opacity-70 hover:opacity-100"
                                         )}
                                     >
-                                        <img src={resolveMediaUrl(img)} alt="" className="w-full h-full object-cover" />
+                                        <img
+                                            src={img}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                                            }}
+                                        />
                                     </button>
                                 ))}
                             </div>
@@ -724,7 +779,7 @@ export default function ManagerPropertyDetailsPage() {
                                 <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-2">
                                     <div className="flex justify-between items-center text-xs font-bold">
                                         <span className="text-muted-foreground">Active Tenant</span>
-                                        <span className="text-foreground">{activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName || ''}` : 'Tenant'}</span>
+                                        <span className="text-foreground">{activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName || ''}`.trim() : (activeLease.tenant?.name || activeLease.tenant?.email || 'Tenant')}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-xs font-bold">
                                         <span className="text-muted-foreground">Lease Term</span>
@@ -846,9 +901,13 @@ export default function ManagerPropertyDetailsPage() {
 
                         <div className="relative max-w-5xl max-h-[85vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
                             <img
-                                src={resolveMediaUrl(images[activeImage])}
+                                src={images[activeImage]}
                                 alt={property.name}
                                 className="max-w-full max-h-[80vh] rounded-3xl object-contain shadow-2xl"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = DEFAULT_PLACEHOLDER_SVG;
+                                }}
                             />
 
                             {images.length > 1 && (

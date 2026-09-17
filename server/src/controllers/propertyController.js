@@ -102,6 +102,14 @@ export const resolvePropertyUrls = (property, req) => {
     });
   }
 
+  // If propObj.images is empty or missing, synchronize from propObj.media
+  if ((!propObj.images || propObj.images.length === 0) && propObj.media && propObj.media.length > 0) {
+    propObj.images = propObj.media
+      .filter(m => m.mediaType === 'image' || !m.mediaType)
+      .map(m => m.url)
+      .filter(Boolean);
+  }
+
   if (propObj.images && propObj.images.length > 0) {
     propObj.images = propObj.images.map((img, i) => {
       const matchingMedia = propObj.media?.[i];
@@ -326,10 +334,46 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         { path: 'createdBy', select: 'firstName lastName' },
       ],
     })
-    .populate('activeLease');
+    .populate({
+      path: 'activeLease',
+      populate: [
+        { path: 'tenant', select: 'firstName lastName email phone' }
+      ]
+    });
 
   if (!property) {
     throw new AppError('Property not found', 404);
+  }
+
+  // Authoritative Active Lease Validation for the requested property:
+  // Ensure activeLease belongs to this property, has status === 'active', has not expired, and has a valid tenant.
+  const now = new Date();
+  let authoritativeActiveLease = null;
+
+  if (property.activeLease) {
+    const isMatchingProp = String(property.activeLease.property?._id || property.activeLease.property) === String(property._id);
+    const isActiveStatus = property.activeLease.status === 'active';
+    const isNotExpired = property.activeLease.endDate && new Date(property.activeLease.endDate) > now;
+    const hasValidTenant = Boolean(property.activeLease.tenant);
+
+    if (isMatchingProp && isActiveStatus && isNotExpired && hasValidTenant) {
+      authoritativeActiveLease = property.activeLease;
+    }
+  }
+
+  // If virtual was null or failed authoritative checks, perform a strictly scoped query
+  if (!authoritativeActiveLease) {
+    const directLease = await Lease.findOne({
+      property: property._id,
+      status: 'active',
+      endDate: { $gt: now }
+    })
+      .sort({ startDate: -1 })
+      .populate('tenant', 'firstName lastName email phone');
+
+    if (directLease && directLease.tenant) {
+      authoritativeActiveLease = directLease;
+    }
   }
 
   // Tenant / Public guest visibility validation
@@ -347,6 +391,9 @@ export const getPropertyById = asyncHandler(async (req, res) => {
   }
 
   const resolved = resolvePropertyUrls(property, req);
+  resolved.activeLease = authoritativeActiveLease
+    ? (authoritativeActiveLease.toObject ? authoritativeActiveLease.toObject() : authoritativeActiveLease)
+    : null;
 
   // Authoritative Property -> Manager resolution:
   // If property.manager is null or unpopulated, resolve from the property's owner/creator

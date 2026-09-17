@@ -187,7 +187,8 @@ export const getAllLeases = asyncHandler(async (req, res) => {
 
   const filter = {};
   if (status) filter.status = status;
-  if (propertyId) filter.property = propertyId;
+  const targetPropertyId = propertyId || req.query.property;
+  if (targetPropertyId) filter.property = targetPropertyId;
   if (tenantId) filter.tenant = tenantId;
 
   if (req.user?.role === 'manager') {
@@ -229,7 +230,7 @@ export const getAllLeases = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(parseInt(limit))
     .populate('property', 'name address rentAmount')
-    .populate('tenant', 'firstName lastName email')
+    .populate('tenant', 'firstName lastName email phone')
     .populate('createdBy', 'firstName lastName');
 
   const total = await Lease.countDocuments(filter);
