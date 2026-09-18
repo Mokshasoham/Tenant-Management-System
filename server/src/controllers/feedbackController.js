@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import Feedback from '../models/Feedback.js';
 import Lease from '../models/Lease.js';
 import Property from '../models/Property.js';
+import User from '../models/User.js';
+import Tenant from '../models/Tenant.js';
+import NotificationService from '../services/NotificationService.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import {
@@ -75,14 +78,17 @@ export const submitFeedback = asyncHandler(async (req, res) => {
   }
 
   // 2. Fetch lease and derive property strictly from Lease.property (Safeguard 1)
-  const lease = await Lease.findById(leaseId).select('property tenant status');
+  const lease = await Lease.findById(leaseId)
+    .select('property tenant status')
+    .populate('property', 'name');
   if (!lease) {
     throw new AppError('Lease not found', 404);
   }
-  const propertyId = lease.property;
+  const propertyId = lease.property?._id || lease.property;
   if (!propertyId) {
     throw new AppError('Lease has no linked property', 400);
   }
+  const propertyName = lease.property?.name || eligibility.propertyName || 'the property';
 
   // 3. Validate category ratings keys and bounds
   const sanitizedCategoryRatings = {};
@@ -155,6 +161,46 @@ export const submitFeedback = asyncHandler(async (req, res) => {
     logger.error(`[submitFeedback] Rating recalculation failed for property ${propertyId}. Rolling back feedback ${feedback._id}:`, recalcErr);
     await Feedback.findByIdAndDelete(feedback._id);
     throw new AppError('Failed to update property rating; feedback submission was aborted. Please try again.', 500);
+  }
+
+  // 8. Create "Feedback Recorded" Notification for Tenant (Safe & Idempotent)
+  try {
+    // Safeguard 1: Confirm recipient is the actual User _id expected by the notification system
+    let recipientUserId = userId;
+    const userDoc = await User.findById(recipientUserId).select('_id');
+    if (!userDoc) {
+      // If userId was a Tenant document ID, resolve the linked User ID
+      const tenantDoc = await Tenant.findById(recipientUserId).select('user userId');
+      if (tenantDoc?.user || tenantDoc?.userId) {
+        recipientUserId = tenantDoc.user || tenantDoc.userId;
+      }
+    }
+
+    await NotificationService.notify({
+      recipient: recipientUserId,
+      title: 'Feedback Recorded',
+      message: `Your feedback for ${propertyName} has been successfully recorded. Thank you for sharing your experience.`,
+      category: 'lease',
+      type: 'success',
+      priority: 'medium',
+      severity: 'success',
+      link: `/my-lease?leaseId=${lease._id}`,
+      actionUrl: `/my-lease?leaseId=${lease._id}`,
+      redirectUrl: `/my-lease?leaseId=${lease._id}`,
+      idempotencyKey: `feedback-recorded:${lease._id}:${eligibility.periodIndex}`,
+      entityType: 'Lease',
+      entityId: lease._id,
+      sourceModule: 'lease',
+      metadata: {
+        leaseId: lease._id,
+        periodIndex: eligibility.periodIndex,
+        propertyId,
+        feedbackId: feedback._id,
+      },
+    });
+  } catch (notifErr) {
+    // Non-blocking: capture error without rolling back already-persisted feedback
+    logger.error(`[submitFeedback] Failed to create confirmation notification for feedback ${feedback._id}:`, notifErr.message);
   }
 
   res.status(201).json({

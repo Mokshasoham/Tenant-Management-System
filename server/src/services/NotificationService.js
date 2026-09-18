@@ -72,6 +72,15 @@ export class NotificationService {
     const resolvedUrl = actionUrl || redirectUrl || link || '/notifications';
     const resolvedModule = sourceModule || resolvedCategory || 'system';
 
+    // Strict Idempotency Check: skip creation if idempotencyKey already exists
+    if (idempotencyKey) {
+      const existing = await Notification.findOne({ idempotencyKey });
+      if (existing) {
+        logger.warn(`[NotificationService] Duplicate notification skipped for idempotencyKey "${idempotencyKey}".`);
+        return null;
+      }
+    }
+
     try {
       // Create Notification directly via Notification.create
       const notificationDoc = await Notification.create({

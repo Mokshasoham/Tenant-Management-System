@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Star, CheckCircle2, Clock, ArrowRight, Sparkles } from 'lucide-react';
+import { MessageSquare, Clock, ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 /**
@@ -40,7 +40,7 @@ export default function LeaseFeedbackCard({ eligibility, loading, onOpenModal })
         return null;
     }
 
-    const { status, periodIndex, periodStart, periodEnd, nextFeedbackAt, daysUntilAvailable, rating } = eligibility;
+    const { status, periodIndex, periodStart, periodEnd, nextFeedbackAt, daysUntilAvailable } = eligibility;
 
     if (status === 'DUE') {
         const startFormatted = formatDate(periodStart);
@@ -85,35 +85,10 @@ export default function LeaseFeedbackCard({ eligibility, loading, onOpenModal })
     }
 
     if (status === 'SUBMITTED') {
-        const nextDateFormatted = nextFeedbackAt ? formatDate(nextFeedbackAt) : null;
-
-        return (
-            <div className="mb-6 p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300">
-                            <CheckCircle2 className="w-4.5 h-4.5" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                                <span>Feedback Recorded</span>
-                                {rating > 0 && (
-                                    <span className="flex items-center gap-1 text-amber-300 text-xs normal-case font-bold">
-                                        <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                                        {rating.toFixed(1)}
-                                    </span>
-                                )}
-                            </p>
-                            <p className="text-[11px] text-white/60 font-medium mt-0.5">
-                                {nextDateFormatted
-                                    ? `Next feedback period opens on ${nextDateFormatted}.`
-                                    : 'Thank you! Your feedback for this lease is complete.'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+        // SUBMITTED remains an authoritative backend state for eligibility, duplicate prevention, and scheduler.
+        // As requested: Do NOT display the "FEEDBACK RECORDED" confirmation card on My Lease.
+        // The tenant receives confirmation exclusively via the Notification system.
+        return null;
     }
 
     if (status === 'UPCOMING') {

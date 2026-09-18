@@ -574,7 +574,7 @@ try {
       if (tenantA?._id || tenantB?._id) {
         const userIds = [tenantA?._id, tenantB?._id].filter(Boolean);
         await NotificationModel.deleteMany({ recipient: { $in: userIds } });
-        await Tenant.deleteMany({ user: { $in: userIds } });
+        await Tenant.deleteMany({ _id: { $in: [tenantDocA?._id, tenantDocB?._id].filter(Boolean) } });
         await User.deleteMany({ _id: { $in: [testOwner?._id, ...userIds].filter(Boolean) } });
       }
       console.log('Cleanup complete.');
