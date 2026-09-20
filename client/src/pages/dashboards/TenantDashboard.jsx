@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService, billService, autoPayService } from '../../services/api';
+import { leaseService, paymentService, maintenanceService, notificationService, bookingService, visitService, propertyService, billService, autoPayService, feedbackService } from '../../services/api';
 import {
     Building2, CreditCard, Wrench, MessageSquare, CheckCircle2,
     Calendar, Clock, AlertTriangle, FileText, Wallet, Bell,
@@ -8,7 +8,8 @@ import {
     ChevronLeft, ChevronRight, X, FileSignature, Heart, Scale, Bookmark, Compass, HelpCircle, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
+import { CalendarWidget } from '../../components/dashboard/Widgets';
+import UpcomingImportantCard from '../../components/dashboard/UpcomingImportantCard';
 import { useLanguage } from '../../context/LanguageContext';
 import NextPaymentCard from '../../components/dashboard/NextPaymentCard';
 import { calculateNextPaymentDue } from '../../utils/paymentSchedule';
@@ -109,6 +110,7 @@ export default function TenantDashboard({ user, navigate }) {
     const [expandedNotifs, setExpandedNotifs] = useState({});
     const [bookings, setBookings] = useState([]);
     const [autoPays, setAutoPays] = useState([]);
+    const [feedbackEligibility, setFeedbackEligibility] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -215,6 +217,18 @@ export default function TenantDashboard({ user, navigate }) {
         };
         fetchAll();
     }, []);
+
+    useEffect(() => {
+        if (activeLeases && activeLeases.length > 0 && activeLeases[0]?._id) {
+            feedbackService.getEligibility(activeLeases[0]._id)
+                .then(res => {
+                    if (res?.data?.data) {
+                        setFeedbackEligibility(res.data.data);
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [activeLeases]);
 
     // Synchronize background read states instantly
     useEffect(() => {
@@ -1088,7 +1102,15 @@ export default function TenantDashboard({ user, navigate }) {
                     <CalendarWidget />
                 </motion.div>
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="h-64">
-                    <WorldClockWidget />
+                    <UpcomingImportantCard
+                        activeLeases={activeLeases}
+                        activePaymentsToShow={activePaymentsToShow}
+                        payments={payments}
+                        maintenance={maintenance}
+                        feedbackEligibility={feedbackEligibility}
+                        navigate={navigate}
+                        loading={loading}
+                    />
                 </motion.div>
 
                 {/* Monthly Payment Reminders & Upcoming Schedule */}
