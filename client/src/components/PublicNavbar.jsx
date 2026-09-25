@@ -4,6 +4,7 @@ import { Building2, Menu, X, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import ThemeSwitch from './ThemeSwitch';
+import DraggableNavPill from './DraggableNavPill';
 
 export default function PublicNavbar() {
     const navigate = useNavigate();
@@ -70,33 +71,10 @@ export default function PublicNavbar() {
                         </div>
                     </Link>
 
-                    {/* Desktop Navigation Links */}
-                    <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-                        {navItems.map((item) => {
-                            const active = isActive(item.path);
-                            return (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={cn(
-                                        "px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all relative",
-                                        active
-                                            ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15"
-                                            : "text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
-                                    )}
-                                >
-                                    {item.label}
-                                    {active && (
-                                        <motion.div
-                                            layoutId="activeNavIndicator"
-                                            className="absolute bottom-0 left-3 right-3 h-0.5 bg-emerald-500 rounded-full"
-                                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                                        />
-                                    )}
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                    {/* Desktop Navigation Links with Draggable Selection Pill */}
+                    <div className="hidden lg:flex items-center">
+                        <DraggableNavPill navItems={navItems} />
+                    </div>
 
                     {/* Desktop Action Buttons + Theme Switch */}
                     <div className="hidden sm:flex items-center gap-3">
