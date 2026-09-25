@@ -5,7 +5,7 @@ import { cn } from '../utils/cn';
 
 /**
  * Smoothly interpolates pill width based on current center position
- * between adjacent navigation items.
+ * between adjacent navigation items so the lens fluidly adapts as it glides.
  */
 function getInterpolatedWidth(centerX, items) {
     if (!items || items.length === 0) return 0;
@@ -18,7 +18,7 @@ function getInterpolatedWidth(centerX, items) {
         const c2 = items[i + 1].centerX;
         if (centerX >= c1 && centerX <= c2) {
             const rawT = (centerX - c1) / (c2 - c1);
-            // Smoothstep curve for seamless pill expansion/contraction
+            // Smoothstep curve for seamless optical lens breathing
             const t = rawT * rawT * (3 - 2 * rawT);
             return Math.round((1 - t) * items[i].width + t * items[i + 1].width);
         }
@@ -28,7 +28,7 @@ function getInterpolatedWidth(centerX, items) {
 
 /**
  * Calculates the nearest navigation item and applies subtle magnetic attraction
- * when the pill center is within the attraction radius.
+ * when the lens center approaches an item center.
  */
 function getEffectiveCenterAndNearest(rawCenter, items) {
     if (!items || items.length === 0) return { nearestIdx: 0, effectiveCenter: rawCenter };
@@ -44,7 +44,7 @@ function getEffectiveCenterAndNearest(rawCenter, items) {
         }
     }
 
-    // Magnetic attraction: within 32px radius, gently guide the pill toward the item center
+    // Magnetic attraction: within 32px radius, gently guide the lens toward the item center
     const magneticRadius = 32;
     let effectiveCenter = rawCenter;
     if (minDistance < magneticRadius) {
@@ -60,6 +60,7 @@ export default function DraggableNavPill({ navItems, className }) {
     const location = useLocation();
     const containerRef = useRef(null);
     const itemRefs = useRef([]);
+    const lensRef = useRef(null);
     const [itemsData, setItemsData] = useState([]);
     const [isMeasured, setIsMeasured] = useState(false);
 
@@ -118,13 +119,13 @@ export default function DraggableNavPill({ navItems, className }) {
         };
     }, [measureItems, location.pathname]);
 
-    // Drag and lift state
+    // Drag, lift, and hover state
     const [isDragging, setIsDragging] = useState(false);
     const [isLifted, setIsLifted] = useState(false);
     const [dragCenter, setDragCenter] = useState(null);
     const [hoveredIndex, setHoveredIndex] = useState(null);
 
-    // Synchronous gesture tracking ref to avoid stale closures during high-frequency events
+    // Gesture tracking ref to prevent stale closures during pointer capture
     const gestureRef = useRef({
         isDown: false,
         pointerId: null,
@@ -136,8 +137,7 @@ export default function DraggableNavPill({ navItems, className }) {
         lastTapTime: 0,
         longPressTimer: null,
         holdTimer: null,
-        hasMoved: false,
-        originIndex: 0
+        hasMoved: false
     });
 
     const activateDestination = useCallback((item) => {
@@ -149,76 +149,78 @@ export default function DraggableNavPill({ navItems, className }) {
             return;
         }
 
-        // Navigate to the existing route
+        // Navigate to the legitimate existing route
         navigate(item.path);
     }, [isActive, navigate]);
 
-    // Handle pointer down (mouse click or touch)
-    const handlePointerDown = (e, index) => {
+    // Handle clicking a fixed navigation item directly
+    const handleItemClick = (idx) => {
+        if (gestureRef.current.hasMoved) return;
+        activateDestination(navItems[idx]);
+    };
+
+    // Handle pointer down on the floating glass lens
+    const handleLensPointerDown = (e) => {
         if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-        const isCurrentActive = index === activeIndex;
-        const now = Date.now();
-        const isDoubleTap = isCurrentActive && (now - gestureRef.current.lastTapTime < 300);
-        gestureRef.current.lastTapTime = now;
-
-        const currentItem = itemsData[index];
+        const currentItem = itemsData[activeIndex] || itemsData[0];
         if (!currentItem) return;
+
+        const now = Date.now();
+        const isDoubleTap = now - gestureRef.current.lastTapTime < 300;
+        gestureRef.current.lastTapTime = now;
 
         gestureRef.current.isDown = true;
         gestureRef.current.pointerId = e.pointerId;
         gestureRef.current.startX = e.clientX;
         gestureRef.current.startY = e.clientY;
         gestureRef.current.initialCenter = currentItem.centerX;
-        gestureRef.current.originIndex = index;
         gestureRef.current.hasMoved = false;
 
         const isTouch = e.pointerType === 'touch';
 
-        if (isCurrentActive) {
-            // Double-tap activates grab immediately
-            if (isDoubleTap) {
-                gestureRef.current.isLifted = true;
-                gestureRef.current.isDragging = true;
-                setIsLifted(true);
-                setIsDragging(true);
-                setDragCenter(currentItem.centerX);
-                setHoveredIndex(index);
-                try {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                } catch (_) {}
-                return;
-            }
+        // Double tap engages lift mode immediately
+        if (isDoubleTap) {
+            gestureRef.current.isLifted = true;
+            gestureRef.current.isDragging = true;
+            setIsLifted(true);
+            setIsDragging(true);
+            setDragCenter(currentItem.centerX);
+            setHoveredIndex(activeIndex);
+            try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+            } catch (_) {}
+            return;
+        }
 
-            if (isTouch) {
-                // Long press timer (180ms) for touch screens
-                gestureRef.current.longPressTimer = setTimeout(() => {
-                    if (gestureRef.current.isDown && !gestureRef.current.hasMoved) {
-                        gestureRef.current.isLifted = true;
-                        gestureRef.current.isDragging = true;
-                        setIsLifted(true);
-                        setIsDragging(true);
-                        setDragCenter(currentItem.centerX);
-                        setHoveredIndex(index);
-                        try {
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                        } catch (_) {}
-                        if (navigator.vibrate) navigator.vibrate(10);
-                    }
-                }, 180);
-            } else {
-                // Desktop mouse: subtle tactile lift after 80ms click-and-hold
-                gestureRef.current.holdTimer = setTimeout(() => {
-                    if (gestureRef.current.isDown) {
-                        gestureRef.current.isLifted = true;
-                        setIsLifted(true);
-                    }
-                }, 80);
-            }
+        if (isTouch) {
+            // Touch devices: long press (180ms) lifts the lens
+            gestureRef.current.longPressTimer = setTimeout(() => {
+                if (gestureRef.current.isDown && !gestureRef.current.hasMoved) {
+                    gestureRef.current.isLifted = true;
+                    gestureRef.current.isDragging = true;
+                    setIsLifted(true);
+                    setIsDragging(true);
+                    setDragCenter(currentItem.centerX);
+                    setHoveredIndex(activeIndex);
+                    try {
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                    } catch (_) {}
+                    if (navigator.vibrate) navigator.vibrate(10);
+                }
+            }, 180);
+        } else {
+            // Desktop mouse: tactile lift on click-and-hold (80ms)
+            gestureRef.current.holdTimer = setTimeout(() => {
+                if (gestureRef.current.isDown) {
+                    gestureRef.current.isLifted = true;
+                    setIsLifted(true);
+                }
+            }, 80);
         }
     };
 
-    // Handle pointer move
+    // Handle pointer move while dragging the lens
     const handlePointerMove = (e) => {
         if (!gestureRef.current.isDown) return;
 
@@ -227,7 +229,7 @@ export default function DraggableNavPill({ navItems, className }) {
         const dist = Math.hypot(deltaX, deltaY);
         const isTouch = e.pointerType === 'touch';
 
-        // Cancel if vertical scroll is dominant on touch before drag engaged
+        // Cancel if vertical scroll is dominant on touch before horizontal drag engages
         if (isTouch && !gestureRef.current.isDragging) {
             if (Math.abs(deltaY) > 8 && Math.abs(deltaY) > Math.abs(deltaX)) {
                 clearTimeout(gestureRef.current.longPressTimer);
@@ -239,8 +241,8 @@ export default function DraggableNavPill({ navItems, className }) {
             }
         }
 
-        // Trigger dragging when moving past 3px on the active pill
-        if (dist > 3 && gestureRef.current.originIndex === activeIndex) {
+        // Activate drag state when moving past threshold
+        if (dist > 3) {
             gestureRef.current.hasMoved = true;
             clearTimeout(gestureRef.current.longPressTimer);
             clearTimeout(gestureRef.current.holdTimer);
@@ -256,12 +258,12 @@ export default function DraggableNavPill({ navItems, className }) {
             }
         }
 
-        // Update pill position while dragging
+        // Update optical lens position
         if (gestureRef.current.isDragging && itemsData.length > 0) {
             e.preventDefault();
 
             const rawCenter = gestureRef.current.initialCenter + deltaX;
-            // Clamp within navbar range + padding
+            // Clamp within navbar range
             const minCenter = itemsData[0].centerX - 8;
             const maxCenter = itemsData[itemsData.length - 1].centerX + 8;
             const clampedCenter = Math.max(minCenter, Math.min(maxCenter, rawCenter));
@@ -273,8 +275,8 @@ export default function DraggableNavPill({ navItems, className }) {
         }
     };
 
-    // Handle pointer up / release
-    const handlePointerUp = (e, index) => {
+    // Handle pointer release
+    const handlePointerUp = (e) => {
         clearTimeout(gestureRef.current.longPressTimer);
         clearTimeout(gestureRef.current.holdTimer);
 
@@ -307,14 +309,14 @@ export default function DraggableNavPill({ navItems, className }) {
             setDragCenter(null);
             setHoveredIndex(null);
 
-            // It was a direct click without drag
+            // Direct click on the lens without dragging
             if (!hasMoved) {
-                activateDestination(navItems[index]);
+                activateDestination(navItems[activeIndex]);
             }
         }
     };
 
-    // Compute pill coordinates
+    // Compute optical lens dimensions & coordinates
     let currentLeft = 0;
     let currentWidth = 0;
     let currentTop = 0;
@@ -337,7 +339,7 @@ export default function DraggableNavPill({ navItems, className }) {
         }
     }
 
-    // Determine which item is visually highlighted
+    // Determine which item is visually highlighted through the lens
     const activeOrHoveredIndex = isDragging && hoveredIndex !== null ? hoveredIndex : activeIndex;
 
     return (
@@ -345,37 +347,75 @@ export default function DraggableNavPill({ navItems, className }) {
             ref={containerRef}
             aria-label="Primary Navigation"
             className={cn(
-                "relative flex items-center gap-1 xl:gap-2 p-1 rounded-2xl select-none",
+                "relative flex items-center gap-1 xl:gap-2 p-1 rounded-full select-none",
                 className
             )}
             style={{ touchAction: 'pan-y' }}
         >
             {/* ══════════════════════════════════════════════════════
-                1. INDEPENDENT DRAGGABLE SELECTION PILL
-                - Sits over/around the active navigation item
-                - Only this pill moves horizontally across items
-                - Navigation labels below stay 100% stationary
+                1. FIXED NAVIGATION LABELS (LAYER 1: z-10)
+                - Stay 100% stationary in their layout positions
+                - Do NOT move, shift, or scroll during dragging
+                - Visible through the transparent floating glass lens
+            ══════════════════════════════════════════════════════ */}
+            {navItems.map((item, idx) => {
+                const isUnderLens = idx === activeOrHoveredIndex;
+
+                return (
+                    <button
+                        key={item.path}
+                        ref={el => itemRefs.current[idx] = el}
+                        type="button"
+                        onClick={() => handleItemClick(idx)}
+                        className={cn(
+                            "px-4 py-2 rounded-full text-xs font-semibold relative z-10 select-none whitespace-nowrap cursor-pointer",
+                            "transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40",
+                            isUnderLens
+                                ? "text-white dark:text-white font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
+                                : "text-slate-400 dark:text-slate-300/70 hover:text-slate-200 dark:hover:text-white font-medium"
+                        )}
+                        aria-current={idx === activeIndex ? 'page' : undefined}
+                    >
+                        {item.label}
+                    </button>
+                );
+            })}
+
+            {/* ══════════════════════════════════════════════════════
+                2. FLOATING TRANSLUCENT SELECTOR LENS (LAYER 2: z-20)
+                - Sits above the navigation labels as a floating glass optic
+                - Follows the user's cursor / touch smoothly
+                - Features dark-tinted translucent glass + soft inner highlight
+                  + subtle cyan/green edge glow + high transparency
+                - Sits comfortably around the selected item
             ══════════════════════════════════════════════════════ */}
             {isMeasured && currentWidth > 0 && (
                 <motion.div
+                    ref={lensRef}
                     aria-hidden="true"
+                    onPointerDown={handleLensPointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
                     className={cn(
-                        "absolute z-0 rounded-xl pointer-events-none select-none transition-shadow",
-                        "bg-emerald-500/15 dark:bg-emerald-500/20",
-                        "border border-emerald-500/35 dark:border-emerald-500/40",
-                        "backdrop-blur-md",
-                        isLifted
-                            ? "shadow-[0_12px_28px_-4px_rgba(16,185,129,0.38),0_0_16px_rgba(16,185,129,0.25)] border-emerald-500/60 dark:border-emerald-400/60 bg-emerald-500/25 dark:bg-emerald-500/30"
-                            : "shadow-sm dark:shadow-[0_2px_12px_rgba(16,185,129,0.15)]"
+                        "absolute z-20 rounded-full select-none cursor-grab active:cursor-grabbing",
+                        "backdrop-blur-[8px] transition-shadow",
+                        // Translucent floating glass lens styling matching Reference Image 2
+                        "bg-[#0c382f]/70 dark:bg-[#0c382f]/75",
+                        "border border-emerald-400/40 dark:border-emerald-400/50"
                     )}
                     style={{
                         top: currentTop,
                         height: currentHeight,
+                        // Premium glass specular reflection & ambient depth
+                        boxShadow: isLifted
+                            ? 'inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4), 0 14px 30px -4px rgba(0, 0, 0, 0.7), 0 0 24px 2px rgba(16, 185, 129, 0.38)'
+                            : 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3), 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 14px 0 rgba(16, 185, 129, 0.18)'
                     }}
                     animate={{
                         x: currentLeft,
                         width: currentWidth,
-                        y: isLifted ? -2.5 : 0,
+                        y: isLifted ? -3 : 0,
                         scale: isLifted ? 1.03 : 1,
                     }}
                     transition={
@@ -396,53 +436,16 @@ export default function DraggableNavPill({ navItems, className }) {
                             }
                     }
                 >
-                    {/* Subtle interior glow */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/5 via-teal-400/10 to-emerald-500/5 opacity-80 pointer-events-none" />
+                    {/* Layer 3: Glass specular highlight gradients */}
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/20 via-transparent to-black/20 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500/10 via-teal-400/15 to-emerald-500/10 opacity-70 pointer-events-none" />
                     
-                    {/* Tactile lift indicator line */}
+                    {/* Tactile elevated glow indicator when lifted */}
                     {isLifted && (
-                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(16,185,129,0.9)] pointer-events-none" />
                     )}
                 </motion.div>
             )}
-
-            {/* ══════════════════════════════════════════════════════
-                2. FIXED NAVIGATION ITEMS
-                - Completely fixed in their layout positions
-                - Do NOT move, shift, or scroll during drag
-                - Receive subtle active text color when pill is over them
-            ══════════════════════════════════════════════════════ */}
-            {navItems.map((item, idx) => {
-                const isItemActive = idx === activeIndex;
-                const isUnderPill = idx === activeOrHoveredIndex;
-
-                return (
-                    <button
-                        key={item.path}
-                        ref={el => itemRefs.current[idx] = el}
-                        type="button"
-                        onPointerDown={(e) => handlePointerDown(e, idx)}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={(e) => handlePointerUp(e, idx)}
-                        onPointerCancel={(e) => handlePointerUp(e, idx)}
-                        className={cn(
-                            "px-3.5 py-1.5 rounded-xl text-xs font-extrabold relative z-10 select-none whitespace-nowrap",
-                            "transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
-                            isItemActive
-                                ? isDragging
-                                    ? "cursor-grabbing"
-                                    : "cursor-grab"
-                                : "cursor-pointer",
-                            isUnderPill
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-slate-600 dark:text-white/80 hover:text-slate-900 dark:hover:text-white"
-                        )}
-                        aria-current={isItemActive ? 'page' : undefined}
-                    >
-                        {item.label}
-                    </button>
-                );
-            })}
         </nav>
     );
 }
