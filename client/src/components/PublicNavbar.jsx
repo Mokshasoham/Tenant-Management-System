@@ -3,12 +3,15 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Building2, Menu, X, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+import { useTheme } from '../context/ThemeContext';
 import ThemeSwitch from './ThemeSwitch';
 import DraggableNavPill from './DraggableNavPill';
 
 export default function PublicNavbar() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -47,17 +50,53 @@ export default function PublicNavbar() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 py-3.5 transition-all duration-300 pointer-events-none">
             <div className="max-w-7xl mx-auto pointer-events-auto">
+                {/* ══════════════════════════════════════════════════════
+                    PREMIUM LIQUID GLASS / FROSTED GLASS NAVBAR CONTAINER
+                    - Highly translucent dark navy glass in dark mode
+                    - Hero background image clearly shines through
+                    - Specular bevels, rim refractions & ambient aura
+                    - Smooth transition between resting and scrolled states
+                ══════════════════════════════════════════════════════ */}
                 <div
                     className={cn(
-                        "rounded-[1.75rem] px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between transition-all duration-500",
+                        "relative rounded-[1.75rem] px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between transition-all duration-500 overflow-hidden",
                         scrolled
-                            ? "bg-[#F5F8F7]/90 dark:bg-[#060B13]/90 backdrop-blur-2xl border border-slate-200/80 dark:border-emerald-500/20 shadow-lg dark:shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7),0_0_24px_rgba(16,185,129,0.12)]"
-                            : "bg-white/80 dark:bg-[#060B13]/60 backdrop-blur-xl border border-slate-200/60 dark:border-white/10 shadow-md dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+                            ? "border-slate-200/80 dark:border-emerald-500/25"
+                            : "border-white/60 dark:border-white/[0.14]"
                     )}
+                    style={{
+                        background: isDark
+                            ? scrolled
+                                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(10, 20, 36, 0.52) 42%, rgba(6, 14, 26, 0.60) 100%)'
+                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(10, 20, 36, 0.30) 42%, rgba(6, 14, 26, 0.38) 100%)'
+                            : scrolled
+                                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(245, 248, 250, 0.65) 50%, rgba(230, 240, 236, 0.70) 100%)'
+                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(245, 248, 250, 0.40) 50%, rgba(230, 240, 236, 0.45) 100%)',
+                        backdropFilter: scrolled ? 'blur(16px) saturate(190%)' : 'blur(13px) saturate(180%)',
+                        WebkitBackdropFilter: scrolled ? 'blur(16px) saturate(190%)' : 'blur(13px) saturate(180%)',
+                        boxShadow: isDark
+                            ? scrolled
+                                ? 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -10px rgba(0, 0, 0, 0.5), 0 0 24px -2px rgba(16, 185, 129, 0.14)'
+                                : 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25), 0 12px 32px -8px rgba(0, 0, 0, 0.35), 0 0 20px -2px rgba(16, 185, 129, 0.08)'
+                            : scrolled
+                                ? 'inset 0 1px 2px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.06), 0 16px 40px -10px rgba(0, 0, 0, 0.12), 0 0 24px -2px rgba(16, 185, 129, 0.08)'
+                                : 'inset 0 1px 2px 0 rgba(255, 255, 255, 0.80), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04), 0 12px 32px -8px rgba(0, 0, 0, 0.08), 0 0 18px -2px rgba(16, 185, 129, 0.05)',
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                    }}
                 >
+                    {/* Liquid Glass Optical Layer 1: Specular top edge sheen */}
+                    <div className="absolute inset-0 rounded-[1.75rem] bg-gradient-to-b from-white/[0.12] dark:from-white/[0.08] via-transparent to-transparent pointer-events-none" />
+
+                    {/* Liquid Glass Optical Layer 2: Radial aperture reflection */}
+                    <div className="absolute inset-0 rounded-[1.75rem] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.12)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.07)_0%,transparent_60%)] pointer-events-none" />
+
+                    {/* Liquid Glass Optical Layer 3: Subtle emerald prism refraction line */}
+                    <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/40 dark:via-emerald-400/30 to-transparent pointer-events-none" />
+
                     {/* Brand Logo */}
-                    <Link to="/" className="flex items-center gap-3 group select-none">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 group-hover:shadow-emerald-500/40 transition-all">
+                    <Link to="/" className="flex items-center gap-3 group select-none relative z-10">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 group-hover:shadow-emerald-500/40 transition-all border border-emerald-400/30">
                             <Building2 className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex flex-col text-left">
@@ -72,24 +111,24 @@ export default function PublicNavbar() {
                     </Link>
 
                     {/* Desktop Navigation Links with Draggable Selection Pill */}
-                    <div className="hidden lg:flex items-center">
+                    <div className="hidden lg:flex items-center relative z-10">
                         <DraggableNavPill navItems={navItems} />
                     </div>
 
                     {/* Desktop Action Buttons + Theme Switch */}
-                    <div className="hidden sm:flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-3 relative z-10">
                         <ThemeSwitch />
                         <button
                             type="button"
                             onClick={() => navigate('/login')}
-                            className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-700 dark:text-white/90 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10 cursor-pointer"
+                            className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-700 dark:text-white/90 hover:text-slate-900 dark:hover:text-white bg-white/40 dark:bg-white/[0.07] hover:bg-white/70 dark:hover:bg-white/[0.14] transition-all duration-300 border border-slate-200/60 dark:border-white/[0.12] backdrop-blur-md shadow-sm cursor-pointer"
                         >
                             Sign In
                         </button>
                         <button
                             type="button"
                             onClick={() => navigate('/register')}
-                            className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 flex items-center gap-1.5 cursor-pointer border border-emerald-400/30"
                         >
                             <span>Get Started</span>
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -97,11 +136,11 @@ export default function PublicNavbar() {
                     </div>
 
                     {/* Mobile Controls (Theme Switch + Hamburger) */}
-                    <div className="sm:hidden flex items-center gap-2">
+                    <div className="sm:hidden flex items-center gap-2 relative z-10">
                         <ThemeSwitch />
                         <button
                             type="button"
-                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
                             onClick={() => setIsOpen(!isOpen)}
                             aria-label="Toggle navigation menu"
                         >
@@ -110,10 +149,10 @@ export default function PublicNavbar() {
                     </div>
 
                     {/* Desktop/Tablet Hamburger Button for Medium Screens */}
-                    <div className="hidden sm:flex lg:hidden items-center gap-2">
+                    <div className="hidden sm:flex lg:hidden items-center gap-2 relative z-10">
                         <button
                             type="button"
-                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl text-slate-700 dark:text-white/90 hover:bg-slate-100/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
                             onClick={() => setIsOpen(!isOpen)}
                             aria-label="Toggle navigation menu"
                         >
@@ -123,7 +162,7 @@ export default function PublicNavbar() {
                 </div>
             </div>
 
-            {/* Mobile Dropdown Menu */}
+            {/* Mobile Dropdown Menu (Frosted Liquid Glass) */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -131,7 +170,18 @@ export default function PublicNavbar() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="lg:hidden fixed top-[4.5rem] left-4 right-4 z-50 bg-white/95 dark:bg-[#060B13]/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-2xl rounded-[2rem] p-5 pointer-events-auto"
+                        className="lg:hidden fixed top-[4.5rem] left-4 right-4 z-50 border shadow-2xl rounded-[2rem] p-5 pointer-events-auto"
+                        style={{
+                            background: isDark
+                                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(10, 20, 36, 0.85) 45%, rgba(6, 14, 26, 0.92) 100%)'
+                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(245, 248, 250, 0.85) 50%, rgba(230, 240, 236, 0.88) 100%)',
+                            backdropFilter: 'blur(20px) saturate(190%)',
+                            WebkitBackdropFilter: 'blur(20px) saturate(190%)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(226, 232, 240, 0.8)',
+                            boxShadow: isDark
+                                ? 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.2), 0 20px 50px -10px rgba(0, 0, 0, 0.6), 0 0 30px -4px rgba(16, 185, 129, 0.15)'
+                                : 'inset 0 1px 2px 0 rgba(255, 255, 255, 0.9), 0 20px 50px -10px rgba(0, 0, 0, 0.15), 0 0 25px -4px rgba(16, 185, 129, 0.08)',
+                        }}
                     >
                         <div className="flex flex-col gap-2">
                             {navItems.map((item) => {
@@ -144,8 +194,8 @@ export default function PublicNavbar() {
                                         className={cn(
                                             "w-full text-left px-4 py-3 rounded-xl text-sm font-extrabold transition-all flex items-center justify-between",
                                             active
-                                                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15"
-                                                : "text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/5"
+                                                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 dark:bg-emerald-500/20"
+                                                : "text-slate-700 dark:text-white/80 hover:bg-slate-100/50 dark:hover:bg-white/5"
                                         )}
                                     >
                                         <span>{item.label}</span>
@@ -153,12 +203,12 @@ export default function PublicNavbar() {
                                     </Link>
                                 );
                             })}
-                            <div className="h-px bg-slate-200 dark:bg-white/10 my-2" />
+                            <div className="h-px bg-slate-200/60 dark:bg-white/10 my-2" />
                             <div className="grid grid-cols-2 gap-3 pt-1">
                                 <button
                                     type="button"
                                     onClick={() => { setIsOpen(false); navigate('/login'); }}
-                                    className="w-full py-3 rounded-xl text-xs font-extrabold text-slate-800 dark:text-white bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
+                                    className="w-full py-3 rounded-xl text-xs font-extrabold text-slate-800 dark:text-white bg-white/40 dark:bg-white/[0.07] border border-slate-200/60 dark:border-white/[0.12]"
                                 >
                                     Sign In
                                 </button>

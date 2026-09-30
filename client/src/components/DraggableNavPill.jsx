@@ -369,10 +369,10 @@ export default function DraggableNavPill({ navItems, className }) {
                         onClick={() => handleItemClick(idx)}
                         className={cn(
                             "px-4 py-2 rounded-full text-xs font-semibold relative z-10 select-none whitespace-nowrap cursor-pointer",
-                            "transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40",
+                            "transition-all duration-300 ease-out outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40",
                             isUnderLens
-                                ? "text-white dark:text-white font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
-                                : "text-slate-400 dark:text-slate-300/70 hover:text-slate-200 dark:hover:text-white font-medium"
+                                ? "text-white dark:text-white font-extrabold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                                : "text-slate-600 dark:text-slate-300/80 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/[0.08] hover:backdrop-blur-sm"
                         )}
                         aria-current={idx === activeIndex ? 'page' : undefined}
                     >
@@ -385,8 +385,8 @@ export default function DraggableNavPill({ navItems, className }) {
                 2. FLOATING TRANSLUCENT SELECTOR LENS (LAYER 2: z-20)
                 - Sits above the navigation labels as a floating glass optic
                 - Follows the user's cursor / touch smoothly
-                - Features dark-tinted translucent glass + soft inner highlight
-                  + subtle cyan/green edge glow + high transparency
+                - Features translucent emerald/teal liquid glass + soft inner highlight
+                  + illuminated border + ambient glow + high transparency
                 - Sits comfortably around the selected item
             ══════════════════════════════════════════════════════ */}
             {isMeasured && currentWidth > 0 && (
@@ -399,18 +399,20 @@ export default function DraggableNavPill({ navItems, className }) {
                     onPointerCancel={handlePointerUp}
                     className={cn(
                         "absolute z-20 rounded-full select-none cursor-grab active:cursor-grabbing",
-                        "backdrop-blur-[8px] transition-shadow",
-                        // Translucent floating glass lens styling matching Reference Image 2
-                        "bg-[#0c382f]/70 dark:bg-[#0c382f]/75",
-                        "border border-emerald-400/40 dark:border-emerald-400/50"
+                        "transition-shadow",
+                        // Translucent emerald/teal liquid glass lens
+                        "bg-emerald-500/15 dark:bg-gradient-to-r dark:from-emerald-500/[0.22] dark:via-teal-500/[0.26] dark:to-emerald-500/[0.20]",
+                        "border border-emerald-400/50 dark:border-emerald-400/60"
                     )}
                     style={{
                         top: currentTop,
                         height: currentHeight,
-                        // Premium glass specular reflection & ambient depth
+                        backdropFilter: 'blur(10px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(10px) saturate(180%)',
+                        // Luminous emerald glass specular reflection & ambient depth
                         boxShadow: isLifted
-                            ? 'inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4), 0 14px 30px -4px rgba(0, 0, 0, 0.7), 0 0 24px 2px rgba(16, 185, 129, 0.38)'
-                            : 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3), 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 14px 0 rgba(16, 185, 129, 0.18)'
+                            ? 'inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25), inset 0 0 18px 0 rgba(52, 211, 153, 0.35), 0 14px 28px -4px rgba(0, 0, 0, 0.45), 0 0 24px 2px rgba(16, 185, 129, 0.42)'
+                            : 'inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.40), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15), inset 0 0 14px 0 rgba(52, 211, 153, 0.22), 0 4px 16px -2px rgba(16, 185, 129, 0.28), 0 0 10px 0 rgba(16, 185, 129, 0.18)'
                     }}
                     animate={{
                         x: currentLeft,
@@ -437,8 +439,8 @@ export default function DraggableNavPill({ navItems, className }) {
                     }
                 >
                     {/* Layer 3: Glass specular highlight gradients */}
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/20 via-transparent to-black/20 pointer-events-none" />
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500/10 via-teal-400/15 to-emerald-500/10 opacity-70 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 via-transparent to-black/15 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400/15 via-teal-300/20 to-emerald-400/15 opacity-80 pointer-events-none" />
                     
                     {/* Tactile elevated glow indicator when lifted */}
                     {isLifted && (
