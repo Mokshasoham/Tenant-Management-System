@@ -10,6 +10,7 @@ import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 import { resolvePropertyUrls } from './propertyController.js';
+import { resolveLeaseLifecycle, computeLeasePaymentSummary } from '../utils/leaseLifecycle.js';
 
 export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -105,54 +106,68 @@ export const getMyLease = asyncHandler(async (req, res) => {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
-  const [activeLeases, pastLeases, tenantPayments] = await Promise.all([
-    Lease.find({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ],
-      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] },
+  const allLeases = await Lease.find({
+    $or: [
+      { tenant: { $in: tenantIds } },
+      { user: { $in: tenantIds } },
+      ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
+    ]
+  })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'property',
+      select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
+      populate: [
+        { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
+        { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
+      ]
     })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: 'property',
-        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
-        populate: [
-          { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
-          { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
-        ]
-      })
-      .populate('tenant', 'firstName lastName email phone'),
+    .populate('tenant', 'firstName lastName email phone')
+    .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
+    .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
 
-    Lease.find({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ],
-      status: { $in: ['terminated', 'expired', 'cancelled', 'completed'] },
-    })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: 'property',
-        select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
-        populate: [
-          { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
-          { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
-        ]
-      })
-      .populate('tenant', 'firstName lastName email phone'),
+  const tenantPayments = await Payment.find({
+    $or: [
+      { tenant: { $in: tenantIds } },
+      { lease: { $in: allLeases.map(l => l._id) } }
+    ]
+  }).sort({ dueDate: -1, createdAt: -1 });
 
-    Payment.find({ tenant: { $in: tenantIds } }).sort({ dueDate: -1 })
-  ]);
+  const now = new Date();
 
-  // Enrich each active lease with authoritative payment schedule derived from lease cycle and DB payments
-  const enrichedActiveLeases = activeLeases.map(lease => {
+  // Process and enrich each lease with authoritative lifecycle and payment summary
+  const enrichedLeases = allLeases.map(lease => {
+    const lifecycle = resolveLeaseLifecycle(lease, tenantPayments, now);
+
+    // Non-blocking lazy database synchronization for overdue transitions
+    if (lease.status === 'active' && lifecycle.isPastEndDate && lifecycle.effectiveStatus === 'expired') {
+      lease.status = 'expired';
+      if (lease.leaseDecision === 'pending') {
+        lease.leaseDecision = 'expired';
+      }
+      lease.save().catch(e => logger.warn('[LAZY LEASE SYNC ERROR]', e));
+    } else if (lease.status === 'pending' && lifecycle.effectiveStatus === 'active') {
+      lease.status = 'active';
+      lease.save().catch(e => logger.warn('[LAZY LEASE ACTIVATE ERROR]', e));
+    }
+
     const resolved = resolveLeaseUrls(lease, req);
     const schedule = calculateNextPaymentDue(lease, tenantPayments);
+
     return {
       ...resolved,
+      status: lifecycle.effectiveStatus === 'expired' ? 'expired' : lease.status,
+      effectiveStatus: lifecycle.effectiveStatus,
+      lifecycle,
+      paymentSummary: lifecycle.paymentSummary,
+      renewedLease: lease.renewedTo ? {
+        _id: lease.renewedTo._id,
+        leaseNumber: lease.renewedTo.leaseNumber,
+        startDate: lease.renewedTo.startDate,
+        endDate: lease.renewedTo.endDate,
+        rentAmount: lease.renewedTo.rentAmount,
+        status: lease.renewedTo.status
+      } : null,
       nextPaymentDueAt: schedule?.nextPaymentDueAt || null,
       nextPaymentAmount: schedule?.amount ?? lease.rentAmount,
       nextPaymentStatus: schedule?.status || 'scheduled',
@@ -161,16 +176,37 @@ export const getMyLease = asyncHandler(async (req, res) => {
     };
   });
 
-  const primaryActiveLease = enrichedActiveLeases[0] || null;
+  // Separate active/current candidate tenancies from completed/historical past leases
+  // Note: An expired lease that is recent remains accessible under activeLeases (with status: 'expired' and badge 'EXPIRED')
+  // so the tenant can view outstanding dues or submit move out, unless it is superseded by a renewed lease.
+  const activeLeases = [];
+  const pastLeases = [];
 
-  logger.info(`[MY LEASES] tenantUserId=${req.user.userId}, tenantCount=${tenantIds.length}, activeLeaseCount=${enrichedActiveLeases.length}, pastLeaseCount=${pastLeases.length}`);
+  for (const enriched of enrichedLeases) {
+    if (enriched.status === 'terminated' || enriched.status === 'cancelled') {
+      pastLeases.push(enriched);
+    } else if (enriched.effectiveStatus === 'renewed' && enriched.renewedLease && enriched.renewedLease.status === 'active') {
+      // Historical lease that has been superseded by an active renewed lease
+      pastLeases.push(enriched);
+    } else {
+      activeLeases.push(enriched);
+    }
+  }
+
+  // Prioritize primary lease: active/expiring first, then expired with dues/moveout
+  const primaryActiveLease = activeLeases.find(l => ['active', 'expiring_soon', 'renewal_requested', 'upcoming'].includes(l.effectiveStatus)) 
+    || activeLeases[0] 
+    || pastLeases[0] 
+    || null;
+
+  logger.info(`[MY LEASES] tenantUserId=${req.user.userId}, tenantCount=${tenantIds.length}, activeCount=${activeLeases.length}, pastCount=${pastLeases.length}`);
 
   res.status(200).json({ 
     success: true, 
     data: primaryActiveLease, 
-    leases: enrichedActiveLeases,
-    activeLeases: enrichedActiveLeases, 
-    pastLeases: pastLeases.map(l => resolveLeaseUrls(l, req)),
+    leases: activeLeases,
+    activeLeases: activeLeases, 
+    pastLeases: pastLeases,
     monthlyRent: primaryActiveLease?.rentAmount || null,
     leaseStartDate: primaryActiveLease?.startDate || null,
     nextPaymentDueAt: primaryActiveLease?.nextPaymentDueAt || null,
@@ -256,14 +292,18 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     lease = await Lease.findById(id)
       .populate('property')
       .populate('tenant')
-      .populate('createdBy', 'firstName lastName email');
+      .populate('createdBy', 'firstName lastName email')
+      .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
+      .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
   }
 
   if (!lease) {
     lease = await Lease.findOne({ leaseNumber: id })
       .populate('property')
       .populate('tenant')
-      .populate('createdBy', 'firstName lastName email');
+      .populate('createdBy', 'firstName lastName email')
+      .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
+      .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
   }
 
   if (!lease) {
@@ -291,7 +331,8 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     }
   }
 
-  const payments = await Payment.find({ lease: lease._id }).sort({ dueDate: -1 });
+  const payments = await Payment.find({ lease: lease._id }).sort({ dueDate: -1, createdAt: -1 });
+  const lifecycle = resolveLeaseLifecycle(lease, payments, new Date());
   const schedule = calculateNextPaymentDue(lease, payments);
   const resolved = resolveLeaseUrls(lease, req);
 
@@ -299,6 +340,18 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     success: true,
     data: {
       ...resolved,
+      status: lifecycle.effectiveStatus === 'expired' ? 'expired' : lease.status,
+      effectiveStatus: lifecycle.effectiveStatus,
+      lifecycle,
+      paymentSummary: lifecycle.paymentSummary,
+      renewedLease: lease.renewedTo ? {
+        _id: lease.renewedTo._id,
+        leaseNumber: lease.renewedTo.leaseNumber,
+        startDate: lease.renewedTo.startDate,
+        endDate: lease.renewedTo.endDate,
+        rentAmount: lease.renewedTo.rentAmount,
+        status: lease.renewedTo.status
+      } : null,
       nextPaymentDueAt: schedule?.nextPaymentDueAt || null,
       nextPaymentAmount: schedule?.totalDue ?? schedule?.amount ?? lease.rentAmount,
       nextPaymentStatus: schedule?.status || 'scheduled',

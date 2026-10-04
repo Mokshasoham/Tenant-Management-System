@@ -13,7 +13,7 @@ export const LeaseRenewalCard = React.memo(({ lease, onRenew }) => {
       return {
         daysRemaining: 'Not Available',
         isEligible: false,
-        renewalWindow: 'Opens 90 days prior to expiry',
+        renewalWindow: 'Opens 7 days prior to expiry',
         status: 'Locked',
       };
     }
@@ -23,7 +23,7 @@ export const LeaseRenewalCard = React.memo(({ lease, onRenew }) => {
       return {
         daysRemaining: 'Not Available',
         isEligible: false,
-        renewalWindow: 'Opens 90 days prior to expiry',
+        renewalWindow: 'Opens 7 days prior to expiry',
         status: 'Locked',
       };
     }
@@ -32,18 +32,20 @@ export const LeaseRenewalCard = React.memo(({ lease, onRenew }) => {
     const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
     const isActive = lease.status === 'active';
 
-    // Renewal eligible when active & within 90 days of expiry
-    const isEligible = isActive && daysLeft <= 90 && daysLeft > 0;
+    // Authoritative 7-day decision window
+    const isEligible = lease.lifecycle?.canRenew !== undefined
+      ? lease.lifecycle.canRenew
+      : (isActive && daysLeft <= 7 && daysLeft > 0 && lease.leaseDecision === 'pending');
 
     let status = 'Upcoming';
     if (isEligible) status = 'Open for Renewal';
-    else if (daysLeft === 0) status = 'Lease Expired';
+    else if (daysLeft === 0 || lease.status === 'expired') status = 'Renewal Window Closed';
     else if (!isActive) status = 'Locked';
 
     return {
       daysRemaining: `${daysLeft} Days`,
       isEligible,
-      renewalWindow: '90 Days Prior to Expiration',
+      renewalWindow: '7 Days Prior to Expiration',
       status,
     };
   }, [lease]);

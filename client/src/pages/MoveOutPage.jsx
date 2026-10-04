@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { LogOut, CheckCircle2 } from 'lucide-react';
 
 export default function MoveOutPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const leaseId = searchParams.get('leaseId');
+
   const [expectedMoveOutDate, setExpectedMoveOutDate] = useState('');
   const [reason, setReason] = useState('Job Relocation');
   const [comments, setComments] = useState('');
@@ -18,8 +21,14 @@ export default function MoveOutPage() {
     console.log('[MoveOutPage] Destination page loaded');
     const fetchLease = async () => {
       try {
-        const res = await apiClient.get('/leases/my-lease');
-        const currentLease = res?.data || res;
+        let currentLease = null;
+        if (leaseId) {
+          const res = await apiClient.get(`/leases/${leaseId}`);
+          currentLease = res?.data || res;
+        } else {
+          const res = await apiClient.get('/leases/my-lease');
+          currentLease = res?.data || res;
+        }
         setLease(currentLease);
         if (currentLease?.endDate) {
           setExpectedMoveOutDate(new Date(currentLease.endDate).toISOString().split('T')[0]);
@@ -32,7 +41,7 @@ export default function MoveOutPage() {
       }
     };
     fetchLease();
-  }, []);
+  }, [leaseId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

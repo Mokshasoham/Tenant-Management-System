@@ -11,6 +11,7 @@ import { generateSequenceNumber } from '../../platform/sequence/sequenceService.
 import { logRenewalAudit } from '../../platform/audit/auditService.js';
 import { dispatchEvent } from '../../platform/events/eventDispatcher.js';
 import { EventTypes } from '../../platform/events/eventTypes.js';
+import { executeRenewalApproval } from '../../services/leaseRenewalHelper.js';
 
 /**
  * State Machine Transition Validator.
@@ -59,8 +60,17 @@ export const canRenew = async (lease, tenantRecord) => {
     throw new DomainError(ErrorCatalog.LEASE_ALREADY_EXPIRED);
   }
 
-  // 2. Lease is already expired check
-  if (new Date(lease.endDate) < new Date()) {
+  // 2. Authoritative 7-day decision window and deadline checks
+  const endMs = new Date(lease.endDate).getTime();
+  const daysRemaining = Math.ceil((endMs - Date.now()) / (1000 * 60 * 60 * 24));
+  if (daysRemaining > 7) {
+    throw new DomainError({
+      code: 'RENEWAL_WINDOW_NOT_OPEN',
+      message: 'Lease renewal requests can only be submitted within 7 days of lease expiry.',
+      statusCode: 400
+    });
+  }
+  if (daysRemaining <= 0) {
     throw new DomainError(ErrorCatalog.LEASE_ALREADY_EXPIRED);
   }
 
@@ -174,6 +184,10 @@ export const createRenewalRequest = async ({
     newValue: renewal.toObject(),
     ...auditContext
   });
+
+  // Update parent lease decision state to renewal_requested
+  lease.leaseDecision = 'renewal_requested';
+  await lease.save();
 
   return renewal;
 };
@@ -419,18 +433,31 @@ export const acceptRenewal = async (id, user, auditContext = {}) => {
 
   await checkAuthorization(renewal, user);
 
+  const currentLease = await Lease.findById(renewal.lease);
+  if (!currentLease) {
+    throw new DomainError(ErrorCatalog.LEASE_NOT_FOUND);
+  }
+
+  if (renewal.status === RenewalStatus.APPROVED) {
+    // Idempotent return if already approved
+    await executeRenewalApproval({ renewal, currentLease, userId: user.userId });
+    return renewal;
+  }
+
   if (!canTransition(renewal.status, RenewalStatus.APPROVED)) {
     throw new DomainError(ErrorCatalog.INVALID_STATE_TRANSITION);
   }
 
   const oldValue = renewal.toObject();
 
-  renewal.status = RenewalStatus.APPROVED;
-  renewal.approvalDate = new Date();
-  renewal.approvedBy = user.userId;
-  renewal.updatedBy = user.userId;
+  // Execute idempotent renewal approval and new lease creation/linking
+  await executeRenewalApproval({
+    renewal,
+    currentLease,
+    userId: user.userId
+  });
 
-  const savedRenewal = await repository.save(renewal);
+  const savedRenewal = await repository.findById(id);
 
   // Dispatch Domain Event
   await dispatchEvent(EventTypes.LEASE.RENEWAL_APPROVED, {

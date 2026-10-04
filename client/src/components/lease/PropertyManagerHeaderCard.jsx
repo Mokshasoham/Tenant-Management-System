@@ -335,9 +335,35 @@ export default function PropertyManagerHeaderCard({
                                 </div>
 
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <p className="text-[11px] text-muted-foreground/70 font-medium">
-                                        Managed by <span className="text-foreground font-semibold">{managerName || 'Direct Operations'}</span> · <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active Tenancy</span>
-                                    </p>
+                                    {(() => {
+                                        const eff = lease?.effectiveStatus || lease?.status;
+                                        let label = 'Active Tenancy';
+                                        let color = 'text-emerald-600 dark:text-emerald-400';
+                                        if (eff === 'expired') {
+                                            label = 'Tenancy Concluded · Expired';
+                                            color = 'text-rose-500 dark:text-rose-400';
+                                        } else if (eff === 'renewed') {
+                                            label = 'Renewal Approved';
+                                            color = 'text-teal-500 dark:text-teal-400';
+                                        } else if (eff === 'moving_out') {
+                                            label = 'Move-Out In Progress';
+                                            color = 'text-amber-500 dark:text-amber-400';
+                                        } else if (eff === 'renewal_requested') {
+                                            label = 'Renewal Requested';
+                                            color = 'text-blue-500 dark:text-blue-400';
+                                        } else if (eff === 'expiring_soon') {
+                                            label = 'Expiring Soon';
+                                            color = 'text-amber-500 dark:text-amber-400';
+                                        } else if (eff === 'upcoming') {
+                                            label = 'Upcoming Tenancy';
+                                            color = 'text-indigo-500 dark:text-indigo-400';
+                                        }
+                                        return (
+                                            <p className="text-[11px] text-muted-foreground/70 font-medium">
+                                                Managed by <span className="text-foreground font-semibold">{managerName || 'Direct Operations'}</span> · <span className={cn('font-bold', color)}>{label}</span>
+                                            </p>
+                                        );
+                                    })()}
 
                                     {isMultiLease && (
                                         <span className="text-[9px] font-bold text-muted-foreground/40 hidden sm:inline-flex items-center gap-1">

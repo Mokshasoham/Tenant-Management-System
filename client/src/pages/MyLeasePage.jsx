@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { leaseService, paymentService, feedbackService } from '../services/api';
 import {
     Home, Calendar, CreditCard, FileText, CheckCircle2, Clock,
-    AlertTriangle, Building2, Wifi, Car, Droplets, Zap, Wind,
+    AlertTriangle, AlertOctagon, Truck, Sparkles, Building2, Wifi, Car, Droplets, Zap, Wind,
     Wallet, ArrowRight, RefreshCw, Info, Shield, Hash, Phone,
     Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
     PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck,
@@ -30,9 +30,14 @@ const AMENITY_ICON = {
 
 const STATUS_CONFIG = {
     active: { label: 'Active', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/25', dot: 'bg-emerald-500 animate-pulse dark:bg-emerald-400' },
+    expiring_soon: { label: 'Expiring Soon', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-500 animate-pulse dark:bg-amber-400' },
+    renewal_requested: { label: 'Renewal Pending', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 border-blue-500/25', dot: 'bg-blue-500 animate-pulse dark:bg-blue-400' },
+    renewed: { label: 'Renewed', color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-500/10 border-teal-500/25', dot: 'bg-teal-500 dark:bg-teal-400' },
+    moving_out: { label: 'Move-Out Requested', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 border-orange-500/25', dot: 'bg-orange-500 dark:bg-orange-400' },
     signed: { label: 'Signed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/25', dot: 'bg-emerald-500 animate-pulse dark:bg-emerald-400' },
     pending_manager: { label: 'Pending Manager Signature', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 border-blue-500/25', dot: 'bg-blue-500 animate-pulse dark:bg-blue-400' },
     pending: { label: 'Pending Signature', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/25', dot: 'bg-amber-500 animate-pulse dark:bg-amber-400' },
+    upcoming: { label: 'Upcoming', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/25', dot: 'bg-indigo-500 dark:bg-indigo-400' },
     expired: { label: 'Expired', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10 border-rose-500/25', dot: 'bg-rose-500 dark:bg-rose-400' },
     terminated: { label: 'Terminated', color: 'text-muted-foreground/40', bg: 'bg-muted border-border', dot: 'bg-muted-foreground/20' },
 };
@@ -48,6 +53,7 @@ function LeaseProgressBar({ startDate, endDate }) {
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime();
     const now = Date.now();
+    const isExpired = now > end;
     const pct = Math.max(0, Math.min(100, Math.round(((now - start) / (end - start)) * 100)));
     const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
 
@@ -55,12 +61,19 @@ function LeaseProgressBar({ startDate, endDate }) {
         <div className="space-y-2">
             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
                 <span>{new Date(startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                <span className="text-emerald-600 dark:text-emerald-400">{pct}% complete · {daysLeft} days left</span>
+                <span className={isExpired ? "text-rose-500 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400"}>
+                    {isExpired ? `100% complete · Tenancy Expired` : `${pct}% complete · ${daysLeft} days left`}
+                </span>
                 <span>{new Date(endDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                 <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 relative"
+                    className={cn(
+                        "h-full rounded-full relative",
+                        isExpired 
+                            ? "bg-gradient-to-r from-rose-500 to-amber-500" 
+                            : "bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
+                    )}
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
                     transition={{ delay: 0.4, duration: 1.4, ease: 'easeOut' }}
@@ -542,8 +555,10 @@ export default function MyLeasePage() {
 
     const statusCfg = (() => {
         if (!currentLease) return STATUS_CONFIG.pending;
-        if (currentLease.status === 'active') return STATUS_CONFIG.active;
+        const eff = currentLease.effectiveStatus || currentLease.status;
+        if (STATUS_CONFIG[eff]) return STATUS_CONFIG[eff];
         if (currentLease.status === 'expired') return STATUS_CONFIG.expired;
+        if (currentLease.status === 'active') return STATUS_CONFIG.active;
         if (currentLease.status === 'terminated') return STATUS_CONFIG.terminated;
 
         // Pending lease status based on actual signature progress
@@ -551,13 +566,27 @@ export default function MyLeasePage() {
         if (isSignedByTenant && !isManagerSigned) return STATUS_CONFIG.pending_manager;
         return STATUS_CONFIG.pending;
     })();
+
+    // Strict lease-scoped payment filtering (no property-level data bleed across tenancies)
     const currentLeasePayments = currentLease ? payments.filter(p => {
         const pLeaseId = String(p.lease?._id || p.lease || '');
         const cLeaseId = String(currentLease._id || '');
-        const pPropId = String(p.property?._id || p.property || '');
-        const cPropId = String(currentLease.property?._id || currentLease.property || '');
-        return (pLeaseId && pLeaseId === cLeaseId) || (pPropId && pPropId === cPropId);
+        return pLeaseId && pLeaseId === cLeaseId;
     }) : [];
+
+    // Calculate authoritative unpaid dues for this specific lease
+    const unpaidDues = currentLeasePayments.filter(p => {
+        if (!['pending', 'overdue', 'partially_paid'].includes(p.status)) return false;
+        const total = Number(p.amount != null ? p.amount : (p.totalAmount || 0));
+        const paid = Number(p.amountPaid || 0);
+        return (total - paid) > 0;
+    });
+    const totalOutstandingOwed = unpaidDues.reduce((sum, p) => {
+        const total = Number(p.amount != null ? p.amount : (p.totalAmount || 0));
+        const paid = Number(p.amountPaid || 0);
+        return sum + Math.max(0, total - paid);
+    }, 0);
+    const isCurrentLeaseExpired = (currentLease?.effectiveStatus === 'expired') || (currentLease?.status === 'expired') || (new Date(currentLease?.endDate).getTime() < Date.now());
     const paidPayments = currentLeasePayments.filter(p => p.status === 'paid');
     const pendingPay = currentLeasePayments.find(p => ['pending', 'overdue'].includes(p.status));
     const totalPaid = paidPayments.reduce((s, p) => s + (p.amountPaid || p.amount || 0), 0);
@@ -625,13 +654,34 @@ export default function MyLeasePage() {
                 <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-card/60 backdrop-blur-md border border-border w-fit shadow-sm">
                     {activeLeases.map((actL, i) => {
                         const isSelected = selectedLeaseIndex === i && !selectedPastLease;
-                        const actTenantSigned = Boolean(actL.signature && actL.signedBy && actL.signedAt);
-                        const actManagerSigned = Boolean(actL.managerSignature || actL.managerSignedAt);
-                        const actBothSigned = actTenantSigned && actManagerSigned;
-                        const isUpcoming = actL.status === 'pending' && actBothSigned;
-                        const isPendingManager = actL.status === 'pending' && actTenantSigned && !actManagerSigned;
-                        const isPending = actL.status === 'pending' && !actTenantSigned;
-                        const statusBadgeText = isUpcoming ? '(Upcoming)' : (isPendingManager ? '(Pending Manager)' : (isPending ? '(Pending)' : '(Active)'));
+                        const eff = actL.effectiveStatus || actL.status;
+                        let statusBadgeText = '(Active)';
+                        let dotColor = 'bg-emerald-300';
+                        if (eff === 'expired') {
+                            statusBadgeText = '(Expired)';
+                            dotColor = 'bg-rose-400';
+                        } else if (eff === 'expiring_soon') {
+                            statusBadgeText = '(Expiring Soon)';
+                            dotColor = 'bg-amber-400';
+                        } else if (eff === 'renewal_requested') {
+                            statusBadgeText = '(Renewal Pending)';
+                            dotColor = 'bg-blue-400';
+                        } else if (eff === 'renewed') {
+                            statusBadgeText = '(Renewed)';
+                            dotColor = 'bg-teal-300';
+                        } else if (eff === 'moving_out') {
+                            statusBadgeText = '(Moving Out)';
+                            dotColor = 'bg-orange-400';
+                        } else if (eff === 'upcoming') {
+                            statusBadgeText = '(Upcoming)';
+                            dotColor = 'bg-indigo-300';
+                        } else if (eff === 'pending_manager') {
+                            statusBadgeText = '(Pending Manager)';
+                            dotColor = 'bg-blue-300';
+                        } else if (eff === 'pending') {
+                            statusBadgeText = '(Pending)';
+                            dotColor = 'bg-amber-300';
+                        }
                         return (
                             <button
                                 key={actL._id}
@@ -643,10 +693,7 @@ export default function MyLeasePage() {
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                 )}
                             >
-                                <span className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isUpcoming ? "bg-indigo-300" : (isPendingManager ? "bg-blue-300" : (isPending ? "bg-amber-300" : "bg-emerald-300"))
-                                )} />
+                                <span className={cn("w-2 h-2 rounded-full", dotColor)} />
                                 <span>{actL.property?.name || `Lease #${actL.leaseNumber || i + 1}`}</span>
                                 <span className="text-[10px] opacity-75 font-bold">
                                     {statusBadgeText}
@@ -992,30 +1039,154 @@ export default function MyLeasePage() {
                                         <LeaseProgressBar startDate={currentLease.startDate} endDate={currentLease.endDate} />
                                     </div>
 
-                                    {/* Expiry Warning */}
+                                    {/* ── Lease Lifecycle & Decision State Banner ── */}
                                     {(() => {
                                         const end = new Date(currentLease.endDate).getTime();
-                                        const now = new Date().getTime();
+                                        const now = Date.now();
                                         const diff = end - now;
                                         const daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                        if (daysRemaining <= 30) {
+                                        const lc = currentLease.lifecycle || {};
+                                        const decision = currentLease.leaseDecision || lc.decision || 'pending';
+                                        const isRenewed = Boolean(currentLease.renewedTo || currentLease.renewedLease || decision === 'renewed');
+                                        const isMovingOut = Boolean(decision === 'moving_out' || lc.hasTenantSubmittedMoveOut);
+                                        const isRenewalRequested = Boolean(decision === 'renewal_requested' || lc.hasTenantSubmittedRenewal) && !isRenewed;
+                                        const isExpired = Boolean(daysRemaining <= 0 || isCurrentLeaseExpired || lc.isExpired);
+                                        const isInWindow = Boolean(daysRemaining <= 7 && daysRemaining > 0);
+
+                                        // Case 1: Renewal Pending Review
+                                        if (isRenewalRequested) {
                                             return (
-                                                <div className="mb-6 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                                    <div>
-                                                        <p className="text-sm font-black text-amber-500">Attention: Lease Expiry Approaching</p>
-                                                        <p className="text-xs text-muted-foreground mt-1">
-                                                            Your lease expires in {daysRemaining} days. Please select your renewal preference before expiration.
-                                                        </p>
+                                                <div className="mb-6 p-5 rounded-2xl bg-blue-500/15 border border-blue-500/30 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-blue-500/5">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-300 mt-0.5">
+                                                            <Clock className="w-5 h-5 animate-pulse" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-blue-300 uppercase tracking-wider">Renewal Request Under Review</p>
+                                                            <p className="text-xs text-white/70 mt-1 leading-relaxed">
+                                                                You have submitted a lease renewal request. Property management is reviewing your request and preparing the renewal contract terms.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-200 text-xs font-black uppercase tracking-wider">
+                                                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                                                            In Review
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
+                                        // Case 2: Move-Out Notice Submitted
+                                        if (isMovingOut) {
+                                            return (
+                                                <div className="mb-6 p-5 rounded-2xl bg-orange-500/15 border border-orange-500/30 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-orange-500/5">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2.5 rounded-xl bg-orange-500/20 text-orange-300 mt-0.5">
+                                                            <Truck className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-orange-300 uppercase tracking-wider">Move-Out Notice Submitted</p>
+                                                            <p className="text-xs text-white/70 mt-1 leading-relaxed">
+                                                                Your move-out request has been recorded. Property management will schedule an exit inspection and initiate the deposit return process.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-200 text-xs font-black uppercase tracking-wider">
+                                                            Notice Submitted
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
+                                        // Case 3: Renewal Approved / Renewed
+                                        if (isRenewed) {
+                                            return (
+                                                <div className="mb-6 p-5 rounded-2xl bg-teal-500/15 border border-teal-500/30 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-teal-500/5">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2.5 rounded-xl bg-teal-500/20 text-teal-300 mt-0.5">
+                                                            <Sparkles className="w-5 h-5 text-teal-300" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-teal-300 uppercase tracking-wider">Lease Renewal Approved</p>
+                                                            <p className="text-xs text-white/70 mt-1 leading-relaxed">
+                                                                Your lease renewal has been approved! The new tenancy period has been confirmed and attached to your account.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-200 text-xs font-black uppercase tracking-wider">
+                                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                                            Renewed
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
+                                        // Case 4: 7-Day Renewal Decision Window Open (Active lease, within 7 days, no decision yet)
+                                        if (isInWindow && !lc.hasTenantSubmittedDecision && decision === 'pending') {
+                                            return (
+                                                <div className="mb-6 p-5 rounded-2xl bg-amber-500/20 border border-amber-500/40 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-amber-500/10">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 mt-0.5">
+                                                            <AlertTriangle className="w-5 h-5 animate-bounce" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-black text-amber-300 uppercase tracking-wider">Attention: Lease Decision Window Open</p>
+                                                                <span className="px-2 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-black uppercase">
+                                                                    {daysRemaining} {daysRemaining === 1 ? 'Day Left' : 'Days Left'}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                                                                Your lease expires on {new Date(currentLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Please submit your decision to renew your stay or move out before the deadline.
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                     <button
                                                         onClick={() => navigate(currentLease?._id ? `/lease-decision?leaseId=${currentLease._id}` : '/lease-decision')}
-                                                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-xl transition-all w-full md:w-auto"
+                                                        className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all w-full md:w-auto shadow-md shadow-amber-500/20 hover:scale-105 active:scale-95"
                                                     >
                                                         Renew or Move Out
                                                     </button>
                                                 </div>
                                             );
                                         }
+
+                                        // Case 5: Expired / Deadline Passed & No Decision Submitted (Safeguard A: Show Move Out directly, never allow renewal)
+                                        if (isExpired && !lc.hasTenantSubmittedMoveOut && decision !== 'moving_out' && !isRenewed) {
+                                            return (
+                                                <div className="mb-6 p-5 rounded-2xl bg-rose-500/20 border border-rose-500/40 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-rose-500/10">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-300 mt-0.5">
+                                                            <AlertOctagon className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-black text-rose-300 uppercase tracking-wider">Tenancy Concluded · Lease Expired</p>
+                                                                <span className="px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-200 border border-rose-400/30 text-[10px] font-black uppercase">
+                                                                    Renewal Closed
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                                                                The term for this lease ended on {new Date(currentLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. The renewal deadline has passed. Please submit your move-out request to initiate exit formalities.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => navigate(currentLease?._id ? `/move-out?leaseId=${currentLease._id}` : '/move-out')}
+                                                        className="px-5 py-2.5 bg-rose-500 hover:bg-rose-400 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all w-full md:w-auto shadow-md shadow-rose-500/25 hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                                                    >
+                                                        <Truck className="w-4 h-4" /> Submit Move-Out
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+
                                         return null;
                                     })()}
 
@@ -1050,7 +1221,178 @@ export default function MyLeasePage() {
                         </AnimatePresence>
                     </div>
 
-                    {/* ── Property Media Gallery ── */}
+                    {/* ── Outstanding Dues on Expired Lease (Authoritative Scoped Unpaid Payments) ── */}
+                    {isCurrentLeaseExpired && unpaidDues.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="rounded-[2.5rem] border border-rose-500/40 bg-card p-6 md:p-8 shadow-xl shadow-rose-500/5 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-72 h-72 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border/80 relative z-10">
+                                <div className="flex items-start sm:items-center gap-3.5">
+                                    <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex-shrink-0">
+                                        <AlertTriangle className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-wider">
+                                                Action Required
+                                            </span>
+                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                {currentLease.property?.name || 'Current Property'}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-xl font-black text-foreground mt-1">Outstanding Dues on Expired Lease</h3>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            This lease has reached its end date, but unpaid obligations remain outstanding. Settle these dues for tenancy clearance.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 flex-shrink-0">
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Unpaid Dues</p>
+                                        <p className="text-2xl font-black text-rose-500">₹{totalOutstandingOwed.toLocaleString('en-IN')}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate(currentLease?._id ? `/pay-now?leaseId=${currentLease._id}` : '/pay-now', { state: { leaseId: currentLease?._id } })}
+                                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <Wallet className="w-4 h-4" /> Pay All Dues
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Itemized dues list */}
+                            <div className="divide-y divide-border/60 mt-4 relative z-10">
+                                {unpaidDues.map((p) => {
+                                    const total = Number(p.amount != null ? p.amount : (p.totalAmount || 0));
+                                    const paid = Number(p.amountPaid || 0);
+                                    const balanceOwed = Math.max(0, total - paid);
+                                    const isOverdue = p.status === 'overdue' || (p.dueDate && new Date(p.dueDate).getTime() < Date.now());
+
+                                    return (
+                                        <div key={p._id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-2 last:pb-0">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-black text-foreground">
+                                                        {p.period || p.paymentMonth || 'Rent Payment'}
+                                                    </p>
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border",
+                                                        isOverdue ? "bg-rose-500/10 text-rose-500 border-rose-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                                    )}>
+                                                        {isOverdue ? 'Overdue' : 'Pending'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                    <span>Due: {p.dueDate ? new Date(p.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Immediate'}</span>
+                                                    {paid > 0 && <span className="text-emerald-500 font-medium">Paid so far: ₹{paid.toLocaleString('en-IN')}</span>}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                                                <div className="text-right">
+                                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Balance Due</p>
+                                                    <p className="text-base font-black text-rose-500">₹{balanceOwed.toLocaleString('en-IN')}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => navigate(`/pay-now?leaseId=${currentLease._id}&paymentId=${p._id}`, { state: { leaseId: currentLease._id, paymentId: p._id } })}
+                                                    className="px-4 py-2 rounded-xl bg-card border border-rose-500/30 hover:bg-rose-500/10 text-rose-500 font-black text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <Wallet className="w-3.5 h-3.5" /> Pay Now
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── Upcoming Renewed Tenancy Details Card ── */}
+                    {(() => {
+                        const renewed = currentLease.renewedLease || (typeof currentLease.renewedTo === 'object' && currentLease.renewedTo?._id ? currentLease.renewedTo : null);
+                        if (!renewed) return null;
+
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="rounded-[2.5rem] border border-teal-500/30 bg-card p-6 md:p-8 shadow-xl shadow-teal-500/5 relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/80 relative z-10">
+                                    <div className="flex items-start sm:items-center gap-3.5">
+                                        <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-500 border border-teal-500/20 flex-shrink-0">
+                                            <Sparkles className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 text-[10px] font-black uppercase tracking-wider">
+                                                    Renewal Provisioned
+                                                </span>
+                                                {renewed.leaseNumber && (
+                                                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                                        #{renewed.leaseNumber}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h3 className="text-xl font-black text-foreground mt-1">Upcoming Renewal Tenancy Period</h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                Your lease renewal has been confirmed. Future rental schedules and terms are tracked under this new agreement.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {(() => {
+                                        const renewedIdx = activeLeases.findIndex(l => String(l._id) === String(renewed._id));
+                                        if (renewedIdx >= 0) {
+                                            return (
+                                                <button
+                                                    onClick={() => handleSelectLeaseIndex(renewedIdx)}
+                                                    className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-teal-500/20 transition-all flex items-center gap-2 cursor-pointer flex-shrink-0"
+                                                >
+                                                    View Renewed Lease <ArrowRight className="w-4 h-4" />
+                                                </button>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 relative z-10">
+                                    <div className="p-4 rounded-2xl bg-muted/40 border border-border/80">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">New Start Date</p>
+                                        <p className="text-sm font-black text-foreground">
+                                            {new Date(renewed.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl bg-muted/40 border border-border/80">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">New End Date</p>
+                                        <p className="text-sm font-black text-foreground">
+                                            {new Date(renewed.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl bg-muted/40 border border-border/80">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Monthly Rent</p>
+                                        <p className="text-sm font-black text-emerald-500">
+                                            ₹{(renewed.rentAmount || 0).toLocaleString('en-IN')}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 rounded-2xl bg-muted/40 border border-border/80">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Status</p>
+                                        <p className="text-sm font-black text-teal-500 uppercase">
+                                            {renewed.status || 'Active'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        );
+                    })()}
                     {currentLease?.property && (
                         <LeasePropertyMediaGallery
                             property={currentLease.property}

@@ -10,6 +10,7 @@ import Payment from '../models/Payment.js';
 import Maintenance from '../models/Maintenance.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
+import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
 
 // Backward-compatible Event proxy
 const Notification = {
@@ -96,6 +97,16 @@ export const requestRenewal = asyncHandler(async (req, res) => {
   // Current lease must be active
   if (lease.status !== 'active') {
     throw new AppError('Only active leases can be renewed', 400);
+  }
+
+  // Enforce authoritative 7-day renewal decision window and deadline
+  const endMs = new Date(lease.endDate).getTime();
+  const daysRemaining = Math.ceil((endMs - Date.now()) / (1000 * 60 * 60 * 24));
+  if (daysRemaining > 7) {
+    throw new AppError('Renewal requests can only be submitted within 7 days of lease expiry', 400);
+  }
+  if (daysRemaining <= 0) {
+    throw new AppError('The renewal deadline has passed. Lease renewal is no longer available.', 400);
   }
 
   // Current lease must be pending decision
@@ -522,12 +533,23 @@ export const approveRenewal = asyncHandler(async (req, res) => {
   const renewal = await LeaseRenewal.findById(id);
   if (!renewal) throw new AppError('Renewal request not found', 404);
 
+  const currentLease = await Lease.findById(renewal.lease);
+  if (!currentLease) throw new AppError('Current lease not found', 404);
+
+  // If already approved, return idempotent result
+  if (renewal.status === 'approved') {
+    const existingLease = await executeRenewalApproval({ renewal, currentLease, userId: req.user.userId });
+    return res.status(200).json({ 
+      success: true, 
+      data: renewal, 
+      lease: existingLease,
+      message: 'Renewal request is already approved' 
+    });
+  }
+
   if (renewal.status !== 'pending' && renewal.status !== 'accepted') {
     throw new AppError('This renewal request is not in a reviewable state', 400);
   }
-
-  const currentLease = await Lease.findById(renewal.lease);
-  if (!currentLease) throw new AppError('Current lease not found', 404);
 
   const property = await Property.findById(renewal.property);
   if (!property) throw new AppError('Property not found', 404);
@@ -565,38 +587,8 @@ export const approveRenewal = asyncHandler(async (req, res) => {
     throw new AppError('Cannot approve renewal due to open maintenance tickets', 400);
   }
 
-  // Set renewal approved
-  renewal.status = 'approved';
-  renewal.approvedBy = req.user.userId;
-  renewal.approvalDate = new Date();
-  renewal.timeline.push({ event: 'Approved', note: 'Lease renewal request approved by manager.' });
-  await renewal.save();
-
-  // Create new pending future lease
-  const count = await Lease.countDocuments();
-  const leaseNumber = `LEASE-${Date.now()}-${count + 1}`;
-
-  const newLease = await Lease.create({
-    leaseNumber,
-    property: currentLease.property,
-    tenant: currentLease.tenant,
-    startDate: renewal.requestedStartDate,
-    endDate: renewal.requestedEndDate,
-    rentAmount: renewal.proposedRent || currentLease.rentAmount,
-    depositAmount: currentLease.depositAmount,
-    utilities: currentLease.utilities,
-    terms: currentLease.terms,
-    status: 'pending', // Starts as pending until cron activation roll
-    leaseDecision: 'pending',
-    createdBy: req.user.userId,
-    leaseVersion: currentLease.leaseVersion + 1,
-    parentLease: currentLease.parentLease || currentLease._id,
-    renewedFrom: currentLease._id
-  });
-
-  currentLease.renewedTo = newLease._id;
-  currentLease.leaseDecision = 'renewed';
-  await currentLease.save();
+  // Execute idempotent renewal creation and lease linking
+  const newLease = await executeRenewalApproval({ renewal, currentLease, userId: req.user.userId });
 
   // Notify tenant
   const tenantUser = await User.findOne({ email: tenant.email });

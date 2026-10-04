@@ -595,7 +595,7 @@ export const getPaymentStats = asyncHandler(async (req, res) => {
  * Single Source of Truth for Rent Payment calculation across the application.
  */
 export const getRentPaymentSummary = asyncHandler(async (req, res) => {
-  const { leaseId, billId } = req.query;
+  const { leaseId, billId, paymentId } = req.query;
   const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
   const user = await User.findById(actualUserId).select('email phone firstName lastName');
 
@@ -656,6 +656,13 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     if (!targetLease) {
       targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
     }
+    if (targetLease) {
+      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
+                      allTargetLeaseIds.includes(String(targetLease._id));
+      if (!isOwner) {
+        throw new AppError('Forbidden: Access denied to this lease', 403);
+      }
+    }
   } else if (billId) {
     let bill = null;
     if (mongoose.Types.ObjectId.isValid(billId)) {
@@ -666,6 +673,31 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
+      if (targetLease) {
+        const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
+                        allTargetLeaseIds.includes(String(targetLease._id));
+        if (!isOwner) {
+          throw new AppError('Forbidden: Access denied to this lease', 403);
+        }
+      }
+    }
+  }
+
+  // Authoritatively validate paymentId if supplied
+  let targetPayment = null;
+  if (paymentId) {
+    if (mongoose.Types.ObjectId.isValid(paymentId)) {
+      targetPayment = await Payment.findById(paymentId);
+    }
+    if (!targetPayment) {
+      throw new AppError('Payment record not found', 404);
+    }
+    const isOwner = tenantIds.includes(String(targetPayment.tenant));
+    if (!isOwner) {
+      throw new AppError('Forbidden: Access denied to this payment record', 403);
+    }
+    if (targetLease && String(targetPayment.lease) !== String(targetLease._id)) {
+      throw new AppError('Forbidden: Payment record does not belong to the selected lease', 403);
     }
   }
 
@@ -764,12 +796,12 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
  * Creates a server-authoritative Razorpay Order for rent payment.
  */
 export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
-  const { leaseId, billId } = req.body;
+  const { leaseId, billId, paymentId } = req.body;
   const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
   const user = await User.findById(actualUserId);
 
   const tenantRecords = user ? await Tenant.find({ email: user.email }) : [];
-  const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)];
+  const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)].map(String);
 
   let targetLease = null;
   if (leaseId) {
@@ -778,6 +810,12 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
     }
     if (!targetLease) {
       targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
+    if (targetLease) {
+      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
+      if (!isOwner) {
+        throw new AppError('Forbidden: Access denied to this lease', 403);
+      }
     }
   } else if (billId) {
     let bill = null;
@@ -789,13 +827,19 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
     }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
+      if (targetLease) {
+        const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
+        if (!isOwner) {
+          throw new AppError('Forbidden: Access denied to this lease', 403);
+        }
+      }
     }
   }
 
   if (!targetLease) {
     targetLease = await Lease.findOne({
       tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending'] }
+      status: { $in: ['active', 'pending', 'expired'] }
     }).populate('property tenant');
   }
 
@@ -816,7 +860,24 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
   const rentAmount = schedule?.rentAmount ?? targetLease.rentAmount ?? 0;
   const lateFee = schedule?.lateFee ?? 0;
   const daysOverdue = schedule?.daysLate ?? 0;
-  const basePayable = rentAmount + lateFee;
+  let basePayable = rentAmount + lateFee;
+
+  // If paying a specific outstanding payment (e.g. from an expired lease)
+  if (paymentId) {
+    const targetPayment = await Payment.findById(paymentId);
+    if (!targetPayment) throw new AppError('Payment record not found', 404);
+    if (!tenantIds.includes(String(targetPayment.tenant))) {
+      throw new AppError('Forbidden: Access denied to this payment record', 403);
+    }
+    if (String(targetPayment.lease) !== String(targetLease._id)) {
+      throw new AppError('Forbidden: Payment record does not belong to the selected lease', 403);
+    }
+    const unpaidBalance = Math.max(0, (targetPayment.amount || 0) - (targetPayment.amountPaid || 0));
+    if (unpaidBalance <= 0 || targetPayment.status === 'paid') {
+      throw new AppError('This payment obligation has already been settled', 400);
+    }
+    basePayable = unpaidBalance;
+  }
 
   const breakdown = await calculatePaymentBreakdown(basePayable);
   const totalDue = breakdown.totalPayable;
@@ -892,6 +953,11 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
     }
     if (!targetLease) {
       targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    if (targetLease) {
+      const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
+      if (!isOwner) {
+        throw new AppError('Forbidden: Access denied to this lease', 403);
+      }
     }
   } else if (billId) {
     let bill = null;
@@ -903,13 +969,19 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
     }
     if (bill && bill.lease) {
       targetLease = await Lease.findById(bill.lease).populate('property tenant');
+      if (targetLease) {
+        const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
+        if (!isOwner) {
+          throw new AppError('Forbidden: Access denied to this lease', 403);
+        }
+      }
     }
   }
 
   if (!targetLease) {
     targetLease = await Lease.findOne({
       tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending'] }
+      status: { $in: ['active', 'pending', 'expired'] }
     }).populate('property tenant');
   }
 
