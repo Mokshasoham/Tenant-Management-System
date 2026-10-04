@@ -12,6 +12,8 @@ import { logRenewalAudit } from '../../platform/audit/auditService.js';
 import { dispatchEvent } from '../../platform/events/eventDispatcher.js';
 import { EventTypes } from '../../platform/events/eventTypes.js';
 import { executeRenewalApproval } from '../../services/leaseRenewalHelper.js';
+import { NotificationService } from '../../services/notificationService.js';
+import { getManagerPropertyIds } from '../../utils/managerHelper.js';
 
 /**
  * State Machine Transition Validator.
@@ -189,6 +191,28 @@ export const createRenewalRequest = async ({
   lease.leaseDecision = 'renewal_requested';
   await lease.save();
 
+  // Notify property manager
+  const targetManager = propertyRecord?.manager || propertyRecord?.owner || lease.createdBy;
+  if (targetManager) {
+    try {
+      await NotificationService.notify({
+        recipient: targetManager,
+        sender: userId,
+        title: 'New Lease Renewal Requested',
+        message: `Tenant has requested a lease renewal (${duration || 'standard'}) for lease ${lease.leaseNumber}.`,
+        category: 'renewal',
+        priority: 'high',
+        actionUrl: '/leases?tab=renewals',
+        link: '/leases?tab=renewals',
+        idempotencyKey: `renewal_req_${renewal._id}`,
+        entityType: 'LeaseRenewal',
+        entityId: renewal._id
+      });
+    } catch (notifErr) {
+      console.error('[createRenewalRequest] Notification error:', notifErr.message);
+    }
+  }
+
   return renewal;
 };
 
@@ -306,10 +330,11 @@ export const getTenantRenewals = async (userId) => {
 };
 
 /**
- * Fetch manager renewals.
+ * Fetch manager renewals (scoped to manager's authorized properties).
  */
 export const getManagerRenewals = async (userId) => {
-  return await repository.findByManagerId(userId);
+  const propIds = await getManagerPropertyIds(userId);
+  return await repository.findByPropertyIds(propIds, userId);
 };
 
 export { getTenantDashboardData } from './dashboardService.js';
@@ -444,6 +469,16 @@ export const acceptRenewal = async (id, user, auditContext = {}) => {
     return renewal;
   }
 
+  // Renewal eligibility check: cannot approve if lease deadline has passed
+  const now = new Date();
+  if (new Date(currentLease.endDate).getTime() < now.getTime()) {
+    throw new DomainError({
+      code: 'RENEWAL_DEADLINE_EXPIRED',
+      message: 'The renewal deadline for this lease has passed. Renewal can no longer be approved.',
+      statusCode: 400
+    });
+  }
+
   if (!canTransition(renewal.status, RenewalStatus.APPROVED)) {
     throw new DomainError(ErrorCatalog.INVALID_STATE_TRANSITION);
   }
@@ -458,6 +493,29 @@ export const acceptRenewal = async (id, user, auditContext = {}) => {
   });
 
   const savedRenewal = await repository.findById(id);
+
+  // Notify tenant
+  const tenant = await Tenant.findById(renewal.tenant);
+  const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
+  if (tenantUser) {
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: user.userId,
+        title: 'Lease Renewal Approved!',
+        message: `Your lease renewal request for ${currentLease.leaseNumber} has been approved.`,
+        category: 'renewal',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `renewal_approved_${renewal._id}`,
+        entityType: 'LeaseRenewal',
+        entityId: renewal._id
+      });
+    } catch (notifErr) {
+      console.error('[acceptRenewal] Notification error:', notifErr.message);
+    }
+  }
 
   // Dispatch Domain Event
   await dispatchEvent(EventTypes.LEASE.RENEWAL_APPROVED, {
@@ -500,6 +558,36 @@ export const rejectRenewal = async (id, rejectionReason, user, auditContext = {}
   renewal.updatedBy = user.userId;
 
   const savedRenewal = await repository.save(renewal);
+
+  // Reset lease decision back to pending
+  const lease = await Lease.findById(renewal.lease);
+  if (lease) {
+    lease.leaseDecision = 'pending';
+    await lease.save();
+  }
+
+  // Notify tenant
+  const tenant = await Tenant.findById(renewal.tenant);
+  const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
+  if (tenantUser) {
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: user.userId,
+        title: 'Renewal Request Rejected',
+        message: `Your lease renewal request was rejected. Reason: ${rejectionReason || 'Declined by management.'}`,
+        category: 'renewal',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `renewal_rejected_${renewal._id}`,
+        entityType: 'LeaseRenewal',
+        entityId: renewal._id
+      });
+    } catch (notifErr) {
+      console.error('[rejectRenewal] Notification error:', notifErr.message);
+    }
+  }
 
   // Dispatch Domain Event
   await dispatchEvent(EventTypes.LEASE.RENEWAL_REJECTED, {

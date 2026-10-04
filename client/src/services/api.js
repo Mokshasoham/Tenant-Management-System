@@ -85,6 +85,15 @@ export const leaseService = {
   signLease: (id, data) => apiClient.post(`/leases/${id}/sign`, data),
   counterSignLease: (id, data) => apiClient.post(`/leases/${id}/manager-sign`, data),
   getLeaseChecklist: (id) => apiClient.get(`/leases/${id}/checklist?t=${Date.now()}`),
+  // Manager Renewal & Move-Out operations
+  getRenewalRequests: () => apiClient.get('/renewals'),
+  approveRenewal: (id) => apiClient.put(`/renewals/${id}/approve`),
+  rejectRenewal: (id, rejectionReason) => apiClient.put(`/renewals/${id}/reject`, { rejectionReason }),
+  getMoveOutRequests: () => apiClient.get('/leases/move-outs'),
+  scheduleInspection: (data) => apiClient.post('/inspection', data),
+  completeInspection: (id, data) => apiClient.put(`/inspection/${id}`, data),
+  processDepositRefund: (data) => apiClient.post('/deposit/refund', data),
+  finalizeMoveOut: (leaseId) => apiClient.put(`/lease/${leaseId}/final-moveout`),
 };
 
 export const paymentService = {

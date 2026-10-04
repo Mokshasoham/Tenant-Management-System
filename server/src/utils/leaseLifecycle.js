@@ -71,7 +71,9 @@ export const computeLeasePaymentSummary = (payments = [], leaseId) => {
     totalPayments: leasePayments.length,
     unpaidCount: unpaidPayments.length,
     hasUnpaidDues: unpaidPayments.length > 0,
+    hasOutstandingDues: unpaidPayments.length > 0,
     totalOutstandingBalance,
+    unpaidTotal: totalOutstandingBalance,
     unpaidPayments
   };
 };

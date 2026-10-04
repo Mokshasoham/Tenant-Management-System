@@ -434,6 +434,149 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 ))}
             </div>
 
+            {/* Tenancy & Lease Action Center */}
+            <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.45 }}
+                className="p-5 rounded-2xl border border-border/80 bg-gradient-to-r from-card/60 via-card/40 to-card/60 backdrop-blur-md shadow-sm space-y-4"
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                            <Activity className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black tracking-wide text-foreground uppercase">
+                                Tenancy &amp; Lease Action Center
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                Real-time lifecycle queue: renewals, move-outs, upcoming expiries &amp; unpaid dues
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => navigate('/leases')}
+                        className="text-xs font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 transition-colors self-start sm:self-auto cursor-pointer"
+                    >
+                        <span>View All Leases</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {/* 1. Pending Renewal Requests */}
+                    <div
+                        onClick={() => navigate('/leases?tab=renewals')}
+                        className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">Renewal Requests</span>
+                            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                                <RefreshCw className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-2xl font-black text-foreground tabular-nums">
+                                {stats?.pendingRenewalRequests ?? 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-0.5">
+                                Review <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Awaiting manager decision</p>
+                    </div>
+
+                    {/* 2. Pending Move-Out Notices */}
+                    <div
+                        onClick={() => navigate('/leases?tab=moveouts')}
+                        className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 dark:text-amber-400">Move-Out Notices</span>
+                            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                                <Clock className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-2xl font-black text-foreground tabular-nums">
+                                {stats?.pendingMoveOutRequests ?? 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 flex items-center gap-0.5">
+                                Inspect <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Notices &amp; inspections active</p>
+                    </div>
+
+                    {/* 3. Leases Expiring Within 7 Days */}
+                    <div
+                        onClick={() => navigate('/leases?filter=expiring_soon')}
+                        className="p-4 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400">Expiring in 7 Days</span>
+                            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 dark:text-orange-400 group-hover:scale-110 transition-transform">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-2xl font-black text-foreground tabular-nums">
+                                {stats?.leasesExpiringWithin7Days ?? 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-orange-500 dark:text-orange-400 flex items-center gap-0.5">
+                                Filter <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Decision window closing</p>
+                    </div>
+
+                    {/* 4. Expired Leases */}
+                    <div
+                        onClick={() => navigate('/leases?status=expired')}
+                        className="p-4 rounded-xl border border-slate-500/20 bg-slate-500/5 hover:bg-slate-500/10 hover:border-slate-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Expired Leases</span>
+                            <div className="p-1.5 rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400 group-hover:scale-110 transition-transform">
+                                <XCircle className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-2xl font-black text-foreground tabular-nums">
+                                {stats?.expiredLeases ?? 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
+                                View <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Past contract periods</p>
+                    </div>
+
+                    {/* 5. Outstanding Dues on Expired Leases */}
+                    <div
+                        onClick={() => navigate('/leases?filter=unpaid_expired')}
+                        className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">Expired Lease Dues</span>
+                            <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 dark:text-rose-400 group-hover:scale-110 transition-transform">
+                                <CreditCard className="w-3.5 h-3.5" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                            <span className="text-xl font-black text-rose-500 dark:text-rose-400 tabular-nums">
+                                ₹{(stats?.outstandingPaymentsOnExpiredLeasesAmount ?? 0).toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-0.5">
+                                {stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} {stats?.outstandingPaymentsOnExpiredLeasesCount === 1 ? 'lease' : 'leases'} <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">Unpaid rent balances</p>
+                    </div>
+                </div>
+            </motion.div>
+
             {/* Charts + Occupancy */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Revenue Chart */}

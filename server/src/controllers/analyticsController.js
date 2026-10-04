@@ -4,6 +4,7 @@ import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';
 import Maintenance from '../models/Maintenance.js';
 import Booking from '../models/Booking.js';
+import LeaseRenewal from '../modules/lease-renewal/model.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/errorHandling.js';
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
@@ -203,6 +204,12 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
                     occupancyRate: 0,
                     openMaintenance: 0,
                     maintenanceByCategory: [],
+                    pendingRenewalRequests: 0,
+                    pendingMoveOutRequests: 0,
+                    leasesExpiringWithin7Days: 0,
+                    expiredLeases: 0,
+                    outstandingPaymentsOnExpiredLeasesCount: 0,
+                    outstandingPaymentsOnExpiredLeasesAmount: 0,
                 },
             });
         }
@@ -221,7 +228,7 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
         ]);
 
         // 2. Tenants count (via managedBy or Leases or Bookings on manager's properties)
-        const leasesOnProps = await Lease.find({ property: { $in: propIds } }).select('tenant status').lean();
+        const leasesOnProps = await Lease.find({ property: { $in: propIds } }).select('tenant status endDate moveOutStatus').lean();
         const leaseTenantIds = leasesOnProps.map(l => l.tenant).filter(Boolean);
         const bookingsOnProps = await Booking.find({ property: { $in: propIds } }).select('user status').lean();
         const pendingBookingsCount = bookingsOnProps.filter(b => b.status === 'pending').length;
@@ -272,6 +279,63 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
             ])
         ]);
 
+        // 6. Authoritative Lease Action Center Metrics (scoped to manager's properties)
+        const now = new Date();
+        const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        const [
+            pendingRenewalRequests,
+            pendingMoveOutRequests,
+            leasesExpiringWithin7Days,
+            allExpiredLeaseDocs
+        ] = await Promise.all([
+            LeaseRenewal.countDocuments({
+                property: { $in: propIds },
+                status: { $in: ['requested', 'under_review', 'pending', 'counter_offer'] },
+                isDeleted: false
+            }),
+            Lease.countDocuments({
+                property: { $in: propIds },
+                moveOutStatus: { $in: ['requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing'] }
+            }),
+            Lease.countDocuments({
+                property: { $in: propIds },
+                status: 'active',
+                endDate: { $gte: now, $lte: sevenDaysFromNow }
+            }),
+            Lease.find({
+                property: { $in: propIds },
+                $or: [
+                    { status: 'expired' },
+                    { status: 'active', endDate: { $lt: now } }
+                ]
+            }).select('_id').lean()
+        ]);
+
+        const expiredLeases = allExpiredLeaseDocs.length;
+        const expiredLeaseIds = allExpiredLeaseDocs.map(l => l._id);
+
+        let outstandingPaymentsOnExpiredLeasesCount = 0;
+        let outstandingPaymentsOnExpiredLeasesAmount = 0;
+
+        if (expiredLeaseIds.length > 0) {
+            const unpaidPaymentsOnExpired = await Payment.find({
+                lease: { $in: expiredLeaseIds },
+                status: { $in: ['pending', 'partially_paid', 'overdue'] }
+            }).select('amount amountPaid lease status').lean();
+
+            const distinctLeaseSet = new Set();
+            let totalUnpaid = 0;
+            unpaidPaymentsOnExpired.forEach(p => {
+                if (p.lease) distinctLeaseSet.add(p.lease.toString());
+                const due = (Number(p.amount) || 0) - (Number(p.amountPaid) || 0);
+                if (due > 0) totalUnpaid += due;
+            });
+
+            outstandingPaymentsOnExpiredLeasesCount = distinctLeaseSet.size;
+            outstandingPaymentsOnExpiredLeasesAmount = totalUnpaid;
+        }
+
         const totalRevenue = revenueAgg[0]?.total || 0;
         const pendingPaymentsAmount = pendingAmountAgg[0]?.total || 0;
         const occupancyTotal = occupiedProperties + availableProperties;
@@ -301,16 +365,29 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
                 maintenanceByCategory: maintenanceByCategory.map(c => ({
                     category: c._id || 'other',
                     count: c.count
-                }))
+                })),
+                pendingRenewalRequests,
+                pendingMoveOutRequests,
+                leasesExpiringWithin7Days,
+                expiredLeases,
+                outstandingPaymentsOnExpiredLeasesCount,
+                outstandingPaymentsOnExpiredLeasesAmount,
             },
         });
     }
+
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const [
         totalProperties, totalTenants, totalLeases, totalPayments,
         paidPayments, overduePayments, openMaintenance,
         totalRevenue,
         maintenanceByCategory,
+        pendingRenewalRequests,
+        pendingMoveOutRequests,
+        leasesExpiringWithin7Days,
+        allExpiredLeaseDocs
     ] = await Promise.all([
         Property.countDocuments(),
         Tenant.countDocuments({ status: 'active' }),
@@ -323,7 +400,48 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
         Maintenance.aggregate([
             { $group: { _id: '$category', count: { $sum: 1 } } }
         ]),
+        LeaseRenewal.countDocuments({
+            status: { $in: ['requested', 'under_review', 'pending', 'counter_offer'] },
+            isDeleted: false
+        }),
+        Lease.countDocuments({
+            moveOutStatus: { $in: ['requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing'] }
+        }),
+        Lease.countDocuments({
+            status: 'active',
+            endDate: { $gte: now, $lte: sevenDaysFromNow }
+        }),
+        Lease.find({
+            $or: [
+                { status: 'expired' },
+                { status: 'active', endDate: { $lt: now } }
+            ]
+        }).select('_id').lean()
     ]);
+
+    const expiredLeases = allExpiredLeaseDocs.length;
+    const expiredLeaseIds = allExpiredLeaseDocs.map(l => l._id);
+
+    let outstandingPaymentsOnExpiredLeasesCount = 0;
+    let outstandingPaymentsOnExpiredLeasesAmount = 0;
+
+    if (expiredLeaseIds.length > 0) {
+        const unpaidPaymentsOnExpired = await Payment.find({
+            lease: { $in: expiredLeaseIds },
+            status: { $in: ['pending', 'partially_paid', 'overdue'] }
+        }).select('amount amountPaid lease status').lean();
+
+        const distinctLeaseSet = new Set();
+        let totalUnpaid = 0;
+        unpaidPaymentsOnExpired.forEach(p => {
+            if (p.lease) distinctLeaseSet.add(p.lease.toString());
+            const due = (Number(p.amount) || 0) - (Number(p.amountPaid) || 0);
+            if (due > 0) totalUnpaid += due;
+        });
+
+        outstandingPaymentsOnExpiredLeasesCount = distinctLeaseSet.size;
+        outstandingPaymentsOnExpiredLeasesAmount = totalUnpaid;
+    }
 
     res.status(200).json({
         success: true,
@@ -343,6 +461,12 @@ export const getSummaryStats = asyncHandler(async (req, res) => {
                 category: c._id || 'other',
                 count: c.count
             })),
+            pendingRenewalRequests,
+            pendingMoveOutRequests,
+            leasesExpiringWithin7Days,
+            expiredLeases,
+            outstandingPaymentsOnExpiredLeasesCount,
+            outstandingPaymentsOnExpiredLeasesAmount,
         },
     });
 });

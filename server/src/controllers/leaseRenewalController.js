@@ -11,6 +11,8 @@ import Maintenance from '../models/Maintenance.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
+import { NotificationService } from '../services/notificationService.js';
+import { isManagerPropertyOwner, getManagerPropertyIds } from '../utils/managerHelper.js';
 
 // Backward-compatible Event proxy
 const Notification = {
@@ -316,7 +318,7 @@ export const respondToOffer = asyncHandler(async (req, res) => {
 export const submitMoveOutNotice = asyncHandler(async (req, res) => {
   const { leaseId, expectedMoveOutDate, reason, comments } = req.body;
 
-  const lease = await Lease.findById(leaseId);
+  const lease = await Lease.findById(leaseId).populate('property');
   if (!lease) throw new AppError('Lease not found', 404);
 
   const tenant = await Tenant.findById(lease.tenant);
@@ -325,25 +327,48 @@ export const submitMoveOutNotice = asyncHandler(async (req, res) => {
     throw new AppError('Unauthorized access', 403);
   }
 
-  if (lease.status !== 'active') {
-    throw new AppError('Move-out notices can only be submitted for active leases', 400);
+  // Allow both active and expired leases (expired leases must not be blocked from moving out)
+  if (!['active', 'expired'].includes(lease.status)) {
+    throw new AppError('Move-out notices can only be submitted for active or expired leases', 400);
   }
 
   lease.leaseDecision = 'moving_out';
   lease.moveOutStatus = 'requested';
+  lease.moveOutNoticeDate = new Date();
+  if (expectedMoveOutDate) {
+    lease.expectedMoveOutDate = new Date(expectedMoveOutDate);
+  }
+  if (reason) {
+    lease.moveOutReason = reason;
+  }
+  if (comments) {
+    lease.moveOutComments = comments;
+  }
   await lease.save();
 
   // Notify manager
-  await Notification.create({
-    recipient: lease.createdBy,
-    sender: tenantUser._id,
-    title: 'Move-out Notice Submitted',
-    message: `Tenant under lease ${lease.leaseNumber} submitted a move-out notice. Reason: ${reason}`,
-    type: 'warning',
-    link: '/leases'
-  });
+  const targetManager = lease.property?.manager || lease.createdBy;
+  if (targetManager) {
+    try {
+      await NotificationService.notify({
+        recipient: targetManager,
+        sender: tenantUser._id,
+        title: 'Move-Out Notice Submitted',
+        message: `Tenant ${tenantUser.firstName || ''} ${tenantUser.lastName || ''} submitted a move-out notice for lease ${lease.leaseNumber}. Reason: ${reason || 'Not specified'}`,
+        category: 'move-out',
+        priority: 'high',
+        actionUrl: '/leases?tab=moveouts',
+        link: '/leases?tab=moveouts',
+        idempotencyKey: `moveout_notice_${lease._id}`,
+        entityType: 'Lease',
+        entityId: lease._id
+      });
+    } catch (notifErr) {
+      console.error('[submitMoveOutNotice] Error sending manager notification:', notifErr.message);
+    }
+  }
 
-  res.status(200).json({ success: true, message: 'Move-out notice submitted successfully' });
+  res.status(200).json({ success: true, message: 'Move-out notice submitted successfully', data: lease });
 });
 
 // 5. Tenant: Submit Exit Feedback (POST /feedback/exit)
@@ -397,14 +422,14 @@ export const scheduleInspection = asyncHandler(async (req, res) => {
   const lease = await Lease.findById(leaseId);
   if (!lease) throw new AppError('Lease not found', 404);
 
-  // Assert that feedback has been submitted
-  const feedbackExists = await ExitFeedback.findOne({ lease: leaseId });
-  if (!feedbackExists) {
-    throw new AppError('Tenant exit feedback is required before scheduling inspection', 400);
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(lease.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to manage inspection for this property', 403);
   }
 
   const tenant = await Tenant.findById(lease.tenant);
-  const tenantUser = await User.findOne({ email: tenant?.email });
+  const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
 
   const inspection = await PropertyInspection.create({
     lease: leaseId,
@@ -422,14 +447,23 @@ export const scheduleInspection = asyncHandler(async (req, res) => {
   await lease.save();
 
   if (tenantUser) {
-    await Notification.create({
-      recipient: tenantUser._id,
-      sender: req.user.userId,
-      title: 'Inspection Scheduled',
-      message: `Manager scheduled your move-out property inspection for ${new Date(inspectionDate).toLocaleString()}`,
-      type: 'info',
-      link: '/my-lease'
-    });
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: req.user.userId,
+        title: 'Move-Out Inspection Scheduled',
+        message: `Property management scheduled your move-out inspection for ${new Date(inspectionDate).toLocaleDateString()}.`,
+        category: 'inspection',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `inspection_sched_${inspection._id}`,
+        entityType: 'PropertyInspection',
+        entityId: inspection._id
+      });
+    } catch (notifErr) {
+      console.error('[scheduleInspection] Notification error:', notifErr.message);
+    }
   }
 
   res.status(201).json({ success: true, data: inspection });
@@ -453,6 +487,12 @@ export const completeInspection = asyncHandler(async (req, res) => {
   const inspection = await PropertyInspection.findById(id);
   if (!inspection) throw new AppError('Inspection report not found', 404);
 
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(inspection.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to complete inspection for this property', 403);
+  }
+
   inspection.checklist = checklist || inspection.checklist;
   inspection.beforePhotos = beforePhotos || inspection.beforePhotos;
   inspection.damagePhotos = damagePhotos || inspection.damagePhotos;
@@ -471,6 +511,28 @@ export const completeInspection = asyncHandler(async (req, res) => {
   if (lease) {
     lease.moveOutStatus = 'inspection_completed';
     await lease.save();
+
+    const tenant = await Tenant.findById(lease.tenant);
+    const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
+    if (tenantUser) {
+      try {
+        await NotificationService.notify({
+          recipient: tenantUser._id,
+          sender: req.user.userId,
+          title: 'Move-Out Inspection Completed',
+          message: `Move-out inspection for ${lease.leaseNumber} has been completed. Result: ${inspectionResult}`,
+          category: 'inspection',
+          priority: 'normal',
+          actionUrl: '/my-lease',
+          link: '/my-lease',
+          idempotencyKey: `inspection_comp_${inspection._id}`,
+          entityType: 'PropertyInspection',
+          entityId: inspection._id
+        });
+      } catch (notifErr) {
+        console.error('[completeInspection] Notification error:', notifErr.message);
+      }
+    }
   }
 
   res.status(200).json({ success: true, data: inspection });
@@ -482,6 +544,12 @@ export const processDepositRefund = asyncHandler(async (req, res) => {
 
   const lease = await Lease.findById(leaseId);
   if (!lease) throw new AppError('Lease not found', 404);
+
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(lease.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to process deposit for this property', 403);
+  }
 
   // Assert inspection is completed
   const inspection = await PropertyInspection.findOne({ lease: leaseId, inspectionStatus: 'completed' });
@@ -513,14 +581,23 @@ export const processDepositRefund = asyncHandler(async (req, res) => {
   const tenant = await Tenant.findById(lease.tenant);
   const tenantUser = await User.findOne({ email: tenant?.email });
   if (tenantUser) {
-    await Notification.create({
-      recipient: tenantUser._id,
-      sender: req.user.userId,
-      title: 'Refund Processing',
-      message: `Your deposit settlement of ₹${refundAmount} is currently processing.`,
-      type: 'info',
-      link: '/my-lease'
-    });
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: req.user.userId,
+        title: 'Deposit Refund Processing',
+        message: `Your deposit settlement of ₹${refundAmount} is currently processing.`,
+        category: 'payments',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `deposit_refund_${settlement._id}`,
+        entityType: 'DepositSettlement',
+        entityId: settlement._id
+      });
+    } catch (notifErr) {
+      console.error('[processDepositRefund] Notification error:', notifErr.message);
+    }
   }
 
   res.status(201).json({ success: true, data: settlement });
@@ -532,6 +609,12 @@ export const approveRenewal = asyncHandler(async (req, res) => {
 
   const renewal = await LeaseRenewal.findById(id);
   if (!renewal) throw new AppError('Renewal request not found', 404);
+
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(renewal.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to manage renewals for this property', 403);
+  }
 
   const currentLease = await Lease.findById(renewal.lease);
   if (!currentLease) throw new AppError('Current lease not found', 404);
@@ -547,7 +630,13 @@ export const approveRenewal = asyncHandler(async (req, res) => {
     });
   }
 
-  if (renewal.status !== 'pending' && renewal.status !== 'accepted') {
+  // Renewal eligibility check: cannot approve if lease deadline has passed
+  const now = new Date();
+  if (new Date(currentLease.endDate).getTime() < now.getTime()) {
+    throw new AppError('The renewal deadline for this lease has passed. Renewal can no longer be approved.', 400);
+  }
+
+  if (!['requested', 'under_review', 'pending', 'accepted', 'counter_offer'].includes(renewal.status)) {
     throw new AppError('This renewal request is not in a reviewable state', 400);
   }
 
@@ -593,17 +682,26 @@ export const approveRenewal = asyncHandler(async (req, res) => {
   // Notify tenant
   const tenantUser = await User.findOne({ email: tenant.email });
   if (tenantUser) {
-    await Notification.create({
-      recipient: tenantUser._id,
-      sender: req.user.userId,
-      title: 'Renewal Approved!',
-      message: `Your lease renewal request has been approved. Future lease ${leaseNumber} has been created.`,
-      type: 'success',
-      link: '/my-lease'
-    });
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: req.user.userId,
+        title: 'Lease Renewal Approved!',
+        message: `Your lease renewal request for ${currentLease.leaseNumber} has been approved. New renewed lease ${newLease?.leaseNumber || ''} has been created.`,
+        category: 'renewal',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `renewal_approved_${renewal._id}`,
+        entityType: 'LeaseRenewal',
+        entityId: renewal._id
+      });
+    } catch (notifErr) {
+      console.error('[approveRenewal] Notification error:', notifErr.message);
+    }
   }
 
-  res.status(200).json({ success: true, data: renewal });
+  res.status(200).json({ success: true, data: renewal, lease: newLease });
 });
 
 // 10. Manager: Reject Lease Renewal (PUT /renewals/:id/reject)
@@ -614,13 +712,19 @@ export const rejectRenewal = asyncHandler(async (req, res) => {
   const renewal = await LeaseRenewal.findById(id);
   if (!renewal) throw new AppError('Renewal request not found', 404);
 
-  if (renewal.status !== 'pending' && renewal.status !== 'offered') {
-    throw new AppError('This renewal request cannot be rejected', 400);
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(renewal.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to manage renewals for this property', 403);
+  }
+
+  if (!['requested', 'under_review', 'pending', 'offered', 'counter_offer'].includes(renewal.status)) {
+    throw new AppError('This renewal request cannot be rejected in its current state', 400);
   }
 
   renewal.status = 'rejected';
-  renewal.rejectionReason = rejectionReason;
-  renewal.timeline.push({ event: 'Rejected', note: `Renewal request rejected: ${rejectionReason}` });
+  renewal.rejectionReason = rejectionReason || 'Manager declined renewal request.';
+  renewal.timeline.push({ event: 'Rejected', note: `Renewal request rejected: ${renewal.rejectionReason}` });
   await renewal.save();
 
   const lease = await Lease.findById(renewal.lease);
@@ -631,16 +735,25 @@ export const rejectRenewal = asyncHandler(async (req, res) => {
 
   // Notify tenant
   const tenant = await Tenant.findById(renewal.tenant);
-  const tenantUser = await User.findOne({ email: tenant?.email });
+  const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
   if (tenantUser) {
-    await Notification.create({
-      recipient: tenantUser._id,
-      sender: req.user.userId,
-      title: 'Renewal Rejected',
-      message: `Your lease renewal request was rejected. Reason: ${rejectionReason}`,
-      type: 'danger',
-      link: '/my-lease'
-    });
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: req.user.userId,
+        title: 'Renewal Request Rejected',
+        message: `Your lease renewal request was rejected. Reason: ${renewal.rejectionReason}`,
+        category: 'renewal',
+        priority: 'high',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `renewal_rejected_${renewal._id}`,
+        entityType: 'LeaseRenewal',
+        entityId: renewal._id
+      });
+    } catch (notifErr) {
+      console.error('[rejectRenewal] Notification error:', notifErr.message);
+    }
   }
 
   res.status(200).json({ success: true, data: renewal });
@@ -652,6 +765,12 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
 
   const lease = await Lease.findById(id);
   if (!lease) throw new AppError('Lease not found', 404);
+
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(lease.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to finalize move-out for this property', 403);
+  }
 
   const settlement = await DepositSettlement.findOne({ lease: id });
   if (!settlement) {
@@ -684,25 +803,43 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
   const tenant = await Tenant.findById(lease.tenant);
   const tenantUser = await User.findOne({ email: tenant?.email });
   if (tenantUser) {
-    await Notification.create({
-      recipient: tenantUser._id,
-      sender: req.user.userId,
-      title: 'Move-out Completed',
-      message: `Your move-out from property ${property?.name || 'residence'} has been officially completed.`,
-      type: 'success',
-      link: '/my-lease'
-    });
+    try {
+      await NotificationService.notify({
+        recipient: tenantUser._id,
+        sender: req.user.userId,
+        title: 'Move-out Completed',
+        message: `Your move-out from property ${property?.name || 'residence'} has been officially completed.`,
+        category: 'move-out',
+        priority: 'normal',
+        actionUrl: '/my-lease',
+        link: '/my-lease',
+        idempotencyKey: `moveout_final_${lease._id}`,
+        entityType: 'Lease',
+        entityId: lease._id
+      });
+    } catch (notifErr) {
+      console.error('[finalizeMoveOut] Tenant notification error:', notifErr.message);
+    }
   }
 
   // Notify manager
-  await Notification.create({
-    recipient: req.user.userId,
-    sender: req.user.userId,
-    title: 'Property Ready for Booking',
-    message: `Property ${property?.name || 'residence'} is now available for new bookings.`,
-    type: 'success',
-    link: '/properties'
-  });
+  try {
+    await NotificationService.notify({
+      recipient: req.user.userId,
+      sender: req.user.userId,
+      title: 'Property Ready for Booking',
+      message: `Property ${property?.name || 'residence'} is now available for new bookings.`,
+      category: 'lease',
+      priority: 'normal',
+      actionUrl: '/properties',
+      link: '/properties',
+      idempotencyKey: `property_vacated_${property?._id || lease._id}`,
+      entityType: 'Property',
+      entityId: property?._id
+    });
+  } catch (notifErr) {
+    console.error('[finalizeMoveOut] Manager notification error:', notifErr.message);
+  }
 
   res.status(200).json({ success: true, message: 'Move-out finalized and property cleared successfully' });
 });
@@ -713,10 +850,16 @@ export const getUpcomingExpiringLeases = asyncHandler(async (req, res) => {
   const now = new Date();
   const thirtyDaysOut = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  const leases = await Lease.find({
+  const query = {
     status: 'active',
     endDate: { $gte: now, $lte: thirtyDaysOut }
-  }).populate('property tenant');
+  };
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(req.user.userId);
+    query.property = { $in: propIds };
+  }
+
+  const leases = await Lease.find(query).populate('property tenant');
 
   res.status(200).json({ success: true, data: leases });
 });
@@ -740,7 +883,15 @@ export const getDepositByLeaseId = asyncHandler(async (req, res) => {
 });
 
 export const getRenewals = asyncHandler(async (req, res) => {
-  const renewals = await LeaseRenewal.find({ isArchived: false })
+  const query = { isArchived: false };
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(req.user.userId);
+    query.$or = [
+      { manager: req.user.userId },
+      { property: { $in: propIds } }
+    ];
+  }
+  const renewals = await LeaseRenewal.find(query)
     .populate('lease tenant property')
     .sort({ createdAt: -1 });
   res.status(200).json({ success: true, data: renewals });

@@ -218,14 +218,29 @@ export const getMyLease = asyncHandler(async (req, res) => {
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
 
 export const getAllLeases = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, status, propertyId, tenantId } = req.query;
+  const { page = 1, limit = 10, status, propertyId, tenantId, moveOutStatus, leaseDecision, filter: queryFilter } = req.query;
   const userId = getAuthenticatedUserId(req);
+  const now = new Date();
 
   const filter = {};
-  if (status) filter.status = status;
   const targetPropertyId = propertyId || req.query.property;
   if (targetPropertyId) filter.property = targetPropertyId;
   if (tenantId) filter.tenant = tenantId;
+  if (moveOutStatus) filter.moveOutStatus = moveOutStatus;
+  if (leaseDecision) filter.leaseDecision = leaseDecision;
+
+  if (queryFilter === 'expiring_soon') {
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    filter.status = 'active';
+    filter.endDate = { $gte: now, $lte: sevenDaysFromNow };
+  } else if (status === 'expired') {
+    filter.$or = [
+      { status: 'expired' },
+      { status: 'active', endDate: { $lt: now } }
+    ];
+  } else if (status) {
+    filter.status = status;
+  }
 
   if (req.user?.role === 'manager') {
     const propIds = await getManagerPropertyIds(userId);
@@ -259,6 +274,22 @@ export const getAllLeases = asyncHandler(async (req, res) => {
     }
   }
 
+  if (queryFilter === 'unpaid_expired' || queryFilter === 'expired_unpaid') {
+    const expiredDocs = await Lease.find({
+      ...(filter.property ? { property: filter.property } : {}),
+      $or: [
+        { status: 'expired' },
+        { status: 'active', endDate: { $lt: now } }
+      ]
+    }).select('_id').lean();
+    const expIds = expiredDocs.map(d => d._id);
+    const unpaidPayments = await Payment.find({
+      lease: { $in: expIds },
+      status: { $in: ['pending', 'partially_paid', 'overdue'] }
+    }).distinct('lease');
+    filter._id = { $in: unpaidPayments };
+  }
+
   const skip = (page - 1) * limit;
 
   const leases = await Lease.find(filter)
@@ -267,13 +298,54 @@ export const getAllLeases = asyncHandler(async (req, res) => {
     .limit(parseInt(limit))
     .populate('property', 'name address rentAmount')
     .populate('tenant', 'firstName lastName email phone')
-    .populate('createdBy', 'firstName lastName');
+    .populate('createdBy', 'firstName lastName')
+    .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
+    .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
 
   const total = await Lease.countDocuments(filter);
 
+  // Enrich each lease with authoritative lifecycle and payment summary
+  const leaseIds = leases.map(l => l._id);
+  const payments = await Payment.find({ lease: { $in: leaseIds } }).lean();
+  const paymentsByLease = {};
+  payments.forEach(p => {
+    const k = p.lease?.toString();
+    if (!paymentsByLease[k]) paymentsByLease[k] = [];
+    paymentsByLease[k].push(p);
+  });
+
+  const enrichedLeases = leases.map(l => {
+    const leasePayments = paymentsByLease[l._id.toString()] || [];
+    const lifecycle = resolveLeaseLifecycle(l, leasePayments, now);
+    const resolved = resolveLeaseUrls(l, req);
+    return {
+      ...resolved,
+      status: lifecycle.effectiveStatus === 'expired' ? 'expired' : l.status,
+      effectiveStatus: lifecycle.effectiveStatus,
+      lifecycle,
+      paymentSummary: lifecycle.paymentSummary,
+      renewedLease: l.renewedTo ? {
+        _id: l.renewedTo._id,
+        leaseNumber: l.renewedTo.leaseNumber,
+        startDate: l.renewedTo.startDate,
+        endDate: l.renewedTo.endDate,
+        rentAmount: l.renewedTo.rentAmount,
+        status: l.renewedTo.status,
+      } : null,
+      renewedFromLease: l.renewedFrom ? {
+        _id: l.renewedFrom._id,
+        leaseNumber: l.renewedFrom.leaseNumber,
+        startDate: l.renewedFrom.startDate,
+        endDate: l.renewedFrom.endDate,
+        rentAmount: l.renewedFrom.rentAmount,
+        status: l.renewedFrom.status,
+      } : null,
+    };
+  });
+
   res.status(200).json({
     success: true,
-    data: leases.map(l => resolveLeaseUrls(l, req)),
+    data: enrichedLeases,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -281,6 +353,55 @@ export const getAllLeases = asyncHandler(async (req, res) => {
       pages: Math.ceil(total / limit),
     },
   });
+});
+
+export const getMoveOutRequests = asyncHandler(async (req, res) => {
+  const userId = getAuthenticatedUserId(req);
+  const now = new Date();
+  const filter = {
+    $or: [
+      { moveOutStatus: { $in: ['requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing', 'completed'] } },
+      { leaseDecision: 'moving_out' }
+    ]
+  };
+
+  if (req.user?.role === 'manager') {
+    const propIds = await getManagerPropertyIds(userId);
+    if (propIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    filter.property = { $in: propIds };
+  }
+
+  const leases = await Lease.find(filter)
+    .sort({ moveOutNoticeDate: -1, updatedAt: -1 })
+    .populate('property', 'name address rentAmount')
+    .populate('tenant', 'firstName lastName email phone')
+    .populate('createdBy', 'firstName lastName');
+
+  const leaseIds = leases.map(l => l._id);
+  const payments = await Payment.find({ lease: { $in: leaseIds } }).lean();
+  const paymentsByLease = {};
+  payments.forEach(p => {
+    const k = p.lease?.toString();
+    if (!paymentsByLease[k]) paymentsByLease[k] = [];
+    paymentsByLease[k].push(p);
+  });
+
+  const enriched = leases.map(l => {
+    const leasePayments = paymentsByLease[l._id.toString()] || [];
+    const lifecycle = resolveLeaseLifecycle(l, leasePayments, now);
+    const resolved = resolveLeaseUrls(l, req);
+    return {
+      ...resolved,
+      status: lifecycle.effectiveStatus === 'expired' ? 'expired' : l.status,
+      effectiveStatus: lifecycle.effectiveStatus,
+      lifecycle,
+      paymentSummary: lifecycle.paymentSummary,
+    };
+  });
+
+  res.status(200).json({ success: true, data: enriched });
 });
 
 export const getLeaseById = asyncHandler(async (req, res) => {

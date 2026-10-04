@@ -127,6 +127,7 @@ export default function ManagerPropertyDetailsPage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [copiedId, setCopiedId] = useState(false);
     const [activeLease, setActiveLease] = useState(null);
+    const [latestLease, setLatestLease] = useState(null);
 
     const fetchPropertyData = async () => {
         try {
@@ -140,6 +141,10 @@ export default function ManagerPropertyDetailsPage() {
             try {
                 const leaseRes = await leaseService.getAllLeases({ propertyId: id });
                 const leases = leaseRes.data?.data || leaseRes.data || [];
+
+                const allPropLeases = Array.isArray(leases) ? [...leases] : [];
+                allPropLeases.sort((a, b) => new Date(b.startDate || b.createdAt) - new Date(a.startDate || a.createdAt));
+                setLatestLease(allPropLeases[0] || null);
 
                 const now = new Date();
                 const isValidActiveLease = (l) => {
@@ -765,48 +770,109 @@ export default function ManagerPropertyDetailsPage() {
 
                         {/* Tenancy & Occupancy Section */}
                         <div className="space-y-3 pt-2 border-t border-border/60">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Tenancy</span>
-                                <span className={cn(
-                                    "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
-                                    activeLease ? "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20" : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                )}>
-                                    {activeLease ? 'Occupied / Active Lease' : 'Vacant / Ready'}
-                                </span>
-                            </div>
+                            {(() => {
+                                const now = new Date();
+                                const isExpired = !activeLease && latestLease && (latestLease.status === 'expired' || (latestLease.endDate && new Date(latestLease.endDate) <= now));
+                                const daysRemaining = activeLease?.endDate ? Math.ceil((new Date(activeLease.endDate) - now) / (1000 * 60 * 60 * 24)) : null;
 
-                            {activeLease ? (
-                                <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-2">
-                                    <div className="flex justify-between items-center text-xs font-bold">
-                                        <span className="text-muted-foreground">Active Tenant</span>
-                                        <span className="text-foreground">{activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName || ''}`.trim() : (activeLease.tenant?.name || activeLease.tenant?.email || 'Tenant')}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs font-bold">
-                                        <span className="text-muted-foreground">Lease Term</span>
-                                        <span className="text-foreground">{new Date(activeLease.startDate).toLocaleDateString()} - {new Date(activeLease.endDate).toLocaleDateString()}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/leases')}
-                                        className="w-full mt-2 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
-                                    >
-                                        View Lease Agreement →
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="p-4 rounded-2xl bg-muted/40 border border-dashed border-border/80 text-center space-y-2">
-                                    <p className="text-xs text-muted-foreground font-medium">
-                                        No active lease on this unit. This property is available for discovery on the resident portal.
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/leases')}
-                                        className="px-4 py-1.5 rounded-xl bg-muted border border-border hover:bg-muted/80 text-xs font-bold text-foreground transition-all cursor-pointer"
-                                    >
-                                        View Prospective Leases
-                                    </button>
-                                </div>
-                            )}
+                                let badgeText = 'Vacant / Ready';
+                                let badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+
+                                if (activeLease) {
+                                    if (activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none') {
+                                        badgeText = 'Move-Out Requested';
+                                        badgeClass = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+                                    } else if (activeLease.leaseDecision === 'renewal_requested') {
+                                        badgeText = 'Renewal Requested';
+                                        badgeClass = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+                                    } else if (daysRemaining !== null && daysRemaining <= 7 && daysRemaining > 0) {
+                                        badgeText = `Expiring Soon (${daysRemaining}d)`;
+                                        badgeClass = 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+                                    } else if (activeLease.renewedTo) {
+                                        badgeText = 'Renewed';
+                                        badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+                                    } else {
+                                        badgeText = 'Occupied / Active Lease';
+                                        badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+                                    }
+                                } else if (isExpired) {
+                                    badgeText = 'Lease Expired';
+                                    badgeClass = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+                                }
+
+                                return (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Tenancy</span>
+                                            <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border", badgeClass)}>
+                                                {badgeText}
+                                            </span>
+                                        </div>
+
+                                        {activeLease ? (
+                                            <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-2">
+                                                <div className="flex justify-between items-center text-xs font-bold">
+                                                    <span className="text-muted-foreground">Active Tenant</span>
+                                                    <span className="text-foreground">{activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName || ''}`.trim() : (activeLease.tenant?.name || activeLease.tenant?.email || 'Tenant')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs font-bold">
+                                                    <span className="text-muted-foreground">Lease Term</span>
+                                                    <span className="text-foreground">{new Date(activeLease.startDate).toLocaleDateString()} - {new Date(activeLease.endDate).toLocaleDateString()}</span>
+                                                </div>
+                                                {activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none' && (
+                                                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-bold flex items-center justify-between">
+                                                        <span>Move-Out Notice:</span>
+                                                        <span className="capitalize">{activeLease.moveOutStatus.replace('_', ' ')}</span>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/leases')}
+                                                    className="w-full mt-2 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                                >
+                                                    View Lease Agreement →
+                                                </button>
+                                            </div>
+                                        ) : isExpired && latestLease ? (
+                                            <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20 space-y-2">
+                                                <div className="flex justify-between items-center text-xs font-bold">
+                                                    <span className="text-muted-foreground">Past Tenant</span>
+                                                    <span className="text-foreground">{latestLease.tenant?.firstName ? `${latestLease.tenant.firstName} ${latestLease.tenant.lastName || ''}`.trim() : (latestLease.tenant?.name || latestLease.tenant?.email || 'Tenant')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs font-bold">
+                                                    <span className="text-muted-foreground">Expired On</span>
+                                                    <span className="text-rose-400">{new Date(latestLease.endDate).toLocaleDateString()}</span>
+                                                </div>
+                                                {latestLease.paymentSummary?.hasOutstandingDues && (
+                                                    <p className="text-xs text-rose-400 font-bold">
+                                                        Unpaid Balance: ₹{latestLease.paymentSummary.unpaidTotal?.toLocaleString('en-IN')}
+                                                    </p>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/leases?status=expired')}
+                                                    className="w-full mt-2 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                                >
+                                                    View Expired Tenancy →
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 rounded-2xl bg-muted/40 border border-dashed border-border/80 text-center space-y-2">
+                                                <p className="text-xs text-muted-foreground font-medium">
+                                                    No active lease on this unit. This property is available for discovery on the resident portal.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate('/leases')}
+                                                    className="px-4 py-1.5 rounded-xl bg-muted border border-border hover:bg-muted/80 text-xs font-bold text-foreground transition-all cursor-pointer"
+                                                >
+                                                    View Prospective Leases
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         {/* Manager Primary Operations Actions */}

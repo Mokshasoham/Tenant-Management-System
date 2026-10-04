@@ -62,6 +62,12 @@ export default function DashboardPage() {
             data.bookingRequests = summary.bookingRequests ?? 0;
             data.openMaintenance = summary.openMaintenance ?? 0;
             data.occupancyRate = summary.occupancyRate ?? 0;
+            data.pendingRenewalRequests = summary.pendingRenewalRequests ?? 0;
+            data.pendingMoveOutRequests = summary.pendingMoveOutRequests ?? 0;
+            data.leasesExpiringWithin7Days = summary.leasesExpiringWithin7Days ?? 0;
+            data.expiredLeases = summary.expiredLeases ?? 0;
+            data.outstandingPaymentsOnExpiredLeasesCount = summary.outstandingPaymentsOnExpiredLeasesCount ?? 0;
+            data.outstandingPaymentsOnExpiredLeasesAmount = summary.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
           } catch (sumErr) {
             console.error('Failed to fetch manager summary stats:', sumErr);
             // Fallback to propertyStats if summary endpoint fails

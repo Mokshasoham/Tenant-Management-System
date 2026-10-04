@@ -35,6 +35,19 @@ export const findByManagerId = async (managerId) => {
     .sort({ createdAt: -1 });
 };
 
+export const findByPropertyIds = async (propertyIds = [], managerId = null) => {
+  const query = {
+    isDeleted: false,
+    $or: [
+      { property: { $in: propertyIds } },
+      ...(managerId ? [{ manager: managerId }] : [])
+    ]
+  };
+  return await LeaseRenewal.find(query)
+    .populate('lease tenant property manager')
+    .sort({ createdAt: -1 });
+};
+
 export const save = async (leaseRenewal) => {
   return await leaseRenewal.save();
 };

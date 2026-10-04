@@ -66,6 +66,18 @@ const leaseSchema = new mongoose.Schema(
       enum: ['none', 'requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing', 'completed'],
       default: 'none',
     },
+    moveOutNoticeDate: {
+      type: Date,
+    },
+    expectedMoveOutDate: {
+      type: Date,
+    },
+    moveOutReason: {
+      type: String,
+    },
+    moveOutComments: {
+      type: String,
+    },
     // ══ LEASE-SPECIFIC MAINTENANCE ACCESS CONTROL ══
     maintenanceEnabled: {
       type: Boolean,
