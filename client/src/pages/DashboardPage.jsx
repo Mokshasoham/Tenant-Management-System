@@ -7,6 +7,8 @@ import ManagerDashboard from './dashboards/ManagerDashboard';
 import TenantDashboard from './dashboards/TenantDashboard';
 import TechnicianDashboard from './dashboards/TechnicianDashboard';
 
+import { getSocket } from '../services/socket';
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -25,98 +27,179 @@ export default function DashboardPage() {
     bookingRequests: 0,
     openMaintenance: 0,
     occupancyRate: 0,
+    pendingRenewalRequests: 0,
+    pendingMoveOutRequests: 0,
+    leasesExpiringWithin7Days: 0,
+    expiredLeases: 0,
+    outstandingPaymentsOnExpiredLeasesCount: 0,
+    outstandingPaymentsOnExpiredLeasesAmount: 0,
+    previews: {
+      renewalRequests: [],
+      moveOutRequests: [],
+      expiringSoon: [],
+      expiredLeases: [],
+      expiredDues: []
+    }
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchStats = async (isSilent = false) => {
+    if (!user) return;
+    try {
+      if (!isSilent) setLoading(true);
+      setError(null);
+      const data = {};
+
+      if (user?.role === 'admin') {
+        try {
+          const userStats = await userService.getDashboardStats();
+          data.totalUsers = userStats.data?.totalUsers || userStats.data?.data?.totalUsers || 0;
+        } catch (e) {
+          console.error('Failed to fetch user admin stats:', e);
+        }
+      }
+
+      if (user?.role === 'manager') {
+        // Unified, single source of truth for manager dashboard portfolio metrics
+        try {
+          const summaryRes = await analyticsService.getSummary();
+          const summary = summaryRes?.data?.data || summaryRes?.data || summaryRes || {};
+
+          data.totalProperties = summary.totalProperties ?? summary.managedProperties ?? 0;
+          data.availableProperties = summary.availableProperties ?? 0;
+          data.occupiedProperties = summary.occupiedProperties ?? 0;
+          data.maintenanceProperties = summary.maintenanceProperties ?? 0;
+          data.totalTenants = summary.activeTenants ?? summary.totalTenants ?? 0;
+          data.totalLeases = summary.totalLeases ?? summary.activeLeases ?? 0;
+          data.totalPayments = summary.totalPayments ?? 0;
+          data.totalRevenue = summary.monthlyCollections ?? summary.totalRevenue ?? 0;
+          data.pendingPayments = summary.pendingPaymentsAmount ?? summary.pendingPayments ?? 0;
+          data.bookingRequests = summary.bookingRequests ?? 0;
+          data.openMaintenance = summary.openMaintenance ?? 0;
+          data.occupancyRate = summary.occupancyRate ?? 0;
+          data.pendingRenewalRequests = summary.pendingRenewalRequests ?? 0;
+          data.pendingMoveOutRequests = summary.pendingMoveOutRequests ?? 0;
+          data.leasesExpiringWithin7Days = summary.leasesExpiringWithin7Days ?? 0;
+          data.expiredLeases = summary.expiredLeases ?? 0;
+          data.outstandingPaymentsOnExpiredLeasesCount = summary.outstandingPaymentsOnExpiredLeasesCount ?? 0;
+          data.outstandingPaymentsOnExpiredLeasesAmount = summary.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
+          data.previews = summary.previews || {
+            renewalRequests: [],
+            moveOutRequests: [],
+            expiringSoon: [],
+            expiredLeases: [],
+            expiredDues: []
+          };
+        } catch (sumErr) {
+          console.error('Failed to fetch manager summary stats:', sumErr);
+          setError('Failed to fetch manager operational summary.');
+          // Fallback to propertyStats if summary endpoint fails
+          try {
+            const propRes = await propertyService.getPropertyStats();
+            const propData = propRes.data?.data || propRes.data || {};
+            data.totalProperties = propData.totalProperties || 0;
+            data.availableProperties = propData.availableProperties || 0;
+            data.occupiedProperties = propData.occupiedProperties || 0;
+            data.maintenanceProperties = propData.maintenanceProperties || 0;
+          } catch (pErr) {
+            console.error('Failed to fetch property stats fallback:', pErr);
+          }
+        }
+      } else if (user?.role === 'admin') {
+        const [tenantStats, propertyStats, leaseStats, paymentStats, billAnalyticsRes, summaryRes] = await Promise.allSettled([
+          tenantService.getTenantStats(),
+          propertyService.getPropertyStats(),
+          leaseService.getLeaseStats(),
+          paymentService.getPaymentStats(),
+          billService.getBillAnalytics(),
+          analyticsService.getSummary()
+        ]);
+
+        const propData = propertyStats.status === 'fulfilled' ? (propertyStats.value.data?.data || propertyStats.value.data || {}) : {};
+        const billData = billAnalyticsRes.status === 'fulfilled' ? (billAnalyticsRes.value.data?.data || billAnalyticsRes.value.data || {}) : {};
+        const tenData = tenantStats.status === 'fulfilled' ? (tenantStats.value.data?.totalTenants || tenantStats.value.data?.data?.totalTenants || 0) : 0;
+        const leaseData = leaseStats.status === 'fulfilled' ? (leaseStats.value.data?.totalLeases || leaseStats.value.data?.data?.totalLeases || 0) : 0;
+        const payData = paymentStats.status === 'fulfilled' ? (paymentStats.value.data?.totalPayments || paymentStats.value.data?.data?.totalPayments || 0) : 0;
+        const sumData = summaryRes.status === 'fulfilled' ? (summaryRes.value.data?.data || summaryRes.value.data || summaryRes.value || {}) : {};
+
+        data.totalTenants = tenData;
+        data.totalProperties = propData.totalProperties || 0;
+        data.availableProperties = propData.availableProperties || 0;
+        data.occupiedProperties = propData.occupiedProperties || 0;
+        data.maintenanceProperties = propData.maintenanceProperties || 0;
+        data.totalLeases = leaseData;
+        data.totalPayments = payData;
+        data.totalRevenue = billData.totalCollected || 0;
+        data.pendingPayments = billData.outstandingAmount || 0;
+        data.pendingRenewalRequests = sumData.pendingRenewalRequests ?? 0;
+        data.pendingMoveOutRequests = sumData.pendingMoveOutRequests ?? 0;
+        data.leasesExpiringWithin7Days = sumData.leasesExpiringWithin7Days ?? 0;
+        data.expiredLeases = sumData.expiredLeases ?? 0;
+        data.outstandingPaymentsOnExpiredLeasesCount = sumData.outstandingPaymentsOnExpiredLeasesCount ?? 0;
+        data.outstandingPaymentsOnExpiredLeasesAmount = sumData.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
+        data.previews = sumData.previews || {
+          renewalRequests: [],
+          moveOutRequests: [],
+          expiringSoon: [],
+          expiredLeases: [],
+          expiredDues: []
+        };
+      }
+
+      setStats(prev => ({ ...prev, ...data }));
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+      setError('Unable to load dashboard data. Please try again.');
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
-      try {
-        setLoading(true);
-        const data = {};
+    fetchStats();
 
-        if (user?.role === 'admin') {
-          try {
-            const userStats = await userService.getDashboardStats();
-            data.totalUsers = userStats.data?.totalUsers || userStats.data?.data?.totalUsers || 0;
-          } catch (e) {
-            console.error('Failed to fetch user admin stats:', e);
-          }
-        }
-
-        if (user?.role === 'manager') {
-          // Unified, single source of truth for manager dashboard portfolio metrics
-          try {
-            const summaryRes = await analyticsService.getSummary();
-            const summary = summaryRes?.data?.data || summaryRes?.data || {};
-
-            data.totalProperties = summary.totalProperties ?? summary.managedProperties ?? 0;
-            data.availableProperties = summary.availableProperties ?? 0;
-            data.occupiedProperties = summary.occupiedProperties ?? 0;
-            data.maintenanceProperties = summary.maintenanceProperties ?? 0;
-            data.totalTenants = summary.activeTenants ?? summary.totalTenants ?? 0;
-            data.totalLeases = summary.totalLeases ?? summary.activeLeases ?? 0;
-            data.totalPayments = summary.totalPayments ?? 0;
-            data.totalRevenue = summary.monthlyCollections ?? summary.totalRevenue ?? 0;
-            data.pendingPayments = summary.pendingPaymentsAmount ?? summary.pendingPayments ?? 0;
-            data.bookingRequests = summary.bookingRequests ?? 0;
-            data.openMaintenance = summary.openMaintenance ?? 0;
-            data.occupancyRate = summary.occupancyRate ?? 0;
-            data.pendingRenewalRequests = summary.pendingRenewalRequests ?? 0;
-            data.pendingMoveOutRequests = summary.pendingMoveOutRequests ?? 0;
-            data.leasesExpiringWithin7Days = summary.leasesExpiringWithin7Days ?? 0;
-            data.expiredLeases = summary.expiredLeases ?? 0;
-            data.outstandingPaymentsOnExpiredLeasesCount = summary.outstandingPaymentsOnExpiredLeasesCount ?? 0;
-            data.outstandingPaymentsOnExpiredLeasesAmount = summary.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
-          } catch (sumErr) {
-            console.error('Failed to fetch manager summary stats:', sumErr);
-            // Fallback to propertyStats if summary endpoint fails
-            try {
-              const propRes = await propertyService.getPropertyStats();
-              const propData = propRes.data?.data || propRes.data || {};
-              data.totalProperties = propData.totalProperties || 0;
-              data.availableProperties = propData.availableProperties || 0;
-              data.occupiedProperties = propData.occupiedProperties || 0;
-              data.maintenanceProperties = propData.maintenanceProperties || 0;
-            } catch (pErr) {
-              console.error('Failed to fetch property stats fallback:', pErr);
-            }
-          }
-        } else if (user?.role === 'admin') {
-          const [tenantStats, propertyStats, leaseStats, paymentStats, billAnalyticsRes] = await Promise.allSettled([
-            tenantService.getTenantStats(),
-            propertyService.getPropertyStats(),
-            leaseService.getLeaseStats(),
-            paymentService.getPaymentStats(),
-            billService.getBillAnalytics()
-          ]);
-
-          const propData = propertyStats.status === 'fulfilled' ? (propertyStats.value.data?.data || propertyStats.value.data || {}) : {};
-          const billData = billAnalyticsRes.status === 'fulfilled' ? (billAnalyticsRes.value.data?.data || billAnalyticsRes.value.data || {}) : {};
-          const tenData = tenantStats.status === 'fulfilled' ? (tenantStats.value.data?.totalTenants || tenantStats.value.data?.data?.totalTenants || 0) : 0;
-          const leaseData = leaseStats.status === 'fulfilled' ? (leaseStats.value.data?.totalLeases || leaseStats.value.data?.data?.totalLeases || 0) : 0;
-          const payData = paymentStats.status === 'fulfilled' ? (paymentStats.value.data?.totalPayments || paymentStats.value.data?.data?.totalPayments || 0) : 0;
-
-          data.totalTenants = tenData;
-          data.totalProperties = propData.totalProperties || 0;
-          data.availableProperties = propData.availableProperties || 0;
-          data.occupiedProperties = propData.occupiedProperties || 0;
-          data.maintenanceProperties = propData.maintenanceProperties || 0;
-          data.totalLeases = leaseData;
-          data.totalPayments = payData;
-          data.totalRevenue = billData.totalCollected || 0;
-          data.pendingPayments = billData.outstandingAmount || 0;
-        }
-
-        setStats(prev => ({ ...prev, ...data }));
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-      } finally {
-        setLoading(false);
+    // 1. Re-fetch when tab becomes visible again or window regains focus
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchStats(true);
       }
     };
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
 
-    fetchStats();
+    // 2. Real-time WebSocket synchronization
+    const socket = getSocket();
+    if (socket) {
+      const handleLifecycleUpdate = (payload) => {
+        console.log('[DashboardPage] Real-time lifecycle event received:', payload);
+        fetchStats(true);
+      };
+
+      socket.on('new_event', handleLifecycleUpdate);
+      socket.on('lease_lifecycle_update', handleLifecycleUpdate);
+      socket.on('payment_completed', handleLifecycleUpdate);
+      socket.on('lease_renewal_requested', handleLifecycleUpdate);
+      socket.on('lease_moveout_requested', handleLifecycleUpdate);
+      socket.on('lease_renewed', handleLifecycleUpdate);
+      socket.on('connect', () => fetchStats(true));
+
+      return () => {
+        window.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleVisibilityChange);
+        socket.off('new_event', handleLifecycleUpdate);
+        socket.off('lease_lifecycle_update', handleLifecycleUpdate);
+        socket.off('payment_completed', handleLifecycleUpdate);
+        socket.off('lease_renewal_requested', handleLifecycleUpdate);
+        socket.off('lease_moveout_requested', handleLifecycleUpdate);
+        socket.off('lease_renewed', handleLifecycleUpdate);
+      };
+    }
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
   }, [currentUserId, user?.role]);
 
   if (!user) {
@@ -129,9 +212,9 @@ export default function DashboardPage() {
 
   switch (user?.role) {
     case 'admin':
-      return <AdminDashboard stats={stats} loading={loading} navigate={navigate} />;
+      return <AdminDashboard stats={stats} loading={loading} navigate={navigate} onRefresh={() => fetchStats()} error={error} />;
     case 'manager':
-      return <ManagerDashboard stats={stats} loading={loading} navigate={navigate} />;
+      return <ManagerDashboard stats={stats} loading={loading} navigate={navigate} onRefresh={() => fetchStats()} error={error} />;
     case 'technician':
       return <TechnicianDashboard />;
     case 'tenant':

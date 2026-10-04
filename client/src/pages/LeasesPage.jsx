@@ -570,6 +570,30 @@ export default function LeasesPage() {
     if (activeTab === 'moveouts') fetchMoveOuts();
   }, [activeTab, fetchLeases, fetchRenewals, fetchMoveOuts]);
 
+  // Auto-select exact lease / request when leaseId query parameter is provided
+  const targetLeaseId = searchParams.get('leaseId');
+  useEffect(() => {
+    if (!targetLeaseId) return;
+
+    if (activeTab === 'all' && leases.length > 0) {
+      const match = leases.find(l => l._id === targetLeaseId || l.leaseNumber === targetLeaseId);
+      if (match) {
+        setSelected(match);
+        setModal('view');
+      }
+    } else if (activeTab === 'renewals' && renewals.length > 0) {
+      const match = renewals.find(r => r.lease?._id === targetLeaseId || r.lease === targetLeaseId || r._id === targetLeaseId);
+      if (match) {
+        setSelectedRenewal(match);
+      }
+    } else if (activeTab === 'moveouts' && moveOuts.length > 0) {
+      const match = moveOuts.find(m => m._id === targetLeaseId || m.leaseNumber === targetLeaseId);
+      if (match) {
+        setSelectedMoveOut(match);
+      }
+    }
+  }, [targetLeaseId, activeTab, leases, renewals, moveOuts]);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSearchParams(prev => {

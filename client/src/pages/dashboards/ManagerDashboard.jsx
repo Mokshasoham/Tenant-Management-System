@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, Users, Wrench, CreditCard, Plus, ArrowUpRight,
     BarChart3, CalendarDays, CheckCircle2, Clock, XCircle,
-    Activity, Check, FileText, UserCheck, RefreshCw, AlertTriangle, Eye, Download, Search, Bell
+    Activity, Check, FileText, UserCheck, RefreshCw, AlertTriangle, Eye, Download, Search, Bell, X
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { bookingService, visitService, maintenanceService, analyticsService, technicianService } from '../../services/api';
+import { bookingService, visitService, maintenanceService, analyticsService, technicianService, leaseService } from '../../services/api';
 import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Widgets';
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
@@ -155,7 +154,302 @@ function ManagerStatCard({ card }) {
     );
 }
 
-export default function ManagerDashboard({ stats, loading, navigate }) {
+function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, onRefresh, fetchRenewals }) {
+    const [actionLoadingId, setActionLoadingId] = useState(null);
+    const [actionMessage, setActionMessage] = useState(null);
+
+    const handleApprove = async (item) => {
+        const renewalId = item.id;
+        setActionLoadingId(renewalId);
+        setActionMessage(null);
+        try {
+            await leaseService.approveRenewal(renewalId);
+            setActionMessage({ type: 'success', text: `Renewal for ${item.tenant?.name || 'tenant'} approved successfully!` });
+            if (typeof onRefresh === 'function') onRefresh();
+            if (typeof fetchRenewals === 'function') fetchRenewals();
+        } catch (e) {
+            setActionMessage({ type: 'error', text: e.response?.data?.message || 'Failed to approve renewal request.' });
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handleReject = async (item) => {
+        const renewalId = item.id;
+        const reason = window.prompt(`Reason for declining renewal for ${item.tenant?.name || 'tenant'}:`);
+        if (!reason || !reason.trim()) return;
+
+        setActionLoadingId(renewalId);
+        setActionMessage(null);
+        try {
+            await leaseService.rejectRenewal(renewalId, reason.trim());
+            setActionMessage({ type: 'success', text: `Renewal for ${item.tenant?.name || 'tenant'} rejected.` });
+            if (typeof onRefresh === 'function') onRefresh();
+            if (typeof fetchRenewals === 'function') fetchRenewals();
+        } catch (e) {
+            setActionMessage({ type: 'error', text: e.response?.data?.message || 'Failed to reject renewal request.' });
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const tabConfig = {
+        renewals: {
+            title: 'Pending Renewal Requests',
+            count: stats?.pendingRenewalRequests ?? 0,
+            countLabel: 'pending decision',
+            color: 'text-indigo-400',
+            bg: 'bg-indigo-500/10',
+            border: 'border-indigo-500/30',
+            icon: RefreshCw,
+            previewKey: 'renewalRequests',
+            viewAllUrl: '/leases?tab=renewals',
+            emptyText: 'No pending renewal requests requiring decision right now.'
+        },
+        moveouts: {
+            title: 'Pending Move-Out Notices & Inspections',
+            count: stats?.pendingMoveOutRequests ?? 0,
+            countLabel: 'active in lifecycle',
+            color: 'text-amber-500 dark:text-amber-400',
+            bg: 'bg-amber-500/10',
+            border: 'border-amber-500/30',
+            icon: Clock,
+            previewKey: 'moveOutRequests',
+            viewAllUrl: '/leases?tab=moveouts',
+            emptyText: 'No pending move-out notices recorded.'
+        },
+        expiring: {
+            title: 'Leases Expiring Within 7 Days',
+            count: stats?.leasesExpiringWithin7Days ?? 0,
+            countLabel: 'expiring soon',
+            color: 'text-orange-500 dark:text-orange-400',
+            bg: 'bg-orange-500/10',
+            border: 'border-orange-500/30',
+            icon: AlertTriangle,
+            previewKey: 'expiringSoon',
+            viewAllUrl: '/leases?filter=expiring_soon',
+            emptyText: 'No active leases expiring within the next 7 days.'
+        },
+        expired: {
+            title: 'Expired Leases',
+            count: stats?.expiredLeases ?? 0,
+            countLabel: 'past term',
+            color: 'text-slate-400',
+            bg: 'bg-slate-500/10',
+            border: 'border-slate-500/30',
+            icon: XCircle,
+            previewKey: 'expiredLeases',
+            viewAllUrl: '/leases?status=expired',
+            emptyText: 'No expired leases found.'
+        },
+        dues: {
+            title: 'Outstanding Dues on Expired Leases',
+            count: `₹${(stats?.outstandingPaymentsOnExpiredLeasesAmount ?? 0).toLocaleString('en-IN')}`,
+            countLabel: `${stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} leases`,
+            color: 'text-rose-500 dark:text-rose-400',
+            bg: 'bg-rose-500/10',
+            border: 'border-rose-500/30',
+            icon: CreditCard,
+            previewKey: 'expiredDues',
+            viewAllUrl: '/leases?filter=unpaid_expired',
+            emptyText: 'Zero unpaid dues on expired leases. All expired lease accounts are fully settled!'
+        }
+    };
+
+    const current = tabConfig[tab] || tabConfig.renewals;
+    const items = previews?.[tab] || previews?.[current.previewKey] || [];
+    const Icon = current.icon;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className={cn(
+                "mt-4 rounded-xl border p-4 sm:p-5 transition-all overflow-hidden",
+                current.border,
+                "bg-card/70 backdrop-blur-md shadow-inner"
+            )}
+        >
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+                <div className="flex items-center gap-2.5">
+                    <div className={cn("p-2 rounded-lg", current.bg, current.color)}>
+                        <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-black text-foreground">{current.title}</h4>
+                            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", current.bg, current.color)}>
+                                {current.count} {current.countLabel}
+                            </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Showing top actionable records scoped to your managed properties
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                        onClick={() => navigate(current.viewAllUrl)}
+                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 transition-all cursor-pointer"
+                    >
+                        <span>View All in Leases</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                        title="Close preview"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Action feedback message */}
+            {actionMessage && (
+                <div className={cn(
+                    "my-3 p-2.5 rounded-lg text-xs font-medium flex items-center justify-between",
+                    actionMessage.type === 'success' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                )}>
+                    <span>{actionMessage.text}</span>
+                    <button onClick={() => setActionMessage(null)} className="text-[10px] opacity-70 hover:opacity-100 font-bold ml-2 cursor-pointer">Dismiss</button>
+                </div>
+            )}
+
+            {/* Records List */}
+            <div className="mt-3 space-y-2.5">
+                {items.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-muted-foreground bg-muted/20 rounded-lg border border-border/50">
+                        <CheckCircle2 className="w-6 h-6 mx-auto mb-1.5 opacity-50 text-emerald-500" />
+                        <p>{current.emptyText}</p>
+                    </div>
+                ) : (
+                    items.map((item, idx) => (
+                        <div
+                            key={item.id || idx}
+                            className="p-3.5 rounded-xl border border-border/80 bg-background/60 hover:bg-background/90 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs"
+                        >
+                            <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-xs text-foreground truncate max-w-[200px]">
+                                        {item.tenant?.name || 'Tenant'}
+                                    </span>
+                                    {item.tenant?.email && (
+                                        <span className="text-[10px] text-muted-foreground/80 truncate max-w-[180px]">
+                                            ({item.tenant.email})
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                        {item.leaseNumber || 'Lease'}
+                                    </span>
+                                    {item.status && (
+                                        <span className={cn(
+                                            "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                            item.status === 'requested' || item.status === 'pending' || item.status === 'under_review' ? "bg-amber-500/10 text-amber-500" :
+                                            item.status === 'inspection_scheduled' ? "bg-blue-500/10 text-blue-500" :
+                                            item.status === 'inspection_completed' ? "bg-purple-500/10 text-purple-500" :
+                                            item.status === 'expiring_soon' ? "bg-orange-500/10 text-orange-500" :
+                                            item.status === 'expired' ? "bg-slate-500/10 text-slate-400" :
+                                            "bg-muted text-muted-foreground"
+                                        )}>
+                                            {item.status.replace(/_/g, ' ')}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                                    <span className="font-medium text-foreground/80">{item.property?.name || 'Property'}</span>
+                                    {item.property?.address && <span className="text-[10px] opacity-75">· {item.property.address}</span>}
+                                    {item.currentRent ? <span>· Rent: ₹{Number(item.currentRent).toLocaleString('en-IN')}/mo</span> : null}
+                                </div>
+
+                                {/* Dynamic category specific details */}
+                                {tab === 'renewals' && (
+                                    <div className="text-[11px] text-indigo-400 flex items-center gap-2 flex-wrap">
+                                        <span>Duration: <strong>{item.requestedDuration || 'Standard'}</strong></span>
+                                        {item.proposedRent && (
+                                            <span>· Proposed: <strong>₹{Number(item.proposedRent).toLocaleString('en-IN')}/mo</strong></span>
+                                        )}
+                                        {item.requestedStartDate && (
+                                            <span>· Start: <strong>{new Date(item.requestedStartDate).toLocaleDateString()}</strong></span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {tab === 'moveouts' && (
+                                    <div className="text-[11px] text-amber-500/90 dark:text-amber-400 flex items-center gap-2 flex-wrap">
+                                        <span>Departure: <strong>{item.expectedDepartureDate ? new Date(item.expectedDepartureDate).toLocaleDateString() : 'Pending'}</strong></span>
+                                        {item.reason && <span>· Reason: {item.reason}</span>}
+                                        {item.comments && <span className="italic text-muted-foreground/80 truncate max-w-xs">"{item.comments}"</span>}
+                                    </div>
+                                )}
+
+                                {tab === 'expiring' && (
+                                    <div className="text-[11px] text-orange-500/90 dark:text-orange-400 flex items-center gap-2">
+                                        <span className="font-bold bg-orange-500/10 px-2 py-0.5 rounded text-[10px]">
+                                            {item.daysLeft !== undefined ? `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} remaining` : 'Expiring soon'}
+                                        </span>
+                                        <span>End Date: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
+                                    </div>
+                                )}
+
+                                {tab === 'expired' && (
+                                    <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                                        <span>Expired on: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
+                                        {item.startDate && <span>(Term started {new Date(item.startDate).toLocaleDateString()})</span>}
+                                    </div>
+                                )}
+
+                                {tab === 'dues' && (
+                                    <div className="text-[11px] text-rose-500 font-bold flex items-center gap-2">
+                                        <span>Unpaid Balance: ₹{(item.totalDue ?? item.totalUnpaid ?? 0).toLocaleString('en-IN')}</span>
+                                        {(item.oldestDueDate || item.dueDate) && <span className="text-muted-foreground font-normal">· Due: {new Date(item.oldestDueDate || item.dueDate).toLocaleDateString()}</span>}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                                {tab === 'renewals' && (
+                                    <>
+                                        <button
+                                            disabled={actionLoadingId === item.id}
+                                            onClick={() => handleApprove(item)}
+                                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                                        >
+                                            {actionLoadingId === item.id ? 'Processing...' : 'Approve'}
+                                        </button>
+                                        <button
+                                            disabled={actionLoadingId === item.id}
+                                            onClick={() => handleReject(item)}
+                                            className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                                        >
+                                            Decline
+                                        </button>
+                                    </>
+                                )}
+
+                                <button
+                                    onClick={() => navigate(item.actionUrl || current.viewAllUrl)}
+                                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                    <span>Details</span>
+                                    <ArrowUpRight className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </motion.div>
+    );
+}
+
+export default function ManagerDashboard({ stats, loading, navigate, onRefresh, error }) {
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.userId || user?._id || user?.id;
 
@@ -166,6 +460,8 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [renewals, setRenewals] = useState([]);
     const [maintenanceList, setMaintenanceList] = useState([]);
     const [revenueMonths, setRevenueMonths] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const [activeActionCenterTab, setActiveActionCenterTab] = useState(null);
+    const [actionLoadingId, setActionLoadingId] = useState(null);
 
     const occupied = stats?.occupiedProperties || 0;
     const vacant = stats?.availableProperties || 0;
@@ -179,6 +475,15 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
     const [reschedulingId, setReschedulingId] = useState(null);
     const [reschedDate, setReschedDate] = useState('');
     const [reschedSlot, setReschedSlot] = useState('10:00 AM - 11:00 AM');
+
+    const fetchRenewals = useCallback(async () => {
+        try {
+            const res = await leaseService.getRenewalRequests();
+            setRenewals(res.data?.data || res.data || []);
+        } catch (e) {
+            console.error('Error fetching renewals:', e);
+        }
+    }, []);
 
     useEffect(() => {
         if (!currentUserId) return;
@@ -202,18 +507,6 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 console.error(e);
             } finally {
                 setVisitsLoading(false);
-            }
-        };
-
-        const fetchRenewals = async () => {
-            try {
-                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-                const res = await axios.get('/api/renewals', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setRenewals(res.data?.data || res.data || []);
-            } catch (e) {
-                console.error('Error fetching renewals:', e);
             }
         };
 
@@ -262,7 +555,7 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
         fetchRenewals();
         fetchMaintenance();
         fetchRevenue();
-    }, [currentUserId]);
+    }, [currentUserId, fetchRenewals]);
 
     const handleUpdateBooking = async (id, status, reason = '') => {
         try {
@@ -467,8 +760,13 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {/* 1. Pending Renewal Requests */}
                     <div
-                        onClick={() => navigate('/leases?tab=renewals')}
-                        className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                        onClick={() => setActiveActionCenterTab(prev => prev === 'renewals' ? null : 'renewals')}
+                        className={cn(
+                            "p-4 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between shadow-xs",
+                            activeActionCenterTab === 'renewals'
+                                ? "border-indigo-500 ring-2 ring-indigo-500/50 bg-indigo-500/15"
+                                : "border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40"
+                        )}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">Renewal Requests</span>
@@ -480,17 +778,30 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             <span className="text-2xl font-black text-foreground tabular-nums">
                                 {stats?.pendingRenewalRequests ?? 0}
                             </span>
-                            <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-0.5">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/leases?tab=renewals');
+                                }}
+                                className="text-[10px] font-bold text-indigo-400 flex items-center gap-0.5 hover:underline cursor-pointer"
+                            >
                                 Review <ArrowUpRight className="w-3 h-3" />
-                            </span>
+                            </button>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">Awaiting manager decision</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {activeActionCenterTab === 'renewals' ? '▲ Hide preview' : '▼ Awaiting decision'}
+                        </p>
                     </div>
 
                     {/* 2. Pending Move-Out Notices */}
                     <div
-                        onClick={() => navigate('/leases?tab=moveouts')}
-                        className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                        onClick={() => setActiveActionCenterTab(prev => prev === 'moveouts' ? null : 'moveouts')}
+                        className={cn(
+                            "p-4 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between shadow-xs",
+                            activeActionCenterTab === 'moveouts'
+                                ? "border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/15"
+                                : "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40"
+                        )}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 dark:text-amber-400">Move-Out Notices</span>
@@ -502,17 +813,30 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             <span className="text-2xl font-black text-foreground tabular-nums">
                                 {stats?.pendingMoveOutRequests ?? 0}
                             </span>
-                            <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 flex items-center gap-0.5">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/leases?tab=moveouts');
+                                }}
+                                className="text-[10px] font-bold text-amber-500 dark:text-amber-400 flex items-center gap-0.5 hover:underline cursor-pointer"
+                            >
                                 Inspect <ArrowUpRight className="w-3 h-3" />
-                            </span>
+                            </button>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">Notices &amp; inspections active</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {activeActionCenterTab === 'moveouts' ? '▲ Hide preview' : '▼ Active inspections'}
+                        </p>
                     </div>
 
                     {/* 3. Leases Expiring Within 7 Days */}
                     <div
-                        onClick={() => navigate('/leases?filter=expiring_soon')}
-                        className="p-4 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                        onClick={() => setActiveActionCenterTab(prev => prev === 'expiring' ? null : 'expiring')}
+                        className={cn(
+                            "p-4 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between shadow-xs",
+                            activeActionCenterTab === 'expiring'
+                                ? "border-orange-500 ring-2 ring-orange-500/50 bg-orange-500/15"
+                                : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40"
+                        )}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400">Expiring in 7 Days</span>
@@ -524,17 +848,30 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             <span className="text-2xl font-black text-foreground tabular-nums">
                                 {stats?.leasesExpiringWithin7Days ?? 0}
                             </span>
-                            <span className="text-[10px] font-bold text-orange-500 dark:text-orange-400 flex items-center gap-0.5">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/leases?filter=expiring_soon');
+                                }}
+                                className="text-[10px] font-bold text-orange-500 dark:text-orange-400 flex items-center gap-0.5 hover:underline cursor-pointer"
+                            >
                                 Filter <ArrowUpRight className="w-3 h-3" />
-                            </span>
+                            </button>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">Decision window closing</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {activeActionCenterTab === 'expiring' ? '▲ Hide preview' : '▼ Window closing'}
+                        </p>
                     </div>
 
                     {/* 4. Expired Leases */}
                     <div
-                        onClick={() => navigate('/leases?status=expired')}
-                        className="p-4 rounded-xl border border-slate-500/20 bg-slate-500/5 hover:bg-slate-500/10 hover:border-slate-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                        onClick={() => setActiveActionCenterTab(prev => prev === 'expired' ? null : 'expired')}
+                        className={cn(
+                            "p-4 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between shadow-xs",
+                            activeActionCenterTab === 'expired'
+                                ? "border-slate-400 ring-2 ring-slate-400/50 bg-slate-500/15"
+                                : "border-slate-500/20 bg-slate-500/5 hover:bg-slate-500/10 hover:border-slate-500/40"
+                        )}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Expired Leases</span>
@@ -546,17 +883,30 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             <span className="text-2xl font-black text-foreground tabular-nums">
                                 {stats?.expiredLeases ?? 0}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/leases?status=expired');
+                                }}
+                                className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5 hover:underline cursor-pointer"
+                            >
                                 View <ArrowUpRight className="w-3 h-3" />
-                            </span>
+                            </button>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">Past contract periods</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {activeActionCenterTab === 'expired' ? '▲ Hide preview' : '▼ Past contracts'}
+                        </p>
                     </div>
 
                     {/* 5. Outstanding Dues on Expired Leases */}
                     <div
-                        onClick={() => navigate('/leases?filter=unpaid_expired')}
-                        className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all cursor-pointer group flex flex-col justify-between"
+                        onClick={() => setActiveActionCenterTab(prev => prev === 'dues' ? null : 'dues')}
+                        className={cn(
+                            "p-4 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between shadow-xs",
+                            activeActionCenterTab === 'dues'
+                                ? "border-rose-500 ring-2 ring-rose-500/50 bg-rose-500/15"
+                                : "border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40"
+                        )}
                     >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">Expired Lease Dues</span>
@@ -568,13 +918,36 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                             <span className="text-xl font-black text-rose-500 dark:text-rose-400 tabular-nums">
                                 ₹{(stats?.outstandingPaymentsOnExpiredLeasesAmount ?? 0).toLocaleString('en-IN')}
                             </span>
-                            <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-0.5">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/leases?filter=unpaid_expired');
+                                }}
+                                className="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-0.5 hover:underline cursor-pointer"
+                            >
                                 {stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} {stats?.outstandingPaymentsOnExpiredLeasesCount === 1 ? 'lease' : 'leases'} <ArrowUpRight className="w-3 h-3" />
-                            </span>
+                            </button>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-1">Unpaid rent balances</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {activeActionCenterTab === 'dues' ? '▲ Hide preview' : '▼ Unpaid rent balances'}
+                        </p>
                     </div>
                 </div>
+
+                {/* Interactive Action Center Preview Drawer */}
+                <AnimatePresence>
+                    {activeActionCenterTab && (
+                        <ActionCenterPreviewDrawer
+                            tab={activeActionCenterTab}
+                            previews={stats?.previews}
+                            stats={stats}
+                            onClose={() => setActiveActionCenterTab(null)}
+                            navigate={navigate}
+                            onRefresh={onRefresh}
+                            fetchRenewals={fetchRenewals}
+                        />
+                    )}
+                </AnimatePresence>
             </motion.div>
 
             {/* Charts + Occupancy */}
@@ -1059,40 +1432,44 @@ export default function ManagerDashboard({ stats, loading, navigate }) {
                                     {r.status === 'pending' && (
                                         <>
                                             <button
+                                                disabled={actionLoadingId === r._id}
                                                 onClick={async () => {
                                                     try {
-                                                        const token = localStorage.getItem('token');
-                                                        await axios.put(`/api/renewals/${r._id}/approve`, {}, {
-                                                            headers: { Authorization: `Bearer ${token}` }
-                                                        });
+                                                        setActionLoadingId(r._id);
+                                                        await leaseService.approveRenewal(r._id);
                                                         alert('Renewal approved successfully!');
-                                                        window.location.reload();
+                                                        if (typeof onRefresh === 'function') onRefresh();
+                                                        fetchRenewals();
                                                     } catch (e) {
                                                         alert(e.response?.data?.message || 'Failed to approve renewal');
+                                                    } finally {
+                                                        setActionLoadingId(null);
                                                     }
                                                 }}
-                                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all"
+                                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all disabled:opacity-50 cursor-pointer"
                                             >
-                                                Approve
+                                                {actionLoadingId === r._id ? 'Approving...' : 'Approve'}
                                             </button>
                                             <button
+                                                disabled={actionLoadingId === r._id}
                                                 onClick={async () => {
                                                     const reason = prompt('Reason for rejection:');
-                                                    if (!reason) return;
+                                                    if (!reason || !reason.trim()) return;
                                                     try {
-                                                        const token = localStorage.getItem('token');
-                                                        await axios.put(`/api/renewals/${r._id}/reject`, { rejectionReason: reason }, {
-                                                            headers: { Authorization: `Bearer ${token}` }
-                                                        });
+                                                        setActionLoadingId(r._id);
+                                                        await leaseService.rejectRenewal(r._id, reason.trim());
                                                         alert('Renewal rejected.');
-                                                        window.location.reload();
+                                                        if (typeof onRefresh === 'function') onRefresh();
+                                                        fetchRenewals();
                                                     } catch (e) {
                                                         alert(e.response?.data?.message || 'Failed to reject renewal');
+                                                    } finally {
+                                                        setActionLoadingId(null);
                                                     }
                                                 }}
-                                                className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all"
+                                                className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all disabled:opacity-50 cursor-pointer"
                                             >
-                                                Reject
+                                                {actionLoadingId === r._id ? 'Rejecting...' : 'Reject'}
                                             </button>
                                         </>
                                     )}
