@@ -60,10 +60,26 @@ class EventService {
             name: 'SocketEmitterConsumer',
             consume: async (eventData) => {
                 // Emit real-time notification update to active clients
-                const emitted = emitToUser(eventData.recipient, 'new_event', eventData);
-                if (!emitted) {
-                    throw new Error('Socket.IO instance offline or connection unavailable');
+                emitToUser(eventData.recipient, 'new_event', eventData);
+
+                // Domain-specific event dispatch for real-time dashboard listeners
+                const cat = (eventData.category || '').toLowerCase();
+                const evt = (eventData.event || '').toLowerCase();
+                const title = (eventData.title || '').toLowerCase();
+
+                if (cat === 'renewal' || cat === 'lease_renewal' || evt.includes('renewal_requested') || title.includes('renewal request')) {
+                    emitToUser(eventData.recipient, 'lease_renewal_requested', eventData);
+                    emitToUser(eventData.recipient, 'lease_lifecycle_update', { type: 'renewal_requested', ...eventData });
+                } else if (cat === 'move-out' || cat === 'moveout' || evt.includes('moveout') || title.includes('move-out')) {
+                    emitToUser(eventData.recipient, 'lease_moveout_requested', eventData);
+                    emitToUser(eventData.recipient, 'lease_lifecycle_update', { type: 'moveout_requested', ...eventData });
+                } else if (cat === 'lease' || cat === 'lifecycle' || title.includes('lease') || title.includes('inspection')) {
+                    emitToUser(eventData.recipient, 'lease_lifecycle_update', eventData);
+                } else if (cat === 'payment' || cat === 'rent' || evt.includes('payment') || title.includes('payment')) {
+                    emitToUser(eventData.recipient, 'payment_completed', eventData);
+                    emitToUser(eventData.recipient, 'lease_lifecycle_update', { type: 'payment_completed', ...eventData });
                 }
+
                 logger.info(`[SocketEmitterConsumer] Broadcasted event ${eventData.eventId} to socket room.`);
             }
         });

@@ -69,6 +69,9 @@ export class NotificationService {
       }
     }
 
+    if (resolvedCategory === 'payment') resolvedCategory = 'payments';
+    if (resolvedCategory === 'moveout') resolvedCategory = 'move-out';
+
     const resolvedUrl = actionUrl || redirectUrl || link || '/notifications';
     const resolvedModule = sourceModule || resolvedCategory || 'system';
 
@@ -118,6 +121,21 @@ export class NotificationService {
           category: resolvedCategory,
           actionUrl: resolvedUrl
         });
+
+        const cat = (resolvedCategory || '').toLowerCase();
+        const t = (title || '').toLowerCase();
+        if (cat === 'renewal' || t.includes('renewal')) {
+          emitToUser(recipient, 'lease_renewal_requested', { recipient, title, actionUrl: resolvedUrl });
+          emitToUser(recipient, 'lease_lifecycle_update', { type: 'renewal', recipient, title });
+        } else if (cat === 'move-out' || cat === 'moveout' || t.includes('move-out')) {
+          emitToUser(recipient, 'lease_moveout_requested', { recipient, title, actionUrl: resolvedUrl });
+          emitToUser(recipient, 'lease_lifecycle_update', { type: 'moveout', recipient, title });
+        } else if (cat === 'payment' || cat === 'rent' || t.includes('payment')) {
+          emitToUser(recipient, 'payment_completed', { recipient, title, actionUrl: resolvedUrl });
+          emitToUser(recipient, 'lease_lifecycle_update', { type: 'payment', recipient, title });
+        } else if (cat === 'lease' || t.includes('lease') || t.includes('inspection')) {
+          emitToUser(recipient, 'lease_lifecycle_update', { recipient, title, actionUrl: resolvedUrl });
+        }
       } catch (wsErr) {
         // Non-blocking socket emission error
       }
