@@ -953,6 +953,7 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
     }
     if (!targetLease) {
       targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
     if (targetLease) {
       const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
       if (!isOwner) {
