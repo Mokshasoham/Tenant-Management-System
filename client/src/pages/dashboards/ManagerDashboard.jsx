@@ -757,6 +757,13 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                     </button>
                 </div>
 
+                {stats?.actionCenterContractMismatch && (
+                    <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Production backend sync pending: Operational Action Center fields are not yet returned by the server.</span>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {/* 1. Pending Renewal Requests */}
                     <div
@@ -776,7 +783,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div className="flex items-baseline justify-between mt-1">
                             <span className="text-2xl font-black text-foreground tabular-nums">
-                                {stats?.pendingRenewalRequests ?? 0}
+                                {stats?.pendingRenewalRequests != null ? stats.pendingRenewalRequests : '—'}
                             </span>
                             <button
                                 onClick={(e) => {
@@ -811,7 +818,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div className="flex items-baseline justify-between mt-1">
                             <span className="text-2xl font-black text-foreground tabular-nums">
-                                {stats?.pendingMoveOutRequests ?? 0}
+                                {stats?.pendingMoveOutRequests != null ? stats.pendingMoveOutRequests : '—'}
                             </span>
                             <button
                                 onClick={(e) => {
@@ -846,7 +853,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div className="flex items-baseline justify-between mt-1">
                             <span className="text-2xl font-black text-foreground tabular-nums">
-                                {stats?.leasesExpiringWithin7Days ?? 0}
+                                {stats?.leasesExpiringWithin7Days != null ? stats.leasesExpiringWithin7Days : '—'}
                             </span>
                             <button
                                 onClick={(e) => {
@@ -881,7 +888,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div className="flex items-baseline justify-between mt-1">
                             <span className="text-2xl font-black text-foreground tabular-nums">
-                                {stats?.expiredLeases ?? 0}
+                                {stats?.expiredLeases != null ? stats.expiredLeases : '—'}
                             </span>
                             <button
                                 onClick={(e) => {
@@ -916,7 +923,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div className="flex items-baseline justify-between mt-1">
                             <span className="text-xl font-black text-rose-500 dark:text-rose-400 tabular-nums">
-                                ₹{(stats?.outstandingPaymentsOnExpiredLeasesAmount ?? 0).toLocaleString('en-IN')}
+                                {stats?.outstandingPaymentsOnExpiredLeasesAmount != null
+                                    ? `₹${stats.outstandingPaymentsOnExpiredLeasesAmount.toLocaleString('en-IN')}`
+                                    : '—'}
                             </span>
                             <button
                                 onClick={(e) => {
@@ -925,7 +934,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 }}
                                 className="text-[10px] font-bold text-rose-500 dark:text-rose-400 flex items-center gap-0.5 hover:underline cursor-pointer"
                             >
-                                {stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} {stats?.outstandingPaymentsOnExpiredLeasesCount === 1 ? 'lease' : 'leases'} <ArrowUpRight className="w-3 h-3" />
+                                {stats?.outstandingPaymentsOnExpiredLeasesCount != null
+                                    ? `${stats.outstandingPaymentsOnExpiredLeasesCount} ${stats.outstandingPaymentsOnExpiredLeasesCount === 1 ? 'lease' : 'leases'}`
+                                    : '—'} <ArrowUpRight className="w-3 h-3" />
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">

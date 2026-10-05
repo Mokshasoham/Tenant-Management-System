@@ -78,19 +78,49 @@ export default function DashboardPage() {
           data.bookingRequests = summary.bookingRequests ?? 0;
           data.openMaintenance = summary.openMaintenance ?? 0;
           data.occupancyRate = summary.occupancyRate ?? 0;
-          data.pendingRenewalRequests = summary.pendingRenewalRequests ?? 0;
-          data.pendingMoveOutRequests = summary.pendingMoveOutRequests ?? 0;
-          data.leasesExpiringWithin7Days = summary.leasesExpiringWithin7Days ?? 0;
-          data.expiredLeases = summary.expiredLeases ?? 0;
-          data.outstandingPaymentsOnExpiredLeasesCount = summary.outstandingPaymentsOnExpiredLeasesCount ?? 0;
-          data.outstandingPaymentsOnExpiredLeasesAmount = summary.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
-          data.previews = summary.previews || {
-            renewalRequests: [],
-            moveOutRequests: [],
-            expiringSoon: [],
-            expiredLeases: [],
-            expiredDues: []
-          };
+
+          // Contract Validation: Distinguish genuine backend 0s from missing fields in outdated API responses
+          const hasActionCenterFields = (
+            summary.pendingRenewalRequests !== undefined &&
+            summary.pendingMoveOutRequests !== undefined &&
+            summary.leasesExpiringWithin7Days !== undefined &&
+            summary.expiredLeases !== undefined
+          );
+
+          if (!hasActionCenterFields) {
+            console.warn('[DashboardPage] API contract mismatch: Backend summary response is missing Action Center fields (pendingMoveOutRequests, leasesExpiringWithin7Days, expiredLeases). Outdated backend deployment detected.');
+            data.actionCenterAvailable = false;
+            data.actionCenterContractMismatch = true;
+            data.pendingRenewalRequests = null;
+            data.pendingMoveOutRequests = null;
+            data.leasesExpiringWithin7Days = null;
+            data.expiredLeases = null;
+            data.outstandingPaymentsOnExpiredLeasesCount = null;
+            data.outstandingPaymentsOnExpiredLeasesAmount = null;
+            data.previews = {
+              renewalRequests: [],
+              moveOutRequests: [],
+              expiringSoon: [],
+              expiredLeases: [],
+              expiredDues: []
+            };
+          } else {
+            data.actionCenterAvailable = true;
+            data.actionCenterContractMismatch = false;
+            data.pendingRenewalRequests = summary.pendingRenewalRequests;
+            data.pendingMoveOutRequests = summary.pendingMoveOutRequests;
+            data.leasesExpiringWithin7Days = summary.leasesExpiringWithin7Days;
+            data.expiredLeases = summary.expiredLeases;
+            data.outstandingPaymentsOnExpiredLeasesCount = summary.outstandingPaymentsOnExpiredLeasesCount ?? 0;
+            data.outstandingPaymentsOnExpiredLeasesAmount = summary.outstandingPaymentsOnExpiredLeasesAmount ?? 0;
+            data.previews = summary.previews || {
+              renewalRequests: [],
+              moveOutRequests: [],
+              expiringSoon: [],
+              expiredLeases: [],
+              expiredDues: []
+            };
+          }
         } catch (sumErr) {
           console.error('Failed to fetch manager summary stats:', sumErr);
           setError('Failed to fetch manager operational summary.');
