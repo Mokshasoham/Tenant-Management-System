@@ -12,7 +12,7 @@ import { logRenewalAudit } from '../../platform/audit/auditService.js';
 import { dispatchEvent } from '../../platform/events/eventDispatcher.js';
 import { EventTypes } from '../../platform/events/eventTypes.js';
 import { executeRenewalApproval } from '../../services/leaseRenewalHelper.js';
-import { NotificationService } from '../../services/notificationService.js';
+import { NotificationService } from '../../services/NotificationService.js';
 import { getManagerPropertyIds } from '../../utils/managerHelper.js';
 
 /**

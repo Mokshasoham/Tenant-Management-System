@@ -11,7 +11,7 @@ import Maintenance from '../models/Maintenance.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
-import { NotificationService } from '../services/notificationService.js';
+import { NotificationService } from '../services/NotificationService.js';
 import { isManagerPropertyOwner, getManagerPropertyIds } from '../utils/managerHelper.js';
 
 // Backward-compatible Event proxy
