@@ -93,6 +93,8 @@ export const leaseService = {
   scheduleInspection: (data) => apiClient.post('/inspection', data),
   completeInspection: (id, data) => apiClient.put(`/inspection/${id}`, data),
   processDepositRefund: (data) => apiClient.post('/deposit/refund', data),
+  getDepositPreview: (leaseId) => apiClient.get(`/deposit/preview/${leaseId}`),
+  getDepositSettlement: (leaseId) => apiClient.get(`/deposit/${leaseId}`),
   finalizeMoveOut: (leaseId) => apiClient.put(`/lease/${leaseId}/final-moveout`),
 };
 

@@ -15,6 +15,7 @@ import {
   getInspectionById,
   getFeedbackByLeaseId,
   getDepositByLeaseId,
+  getDepositSettlementPreview,
   getExitReportPDF,
   getRenewalReportPDF
 } from '../controllers/leaseRenewalController.js';
@@ -47,6 +48,7 @@ router.put('/renewals/:id/reject', authenticate, managerOrAdmin, rejectRenewal);
 router.post('/inspection', authenticate, managerOrAdmin, scheduleInspection);
 router.put('/inspection/:id', authenticate, managerOrAdmin, completeInspection);
 router.post('/deposit/refund', authenticate, managerOrAdmin, processDepositRefund);
+router.get('/deposit/preview/:leaseId', authenticate, managerOrAdmin, getDepositSettlementPreview);
 router.put('/lease/:id/final-moveout', authenticate, managerOrAdmin, finalizeMoveOut);
 
 // Common Endpoints

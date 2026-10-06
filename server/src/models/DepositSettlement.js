@@ -17,6 +17,7 @@ const depositSettlementSchema = new mongoose.Schema(
     },
     deductions: [
       {
+        category: { type: String, default: 'other' },
         reason: { type: String, required: true },
         amount: { type: Number, required: true },
       },
@@ -28,11 +29,22 @@ const depositSettlementSchema = new mongoose.Schema(
     refundAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    outstandingBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     status: {
       type: String,
       enum: ['Pending', 'Processing', 'Completed'],
       default: 'Pending',
+    },
+    refundStatus: {
+      type: String,
+      enum: ['none', 'due', 'processing', 'paid'],
+      default: 'due',
     },
     refundDate: Date,
     reason: String,
@@ -62,6 +74,6 @@ const depositSettlementSchema = new mongoose.Schema(
   }
 );
 
-depositSettlementSchema.index({ lease: 1 });
+depositSettlementSchema.index({ lease: 1 }, { unique: true });
 
 export default mongoose.model('DepositSettlement', depositSettlementSchema);

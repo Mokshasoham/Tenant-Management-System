@@ -637,9 +637,82 @@ export const completeInspection = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: inspection });
 });
 
-// 8. Manager: Process Deposit Refund (POST /deposit/refund)
+// 8. Manager: Preview Deposit Settlement (GET /deposit/preview/:leaseId)
+export const getDepositSettlementPreview = asyncHandler(async (req, res) => {
+  const { leaseId } = req.params;
+
+  const lease = await Lease.findById(leaseId).populate('property tenant');
+  if (!lease) throw new AppError('Lease not found', 404);
+
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const isOwner = await isManagerPropertyOwner(lease.property._id || lease.property, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to preview deposit for this property', 403);
+  }
+
+  // Find completed inspection
+  const inspection = await PropertyInspection.findOne({
+    lease: leaseId,
+    inspectionStatus: 'completed',
+    isArchived: false
+  }).sort({ createdAt: -1 });
+
+  // Calculate rent dues strictly from Payment records of type 'rent' and 'late_fee' (excluding security_deposit)
+  const unpaidRentPayments = await Payment.find({
+    lease: leaseId,
+    type: { $in: ['rent', 'late_fee'] },
+    status: { $in: ['pending', 'partially_paid', 'overdue'] }
+  }).lean();
+
+  const rentDue = unpaidRentPayments.reduce((sum, p) => {
+    const remaining = (Number(p.amount) || 0) - (Number(p.amountPaid) || 0);
+    return sum + Math.max(0, remaining);
+  }, 0);
+
+  // Authoritative repair cost: actualRepairCost != null ? actualRepairCost : (estimatedRepairCost || 0)
+  const repairDeduction = inspection
+    ? (inspection.actualRepairCost != null ? Number(inspection.actualRepairCost) : (Number(inspection.estimatedRepairCost) || 0))
+    : 0;
+
+  // Check if settlement already exists
+  const existingSettlement = await DepositSettlement.findOne({ lease: leaseId, isArchived: false }).lean();
+  const isSettled = existingSettlement?.status === 'Completed';
+
+  const depositAmount = Number(lease.depositAmount) || 0;
+  const standardDeductions = rentDue + repairDeduction;
+  const suggestedRefund = Math.max(0, depositAmount - standardDeductions);
+  const suggestedBalance = Math.max(0, standardDeductions - depositAmount);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      leaseId: lease._id,
+      leaseNumber: lease.leaseNumber,
+      depositAmount,
+      rentDue,
+      repairDeduction,
+      inspection: inspection ? {
+        _id: inspection._id,
+        inspectionStatus: inspection.inspectionStatus,
+        inspectionResult: inspection.inspectionResult,
+        actualRepairCost: inspection.actualRepairCost,
+        estimatedRepairCost: inspection.estimatedRepairCost,
+        notes: inspection.notes
+      } : null,
+      suggestedRefund,
+      suggestedBalance,
+      existingSettlement,
+      isSettled,
+      canSettle: !!inspection && !isSettled
+    }
+  });
+});
+
+// 8b. Manager: Process Deposit Refund (POST /deposit/refund)
 export const processDepositRefund = asyncHandler(async (req, res) => {
-  const { leaseId, deductions, reason } = req.body;
+  const { leaseId, discretionaryDeductions = [], notes, reason } = req.body;
+
+  if (!leaseId) throw new AppError('Lease ID is required', 400);
 
   const lease = await Lease.findById(leaseId);
   if (!lease) throw new AppError('Lease not found', 404);
@@ -650,47 +723,138 @@ export const processDepositRefund = asyncHandler(async (req, res) => {
     if (!isOwner) throw new AppError('Forbidden: Access denied to process deposit for this property', 403);
   }
 
+  // Idempotency safeguard: if settlement is already completed, return existing settlement
+  const existingCompleted = await DepositSettlement.findOne({ lease: leaseId, status: 'Completed', isArchived: false });
+  if (existingCompleted) {
+    return res.status(200).json({
+      success: true,
+      data: existingCompleted,
+      message: 'Deposit settlement is already completed'
+    });
+  }
+
   // Assert inspection is completed
-  const inspection = await PropertyInspection.findOne({ lease: leaseId, inspectionStatus: 'completed' });
+  const inspection = await PropertyInspection.findOne({
+    lease: leaseId,
+    inspectionStatus: 'completed',
+    isArchived: false
+  }).sort({ createdAt: -1 });
+
   if (!inspection) {
     throw new AppError('Property inspection must be completed before settling deposit refund', 400);
   }
 
-  const depositAmount = lease.depositAmount || 0;
-  const deductionList = deductions || [];
-  const totalDeduction = deductionList.reduce((acc, curr) => acc + Number(curr.amount), 0);
-  const refundAmount = Math.max(0, depositAmount - totalDeduction);
+  // Authoritative calculations:
+  // 1. Contracted security deposit
+  const depositAmount = Number(lease.depositAmount) || 0;
 
-  const settlement = await DepositSettlement.create({
+  // 2. Authoritative rent dues strictly from Payment records on this lease (excluding security_deposit)
+  const unpaidRentPayments = await Payment.find({
     lease: leaseId,
-    depositAmount,
-    deductions: deductionList,
-    totalDeduction,
-    refundAmount,
-    status: 'Processing',
-    reason,
-    createdBy: req.user.userId,
-    timeline: [{ event: 'Refund Initiated', note: `Deposit settlement processing. Total Deductions: ₹${totalDeduction}` }]
+    type: { $in: ['rent', 'late_fee'] },
+    status: { $in: ['pending', 'partially_paid', 'overdue'] }
   });
+  const rentDue = unpaidRentPayments.reduce((sum, p) => {
+    const remaining = (Number(p.amount) || 0) - (Number(p.amountPaid) || 0);
+    return sum + Math.max(0, remaining);
+  }, 0);
+
+  // 3. Authoritative inspection repair cost (actualRepairCost != null ? actual : estimated)
+  const repairDeduction = inspection.actualRepairCost != null
+    ? Number(inspection.actualRepairCost)
+    : (Number(inspection.estimatedRepairCost) || 0);
+
+  // Build validated deductions list server-side
+  const deductionsList = [];
+  if (rentDue > 0) {
+    deductionsList.push({
+      category: 'rent',
+      reason: 'Outstanding Rent & Fees',
+      amount: Math.round(rentDue * 100) / 100
+    });
+  }
+  if (repairDeduction > 0) {
+    deductionsList.push({
+      category: 'repair',
+      reason: `Inspection Damage / Repairs (${inspection.inspectionResult || 'recorded'})`,
+      amount: Math.round(repairDeduction * 100) / 100
+    });
+  }
+
+  // Validate manager discretionary deductions (cleaning, utilities, other)
+  const allowedCategories = ['cleaning', 'utilities', 'other'];
+  if (Array.isArray(discretionaryDeductions)) {
+    for (const item of discretionaryDeductions) {
+      const amount = Number(item.amount);
+      if (isNaN(amount) || amount < 0 || !isFinite(amount)) {
+        throw new AppError('Deduction amounts must be non-negative finite numbers', 400);
+      }
+      if (amount > 0) {
+        const itemReason = (item.reason || '').trim();
+        if (!itemReason) {
+          throw new AppError(`A reason is required for deduction under ${item.category || 'other'}`, 400);
+        }
+        deductionsList.push({
+          category: allowedCategories.includes(item.category) ? item.category : 'other',
+          reason: itemReason,
+          amount: Math.round(amount * 100) / 100
+        });
+      }
+    }
+  }
+
+  const totalDeduction = deductionsList.reduce((acc, curr) => acc + curr.amount, 0);
+  const refundAmount = Math.max(0, depositAmount - totalDeduction);
+  const outstandingBalance = Math.max(0, totalDeduction - depositAmount);
+
+  // Concurrency-safe atomic upsert / update
+  const settlement = await DepositSettlement.findOneAndUpdate(
+    { lease: leaseId },
+    {
+      $set: {
+        lease: leaseId,
+        depositAmount,
+        deductions: deductionsList,
+        totalDeduction,
+        refundAmount,
+        outstandingBalance,
+        status: 'Completed',
+        refundStatus: refundAmount > 0 ? 'due' : 'none',
+        refundDate: new Date(),
+        reason: reason || notes || 'Move-out deposit settlement completed',
+        updatedBy: req.user.userId,
+      },
+      $setOnInsert: {
+        createdBy: req.user.userId,
+      },
+      $push: {
+        timeline: {
+          event: 'Settlement Completed',
+          note: `Deposit settled. Total Deductions: ₹${totalDeduction}, Refund Due: ₹${refundAmount}${outstandingBalance > 0 ? `, Outstanding Balance: ₹${outstandingBalance}` : ''}`
+        }
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   lease.moveOutStatus = 'refund_processing';
   await lease.save();
 
   // Notify tenant
   const tenant = await Tenant.findById(lease.tenant);
-  const tenantUser = await User.findOne({ email: tenant?.email });
+  const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
   if (tenantUser) {
     try {
       await NotificationService.notify({
         recipient: tenantUser._id,
         sender: req.user.userId,
-        title: 'Deposit Refund Processing',
-        message: `Your deposit settlement of ₹${refundAmount} is currently processing.`,
+        title: 'Deposit Settlement Completed',
+        message: `Your deposit settlement for ${lease.leaseNumber} has been finalized. Refund Due: ₹${refundAmount}.`,
         category: 'payments',
         priority: 'high',
         actionUrl: '/my-lease',
         link: '/my-lease',
-        idempotencyKey: `deposit_refund_${settlement._id}`,
+        idempotencyKey: `deposit_settle_${settlement._id}`,
         entityType: 'DepositSettlement',
         entityId: settlement._id
       });
@@ -699,7 +863,7 @@ export const processDepositRefund = asyncHandler(async (req, res) => {
     }
   }
 
-  res.status(201).json({ success: true, data: settlement });
+  res.status(200).json({ success: true, data: settlement });
 });
 
 // 9. Manager: Approve Lease Renewal (PUT /renewals/:id/approve)
@@ -871,16 +1035,18 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
     if (!isOwner) throw new AppError('Forbidden: Access denied to finalize move-out for this property', 403);
   }
 
-  const settlement = await DepositSettlement.findOne({ lease: id });
+  // Authoritative gate: settlement MUST exist in completed state
+  const settlement = await DepositSettlement.findOne({
+    lease: id,
+    status: 'Completed',
+    isArchived: false,
+  });
+
   if (!settlement) {
-    throw new AppError('Deposit settlement must be processed before finalizing move-out', 400);
+    throw new AppError('Deposit settlement must be completed before finalizing move-out', 400);
   }
 
-  // Complete settlement
-  settlement.status = 'Completed';
-  settlement.refundDate = new Date();
-  settlement.updatedBy = req.user.userId;
-  settlement.timeline.push({ event: 'Refund Completed', note: 'Deposit refund completed and finalized.' });
+  settlement.timeline.push({ event: 'Move-Out Finalized', note: 'Move-out officially finalized and property cleared.' });
   await settlement.save();
 
   // Finalize lease details
@@ -995,7 +1161,15 @@ export const getFeedbackByLeaseId = asyncHandler(async (req, res) => {
 });
 
 export const getDepositByLeaseId = asyncHandler(async (req, res) => {
-  const deposit = await DepositSettlement.findOne({ lease: req.params.leaseId });
+  const deposit = await DepositSettlement.findOne({ lease: req.params.leaseId, isArchived: false })
+    .populate('createdBy', 'firstName lastName email')
+    .populate({
+      path: 'lease',
+      populate: [
+        { path: 'property', select: 'name address' },
+        { path: 'tenant', select: 'firstName lastName email' }
+      ]
+    });
   if (!deposit) throw new AppError('Deposit settlement not found', 404);
   res.status(200).json({ success: true, data: deposit });
 });

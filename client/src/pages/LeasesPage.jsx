@@ -6,7 +6,8 @@ import {
   Plus, Search, Eye, X, FileText, Calendar, IndianRupee,
   Building2, User, CheckCircle2, Clock, XCircle, AlertTriangle,
   RefreshCw, ArrowUpRight, Check, ShieldAlert, CheckSquare,
-  ClipboardList, ChevronRight, MessageSquare, AlertCircle
+  ClipboardList, ChevronRight, MessageSquare, AlertCircle,
+  Trash2, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -431,6 +432,439 @@ function RejectRenewalModal({ renewal, onClose, onSaved }) {
             </button>
           </div>
         </form>
+      </div>
+    </motion.div>
+  );
+}
+
+// Modal for Settling Security Deposit (Stage 3 Move-Out Workflow)
+function SettleDepositModal({ lease, onClose, onSaved }) {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [error, setError] = useState('');
+  const [discretionaryDeductions, setDiscretionaryDeductions] = useState([]);
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPreview = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await leaseService.getDepositPreview(lease._id);
+        if (isMounted) {
+          setPreview(res.data?.data || res.data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err?.response?.data?.message || err.message || 'Failed to load deposit preview');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchPreview();
+    return () => { isMounted = false; };
+  }, [lease._id]);
+
+  const addDeduction = () => {
+    setDiscretionaryDeductions(prev => [
+      ...prev,
+      { id: Date.now() + Math.random(), category: 'cleaning', reason: '', amount: '' }
+    ]);
+  };
+
+  const updateDeduction = (index, field, value) => {
+    setDiscretionaryDeductions(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const removeDeduction = (index) => {
+    setDiscretionaryDeductions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Authoritative calculations from preview & manager entries
+  const depositAmount = preview?.depositAmount || 0;
+  const unpaidRent = preview?.unpaidRent || 0;
+  const inspectionRepairCost = preview?.inspectionRepairCost || 0;
+  const discretionaryTotal = discretionaryDeductions.reduce((sum, d) => {
+    const val = Number(d.amount);
+    return sum + (isNaN(val) || val < 0 ? 0 : val);
+  }, 0);
+
+  const totalDeductions = Math.round((unpaidRent + inspectionRepairCost + discretionaryTotal) * 100) / 100;
+  const refundDue = Math.max(0, Math.round((depositAmount - totalDeductions) * 100) / 100);
+  const outstandingBalance = Math.max(0, Math.round((totalDeductions - depositAmount) * 100) / 100);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+
+    // Client-side validation of discretionary deductions
+    for (const d of discretionaryDeductions) {
+      const amt = Number(d.amount);
+      if (isNaN(amt) || amt < 0) {
+        setSubmitting(false);
+        return setError('All deduction amounts must be valid non-negative numbers');
+      }
+      if (amt > 0 && !d.reason?.trim()) {
+        setSubmitting(false);
+        return setError(`Please provide a reason for the ₹${amt} ${d.category} deduction`);
+      }
+    }
+
+    try {
+      const payload = {
+        leaseId: lease._id,
+        discretionaryDeductions: discretionaryDeductions
+          .filter(d => Number(d.amount) > 0)
+          .map(d => ({
+            category: d.category,
+            reason: d.reason.trim(),
+            amount: Number(d.amount)
+          })),
+        notes: notes.trim() || 'Move-out deposit settlement completed'
+      };
+
+      await leaseService.processDepositRefund(payload);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Failed to settle security deposit');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div>
+            <h3 className="text-base font-black text-foreground">Settle Security Deposit</h3>
+            <p className="text-xs text-muted-foreground">{lease.property?.name} • Lease: {lease.leaseNumber}</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"><X className="w-4 h-4" /></button>
+        </div>
+
+        {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>}
+
+        {loading ? (
+          <div className="text-center py-12 space-y-2">
+            <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground/60 mx-auto" />
+            <p className="text-xs text-muted-foreground">Loading authoritative financial preview...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Authoritative Ledger Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-0.5">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                <p className="text-sm font-black text-foreground">₹{depositAmount.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-muted-foreground">Original escrow deposit</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-0.5">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Unpaid Rent &amp; Fees</span>
+                <p className={cn("text-sm font-black", unpaidRent > 0 ? "text-rose-400" : "text-foreground")}>
+                  ₹{unpaidRent.toLocaleString('en-IN')}
+                </p>
+                <p className="text-[10px] text-muted-foreground">From payment ledger</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-0.5">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Inspection Repairs</span>
+                <p className={cn("text-sm font-black", inspectionRepairCost > 0 ? "text-amber-400" : "text-foreground")}>
+                  ₹{inspectionRepairCost.toLocaleString('en-IN')}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Status: {preview?.inspection?.inspectionResult || 'completed'}
+                </p>
+              </div>
+            </div>
+
+            {/* Discretionary Deductions Section */}
+            <div className="p-3.5 rounded-xl bg-muted/20 border border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black text-foreground">Discretionary Deductions</h4>
+                  <p className="text-[11px] text-muted-foreground">Cleaning, unpaid utility bills, or other verified costs</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addDeduction}
+                  className="px-2.5 py-1 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 text-[11px] font-black border border-blue-500/20 transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Add Deduction
+                </button>
+              </div>
+
+              {discretionaryDeductions.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground/60 italic py-1">
+                  No additional deductions added. Click "Add Deduction" to include cleaning or utility fees.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {discretionaryDeductions.map((d, index) => (
+                    <div key={d.id || index} className="flex items-center gap-2 bg-card p-2 rounded-xl border border-border">
+                      <select
+                        value={d.category}
+                        onChange={(e) => updateDeduction(index, 'category', e.target.value)}
+                        className="px-2 py-1.5 rounded-lg bg-muted border border-border text-xs font-medium text-foreground focus:outline-none"
+                      >
+                        <option value="cleaning">Cleaning</option>
+                        <option value="utilities">Utilities</option>
+                        <option value="other">Other</option>
+                      </select>
+
+                      <input
+                        type="text"
+                        placeholder="Reason (required)"
+                        value={d.reason}
+                        onChange={(e) => updateDeduction(index, 'reason', e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none"
+                      />
+
+                      <div className="relative w-24">
+                        <span className="absolute left-2 top-1.5 text-xs text-muted-foreground">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0"
+                          value={d.amount}
+                          onChange={(e) => updateDeduction(index, 'amount', e.target.value)}
+                          className="w-full pl-5 pr-2 py-1.5 rounded-lg bg-muted border border-border text-xs text-foreground focus:outline-none"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeDeduction(index)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                        title="Remove deduction"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Live Settlement Balance Display */}
+            <div className="p-3.5 rounded-xl border space-y-2 bg-card">
+              <div className="flex items-center justify-between text-xs text-muted-foreground border-b border-border pb-2">
+                <span>Total Deductions (Rent + Repairs + Additions):</span>
+                <span className="font-bold text-foreground">₹{totalDeductions.toLocaleString('en-IN')}</span>
+              </div>
+
+              {refundDue > 0 ? (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-black text-emerald-400 block text-sm">Refund Due to Tenant: ₹{refundDue.toLocaleString('en-IN')}</span>
+                    <span className="text-[10px] text-muted-foreground">Settlement marks payable record. Disbursement handled via payments.</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Refund Due
+                  </span>
+                </div>
+              ) : outstandingBalance > 0 ? (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-black text-rose-400 block text-sm">Tenant Balance Due: ₹{outstandingBalance.toLocaleString('en-IN')}</span>
+                    <span className="text-[10px] text-muted-foreground">Deductions exceed deposit held. Tenant liability will be recorded.</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    Balance Due
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-muted/40 border border-border flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-black text-foreground block">Zero Balance Settlement</span>
+                    <span className="text-[10px] text-muted-foreground">Full deposit offset or zero deposit and dues.</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-muted text-muted-foreground border border-border">
+                    Neutral
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <TextAreaField
+              label="Manager Settlement Notes / Audit Statement"
+              value={notes}
+              onChange={setNotes}
+            />
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                {submitting ? 'Settling...' : 'Confirm & Complete Settlement'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// Modal for Viewing Completed Deposit Settlement
+function ViewDepositSettlementModal({ lease, onClose }) {
+  const [settlement, setSettlement] = useState(lease.settlement || null);
+  const [loading, setLoading] = useState(!lease.settlement);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!lease.settlement) {
+      leaseService.getDepositSettlement(lease._id)
+        .then(res => {
+          if (isMounted) setSettlement(res.data?.data || res.data);
+        })
+        .catch(err => {
+          if (isMounted) setError(err?.response?.data?.message || err.message || 'Failed to load settlement details');
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    }
+    return () => { isMounted = false; };
+  }, [lease._id, lease.settlement]);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div>
+            <h3 className="text-base font-black text-foreground">Deposit Settlement Record</h3>
+            <p className="text-xs text-muted-foreground">{lease.property?.name} • Lease: {lease.leaseNumber}</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"><X className="w-4 h-4" /></button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8 text-xs text-muted-foreground">Loading settlement details...</div>
+        ) : error ? (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>
+        ) : settlement ? (
+          <div className="space-y-4 text-xs">
+            {/* Status & Highlights */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                <p className="text-sm font-black text-foreground">₹{settlement.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Total Deductions</span>
+                <p className="text-sm font-black text-foreground">₹{settlement.totalDeduction?.toLocaleString('en-IN') ?? 0}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <span className="text-[9px] font-black uppercase text-emerald-400">Refund Due</span>
+                <p className="text-sm font-black text-emerald-400">₹{settlement.refundAmount?.toLocaleString('en-IN') ?? 0}</p>
+              </div>
+            </div>
+
+            {settlement.outstandingBalance > 0 && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-between">
+                <span className="font-bold">Tenant Outstanding Balance Due:</span>
+                <span className="font-black text-sm">₹{settlement.outstandingBalance?.toLocaleString('en-IN')}</span>
+              </div>
+            )}
+
+            {/* Itemized Deductions */}
+            <div className="space-y-2">
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">Itemized Deductions</h4>
+              {(!settlement.deductions || settlement.deductions.length === 0) ? (
+                <p className="text-muted-foreground/60 italic p-2 bg-muted/20 rounded-xl">No deductions applied. Full deposit refunded.</p>
+              ) : (
+                <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-muted/10">
+                  {settlement.deductions.map((d, idx) => (
+                    <div key={idx} className="p-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-muted border border-border text-muted-foreground">
+                          {d.category || 'other'}
+                        </span>
+                        <span className="font-medium text-foreground">{d.reason}</span>
+                      </div>
+                      <span className="font-bold text-foreground">₹{d.amount?.toLocaleString('en-IN')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Settlement Details */}
+            <div className="p-3 rounded-xl bg-muted/30 border border-border space-y-1.5 text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Settlement Status:</span>
+                <span className="font-bold text-emerald-400 uppercase">{settlement.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Refund Status:</span>
+                <span className="font-bold text-foreground uppercase">{settlement.refundStatus || 'due'}</span>
+              </div>
+              {settlement.refundDate && (
+                <div className="flex justify-between">
+                  <span>Settled Date:</span>
+                  <span className="font-bold text-foreground">{new Date(settlement.refundDate).toLocaleString()}</span>
+                </div>
+              )}
+              {settlement.reason && (
+                <div className="pt-1 border-t border-border/50">
+                  <span className="block text-[10px] font-black uppercase text-muted-foreground/60">Settlement Notes:</span>
+                  <p className="text-foreground italic">{settlement.reason}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Audit Timeline */}
+            {settlement.timeline && settlement.timeline.length > 0 && (
+              <div className="space-y-1.5">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">Audit Timeline</h4>
+                <div className="space-y-1">
+                  {settlement.timeline.map((item, idx) => (
+                    <div key={idx} className="text-[11px] p-2 rounded-lg bg-muted/20 border border-border flex items-start justify-between">
+                      <div>
+                        <span className="font-bold text-foreground">{item.event}</span>
+                        <p className="text-muted-foreground">{item.note}</p>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/60">{new Date(item.timestamp).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2.5 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-all cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        ) : null}
       </div>
     </motion.div>
   );
@@ -1103,6 +1537,81 @@ export default function LeasesPage() {
                       </div>
                     )}
 
+                    {/* Stage 3 Deposit Settlement Panel */}
+                    {['inspection_completed', 'refund_processing', 'completed'].includes(moveStatus) && (
+                      <div className={cn(
+                        "p-4 rounded-xl border text-xs space-y-2.5",
+                        m.isSettled
+                          ? "bg-emerald-500/10 border-emerald-500/20"
+                          : "bg-amber-500/10 border-amber-500/20"
+                      )}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            {m.isSettled ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <span className="font-black text-emerald-400">Security Deposit Settled</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                                  Authoritative
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                                <span className="font-black text-amber-400">Deposit Settlement Required</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                                  Action Needed
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {m.isSettled ? (
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedMoveOut(m); setModal('viewSettlement'); }}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View Settlement Details
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedMoveOut(m); setModal('settleDeposit'); }}
+                              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                            >
+                              <IndianRupee className="w-3.5 h-3.5" /> Settle Security Deposit
+                            </button>
+                          )}
+                        </div>
+
+                        {m.isSettled ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-muted-foreground">
+                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                              <p className="font-bold text-foreground">₹{m.settlement?.depositAmount?.toLocaleString('en-IN') ?? m.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Total Deductions</span>
+                              <p className="font-bold text-foreground">₹{m.settlement?.totalDeduction?.toLocaleString('en-IN') ?? 0}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                              <span className="text-[9px] font-black uppercase text-emerald-400">Refund Due</span>
+                              <p className="font-black text-emerald-400">₹{m.settlement?.refundAmount?.toLocaleString('en-IN') ?? 0}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Outstanding Balance</span>
+                              <p className="font-bold text-foreground">₹{m.settlement?.outstandingBalance?.toLocaleString('en-IN') ?? 0}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Inspection has concluded. Settle deposit deductions (unpaid rent, inspection repairs, utilities) before move-out can be finalized.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Actions Workflow Bar */}
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                       {['requested', 'notice_submitted'].includes(moveStatus) && (
@@ -1126,14 +1635,26 @@ export default function LeasesPage() {
                       )}
 
                       {['inspection_completed', 'refund_processing'].includes(moveStatus) && (
-                        <button
-                          type="button"
-                          disabled={actionLoading}
-                          onClick={() => handleFinalizeMoveOut(m._id)}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
-                        >
-                          {actionLoading ? 'Finalizing...' : 'Finalize Move-Out & Release Unit'}
-                        </button>
+                        <>
+                          {!m.isSettled ? (
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedMoveOut(m); setModal('settleDeposit'); }}
+                              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <IndianRupee className="w-3.5 h-3.5" /> Settle Security Deposit
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={actionLoading}
+                              onClick={() => handleFinalizeMoveOut(m._id)}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                            >
+                              {actionLoading ? 'Finalizing...' : 'Finalize Move-Out & Release Unit'}
+                            </button>
+                          )}
+                        </>
                       )}
 
                       {moveStatus === 'completed' && (
@@ -1177,6 +1698,19 @@ export default function LeasesPage() {
             lease={selectedMoveOut}
             onClose={() => { setModal(null); setSelectedMoveOut(null); }}
             onSaved={() => { fetchMoveOuts(); }}
+          />
+        )}
+        {modal === 'settleDeposit' && selectedMoveOut && (
+          <SettleDepositModal
+            lease={selectedMoveOut}
+            onClose={() => { setModal(null); setSelectedMoveOut(null); }}
+            onSaved={() => { fetchMoveOuts(); }}
+          />
+        )}
+        {modal === 'viewSettlement' && selectedMoveOut && (
+          <ViewDepositSettlementModal
+            lease={selectedMoveOut}
+            onClose={() => { setModal(null); setSelectedMoveOut(null); }}
           />
         )}
       </AnimatePresence>

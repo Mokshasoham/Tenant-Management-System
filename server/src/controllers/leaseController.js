@@ -6,6 +6,7 @@ import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 import PropertyInspection from '../models/PropertyInspection.js';
+import DepositSettlement from '../models/DepositSettlement.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
@@ -381,9 +382,10 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
     .populate('createdBy', 'firstName lastName');
 
   const leaseIds = leases.map(l => l._id);
-  const [payments, inspections] = await Promise.all([
+  const [payments, inspections, settlements] = await Promise.all([
     Payment.find({ lease: { $in: leaseIds } }).lean(),
-    PropertyInspection.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean()
+    PropertyInspection.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean(),
+    DepositSettlement.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean()
   ]);
 
   const paymentsByLease = {};
@@ -401,9 +403,18 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
     }
   });
 
+  const settlementsByLease = {};
+  settlements.forEach(s => {
+    const k = s.lease?.toString();
+    if (!settlementsByLease[k]) {
+      settlementsByLease[k] = s;
+    }
+  });
+
   const enriched = leases.map(l => {
     const leasePayments = paymentsByLease[l._id.toString()] || [];
     const leaseInspection = inspectionsByLease[l._id.toString()] || null;
+    const leaseSettlement = settlementsByLease[l._id.toString()] || null;
     const lifecycle = resolveLeaseLifecycle(l, leasePayments, now);
     const resolved = resolveLeaseUrls(l, req);
     return {
@@ -414,6 +425,9 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
       paymentSummary: lifecycle.paymentSummary,
       inspectionId: leaseInspection ? leaseInspection._id.toString() : null,
       inspection: leaseInspection,
+      settlementId: leaseSettlement ? leaseSettlement._id.toString() : null,
+      settlement: leaseSettlement,
+      isSettled: leaseSettlement?.status === 'Completed',
     };
   });
 
