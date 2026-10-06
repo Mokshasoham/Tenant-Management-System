@@ -9,7 +9,7 @@ import {
     Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
     PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck,
     ChevronLeft, ChevronRight, User, IdCard, CreditCard as CreditCardIcon,
-    CheckSquare, XCircle, ExternalLink, Loader2
+    CheckSquare, XCircle, ExternalLink, Loader2, ClipboardList
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
@@ -1048,10 +1048,154 @@ export default function MyLeasePage() {
                                         const lc = currentLease.lifecycle || {};
                                         const decision = currentLease.leaseDecision || lc.decision || 'pending';
                                         const isRenewed = Boolean(currentLease.renewedTo || currentLease.renewedLease || decision === 'renewed');
-                                        const isMovingOut = Boolean(decision === 'moving_out' || lc.hasTenantSubmittedMoveOut);
+                                        const isMoveOutFinalized = Boolean(
+                                            currentLease.moveOutStatus === 'completed' ||
+                                            currentLease.isMoveOutFinalized ||
+                                            lc.isMoveOutFinalized
+                                        );
+                                        const isMovingOut = Boolean(
+                                            decision === 'moving_out' ||
+                                            lc.hasTenantSubmittedMoveOut ||
+                                            ['requested', 'notice_submitted', 'inspection_scheduled', 'inspection_completed', 'refund_processing'].includes(currentLease.moveOutStatus)
+                                        ) && !isMoveOutFinalized;
                                         const isRenewalRequested = Boolean(decision === 'renewal_requested' || lc.hasTenantSubmittedRenewal) && !isRenewed;
                                         const isExpired = Boolean(daysRemaining <= 0 || isCurrentLeaseExpired || lc.isExpired);
                                         const isInWindow = Boolean(daysRemaining <= 7 && daysRemaining > 0);
+
+                                        // Case 0: Move-Out Finalized & Handover Complete
+                                        if (isMoveOutFinalized) {
+                                            const settlement = currentLease.settlement;
+                                            const depositHeld = Number(settlement?.depositAmount ?? currentLease.depositAmount) || 0;
+                                            const totalDeduction = Number(settlement?.totalDeduction || 0);
+                                            const refundDue = Number(settlement?.refundAmount || 0);
+                                            const outstandingLiability = Number(settlement?.outstandingBalance || 0);
+                                            const refundStatus = settlement?.refundStatus || (refundDue > 0 ? 'due' : 'none');
+                                            const deductions = settlement?.deductions || [];
+
+                                            return (
+                                                <div className="mb-6 space-y-4">
+                                                    {/* Move-Out Finalized Banner */}
+                                                    <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-emerald-500/5">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 mt-0.5">
+                                                                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-sm font-black text-emerald-300 uppercase tracking-wider">Move-Out Finalized · Tenancy Concluded</p>
+                                                                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase">
+                                                                        Finalized
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                                                                    Your move-out has been finalized and property handover completed. The property has been released.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Security Deposit Settlement & Refund Lifecycle Card */}
+                                                    {settlement ? (
+                                                        <div className="p-5 rounded-2xl bg-card/90 border border-border/80 backdrop-blur-md shadow-lg space-y-4">
+                                                            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Shield className="w-4 h-4 text-primary" />
+                                                                    <h4 className="text-xs font-black uppercase tracking-wider text-foreground">Security Deposit Settlement</h4>
+                                                                </div>
+                                                                <span className={cn(
+                                                                    "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                                                                    refundStatus === 'paid' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" :
+                                                                    refundStatus === 'processing' ? "bg-blue-500/10 text-blue-400 border-blue-500/30 animate-pulse" :
+                                                                    refundStatus === 'failed' ? "bg-rose-500/10 text-rose-400 border-rose-500/30" :
+                                                                    refundStatus === 'due' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
+                                                                    "bg-muted text-muted-foreground border-border"
+                                                                )}>
+                                                                    {refundStatus === 'paid' ? '✓ Refund Paid' :
+                                                                     refundStatus === 'processing' ? '⏳ Refund Processing' :
+                                                                     refundStatus === 'failed' ? '⚠️ Refund Delayed' :
+                                                                     refundStatus === 'due' ? '⏳ Refund Pending' :
+                                                                     'No Refund Due'}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                                                                <div className="p-3 rounded-xl bg-muted/40 border border-border/40">
+                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Deposit Held</p>
+                                                                    <p className="text-sm font-black text-foreground mt-0.5">₹{depositHeld.toLocaleString('en-IN')}</p>
+                                                                </div>
+                                                                <div className="p-3 rounded-xl bg-muted/40 border border-border/40">
+                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Deductions</p>
+                                                                    <p className={cn("text-sm font-black mt-0.5", totalDeduction > 0 ? "text-rose-400" : "text-muted-foreground")}>
+                                                                        {totalDeduction > 0 ? `-₹${totalDeduction.toLocaleString('en-IN')}` : '₹0'}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="p-3 rounded-xl bg-muted/40 border border-border/40">
+                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Refund Due</p>
+                                                                    <p className="text-sm font-black text-emerald-400 mt-0.5">₹{refundDue.toLocaleString('en-IN')}</p>
+                                                                </div>
+                                                                <div className="p-3 rounded-xl bg-muted/40 border border-border/40">
+                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">
+                                                                        {outstandingLiability > 0 ? 'Liability Due' : 'Status'}
+                                                                    </p>
+                                                                    <p className={cn("text-sm font-black mt-0.5", outstandingLiability > 0 ? "text-rose-400" : "text-foreground")}>
+                                                                        {outstandingLiability > 0 ? `₹${outstandingLiability.toLocaleString('en-IN')}` :
+                                                                         refundStatus === 'paid' ? 'Settled & Paid' : 'Settled'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Itemized Deductions list if any */}
+                                                            {deductions.length > 0 && (
+                                                                <div className="pt-2 border-t border-border/40 space-y-1.5">
+                                                                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Itemized Deductions:</p>
+                                                                    <div className="space-y-1 text-xs">
+                                                                        {deductions.map((d, idx) => (
+                                                                            <div key={idx} className="flex justify-between items-center text-muted-foreground">
+                                                                                <span className="capitalize">{d.category}: {d.reason}</span>
+                                                                                <span className="font-semibold text-rose-400">-₹{Number(d.amount).toLocaleString('en-IN')}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Gateway Transfer Info */}
+                                                            {refundStatus === 'paid' && (
+                                                                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                                                        <span>Paid on {settlement.refundDate ? new Date(settlement.refundDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'} via banking gateway</span>
+                                                                    </div>
+                                                                    {settlement.gatewayRefundId && (
+                                                                        <span className="font-mono text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-200">
+                                                                            Ref: {settlement.gatewayRefundId}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {refundStatus === 'due' && refundDue > 0 && (
+                                                                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+                                                                    <Clock className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                                                    <span>Refund approved. Payment gateway transfer is queued and will be processed shortly.</span>
+                                                                </div>
+                                                            )}
+                                                            {refundStatus === 'processing' && (
+                                                                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-center gap-2">
+                                                                    <RefreshCw className="w-4 h-4 text-blue-400 flex-shrink-0 animate-spin" />
+                                                                    <span>Payment gateway payout is currently processing.</span>
+                                                                </div>
+                                                            )}
+                                                            {refundStatus === 'failed' && (
+                                                                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+                                                                    <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                                                                    <span>Payment gateway transfer encountered a delay ({settlement.refundFailureReason || 'gateway error'}). Management has been notified to retry payout.</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            );
+                                        }
 
                                         // Case 1: Renewal Pending Review
                                         if (isRenewalRequested) {
@@ -1078,24 +1222,45 @@ export default function MyLeasePage() {
                                             );
                                         }
 
-                                        // Case 2: Move-Out Notice Submitted
+                                        // Case 2: Move-Out Notice In Progress
                                         if (isMovingOut) {
+                                            const stage = currentLease.moveOutStatus;
+                                            let title = "Move-Out Notice Submitted";
+                                            let desc = "Your move-out request has been recorded. Property management will schedule an exit inspection.";
+                                            let badge = "Notice Submitted";
+                                            let icon = <Truck className="w-5 h-5 text-orange-300" />;
+
+                                            if (stage === 'inspection_scheduled') {
+                                                title = "Exit Inspection Scheduled";
+                                                desc = "Property inspection has been scheduled. Please prepare for the walk-through inspection.";
+                                                badge = "Inspection Scheduled";
+                                                icon = <Calendar className="w-5 h-5 text-indigo-300" />;
+                                            } else if (stage === 'inspection_completed') {
+                                                title = "Exit Inspection Completed";
+                                                desc = "Property inspection has concluded. Property management is currently calculating deposit settlement.";
+                                                badge = "Inspection Completed";
+                                                icon = <ClipboardList className="w-5 h-5 text-purple-300" />;
+                                            } else if (stage === 'refund_processing') {
+                                                title = "Deposit Settlement In Progress";
+                                                desc = "Inspection findings have been reviewed and deposit refund processing is underway.";
+                                                badge = "Settlement In Progress";
+                                                icon = <Clock className="w-5 h-5 text-amber-300 animate-pulse" />;
+                                            }
+
                                             return (
                                                 <div className="mb-6 p-5 rounded-2xl bg-orange-500/15 border border-orange-500/30 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-orange-500/5">
                                                     <div className="flex items-start gap-3">
                                                         <div className="p-2.5 rounded-xl bg-orange-500/20 text-orange-300 mt-0.5">
-                                                            <Truck className="w-5 h-5" />
+                                                            {icon}
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-black text-orange-300 uppercase tracking-wider">Move-Out Notice Submitted</p>
-                                                            <p className="text-xs text-white/70 mt-1 leading-relaxed">
-                                                                Your move-out request has been recorded. Property management will schedule an exit inspection and initiate the deposit return process.
-                                                            </p>
+                                                            <p className="text-sm font-black text-orange-300 uppercase tracking-wider">{title}</p>
+                                                            <p className="text-xs text-white/70 mt-1 leading-relaxed">{desc}</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex-shrink-0">
                                                         <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-200 text-xs font-black uppercase tracking-wider">
-                                                            Notice Submitted
+                                                            {badge}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1158,7 +1323,7 @@ export default function MyLeasePage() {
                                         }
 
                                         // Case 5: Expired / Deadline Passed & No Decision Submitted (Safeguard A: Show Move Out directly, never allow renewal)
-                                        if (isExpired && !lc.hasTenantSubmittedMoveOut && decision !== 'moving_out' && !isRenewed) {
+                                        if (isExpired && !lc.hasTenantSubmittedMoveOut && decision !== 'moving_out' && !isRenewed && !isMoveOutFinalized) {
                                             return (
                                                 <div className="mb-6 p-5 rounded-2xl bg-rose-500/20 border border-rose-500/40 backdrop-blur-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg shadow-rose-500/10">
                                                     <div className="flex items-start gap-3">

@@ -943,6 +943,7 @@ export default function LeasesPage() {
   const [selectedRenewal, setSelectedRenewal] = useState(null);
   const [selectedMoveOut, setSelectedMoveOut] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [processingRefundId, setProcessingRefundId] = useState(null);
   const LIMIT = 10;
 
   // Sync tab from search params
@@ -1074,6 +1075,22 @@ export default function LeasesPage() {
       alert(err?.response?.data?.message || err.message || 'Failed to finalize move-out');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleProcessRefundPayout = async (settlementId, leaseId) => {
+    if (!window.confirm('Initiate partial deposit refund payout to tenant through the payment gateway?')) {
+      return;
+    }
+    try {
+      setProcessingRefundId(settlementId || leaseId);
+      await leaseService.processDepositRefundPayout({ settlementId, leaseId });
+      fetchMoveOuts();
+    } catch (err) {
+      console.error(err);
+      alert(err?.response?.data?.message || err.message || 'Failed to process deposit refund payout');
+    } finally {
+      setProcessingRefundId(null);
     }
   };
 
@@ -1586,24 +1603,76 @@ export default function LeasesPage() {
                         </div>
 
                         {m.isSettled ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-muted-foreground">
-                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
-                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
-                              <p className="font-bold text-foreground">₹{m.settlement?.depositAmount?.toLocaleString('en-IN') ?? m.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
+                          <>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-muted-foreground">
+                              <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                                <p className="font-bold text-foreground">₹{m.settlement?.depositAmount?.toLocaleString('en-IN') ?? m.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Total Deductions</span>
+                                <p className="font-bold text-foreground">₹{m.settlement?.totalDeduction?.toLocaleString('en-IN') ?? 0}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                <span className="text-[9px] font-black uppercase text-emerald-400">Refund Due</span>
+                                <p className="font-black text-emerald-400">₹{m.settlement?.refundAmount?.toLocaleString('en-IN') ?? 0}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-card/60 border border-border/50">
+                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Outstanding Balance</span>
+                                <p className="font-bold text-foreground">₹{m.settlement?.outstandingBalance?.toLocaleString('en-IN') ?? 0}</p>
+                              </div>
                             </div>
-                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
-                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Total Deductions</span>
-                              <p className="font-bold text-foreground">₹{m.settlement?.totalDeduction?.toLocaleString('en-IN') ?? 0}</p>
+
+                            {/* Gateway Refund Lifecycle Control */}
+                            <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase text-muted-foreground">Refund Status:</span>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border",
+                                  m.settlement?.refundStatus === 'paid' ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
+                                  m.settlement?.refundStatus === 'processing' || processingRefundId === (m.settlement?._id || m._id) ? "bg-blue-500/20 text-blue-300 border-blue-500/30 animate-pulse" :
+                                  m.settlement?.refundStatus === 'failed' ? "bg-rose-500/20 text-rose-300 border-rose-500/30" :
+                                  m.settlement?.refundStatus === 'due' ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
+                                  "bg-muted text-muted-foreground border-border"
+                                )}>
+                                  {m.settlement?.refundStatus === 'paid' ? `✓ Paid (Ref: ${m.settlement?.gatewayRefundId || 'RFN'})` :
+                                   processingRefundId === (m.settlement?._id || m._id) || m.settlement?.refundStatus === 'processing' ? '⏳ Processing Payout...' :
+                                   m.settlement?.refundStatus === 'failed' ? '⚠️ Refund Delayed' :
+                                   m.settlement?.refundStatus === 'due' ? '⏳ Refund Pending' :
+                                   'No Refund Due'}
+                                </span>
+                                {m.settlement?.refundStatus === 'failed' && m.settlement?.refundFailureReason && (
+                                  <span className="text-[10px] text-rose-400 italic">
+                                    ({m.settlement.refundFailureReason})
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Payout Action Button */}
+                              {m.settlement?.refundAmount > 0 && ['due', 'failed'].includes(m.settlement?.refundStatus) && (
+                                <button
+                                  type="button"
+                                  disabled={processingRefundId === (m.settlement?._id || m._id)}
+                                  onClick={() => handleProcessRefundPayout(m.settlement?._id, m._id)}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                >
+                                  {processingRefundId === (m.settlement?._id || m._id) ? (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing...
+                                    </>
+                                  ) : m.settlement?.refundStatus === 'failed' ? (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5" /> Retry Refund (₹{m.settlement?.refundAmount?.toLocaleString('en-IN')})
+                                    </>
+                                  ) : (
+                                    <>
+                                      <IndianRupee className="w-3.5 h-3.5" /> Process Refund (₹{m.settlement?.refundAmount?.toLocaleString('en-IN')})
+                                    </>
+                                  )}
+                                </button>
+                              )}
                             </div>
-                            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                              <span className="text-[9px] font-black uppercase text-emerald-400">Refund Due</span>
-                              <p className="font-black text-emerald-400">₹{m.settlement?.refundAmount?.toLocaleString('en-IN') ?? 0}</p>
-                            </div>
-                            <div className="p-2 rounded-lg bg-card/60 border border-border/50">
-                              <span className="text-[9px] font-black uppercase text-muted-foreground/60">Outstanding Balance</span>
-                              <p className="font-bold text-foreground">₹{m.settlement?.outstandingBalance?.toLocaleString('en-IN') ?? 0}</p>
-                            </div>
-                          </div>
+                          </>
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             Inspection has concluded. Settle deposit deductions (unpaid rent, inspection repairs, utilities) before move-out can be finalized.

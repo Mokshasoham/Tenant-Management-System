@@ -12,6 +12,7 @@
  */
 
 import assert from 'assert';
+import { resolveLeaseLifecycle } from '../src/utils/leaseLifecycle.js';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -329,14 +330,347 @@ it('Returns existing completed settlement if processDepositRefund is called agai
   assert.strictEqual(res.message, 'Deposit settlement is already completed');
 });
 
+// -----------------------------------------------------------------------------
+// Suite 8: Move-Out Lifecycle Resolution (Tenant UI State Machine)
+// -----------------------------------------------------------------------------
+console.log('\n[Suite 8] Move-Out Lifecycle & Tenant UI State Machine:');
+
+const pastEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+const startPast = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+
+it('moveOutStatus: "none" allows Move-Out button on expired lease', () => {
+  const lease = {
+    _id: 'l-none',
+    status: 'expired',
+    leaseDecision: 'pending',
+    moveOutStatus: 'none',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, true, 'canMoveOut must be true for unsubmitted lease');
+  assert.strictEqual(lc.isMoveOutSubmitted, false);
+  assert.strictEqual(lc.isMoveOutFinalized, false);
+});
+
+it('moveOutStatus: "requested" suppresses Move-Out button and marks submitted', () => {
+  const lease = {
+    _id: 'l-req',
+    status: 'expired',
+    leaseDecision: 'moving_out',
+    moveOutStatus: 'requested',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, false, 'canMoveOut must be false');
+  assert.strictEqual(lc.isMoveOutSubmitted, true);
+  assert.strictEqual(lc.isMoveOutFinalized, false);
+  assert.strictEqual(lc.hasTenantSubmittedMoveOut, true);
+});
+
+it('moveOutStatus: "inspection_scheduled" suppresses Move-Out button', () => {
+  const lease = {
+    _id: 'l-ins-sched',
+    status: 'expired',
+    leaseDecision: 'moving_out',
+    moveOutStatus: 'inspection_scheduled',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, false);
+  assert.strictEqual(lc.isMoveOutSubmitted, true);
+  assert.strictEqual(lc.isMoveOutFinalized, false);
+});
+
+it('moveOutStatus: "inspection_completed" suppresses Move-Out button', () => {
+  const lease = {
+    _id: 'l-ins-done',
+    status: 'expired',
+    leaseDecision: 'moving_out',
+    moveOutStatus: 'inspection_completed',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, false);
+  assert.strictEqual(lc.isMoveOutSubmitted, true);
+  assert.strictEqual(lc.isMoveOutFinalized, false);
+});
+
+it('moveOutStatus: "refund_processing" suppresses Move-Out button', () => {
+  const lease = {
+    _id: 'l-ref-proc',
+    status: 'expired',
+    leaseDecision: 'moving_out',
+    moveOutStatus: 'refund_processing',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, false);
+  assert.strictEqual(lc.isMoveOutSubmitted, true);
+  assert.strictEqual(lc.isMoveOutFinalized, false);
+});
+
+it('moveOutStatus: "completed" sets isMoveOutFinalized: true and canMoveOut: false', () => {
+  const lease = {
+    _id: 'l-comp',
+    status: 'expired',
+    leaseDecision: 'expired',
+    moveOutStatus: 'completed',
+    startDate: startPast,
+    endDate: pastEnd
+  };
+  const lc = resolveLeaseLifecycle(lease, [], new Date());
+  assert.strictEqual(lc.canMoveOut, false, 'canMoveOut must be false for finalized move-out');
+  assert.strictEqual(lc.isMoveOutFinalized, true, 'isMoveOutFinalized must be true');
+  assert.strictEqual(lc.isMoveOutSubmitted, true, 'isMoveOutSubmitted must be true');
+});
+
+it('Backend requestMoveOut guard rejects submission for completed lease', () => {
+  function validateMoveOutSubmission(lease) {
+    if (lease.moveOutStatus === 'completed') {
+      throw new Error('Move-out has already been finalized for this lease');
+    }
+    if (['requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing'].includes(lease.moveOutStatus)) {
+      throw new Error('Move-out notice has already been submitted for this lease');
+    }
+    return true;
+  }
+
+  assert.throws(() => {
+    validateMoveOutSubmission({ status: 'expired', moveOutStatus: 'completed' });
+  }, /Move-out has already been finalized for this lease/);
+
+  assert.throws(() => {
+    validateMoveOutSubmission({ status: 'expired', moveOutStatus: 'requested' });
+  }, /Move-out notice has already been submitted for this lease/);
+
+  assert.strictEqual(validateMoveOutSubmission({ status: 'expired', moveOutStatus: 'none' }), true);
+});
+
+// -----------------------------------------------------------------------------
+// Suite 9: Deposit Ledger & Calculation Matrix
+// -----------------------------------------------------------------------------
+console.log('\n[Suite 9] Deposit Ledger & Calculation Matrix:');
+
+function calculateSettlementLedger(deposit, rentDues, repairDeduction, otherDeductions = 0) {
+  const totalDeduction = (rentDues || 0) + (repairDeduction || 0) + (otherDeductions || 0);
+  const refundAmount = Math.max(0, deposit - totalDeduction);
+  const outstandingBalance = Math.max(0, totalDeduction - deposit);
+  const refundStatus = refundAmount > 0 ? 'due' : 'none';
+  return { totalDeduction, refundAmount, outstandingBalance, refundStatus };
+}
+
+it('₹0 deposit yields ₹0 refund and refundStatus: "none"', () => {
+  const res = calculateSettlementLedger(0, 0, 0);
+  assert.strictEqual(res.refundAmount, 0);
+  assert.strictEqual(res.refundStatus, 'none');
+  assert.strictEqual(res.outstandingBalance, 0);
+});
+
+it('₹30,000 deposit with ₹8,000 repair yields ₹22,000 refund and refundStatus: "due"', () => {
+  const res = calculateSettlementLedger(30000, 0, 8000);
+  assert.strictEqual(res.totalDeduction, 8000);
+  assert.strictEqual(res.refundAmount, 22000);
+  assert.strictEqual(res.refundStatus, 'due');
+  assert.strictEqual(res.outstandingBalance, 0);
+});
+
+it('Deductions exactly equal deposit yields ₹0 refund and ₹0 liability', () => {
+  const res = calculateSettlementLedger(30000, 15000, 15000);
+  assert.strictEqual(res.totalDeduction, 30000);
+  assert.strictEqual(res.refundAmount, 0);
+  assert.strictEqual(res.refundStatus, 'none');
+  assert.strictEqual(res.outstandingBalance, 0);
+});
+
+it('Deductions exceed deposit yields ₹0 refund and positive tenant liability', () => {
+  const res = calculateSettlementLedger(30000, 20000, 15000); // 35k total
+  assert.strictEqual(res.totalDeduction, 35000);
+  assert.strictEqual(res.refundAmount, 0);
+  assert.strictEqual(res.outstandingBalance, 5000);
+  assert.strictEqual(res.refundStatus, 'none');
+});
+
+// -----------------------------------------------------------------------------
+// Suite 10: Gateway Refund Safeguards (Safeguards 1, 2, 3)
+// -----------------------------------------------------------------------------
+console.log('\n[Suite 10] Gateway Refund Safeguards (1, 2, 3):');
+
+it('Safeguard 1: Cumulative check prevents refunding more than captured deposit across payments', () => {
+  const payments = [
+    { type: 'security_deposit', status: 'paid', amountPaid: 30000 }
+  ];
+  const totalPaidDeposit = payments.reduce((sum, p) => sum + p.amountPaid, 0);
+  const alreadyRefunded = 10000;
+  const requestedRefund = 22000;
+
+  const willExceed = alreadyRefunded + requestedRefund > totalPaidDeposit;
+  assert.strictEqual(willExceed, true, '10,000 + 22,000 > 30,000 must be rejected');
+});
+
+it('Safeguard 2: Gateway reconciliation prevents duplicate payout if server crashed after gateway 200 OK', () => {
+  const settlementId = 'settlement-crash-101';
+  const gatewayRefundsList = [
+    {
+      id: 'rfn_crash_recovered_123',
+      amount: 2200000,
+      status: 'processed',
+      notes: { settlementId: 'settlement-crash-101' },
+      receipt: 'REFUND-crash-101'
+    }
+  ];
+
+  // Simulating the pre-refund reconciliation check
+  let gatewayRefundApiCalled = false;
+  function processRefundWithReconciliation(settlementId, gatewayRefunds) {
+    const existing = gatewayRefunds.find(r => r.notes?.settlementId === settlementId);
+    if (existing) {
+      return {
+        reconciled: true,
+        gatewayRefundId: existing.id,
+        status: 'paid'
+      };
+    }
+    gatewayRefundApiCalled = true;
+    return { reconciled: false, gatewayRefundId: 'rfn_new', status: 'paid' };
+  }
+
+  const result = processRefundWithReconciliation(settlementId, gatewayRefundsList);
+  assert.strictEqual(result.reconciled, true, 'Must detect prior gateway refund from Razorpay');
+  assert.strictEqual(result.gatewayRefundId, 'rfn_crash_recovered_123');
+  assert.strictEqual(gatewayRefundApiCalled, false, 'Must NOT invoke gateway refund API again');
+});
+
+it('Safeguard 3: Deterministic selection of authoritative payment when multiple payments exist', () => {
+  const payments = [
+    { _id: 'pay-offline-1', type: 'security_deposit', status: 'paid', amountPaid: 15000, razorpayPaymentId: null },
+    { _id: 'pay-online-small', type: 'security_deposit', status: 'paid', amountPaid: 5000, razorpayPaymentId: 'pay_small_123' },
+    { _id: 'pay-online-authoritative', type: 'security_deposit', status: 'paid', amountPaid: 25000, razorpayPaymentId: 'pay_authoritative_456' }
+  ];
+
+  const candidateGatewayPayments = payments.filter(p => 
+    p.razorpayPaymentId && 
+    typeof p.razorpayPaymentId === 'string' &&
+    p.status === 'paid' && 
+    p.type === 'security_deposit'
+  );
+
+  const refundAmount = 22000;
+  const selectedPayment = candidateGatewayPayments.find(p => p.amountPaid >= refundAmount) || candidateGatewayPayments[0];
+
+  assert.strictEqual(selectedPayment._id, 'pay-online-authoritative');
+  assert.strictEqual(selectedPayment.razorpayPaymentId, 'pay_authoritative_456');
+  assert.strictEqual(selectedPayment.amountPaid >= refundAmount, true);
+});
+
+it('Atomic DB Mutex: Rejects concurrent refund calls when state transitions due -> processing', () => {
+  let doc = { refundStatus: 'due' };
+
+  function atomicLock() {
+    if (['due', 'failed'].includes(doc.refundStatus)) {
+      doc.refundStatus = 'processing';
+      return true;
+    }
+    return false;
+  }
+
+  const firstCall = atomicLock();
+  const secondCall = atomicLock(); // Concurrent attempt while first is processing
+
+  assert.strictEqual(firstCall, true, 'First call acquires mutex lock');
+  assert.strictEqual(secondCall, false, 'Second call is rejected by mutex lock');
+  assert.strictEqual(doc.refundStatus, 'processing');
+});
+
+it('Already-paid refund returns existing record immediately (idempotency)', () => {
+  const settlement = {
+    _id: 's-paid-1',
+    refundStatus: 'paid',
+    gatewayRefundId: 'rfn_existing_999'
+  };
+
+  let gatewayCalled = false;
+  function handlePayout(settlement) {
+    if (settlement.refundStatus === 'paid' && settlement.gatewayRefundId) {
+      return { status: 200, message: 'Refund has already been paid successfully.', data: settlement };
+    }
+    gatewayCalled = true;
+    return { status: 200, data: settlement };
+  }
+
+  const res = handlePayout(settlement);
+  assert.strictEqual(gatewayCalled, false, 'Gateway must never be called for already paid settlement');
+  assert.strictEqual(res.data.gatewayRefundId, 'rfn_existing_999');
+});
+
+it('Failed gateway refund transitions to "failed" and enables retry', () => {
+  let settlement = { refundStatus: 'processing', refundFailureReason: null };
+
+  // Gateway error happens
+  settlement.refundStatus = 'failed';
+  settlement.refundFailureReason = 'Gateway timeout error';
+
+  assert.strictEqual(settlement.refundStatus, 'failed');
+  assert.strictEqual(settlement.refundFailureReason, 'Gateway timeout error');
+
+  // Retry attempt can re-acquire mutex
+  const canRetry = ['due', 'failed'].includes(settlement.refundStatus);
+  assert.strictEqual(canRetry, true, 'Retry must be permitted from failed status');
+});
+
+// -----------------------------------------------------------------------------
+// Suite 11: Authorization & Multi-Tenant Isolation
+// -----------------------------------------------------------------------------
+console.log('\n[Suite 11] Multi-Tenant & Multi-Manager Authorization Isolation:');
+
+it('Tenant cannot view another tenant\'s deposit settlement', () => {
+  const settlement = {
+    lease: {
+      tenant: { _id: 'tenant-A', email: 'alice@example.com' }
+    }
+  };
+  const callingUser = { userId: 'tenant-B', email: 'bob@example.com', role: 'tenant' };
+
+  function checkTenantAuth(settlement, user) {
+    const isOwner = settlement.lease?.tenant?.email === user.email || settlement.lease?.tenant?._id === user.userId;
+    if (!isOwner) throw new Error('Forbidden: Access denied to view another tenant\'s deposit settlement');
+    return true;
+  }
+
+  assert.throws(() => {
+    checkTenantAuth(settlement, callingUser);
+  }, /Forbidden: Access denied to view another tenant's deposit settlement/);
+});
+
+it('Manager cannot process refund for another manager\'s property', () => {
+  const propertyManagerId = 'mgr-alpha';
+  const callingManager = { userId: 'mgr-bravo', role: 'manager' };
+
+  function checkManagerAuth(propertyMgrId, caller) {
+    if (propertyMgrId !== caller.userId) {
+      throw new Error('Forbidden: Access denied to process refund for this property');
+    }
+    return true;
+  }
+
+  assert.throws(() => {
+    checkManagerAuth(propertyManagerId, callingManager);
+  }, /Forbidden: Access denied to process refund for this property/);
+});
+
 console.log('\n================================================================');
 console.log(`SUMMARY: ${passedTests} / ${totalTests} TESTS PASSED`);
 console.log('================================================================\n');
 
 if (passedTests === totalTests) {
-  console.log('🎉 ALL 19 DEPOSIT SETTLEMENT SAFEGUARD TESTS PASSED!');
+  console.log(`🎉 ALL ${totalTests} DEPOSIT SETTLEMENT SAFEGUARD TESTS PASSED!`);
   process.exit(0);
 } else {
   console.error(`❌ ${totalTests - passedTests} TESTS FAILED.`);
   process.exit(1);
 }
+

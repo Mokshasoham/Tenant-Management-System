@@ -103,7 +103,17 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
   const isPastEndDate = nowMs > endMs;
 
   // Specific tenant-submitted actions
-  const hasTenantSubmittedMoveOut = lease.leaseDecision === 'moving_out' || lease.moveOutStatus === 'requested';
+  const isMoveOutFinalized = lease.moveOutStatus === 'completed';
+  const isMoveOutSubmitted = [
+    'requested',
+    'notice_submitted',
+    'inspection_scheduled',
+    'inspection_completed',
+    'refund_processing',
+    'completed'
+  ].includes(lease.moveOutStatus) || lease.leaseDecision === 'moving_out';
+
+  const hasTenantSubmittedMoveOut = isMoveOutSubmitted;
   const hasTenantSubmittedRenewal = lease.leaseDecision === 'renewal_requested';
   const isRenewed = lease.leaseDecision === 'renewed' || Boolean(lease.renewedTo);
 
@@ -122,6 +132,8 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
 
   if (isRenewed) {
     effectiveStatus = 'renewed';
+  } else if (isMoveOutFinalized && (isPastEndDate || daysRemaining <= 0 || lease.status === 'expired')) {
+    effectiveStatus = 'expired';
   } else if (hasTenantSubmittedMoveOut) {
     effectiveStatus = 'moving_out';
   } else if (hasTenantSubmittedRenewal) {
@@ -176,6 +188,9 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
     hasTenantSubmittedMoveOut,
     hasTenantSubmittedRenewal,
     isRenewed,
+    isMoveOutSubmitted,
+    isMoveOutFinalized,
+    moveOutStatus: lease.moveOutStatus || 'none',
     decisionDeadlineDate,
     paymentSummary
   };

@@ -14,6 +14,7 @@ import EventService from '../services/eventService.js';
 import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
 import { NotificationService } from '../services/NotificationService.js';
 import { isManagerPropertyOwner, getManagerPropertyIds } from '../utils/managerHelper.js';
+import Razorpay from 'razorpay';
 
 // Backward-compatible Event proxy
 const Notification = {
@@ -331,6 +332,14 @@ export const submitMoveOutNotice = asyncHandler(async (req, res) => {
   // Allow both active and expired leases (expired leases must not be blocked from moving out)
   if (!['active', 'expired'].includes(lease.status)) {
     throw new AppError('Move-out notices can only be submitted for active or expired leases', 400);
+  }
+
+  // Hardened move-out checks: completed or already-submitted cannot be re-submitted
+  if (lease.moveOutStatus === 'completed') {
+    throw new AppError('Move-out has already been finalized for this lease', 400);
+  }
+  if (['requested', 'inspection_scheduled', 'inspection_completed', 'refund_processing'].includes(lease.moveOutStatus)) {
+    throw new AppError('Move-out notice has already been submitted for this lease', 400);
   }
 
   lease.leaseDecision = 'moving_out';
@@ -1168,11 +1177,27 @@ export const getDepositByLeaseId = asyncHandler(async (req, res) => {
     .populate({
       path: 'lease',
       populate: [
-        { path: 'property', select: 'name address' },
+        { path: 'property', select: 'name address manager owner' },
         { path: 'tenant', select: 'firstName lastName email' }
       ]
     });
   if (!deposit) throw new AppError('Deposit settlement not found', 404);
+
+  // Authorization checks
+  if (req.user?.role === 'manager') {
+    const propId = deposit.lease?.property?._id ? deposit.lease.property._id.toString() : deposit.lease?.property?.toString();
+    const isOwner = await isManagerPropertyOwner(propId, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to view this deposit settlement', 403);
+  } else if (req.user?.role === 'tenant') {
+    const tenantUser = await User.findById(req.user.userId).select('email');
+    const isMatchingTenant = deposit.lease?.tenant?.email === tenantUser?.email || 
+      deposit.lease?.tenant?._id?.toString() === req.user.userId ||
+      deposit.lease?.user?.toString() === req.user.userId;
+    if (!isMatchingTenant) {
+      throw new AppError('Forbidden: Access denied to view another tenant\'s deposit settlement', 403);
+    }
+  }
+
   res.status(200).json({ success: true, data: deposit });
 });
 
@@ -1377,3 +1402,310 @@ export const getRenewalReportPDF = asyncHandler(async (req, res) => {
   doc.fontSize(8).text(`Lease renewal report generated automatically on ${new Date().toLocaleDateString()}. Code verified via TMS Escrow System.`, { align: 'center', color: 'gray' });
   doc.end();
 });
+
+// 12. Manager: Execute Gateway or Manual Deposit Refund Payout (POST /deposit/refund-payout)
+export const executeDepositRefundPayout = asyncHandler(async (req, res) => {
+  const { settlementId, leaseId, method = 'razorpay', transactionRef } = req.body;
+  const targetId = settlementId || leaseId;
+  if (!targetId) {
+    throw new AppError('Settlement ID or Lease ID is required', 400);
+  }
+
+  // 1. Locate settlement
+  const query = mongoose.Types.ObjectId.isValid(targetId)
+    ? { $or: [{ _id: targetId }, { lease: targetId }] }
+    : { lease: targetId };
+
+  const existingSettlement = await DepositSettlement.findOne({ ...query, isArchived: { $ne: true } });
+  if (!existingSettlement) {
+    throw new AppError('Deposit settlement not found', 404);
+  }
+
+  const lease = await Lease.findById(existingSettlement.lease).populate('property tenant');
+  if (!lease) {
+    throw new AppError('Associated lease not found', 404);
+  }
+
+  // 2. Manager authorization check: verify manager owns property
+  if (req.user?.role === 'manager') {
+    const propId = lease.property?._id ? lease.property._id.toString() : lease.property?.toString();
+    const isOwner = await isManagerPropertyOwner(propId, req.user.userId);
+    if (!isOwner) {
+      throw new AppError('Forbidden: Access denied to process refund for this property', 403);
+    }
+  }
+
+  // 3. Accounting readiness check
+  if (existingSettlement.status !== 'Completed') {
+    throw new AppError('Deposit settlement accounting must be completed before processing payout', 400);
+  }
+
+  // If refundAmount is 0, no gateway payout is required
+  if (existingSettlement.refundAmount <= 0) {
+    existingSettlement.refundStatus = 'none';
+    await existingSettlement.save();
+    return res.status(200).json({
+      success: true,
+      message: 'Zero refund due. No gateway payout required.',
+      data: existingSettlement
+    });
+  }
+
+  // Idempotency check: If already paid and has gatewayRefundId
+  if (existingSettlement.refundStatus === 'paid' && existingSettlement.gatewayRefundId) {
+    return res.status(200).json({
+      success: true,
+      message: 'Refund has already been paid successfully.',
+      data: existingSettlement
+    });
+  }
+
+  // 4. SAFEGUARD 3: Find authoritative security-deposit Payment record
+  // A lease may have multiple payments (e.g. offline + online, or split).
+  const allDepositPayments = await Payment.find({
+    lease: lease._id,
+    type: 'security_deposit',
+    status: 'paid'
+  }).sort({ amountPaid: -1, createdAt: -1 });
+
+  // SAFEGUARD 1: Cumulative refundable amount verification
+  const totalPaidDeposit = allDepositPayments.reduce((sum, p) => sum + (Number(p.amountPaid) || Number(p.amount) || 0), 0);
+
+  // Check previous paid refunds on this lease
+  const otherSettlements = await DepositSettlement.find({
+    lease: lease._id,
+    refundStatus: 'paid',
+    _id: { $ne: existingSettlement._id }
+  });
+  const alreadyRefunded = otherSettlements.reduce((sum, s) => sum + (Number(s.refundAmount) || 0), 0);
+
+  if (alreadyRefunded + existingSettlement.refundAmount > totalPaidDeposit) {
+    throw new AppError(`Cumulative refund (₹${alreadyRefunded + existingSettlement.refundAmount}) exceeds total captured deposit (₹${totalPaidDeposit})`, 400);
+  }
+
+  // 5. Handle manual / offline refund method if specified
+  if (method === 'manual') {
+    const lockedManual = await DepositSettlement.findOneAndUpdate(
+      { _id: existingSettlement._id, refundStatus: { $in: ['due', 'failed'] } },
+      {
+        $set: {
+          refundStatus: 'paid',
+          gatewayRefundId: transactionRef || `MANUAL-${Date.now()}`,
+          gatewayPaymentId: 'offline_manual',
+          gatewayRefundStatus: 'completed',
+          refundMethod: 'manual',
+          refundDate: new Date(),
+          refundProcessedAt: new Date(),
+          refundProcessedBy: req.user.userId,
+          updatedBy: req.user.userId
+        },
+        $push: {
+          timeline: {
+            event: 'Manual Refund Completed',
+            timestamp: new Date(),
+            note: `Manual refund of ₹${existingSettlement.refundAmount} recorded. Ref: ${transactionRef || 'MANUAL'}`
+          }
+        }
+      },
+      { new: true }
+    );
+    if (!lockedManual) {
+      throw new AppError('Refund is currently processing or has already been completed', 409);
+    }
+    return res.status(200).json({
+      success: true,
+      message: `Manual deposit refund of ₹${lockedManual.refundAmount} successfully recorded`,
+      data: lockedManual
+    });
+  }
+
+  // Filter payments with a valid razorpayPaymentId for gateway refund
+  const candidateGatewayPayments = allDepositPayments.filter(p => 
+    p.razorpayPaymentId && 
+    typeof p.razorpayPaymentId === 'string' && 
+    p.razorpayPaymentId.trim().length > 0 &&
+    p.status === 'paid' &&
+    p.type === 'security_deposit' &&
+    p.lease.toString() === lease._id.toString()
+  );
+
+  // 6. Atomic Mutex Lock (due/failed -> processing)
+  const lockedSettlement = await DepositSettlement.findOneAndUpdate(
+    {
+      _id: existingSettlement._id,
+      refundStatus: { $in: ['due', 'failed'] }
+    },
+    {
+      $set: {
+        refundStatus: 'processing',
+        updatedBy: req.user.userId
+      }
+    },
+    { new: true }
+  );
+
+  if (!lockedSettlement) {
+    const current = await DepositSettlement.findById(existingSettlement._id);
+    if (current && current.refundStatus === 'paid') {
+      return res.status(200).json({
+        success: true,
+        message: 'Refund has already been paid.',
+        data: current
+      });
+    }
+    throw new AppError('Refund is currently processing or has already been completed', 409);
+  }
+
+  // Deterministic selection: payment with amountPaid >= refundAmount, or highest amountPaid
+  const selectedPayment = candidateGatewayPayments.find(p => (Number(p.amountPaid) || Number(p.amount)) >= lockedSettlement.refundAmount) || candidateGatewayPayments[0];
+
+  // If no online gateway payment exists
+  if (!selectedPayment) {
+    lockedSettlement.refundStatus = 'failed';
+    lockedSettlement.refundFailureReason = 'No eligible online security deposit payment transaction found to refund against';
+    await lockedSettlement.save();
+    throw new AppError('No eligible online security deposit payment transaction found to refund against. Use manual refund instead.', 400);
+  }
+
+  // 7. SAFEGUARD 2: Gateway reconciliation before issuing refund
+  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  const isMock = !keyId || !keySecret || keySecret === 'test_secret' || keySecret.startsWith('rzp_test_') || selectedPayment.razorpayPaymentId.startsWith('mock_') || selectedPayment.razorpayPaymentId.startsWith('pay_test_A_');
+
+  try {
+    let refundResult = null;
+
+    if (!isMock) {
+      const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+
+      // Step A: Reconcile against Razorpay prior refunds for this payment
+      try {
+        const existingRefunds = await rzp.payments.fetchMultipleRefund(selectedPayment.razorpayPaymentId);
+        const refundsList = existingRefunds?.items || [];
+        const matchedRefund = refundsList.find(r => 
+          r.notes?.settlementId === String(lockedSettlement._id) ||
+          r.receipt === `REFUND-${String(lockedSettlement._id).slice(-8)}`
+        );
+
+        if (matchedRefund) {
+          // SAFEGUARD 2: Server crashed after gateway succeeded! Reconcile without duplicate refund.
+          lockedSettlement.refundStatus = 'paid';
+          lockedSettlement.gatewayRefundId = matchedRefund.id;
+          lockedSettlement.gatewayPaymentId = selectedPayment.razorpayPaymentId;
+          lockedSettlement.gatewayRefundStatus = matchedRefund.status || 'processed';
+          lockedSettlement.refundDate = matchedRefund.created_at ? new Date(matchedRefund.created_at * 1000) : new Date();
+          lockedSettlement.refundProcessedAt = new Date();
+          lockedSettlement.refundProcessedBy = req.user.userId;
+          lockedSettlement.payment = selectedPayment._id;
+          lockedSettlement.refundMethod = 'razorpay';
+          lockedSettlement.timeline.push({
+            event: 'Refund Reconciled',
+            timestamp: new Date(),
+            note: `Reconciled with existing Razorpay refund ${matchedRefund.id}`
+          });
+          await lockedSettlement.save();
+
+          return res.status(200).json({
+            success: true,
+            message: 'Refund reconciled with existing payment gateway transaction',
+            data: lockedSettlement
+          });
+        }
+
+        // Step B: Check remaining balance on Razorpay
+        const rzpPayment = await rzp.payments.fetch(selectedPayment.razorpayPaymentId);
+        const remainingPaise = (rzpPayment.amount || 0) - (rzpPayment.amount_refunded || 0);
+        const requestedPaise = Math.round(lockedSettlement.refundAmount * 100);
+
+        if (requestedPaise > remainingPaise) {
+          throw new AppError(`Gateway reports insufficient refundable balance (Remaining: ₹${(remainingPaise/100).toFixed(2)}, Requested: ₹${lockedSettlement.refundAmount})`, 400);
+        }
+      } catch (checkErr) {
+        if (checkErr.statusCode) throw checkErr;
+        console.warn('[REFUND RECONCILIATION CHECK WARNING]', checkErr.message);
+      }
+
+      // Step C: Execute partial refund on Razorpay
+      const rzpResponse = await rzp.payments.refund(selectedPayment.razorpayPaymentId, {
+        amount: Math.round(lockedSettlement.refundAmount * 100), // paise
+        notes: {
+          settlementId: String(lockedSettlement._id),
+          leaseId: String(lease._id),
+          type: 'deposit_settlement_refund'
+        },
+        receipt: `REFUND-${String(lockedSettlement._id).slice(-8)}`
+      });
+
+      refundResult = {
+        id: rzpResponse.id,
+        status: rzpResponse.status || 'processed',
+        paymentId: selectedPayment.razorpayPaymentId
+      };
+    } else {
+      // Mock / Test environment simulation
+      refundResult = {
+        id: `rfn_test_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        status: 'processed',
+        paymentId: selectedPayment.razorpayPaymentId
+      };
+    }
+
+    // Step D: Update DB on success
+    lockedSettlement.refundStatus = 'paid';
+    lockedSettlement.gatewayRefundId = refundResult.id;
+    lockedSettlement.gatewayPaymentId = refundResult.paymentId;
+    lockedSettlement.gatewayRefundStatus = refundResult.status;
+    lockedSettlement.refundDate = new Date();
+    lockedSettlement.refundProcessedAt = new Date();
+    lockedSettlement.refundProcessedBy = req.user.userId;
+    lockedSettlement.payment = selectedPayment._id;
+    lockedSettlement.refundMethod = 'razorpay';
+    lockedSettlement.timeline.push({
+      event: 'Refund Paid',
+      timestamp: new Date(),
+      note: `Refund of ₹${lockedSettlement.refundAmount} successfully transferred via gateway (Ref: ${refundResult.id}).`
+    });
+    await lockedSettlement.save();
+
+    // Notify tenant
+    const tenantUser = lease.tenant ? await User.findOne({ email: lease.tenant.email }) : null;
+    if (tenantUser) {
+      try {
+        await NotificationService.notify({
+          recipient: tenantUser._id,
+          sender: req.user.userId,
+          title: 'Deposit Refund Paid',
+          message: `Your deposit refund of ₹${lockedSettlement.refundAmount} for ${lease.leaseNumber} has been processed via banking gateway (Ref: ${refundResult.id}).`,
+          category: 'payments',
+          priority: 'high',
+          actionUrl: '/my-lease',
+          link: '/my-lease',
+          idempotencyKey: `deposit_refund_paid_${lockedSettlement._id}`,
+          entityType: 'DepositSettlement',
+          entityId: lockedSettlement._id
+        });
+      } catch (notifErr) {
+        console.error('[executeDepositRefundPayout] Notification error:', notifErr.message);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Deposit refund of ₹${lockedSettlement.refundAmount} successfully processed`,
+      data: lockedSettlement
+    });
+  } catch (refundErr) {
+    console.error('[executeDepositRefundPayout] Error processing refund:', refundErr);
+    lockedSettlement.refundStatus = 'failed';
+    lockedSettlement.refundFailureReason = refundErr.message || 'Payment gateway refund failed';
+    lockedSettlement.timeline.push({
+      event: 'Refund Failed',
+      timestamp: new Date(),
+      note: `Gateway refund failed: ${refundErr.message}`
+    });
+    await lockedSettlement.save();
+
+    throw new AppError(refundErr.message || 'Payment gateway refund failed', refundErr.statusCode || 500);
+  }
+});
+

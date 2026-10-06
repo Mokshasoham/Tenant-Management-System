@@ -128,18 +128,34 @@ export const getMyLease = asyncHandler(async (req, res) => {
     .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
     .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
 
-  const tenantPayments = await Payment.find({
-    $or: [
-      { tenant: { $in: tenantIds } },
-      { lease: { $in: allLeases.map(l => l._id) } }
-    ]
-  }).sort({ dueDate: -1, createdAt: -1 });
+  const allLeaseIds = allLeases.map(l => l._id);
+  const [tenantPayments, settlements] = await Promise.all([
+    Payment.find({
+      $or: [
+        { tenant: { $in: tenantIds } },
+        { lease: { $in: allLeaseIds } }
+      ]
+    }).sort({ dueDate: -1, createdAt: -1 }),
+    DepositSettlement.find({
+      lease: { $in: allLeaseIds },
+      isArchived: { $ne: true }
+    }).sort({ createdAt: -1 }).lean()
+  ]);
+
+  const settlementsByLease = {};
+  settlements.forEach(s => {
+    const k = s.lease?.toString();
+    if (!settlementsByLease[k]) {
+      settlementsByLease[k] = s;
+    }
+  });
 
   const now = new Date();
 
   // Process and enrich each lease with authoritative lifecycle and payment summary
   const enrichedLeases = allLeases.map(lease => {
     const lifecycle = resolveLeaseLifecycle(lease, tenantPayments, now);
+    const leaseSettlement = settlementsByLease[lease._id.toString()] || null;
 
     // Non-blocking lazy database synchronization for overdue transitions
     if (lease.status === 'active' && lifecycle.isPastEndDate && lifecycle.effectiveStatus === 'expired') {
@@ -162,6 +178,27 @@ export const getMyLease = asyncHandler(async (req, res) => {
       effectiveStatus: lifecycle.effectiveStatus,
       lifecycle,
       paymentSummary: lifecycle.paymentSummary,
+      settlementId: leaseSettlement ? leaseSettlement._id.toString() : null,
+      settlement: leaseSettlement ? {
+        _id: leaseSettlement._id,
+        depositAmount: leaseSettlement.depositAmount,
+        totalDeduction: leaseSettlement.totalDeduction,
+        refundAmount: leaseSettlement.refundAmount,
+        outstandingBalance: leaseSettlement.outstandingBalance || 0,
+        refundStatus: leaseSettlement.refundStatus || 'due',
+        refundDate: leaseSettlement.refundDate,
+        gatewayRefundId: leaseSettlement.gatewayRefundId,
+        gatewayPaymentId: leaseSettlement.gatewayPaymentId,
+        gatewayRefundStatus: leaseSettlement.gatewayRefundStatus,
+        refundFailureReason: leaseSettlement.refundFailureReason,
+        refundMethod: leaseSettlement.refundMethod,
+        deductions: leaseSettlement.deductions || [],
+        status: leaseSettlement.status,
+        updatedAt: leaseSettlement.updatedAt
+      } : null,
+      isSettled: leaseSettlement?.status === 'Completed',
+      moveOutStatus: lease.moveOutStatus || 'none',
+      isMoveOutFinalized: lease.moveOutStatus === 'completed',
       renewedLease: lease.renewedTo ? {
         _id: lease.renewedTo._id,
         leaseNumber: lease.renewedTo.leaseNumber,
@@ -482,7 +519,10 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     }
   }
 
-  const payments = await Payment.find({ lease: lease._id }).sort({ dueDate: -1, createdAt: -1 });
+  const [payments, settlement] = await Promise.all([
+    Payment.find({ lease: lease._id }).sort({ dueDate: -1, createdAt: -1 }),
+    DepositSettlement.findOne({ lease: lease._id, isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean()
+  ]);
   const lifecycle = resolveLeaseLifecycle(lease, payments, new Date());
   const schedule = calculateNextPaymentDue(lease, payments);
   const resolved = resolveLeaseUrls(lease, req);
@@ -495,6 +535,27 @@ export const getLeaseById = asyncHandler(async (req, res) => {
       effectiveStatus: lifecycle.effectiveStatus,
       lifecycle,
       paymentSummary: lifecycle.paymentSummary,
+      settlementId: settlement ? settlement._id.toString() : null,
+      settlement: settlement ? {
+        _id: settlement._id,
+        depositAmount: settlement.depositAmount,
+        totalDeduction: settlement.totalDeduction,
+        refundAmount: settlement.refundAmount,
+        outstandingBalance: settlement.outstandingBalance || 0,
+        refundStatus: settlement.refundStatus || 'due',
+        refundDate: settlement.refundDate,
+        gatewayRefundId: settlement.gatewayRefundId,
+        gatewayPaymentId: settlement.gatewayPaymentId,
+        gatewayRefundStatus: settlement.gatewayRefundStatus,
+        refundFailureReason: settlement.refundFailureReason,
+        refundMethod: settlement.refundMethod,
+        deductions: settlement.deductions || [],
+        status: settlement.status,
+        updatedAt: settlement.updatedAt
+      } : null,
+      isSettled: settlement?.status === 'Completed',
+      moveOutStatus: lease.moveOutStatus || 'none',
+      isMoveOutFinalized: lease.moveOutStatus === 'completed',
       renewedLease: lease.renewedTo ? {
         _id: lease.renewedTo._id,
         leaseNumber: lease.renewedTo.leaseNumber,

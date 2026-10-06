@@ -43,8 +43,26 @@ const depositSettlementSchema = new mongoose.Schema(
     },
     refundStatus: {
       type: String,
-      enum: ['none', 'due', 'processing', 'paid'],
+      enum: ['none', 'due', 'processing', 'paid', 'failed'],
       default: 'due',
+    },
+    payment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+    },
+    gatewayRefundId: String,
+    gatewayPaymentId: String,
+    gatewayRefundStatus: String,
+    refundFailureReason: String,
+    refundMethod: {
+      type: String,
+      enum: ['razorpay', 'manual', 'none'],
+      default: 'razorpay',
+    },
+    refundProcessedAt: Date,
+    refundProcessedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     refundDate: Date,
     reason: String,

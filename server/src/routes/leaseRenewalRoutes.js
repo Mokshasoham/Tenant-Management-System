@@ -8,6 +8,7 @@ import {
   scheduleInspection,
   completeInspection,
   processDepositRefund,
+  executeDepositRefundPayout,
   approveRenewal,
   rejectRenewal,
   finalizeMoveOut,
@@ -48,6 +49,7 @@ router.put('/renewals/:id/reject', authenticate, managerOrAdmin, rejectRenewal);
 router.post('/inspection', authenticate, managerOrAdmin, scheduleInspection);
 router.put('/inspection/:id', authenticate, managerOrAdmin, completeInspection);
 router.post('/deposit/refund', authenticate, managerOrAdmin, processDepositRefund);
+router.post('/deposit/refund-payout', authenticate, managerOrAdmin, executeDepositRefundPayout);
 router.get('/deposit/preview/:leaseId', authenticate, managerOrAdmin, getDepositSettlementPreview);
 router.put('/lease/:id/final-moveout', authenticate, managerOrAdmin, finalizeMoveOut);
 
