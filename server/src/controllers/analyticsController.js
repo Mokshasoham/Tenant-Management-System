@@ -6,6 +6,7 @@ import Maintenance from '../models/Maintenance.js';
 import Booking from '../models/Booking.js';
 import LeaseRenewal from '../modules/lease-renewal/model.js';
 import LeaseRenewalCampaign from '../models/LeaseRenewalCampaign.js';
+import PropertyInspection from '../models/PropertyInspection.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/errorHandling.js';
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
@@ -341,29 +342,46 @@ async function computeLeaseActionCenterMetrics({ propIds = null }) {
     .lean();
 
     const pendingMoveOutRequests = pendingMoveOutDocs.length;
-    const moveOutPreviews = pendingMoveOutDocs.slice(0, 5).map(l => ({
-        id: l._id,
-        leaseId: l._id,
-        leaseNumber: l.leaseNumber || '—',
-        tenant: {
-            id: l.tenant?._id,
-            name: `${l.tenant?.firstName || ''} ${l.tenant?.lastName || ''}`.trim() || 'Unknown',
-            email: l.tenant?.email || '',
-            phone: l.tenant?.phone || ''
-        },
-        property: {
-            id: l.property?._id,
-            name: l.property?.name || '—',
-            address: l.property?.address || ''
-        },
-        status: l.moveOutStatus && l.moveOutStatus !== 'none' ? l.moveOutStatus : 'requested',
-        noticeDate: l.moveOutNoticeDate || l.updatedAt || l.createdAt,
-        expectedDepartureDate: l.expectedMoveOutDate || l.endDate,
-        reason: l.moveOutReason || 'Relocation',
-        comments: l.moveOutComments || '',
-        currentRent: l.rentAmount || 0,
-        actionUrl: `/leases?leaseId=${l._id}&tab=moveouts`
-    }));
+    const moveOutLeaseIds = pendingMoveOutDocs.map(l => l._id);
+    const moveOutInspections = await PropertyInspection.find({
+        lease: { $in: moveOutLeaseIds },
+        isArchived: false
+    }).sort({ createdAt: -1 }).lean();
+    const moveOutInspectionByLease = new Map();
+    moveOutInspections.forEach(insp => {
+        const lid = insp.lease?.toString();
+        if (!moveOutInspectionByLease.has(lid)) {
+            moveOutInspectionByLease.set(lid, insp);
+        }
+    });
+
+    const moveOutPreviews = pendingMoveOutDocs.slice(0, 5).map(l => {
+        const matchedInspection = moveOutInspectionByLease.get(l._id.toString());
+        return {
+            id: l._id,
+            leaseId: l._id,
+            inspectionId: matchedInspection ? matchedInspection._id.toString() : null,
+            leaseNumber: l.leaseNumber || '—',
+            tenant: {
+                id: l.tenant?._id,
+                name: `${l.tenant?.firstName || ''} ${l.tenant?.lastName || ''}`.trim() || 'Unknown',
+                email: l.tenant?.email || '',
+                phone: l.tenant?.phone || ''
+            },
+            property: {
+                id: l.property?._id,
+                name: l.property?.name || '—',
+                address: l.property?.address || ''
+            },
+            status: l.moveOutStatus && l.moveOutStatus !== 'none' ? l.moveOutStatus : 'requested',
+            noticeDate: l.moveOutNoticeDate || l.updatedAt || l.createdAt,
+            expectedDepartureDate: l.expectedMoveOutDate || l.endDate,
+            reason: l.moveOutReason || 'Relocation',
+            comments: l.moveOutComments || '',
+            currentRent: l.rentAmount || 0,
+            actionUrl: `/leases?leaseId=${l._id}&tab=moveouts`
+        };
+    });
 
     // 3. Leases Expiring Within 7 Days
     const expiringSoonDocs = await Lease.find({

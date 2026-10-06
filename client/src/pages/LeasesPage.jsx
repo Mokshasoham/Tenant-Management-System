@@ -343,7 +343,9 @@ function CompleteInspectionModal({ lease, onClose, onSaved }) {
     setLoading(true);
     setError('');
     try {
-      await leaseService.completeInspection(lease.inspectionId || lease._id, {
+      const targetInspectionId = lease.inspectionId || lease.inspection?._id || lease._id;
+      await leaseService.completeInspection(targetInspectionId, {
+        leaseId: lease._id,
         inspectionResult: result,
         notes,
         actualRepairCost: Number(repairCost) || 0,

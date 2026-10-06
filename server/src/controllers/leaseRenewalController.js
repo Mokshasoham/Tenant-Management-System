@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Lease from '../models/Lease.js';
 import LeaseRenewal from '../models/LeaseRenewal.js';
 import ExitFeedback from '../models/ExitFeedback.js';
@@ -419,6 +420,9 @@ export const submitExitFeedback = asyncHandler(async (req, res) => {
 export const scheduleInspection = asyncHandler(async (req, res) => {
   const { leaseId, inspectionDate, notes } = req.body;
 
+  if (!leaseId) throw new AppError('Lease ID is required', 400);
+  if (!inspectionDate) throw new AppError('Inspection date is required', 400);
+
   const lease = await Lease.findById(leaseId);
   if (!lease) throw new AppError('Lease not found', 404);
 
@@ -428,20 +432,43 @@ export const scheduleInspection = asyncHandler(async (req, res) => {
     if (!isOwner) throw new AppError('Forbidden: Access denied to manage inspection for this property', 403);
   }
 
+  const parsedDate = new Date(inspectionDate);
+  if (isNaN(parsedDate.getTime())) {
+    throw new AppError('Invalid inspection date provided', 400);
+  }
+
   const tenant = await Tenant.findById(lease.tenant);
   const tenantUser = tenant ? await User.findOne({ email: tenant.email }) : null;
 
-  const inspection = await PropertyInspection.create({
+  // Idempotent inspection check: find existing uncompleted or scheduled inspection
+  let inspection = await PropertyInspection.findOne({
     lease: leaseId,
-    property: lease.property,
-    manager: req.user.userId,
-    inspectionDate: new Date(inspectionDate),
-    inspectionStatus: 'scheduled',
-    inspectionResult: 'none',
-    notes,
-    createdBy: req.user.userId,
-    timeline: [{ event: 'Scheduled', note: `Inspection scheduled for ${new Date(inspectionDate).toLocaleDateString()}` }]
-  });
+    inspectionStatus: { $in: ['pending', 'scheduled'] },
+    isArchived: false,
+  }).sort({ createdAt: -1 });
+
+  if (inspection) {
+    inspection.inspectionDate = parsedDate;
+    if (notes !== undefined) inspection.notes = notes;
+    inspection.manager = req.user.userId;
+    inspection.timeline.push({
+      event: 'Rescheduled',
+      note: `Inspection rescheduled for ${parsedDate.toLocaleDateString()}`
+    });
+    await inspection.save();
+  } else {
+    inspection = await PropertyInspection.create({
+      lease: leaseId,
+      property: lease.property,
+      manager: req.user.userId,
+      inspectionDate: parsedDate,
+      inspectionStatus: 'scheduled',
+      inspectionResult: 'none',
+      notes,
+      createdBy: req.user.userId,
+      timeline: [{ event: 'Scheduled', note: `Inspection scheduled for ${parsedDate.toLocaleDateString()}` }]
+    });
+  }
 
   lease.moveOutStatus = 'inspection_scheduled';
   await lease.save();
@@ -452,7 +479,7 @@ export const scheduleInspection = asyncHandler(async (req, res) => {
         recipient: tenantUser._id,
         sender: req.user.userId,
         title: 'Move-Out Inspection Scheduled',
-        message: `Property management scheduled your move-out inspection for ${new Date(inspectionDate).toLocaleDateString()}.`,
+        message: `Property management scheduled your move-out inspection for ${parsedDate.toLocaleDateString()}.`,
         category: 'inspection',
         priority: 'high',
         actionUrl: '/my-lease',
@@ -481,10 +508,82 @@ export const completeInspection = asyncHandler(async (req, res) => {
     estimatedRepairCost,
     actualRepairCost,
     refundAmount,
-    inspectionResult
+    inspectionResult,
+    leaseId
   } = req.body;
 
-  const inspection = await PropertyInspection.findById(id);
+  let inspection = null;
+  let targetLease = null;
+
+  // Step 1: Attempt direct resolution by PropertyInspection ID
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    inspection = await PropertyInspection.findById(id);
+
+    // Step 2: Fallback - if not found by inspection._id, check if id was actually a Lease ID
+    if (!inspection) {
+      inspection = await PropertyInspection.findOne({
+        lease: id,
+        isArchived: false,
+      }).sort({ createdAt: -1 });
+
+      if (inspection) {
+        targetLease = await Lease.findById(id);
+      }
+    }
+  }
+
+  // Step 3: Fallback - resolve via leaseId in body if provided
+  if (!inspection && leaseId && mongoose.Types.ObjectId.isValid(leaseId)) {
+    inspection = await PropertyInspection.findOne({
+      lease: leaseId,
+      isArchived: false,
+    }).sort({ createdAt: -1 });
+
+    if (inspection && !targetLease) {
+      targetLease = await Lease.findById(leaseId);
+    }
+  }
+
+  // Step 4: Self-healing reconciliation
+  // If no inspection record exists at all, but the ID refers to a valid lease in move-out flow
+  if (!inspection) {
+    const candidateLeaseId = (leaseId && mongoose.Types.ObjectId.isValid(leaseId))
+      ? leaseId
+      : (mongoose.Types.ObjectId.isValid(id) ? id : null);
+
+    if (candidateLeaseId) {
+      const leaseCandidate = await Lease.findById(candidateLeaseId);
+      if (
+        leaseCandidate &&
+        (['requested', 'inspection_scheduled', 'notice_submitted', 'moving_out'].includes(leaseCandidate.moveOutStatus) ||
+          leaseCandidate.leaseDecision === 'moving_out')
+      ) {
+        // Manager authorization check before self-healing creation
+        if (req.user?.role === 'manager') {
+          const isOwner = await isManagerPropertyOwner(leaseCandidate.property, req.user.userId);
+          if (!isOwner) throw new AppError('Forbidden: Access denied to manage inspection for this property', 403);
+        }
+
+        // Create the missing PropertyInspection document idempotently
+        inspection = await PropertyInspection.findOne({ lease: leaseCandidate._id, isArchived: false });
+        if (!inspection) {
+          inspection = await PropertyInspection.create({
+            lease: leaseCandidate._id,
+            property: leaseCandidate.property,
+            manager: req.user.userId,
+            inspectionDate: new Date(),
+            inspectionStatus: 'scheduled',
+            inspectionResult: 'none',
+            notes: notes || 'Auto-reconciled inspection record for scheduled move-out',
+            createdBy: req.user.userId,
+            timeline: [{ event: 'Reconciled', note: 'Auto-reconciled inspection record created prior to completion.' }]
+          });
+        }
+        targetLease = leaseCandidate;
+      }
+    }
+  }
+
   if (!inspection) throw new AppError('Inspection report not found', 404);
 
   // Manager authorization check
@@ -493,21 +592,21 @@ export const completeInspection = asyncHandler(async (req, res) => {
     if (!isOwner) throw new AppError('Forbidden: Access denied to complete inspection for this property', 403);
   }
 
-  inspection.checklist = checklist || inspection.checklist;
-  inspection.beforePhotos = beforePhotos || inspection.beforePhotos;
-  inspection.damagePhotos = damagePhotos || inspection.damagePhotos;
-  inspection.afterRepairPhotos = afterRepairPhotos || inspection.afterRepairPhotos;
-  inspection.notes = notes || inspection.notes;
+  if (checklist) inspection.checklist = checklist;
+  if (beforePhotos) inspection.beforePhotos = beforePhotos;
+  if (damagePhotos) inspection.damagePhotos = damagePhotos;
+  if (afterRepairPhotos) inspection.afterRepairPhotos = afterRepairPhotos;
+  if (notes !== undefined) inspection.notes = notes;
   inspection.estimatedRepairCost = Number(estimatedRepairCost) || 0;
   inspection.actualRepairCost = Number(actualRepairCost) || 0;
   inspection.refundAmount = Number(refundAmount) || 0;
   inspection.inspectionStatus = 'completed';
-  inspection.inspectionResult = inspectionResult;
+  inspection.inspectionResult = inspectionResult || 'passed';
   inspection.updatedBy = req.user.userId;
-  inspection.timeline.push({ event: 'Completed', note: `Inspection completed with result: ${inspectionResult}` });
+  inspection.timeline.push({ event: 'Completed', note: `Inspection completed with result: ${inspection.inspectionResult}` });
   await inspection.save();
 
-  const lease = await Lease.findById(inspection.lease);
+  const lease = targetLease || await Lease.findById(inspection.lease);
   if (lease) {
     lease.moveOutStatus = 'inspection_completed';
     await lease.save();
@@ -520,7 +619,7 @@ export const completeInspection = asyncHandler(async (req, res) => {
           recipient: tenantUser._id,
           sender: req.user.userId,
           title: 'Move-Out Inspection Completed',
-          message: `Move-out inspection for ${lease.leaseNumber} has been completed. Result: ${inspectionResult}`,
+          message: `Move-out inspection for ${lease.leaseNumber} has been completed. Result: ${inspection.inspectionResult}`,
           category: 'inspection',
           priority: 'normal',
           actionUrl: '/my-lease',
@@ -865,8 +964,27 @@ export const getUpcomingExpiringLeases = asyncHandler(async (req, res) => {
 });
 
 export const getInspectionById = asyncHandler(async (req, res) => {
-  const inspection = await PropertyInspection.findById(req.params.id).populate('lease property');
+  const { id } = req.params;
+  let inspection = null;
+
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    inspection = await PropertyInspection.findById(id).populate('lease property');
+    if (!inspection) {
+      inspection = await PropertyInspection.findOne({ lease: id, isArchived: false })
+        .sort({ createdAt: -1 })
+        .populate('lease property');
+    }
+  }
+
   if (!inspection) throw new AppError('Inspection report not found', 404);
+
+  // Manager authorization check
+  if (req.user?.role === 'manager') {
+    const propId = inspection.property?._id ? inspection.property._id.toString() : inspection.property?.toString();
+    const isOwner = await isManagerPropertyOwner(propId, req.user.userId);
+    if (!isOwner) throw new AppError('Forbidden: Access denied to view this inspection report', 403);
+  }
+
   res.status(200).json({ success: true, data: inspection });
 });
 

@@ -5,6 +5,7 @@ import Tenant from '../models/Tenant.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 import Booking from '../models/Booking.js';
+import PropertyInspection from '../models/PropertyInspection.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
@@ -380,7 +381,11 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
     .populate('createdBy', 'firstName lastName');
 
   const leaseIds = leases.map(l => l._id);
-  const payments = await Payment.find({ lease: { $in: leaseIds } }).lean();
+  const [payments, inspections] = await Promise.all([
+    Payment.find({ lease: { $in: leaseIds } }).lean(),
+    PropertyInspection.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean()
+  ]);
+
   const paymentsByLease = {};
   payments.forEach(p => {
     const k = p.lease?.toString();
@@ -388,8 +393,17 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
     paymentsByLease[k].push(p);
   });
 
+  const inspectionsByLease = {};
+  inspections.forEach(insp => {
+    const k = insp.lease?.toString();
+    if (!inspectionsByLease[k]) {
+      inspectionsByLease[k] = insp;
+    }
+  });
+
   const enriched = leases.map(l => {
     const leasePayments = paymentsByLease[l._id.toString()] || [];
+    const leaseInspection = inspectionsByLease[l._id.toString()] || null;
     const lifecycle = resolveLeaseLifecycle(l, leasePayments, now);
     const resolved = resolveLeaseUrls(l, req);
     return {
@@ -398,6 +412,8 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
       effectiveStatus: lifecycle.effectiveStatus,
       lifecycle,
       paymentSummary: lifecycle.paymentSummary,
+      inspectionId: leaseInspection ? leaseInspection._id.toString() : null,
+      inspection: leaseInspection,
     };
   });
 
