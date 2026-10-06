@@ -385,7 +385,7 @@ export const getMoveOutRequests = asyncHandler(async (req, res) => {
   const [payments, inspections, settlements] = await Promise.all([
     Payment.find({ lease: { $in: leaseIds } }).lean(),
     PropertyInspection.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean(),
-    DepositSettlement.find({ lease: { $in: leaseIds }, isArchived: false }).sort({ createdAt: -1 }).lean()
+    DepositSettlement.find({ lease: { $in: leaseIds }, isArchived: { $ne: true } }).sort({ createdAt: -1 }).lean()
   ]);
 
   const paymentsByLease = {};

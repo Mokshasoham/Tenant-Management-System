@@ -55,10 +55,22 @@ it('Blocks finalization if settlement exists but status is "Processing"', () => 
   assert.strictEqual(canFinalize, false, 'Finalization must be blocked when status is Processing');
 });
 
-it('Allows finalization only when settlement exists with authoritative status: "Completed"', () => {
+it('Allows finalization when settlement exists with authoritative status: "Completed" and isArchived: false', () => {
   const settlement = { status: 'Completed', isArchived: false };
-  const canFinalize = !!(settlement && settlement.status === 'Completed' && !settlement.isArchived);
+  const canFinalize = !!(settlement && settlement.status === 'Completed' && settlement.isArchived !== true);
   assert.strictEqual(canFinalize, true, 'Finalization must be allowed when status is Completed');
+});
+
+it('Backward-compatibility: Allows finalization on historical documents where isArchived is undefined/absent', () => {
+  const historicalSettlement = { status: 'Completed' }; // isArchived field absent
+  const canFinalize = !!(historicalSettlement && historicalSettlement.status === 'Completed' && historicalSettlement.isArchived !== true);
+  assert.strictEqual(canFinalize, true, 'Historical settlement without isArchived field must be compatible');
+});
+
+it('Blocks finalization if settlement is archived (isArchived: true)', () => {
+  const archivedSettlement = { status: 'Completed', isArchived: true };
+  const canFinalize = !!(archivedSettlement && archivedSettlement.status === 'Completed' && archivedSettlement.isArchived !== true);
+  assert.strictEqual(canFinalize, false, 'Archived settlement must not satisfy finalization gate');
 });
 
 // -----------------------------------------------------------------------------

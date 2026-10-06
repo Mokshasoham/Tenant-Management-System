@@ -675,7 +675,7 @@ export const getDepositSettlementPreview = asyncHandler(async (req, res) => {
     : 0;
 
   // Check if settlement already exists
-  const existingSettlement = await DepositSettlement.findOne({ lease: leaseId, isArchived: false }).lean();
+  const existingSettlement = await DepositSettlement.findOne({ lease: leaseId, isArchived: { $ne: true } }).lean();
   const isSettled = existingSettlement?.status === 'Completed';
 
   const depositAmount = Number(lease.depositAmount) || 0;
@@ -690,7 +690,9 @@ export const getDepositSettlementPreview = asyncHandler(async (req, res) => {
       leaseNumber: lease.leaseNumber,
       depositAmount,
       rentDue,
+      unpaidRent: rentDue,
       repairDeduction,
+      inspectionRepairCost: repairDeduction,
       inspection: inspection ? {
         _id: inspection._id,
         inspectionStatus: inspection.inspectionStatus,
@@ -724,7 +726,7 @@ export const processDepositRefund = asyncHandler(async (req, res) => {
   }
 
   // Idempotency safeguard: if settlement is already completed, return existing settlement
-  const existingCompleted = await DepositSettlement.findOne({ lease: leaseId, status: 'Completed', isArchived: false });
+  const existingCompleted = await DepositSettlement.findOne({ lease: leaseId, status: 'Completed', isArchived: { $ne: true } });
   if (existingCompleted) {
     return res.status(200).json({
       success: true,
@@ -1039,7 +1041,7 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
   const settlement = await DepositSettlement.findOne({
     lease: id,
     status: 'Completed',
-    isArchived: false,
+    isArchived: { $ne: true },
   });
 
   if (!settlement) {
@@ -1075,7 +1077,7 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
         title: 'Move-out Completed',
         message: `Your move-out from property ${property?.name || 'residence'} has been officially completed.`,
         category: 'move-out',
-        priority: 'normal',
+        priority: 'medium',
         actionUrl: '/my-lease',
         link: '/my-lease',
         idempotencyKey: `moveout_final_${lease._id}`,
@@ -1095,7 +1097,7 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
       title: 'Property Ready for Booking',
       message: `Property ${property?.name || 'residence'} is now available for new bookings.`,
       category: 'lease',
-      priority: 'normal',
+      priority: 'medium',
       actionUrl: '/properties',
       link: '/properties',
       idempotencyKey: `property_vacated_${property?._id || lease._id}`,
@@ -1161,7 +1163,7 @@ export const getFeedbackByLeaseId = asyncHandler(async (req, res) => {
 });
 
 export const getDepositByLeaseId = asyncHandler(async (req, res) => {
-  const deposit = await DepositSettlement.findOne({ lease: req.params.leaseId, isArchived: false })
+  const deposit = await DepositSettlement.findOne({ lease: req.params.leaseId, isArchived: { $ne: true } })
     .populate('createdBy', 'firstName lastName email')
     .populate({
       path: 'lease',
