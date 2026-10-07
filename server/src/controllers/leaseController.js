@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 import PropertyInspection from '../models/PropertyInspection.js';
 import DepositSettlement from '../models/DepositSettlement.js';
+import AutoPay from '../models/AutoPay.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
@@ -176,6 +177,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
       ...resolved,
       status: lifecycle.effectiveStatus === 'expired' ? 'expired' : lease.status,
       effectiveStatus: lifecycle.effectiveStatus,
+      canPayRent: lifecycle.canPayRent,
       lifecycle,
       paymentSummary: lifecycle.paymentSummary,
       settlementId: leaseSettlement ? leaseSettlement._id.toString() : null,
@@ -692,6 +694,18 @@ export const terminateLease = asyncHandler(async (req, res) => {
 
   lease.status = 'terminated';
   await lease.save();
+
+  // Disable any active AutoPay configurations for this lease
+  await AutoPay.updateMany(
+    { lease: id, status: { $ne: 'disabled' } },
+    {
+      $set: {
+        status: 'disabled',
+        disabledAt: new Date(),
+        failureReason: 'Lease tenancy concluded'
+      }
+    }
+  );
 
   // Update property status
   const property = await Property.findById(lease.property);

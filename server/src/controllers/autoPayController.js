@@ -14,6 +14,7 @@ import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfService.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
+import { canLeasePayRent } from '../utils/leaseLifecycle.js';
 
 // Safe Notification dispatcher proxy
 const dispatchNotification = async (data) => {
@@ -98,13 +99,16 @@ export const getAutoPayStatus = asyncHandler(async (req, res) => {
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
   const isProviderConfigured = Boolean(keyId && keySecret && !keyId.includes('placeholder'));
 
+  const isLeasePayable = canLeasePayRent(lease);
+  const isAutoPayActive = isLeasePayable && autoPay ? autoPay.status === 'active' : false;
+
   res.status(200).json({
     success: true,
     data: {
-      enabled: autoPay ? autoPay.status === 'active' : false,
-      status: autoPay ? autoPay.status : 'disabled',
-      autoPay: autoPay || null,
-      schedule: schedule || null,
+      enabled: isAutoPayActive,
+      status: isAutoPayActive ? autoPay.status : 'disabled',
+      autoPay: isLeasePayable ? (autoPay || null) : (autoPay ? { ...autoPay.toObject(), status: 'disabled' } : null),
+      schedule: isLeasePayable ? (schedule || null) : null,
       monthlyAmount: lease.rentAmount || 0,
       propertyName: lease.property?.name || 'Assigned Residence',
       isProviderConfigured,
@@ -419,8 +423,12 @@ export const processDueAutoPayments = async () => {
       const property = autoPay.property;
       const tenantUser = autoPay.tenant;
 
-      if (!lease || lease.status !== 'active') {
-        logger.warn(`[AUTOPAY CRON] Lease ${autoPay.lease?._id} is not active. Skipping Auto-Pay.`);
+      if (!lease || !canLeasePayRent(lease)) {
+        logger.warn(`[AUTOPAY CRON] Lease ${autoPay.lease?._id} is not active or tenancy concluded. Disabling Auto-Pay.`);
+        autoPay.status = 'disabled';
+        autoPay.disabledAt = new Date();
+        autoPay.failureReason = 'Lease tenancy concluded';
+        await autoPay.save();
         continue;
       }
 

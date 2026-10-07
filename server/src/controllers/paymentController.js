@@ -16,6 +16,7 @@ import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfServic
 import { getSignedUrlForFile } from './fileController.js';
 import { calculatePaymentBreakdown, recordVerifiedRevenue } from '../services/platformFeeService.js';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
+import { canLeasePayRent } from '../utils/leaseLifecycle.js';
 
 const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
@@ -649,21 +650,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
   const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
 
-  if (leaseId) {
-    if (mongoose.Types.ObjectId.isValid(leaseId)) {
-      targetLease = await Lease.findById(leaseId).populate('property tenant');
-    }
-    if (!targetLease) {
-      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
-    }
-    if (targetLease) {
-      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
-                      allTargetLeaseIds.includes(String(targetLease._id));
-      if (!isOwner) {
-        throw new AppError('Forbidden: Access denied to this lease', 403);
-      }
-    }
-  } else if (billId) {
+  if (billId) {
     let bill = null;
     if (mongoose.Types.ObjectId.isValid(billId)) {
       bill = await Bill.findById(billId).populate('lease property tenant');
@@ -671,15 +658,72 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     if (!bill) {
       bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
     }
-    if (bill && bill.lease) {
-      targetLease = await Lease.findById(bill.lease).populate('property tenant');
-      if (targetLease) {
-        const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
-                        allTargetLeaseIds.includes(String(targetLease._id));
-        if (!isOwner) {
-          throw new AppError('Forbidden: Access denied to this lease', 403);
+    if (!bill) {
+      throw new AppError('Bill not found', 404);
+    }
+    const billTenantId = String(bill.tenant?._id || bill.tenant);
+    if (!tenantIds.includes(billTenantId)) {
+      throw new AppError('Forbidden: Access denied to this bill', 403);
+    }
+    const unpaidBalance = Math.max(0, (bill.amountDue || 0) - (bill.amountPaid || 0));
+    if (unpaidBalance <= 0 || bill.status === 'paid') {
+      throw new AppError('This bill has already been settled', 400);
+    }
+
+    targetLease = bill.lease ? await Lease.findById(bill.lease).populate('property tenant') : null;
+    const targetProperty = bill.property || targetLease?.property;
+
+    const breakdown = await calculatePaymentBreakdown(unpaidBalance);
+    return res.status(200).json({
+      success: true,
+      data: {
+        billId: bill._id,
+        billNumber: bill.billNumber,
+        isBillPayment: true,
+        canPayRent: false,
+        leaseId: targetLease?._id || null,
+        leaseNumber: targetLease?.leaseNumber || null,
+        propertyId: targetProperty?._id || null,
+        propertyName: targetProperty?.name || 'TMS Residence',
+        tenantId: bill.tenant?._id || bill.tenant,
+        monthlyRent: unpaidBalance,
+        lateFee: 0,
+        daysOverdue: 0,
+        lateFeePerDay: 0,
+        platformFee: breakdown.platformFee,
+        platformFeePercentage: breakdown.platformFeePercentage || 1,
+        taxAmount: breakdown.taxAmount || 0,
+        totalDue: breakdown.totalPayable,
+        currency: 'INR',
+        status: bill.status || 'due',
+        dueDate: bill.dueDate,
+        isOverdue: bill.status === 'overdue' || (bill.dueDate && new Date(bill.dueDate) < new Date()),
+        isDueToday: false,
+        isUpcoming: false,
+        isEstimate: false,
+        autoPay: {
+          enabled: false,
+          status: 'disabled'
         }
       }
+    });
+  } else if (leaseId) {
+    if (mongoose.Types.ObjectId.isValid(leaseId)) {
+      targetLease = await Lease.findById(leaseId).populate('property tenant');
+    }
+    if (!targetLease) {
+      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    }
+    if (!targetLease) {
+      throw new AppError('Lease not found', 404);
+    }
+    const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
+                    allTargetLeaseIds.includes(String(targetLease._id));
+    if (!isOwner) {
+      throw new AppError('Forbidden: Access denied to this lease', 403);
+    }
+    if (!canLeasePayRent(targetLease)) {
+      throw new AppError('Lease is not active for rent payment', 400);
     }
   }
 
@@ -701,6 +745,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     }
   }
 
+  // If no explicit lease requested, find authoritative ACTIVE payable lease only
   if (!targetLease) {
     targetLease = await Lease.findOne({
       $or: [
@@ -708,22 +753,12 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
         { user: { $in: tenantIds } },
         ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
       ],
-      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] }
-    }).populate('property tenant');
-  }
-
-  if (!targetLease) {
-    targetLease = await Lease.findOne({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ]
+      status: 'active'
     }).sort({ createdAt: -1 }).populate('property tenant');
   }
 
-  if (!targetLease) {
-    throw new AppError('No lease found for payment calculation', 404);
+  if (!targetLease || !canLeasePayRent(targetLease)) {
+    throw new AppError('No active lease found for rent payment', 404);
   }
 
   const targetProperty = targetLease.property;
@@ -756,13 +791,14 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     lease: targetLease._id,
   });
 
-  const isAutoPayActive = autoPayDoc ? autoPayDoc.status === 'active' : false;
+  const isAutoPayActive = Boolean(autoPayDoc && autoPayDoc.status === 'active' && canLeasePayRent(targetLease));
 
   res.status(200).json({
     success: true,
     data: {
       leaseId: targetLease._id,
       leaseNumber: targetLease.leaseNumber,
+      canPayRent: true,
       propertyId: targetProperty?._id || targetLease.property,
       propertyName: targetProperty?.name || 'TMS Residence',
       tenantId: targetLease.tenant?._id || targetLease.tenant,
@@ -785,7 +821,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
       isEstimate: schedule?.isEstimate ?? true,
       autoPay: {
         enabled: isAutoPayActive,
-        status: autoPayDoc ? autoPayDoc.status : 'disabled'
+        status: isAutoPayActive ? 'active' : 'disabled'
       }
     }
   });
@@ -804,79 +840,84 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
   const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)].map(String);
 
   let targetLease = null;
-  if (leaseId) {
-    if (mongoose.Types.ObjectId.isValid(leaseId)) {
-      targetLease = await Lease.findById(leaseId).populate('property tenant');
-    }
-    if (!targetLease) {
-      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
-    }
-    if (targetLease) {
-      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
-      if (!isOwner) {
-        throw new AppError('Forbidden: Access denied to this lease', 403);
-      }
-    }
-  } else if (billId) {
-    let bill = null;
+  let targetBill = null;
+  let targetPayment = null;
+  let basePayable = 0;
+  let rentAmount = 0;
+  let lateFee = 0;
+  let daysOverdue = 0;
+
+  if (billId) {
     if (mongoose.Types.ObjectId.isValid(billId)) {
-      bill = await Bill.findById(billId).populate('lease property tenant');
+      targetBill = await Bill.findById(billId).populate('lease property tenant');
     }
-    if (!bill) {
-      bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
+    if (!targetBill) {
+      targetBill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
     }
-    if (bill && bill.lease) {
-      targetLease = await Lease.findById(bill.lease).populate('property tenant');
-      if (targetLease) {
-        const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
-        if (!isOwner) {
-          throw new AppError('Forbidden: Access denied to this lease', 403);
-        }
-      }
+    if (!targetBill) {
+      throw new AppError('Bill not found', 404);
     }
-  }
-
-  if (!targetLease) {
-    targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending', 'expired'] }
-    }).populate('property tenant');
-  }
-
-  if (!targetLease) {
-    targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds }
-    }).sort({ createdAt: -1 }).populate('property tenant');
-  }
-
-  if (!targetLease) {
-    throw new AppError('Lease not found for order creation', 404);
-  }
-
-  // Calculate authoritative total from server — never trust client amounts
-  const leasePayments = await Payment.find({ lease: targetLease._id }).sort({ dueDate: -1, createdAt: -1 });
-  const schedule = calculateNextPaymentDue(targetLease, leasePayments, new Date());
-
-  const rentAmount = schedule?.rentAmount ?? targetLease.rentAmount ?? 0;
-  const lateFee = schedule?.lateFee ?? 0;
-  const daysOverdue = schedule?.daysLate ?? 0;
-  let basePayable = rentAmount + lateFee;
-
-  // If paying a specific outstanding payment (e.g. from an expired lease)
-  if (paymentId) {
-    const targetPayment = await Payment.findById(paymentId);
+    const billTenantId = String(targetBill.tenant?._id || targetBill.tenant);
+    if (!tenantIds.includes(billTenantId)) {
+      throw new AppError('Forbidden: Access denied to this bill', 403);
+    }
+    const unpaidBillBalance = Math.max(0, (targetBill.amountDue || 0) - (targetBill.amountPaid || 0));
+    if (unpaidBillBalance <= 0 || targetBill.status === 'paid') {
+      throw new AppError('This bill has already been settled', 400);
+    }
+    targetLease = targetBill.lease ? await Lease.findById(targetBill.lease).populate('property tenant') : null;
+    basePayable = unpaidBillBalance;
+  } else if (paymentId) {
+    targetPayment = await Payment.findById(paymentId);
     if (!targetPayment) throw new AppError('Payment record not found', 404);
     if (!tenantIds.includes(String(targetPayment.tenant))) {
       throw new AppError('Forbidden: Access denied to this payment record', 403);
-    }
-    if (String(targetPayment.lease) !== String(targetLease._id)) {
-      throw new AppError('Forbidden: Payment record does not belong to the selected lease', 403);
     }
     const unpaidBalance = Math.max(0, (targetPayment.amount || 0) - (targetPayment.amountPaid || 0));
     if (unpaidBalance <= 0 || targetPayment.status === 'paid') {
       throw new AppError('This payment obligation has already been settled', 400);
     }
+    targetLease = targetPayment.lease ? await Lease.findById(targetPayment.lease).populate('property tenant') : null;
     basePayable = unpaidBalance;
+  } else {
+    // Normal monthly rent payment: REQUIRES an active, payable lease
+    if (leaseId) {
+      if (mongoose.Types.ObjectId.isValid(leaseId)) {
+        targetLease = await Lease.findById(leaseId).populate('property tenant');
+      }
+      if (!targetLease) {
+        targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+      }
+      if (!targetLease) {
+        throw new AppError('Lease not found', 404);
+      }
+      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
+      if (!isOwner) {
+        throw new AppError('Forbidden: Access denied to this lease', 403);
+      }
+      if (!canLeasePayRent(targetLease)) {
+        throw new AppError('Lease is not active for rent payment', 400);
+      }
+    } else {
+      // Find active payable lease
+      targetLease = await Lease.findOne({
+        tenant: { $in: tenantIds },
+        status: 'active'
+      }).sort({ createdAt: -1 }).populate('property tenant');
+
+      if (!targetLease || !canLeasePayRent(targetLease)) {
+        throw new AppError('No active lease found for rent payment', 404);
+      }
+    }
+
+    // Calculate authoritative total from server — never trust client amounts
+    const leasePayments = await Payment.find({ lease: targetLease._id }).sort({ dueDate: -1, createdAt: -1 });
+    const schedule = calculateNextPaymentDue(targetLease, leasePayments, new Date());
+
+    rentAmount = schedule?.rentAmount ?? targetLease.rentAmount ?? 0;
+    lateFee = schedule?.lateFee ?? 0;
+    daysOverdue = schedule?.daysLate ?? 0;
+    basePayable = rentAmount + lateFee;
   }
 
   const breakdown = await calculatePaymentBreakdown(basePayable);
@@ -893,12 +934,15 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
     const order = await rzp.orders.create({
       amount: amountInPaise,
       currency: 'INR',
-      receipt: `rcpt_rent_${String(targetLease._id).slice(-8)}_${Date.now()}`,
+      receipt: `rcpt_rent_${String(targetLease?._id || targetBill?._id || 'gen').slice(-8)}_${Date.now()}`,
       notes: {
-        leaseId: String(targetLease._id),
-        propertyId: String(targetLease.property?._id || targetLease.property),
-        tenantId: String(targetLease.tenant?._id || targetLease.tenant),
-        monthlyRent: String(rentAmount),
+        leaseId: targetLease ? String(targetLease._id) : '',
+        propertyId: String(targetLease?.property?._id || targetLease?.property || targetBill?.property || ''),
+        tenantId: String(targetLease?.tenant?._id || targetLease?.tenant || targetBill?.tenant || ''),
+        billId: targetBill ? String(targetBill._id) : '',
+        paymentId: targetPayment ? String(targetPayment._id) : '',
+        paymentType: targetBill ? 'bill' : (targetPayment ? 'debt_settlement' : 'rent'),
+        monthlyRent: String(rentAmount || basePayable),
         lateFee: String(lateFee),
         daysOverdue: String(daysOverdue),
         platformFee: String(breakdown.platformFee),
@@ -920,9 +964,11 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
       keyId: keyId,
       amount: amountInPaise,
       currency: 'INR',
-      leaseId: targetLease._id,
+      leaseId: targetLease?._id || null,
+      billId: targetBill?._id || null,
       totalDue,
       breakdown: {
+        basePayable,
         monthlyRent: rentAmount,
         lateFee,
         daysOverdue,
@@ -947,53 +993,58 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
   const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)];
 
   let targetLease = null;
-  if (leaseId) {
-    if (mongoose.Types.ObjectId.isValid(leaseId)) {
-      targetLease = await Lease.findById(leaseId).populate('property tenant');
+  let targetBill = null;
+
+  if (billId) {
+    if (mongoose.Types.ObjectId.isValid(billId)) {
+      targetBill = await Bill.findById(billId).populate('lease property tenant');
     }
-    if (!targetLease) {
-      targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+    if (!targetBill) {
+      targetBill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
     }
-    if (targetLease) {
+    if (!targetBill) {
+      throw new AppError('Bill not found for payment verification', 404);
+    }
+    const billTenantId = String(targetBill.tenant?._id || targetBill.tenant);
+    if (!tenantIds.map(String).includes(billTenantId)) {
+      throw new AppError('Forbidden: Access denied to this bill', 403);
+    }
+    if (targetBill.status === 'paid') {
+      throw new AppError('This bill has already been settled', 400);
+    }
+    targetLease = targetBill.lease ? await Lease.findById(targetBill.lease).populate('property tenant') : null;
+  } else {
+    // Rent payment: MUST verify active lease
+    if (leaseId) {
+      if (mongoose.Types.ObjectId.isValid(leaseId)) {
+        targetLease = await Lease.findById(leaseId).populate('property tenant');
+      }
+      if (!targetLease) {
+        targetLease = await Lease.findOne({ leaseNumber: leaseId }).populate('property tenant');
+      }
+      if (!targetLease) {
+        throw new AppError('Lease not found for payment verification', 404);
+      }
       const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
       if (!isOwner) {
         throw new AppError('Forbidden: Access denied to this lease', 403);
       }
-    }
-  } else if (billId) {
-    let bill = null;
-    if (mongoose.Types.ObjectId.isValid(billId)) {
-      bill = await Bill.findById(billId).populate('lease property tenant');
-    }
-    if (!bill) {
-      bill = await Bill.findOne({ billNumber: billId }).populate('lease property tenant');
-    }
-    if (bill && bill.lease) {
-      targetLease = await Lease.findById(bill.lease).populate('property tenant');
-      if (targetLease) {
-        const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
-        if (!isOwner) {
-          throw new AppError('Forbidden: Access denied to this lease', 403);
-        }
+    } else {
+      targetLease = await Lease.findOne({
+        tenant: { $in: tenantIds },
+        status: 'active'
+      }).sort({ createdAt: -1 }).populate('property tenant');
+
+      if (!targetLease) {
+        throw new AppError('Lease not found for payment verification', 404);
       }
     }
-  }
 
-  if (!targetLease) {
-    targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds },
-      status: { $in: ['active', 'pending', 'expired'] }
-    }).populate('property tenant');
-  }
-
-  if (!targetLease) {
-    targetLease = await Lease.findOne({
-      tenant: { $in: tenantIds }
-    }).sort({ createdAt: -1 }).populate('property tenant');
-  }
-
-  if (!targetLease) {
-    throw new AppError('Lease not found for payment verification', 404);
+    // GATE 2 (RACE CONDITION DEFENSE):
+    // Lease must STILL be active and payable at verification time!
+    if (!canLeasePayRent(targetLease)) {
+      throw new AppError('Lease has expired or move-out has been finalized. Rent payment cannot be completed.', 400);
+    }
   }
 
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
@@ -1010,6 +1061,74 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
   if (generatedSignature !== razorpaySignature) {
     logger.error(`[Razorpay Rent] Signature mismatch for order ${razorpayOrderId}. Expected ${generatedSignature}, got ${razorpaySignature}`);
     throw new AppError('Payment signature verification failed. Invalid transaction signature.', 400);
+  }
+
+  // Handle Bill Settlement Payment
+  if (targetBill) {
+    const remainingBalance = Math.max(0, (targetBill.amountDue || 0) - (targetBill.amountPaid || 0));
+    const breakdown = await calculatePaymentBreakdown(remainingBalance);
+    const totalDue = breakdown.totalPayable;
+
+    targetBill.status = 'paid';
+    targetBill.amountPaid = targetBill.amountDue;
+    targetBill.timeline.push({
+      status: 'paid',
+      note: `Paid ₹${totalDue} via Razorpay (Ref: ${razorpayPaymentId}).`,
+      timestamp: new Date()
+    });
+
+    const payment = await Payment.create({
+      type: targetBill.type || 'bill',
+      lease: targetBill.lease,
+      tenant: targetBill.tenant?._id || targetBill.tenant,
+      property: targetBill.property?._id || targetBill.property,
+      bill: targetBill._id,
+      amount: remainingBalance,
+      amountPaid: totalDue,
+      platformFee: breakdown.platformFee,
+      taxAmount: breakdown.taxAmount || 0,
+      totalAmount: totalDue,
+      totalDue,
+      status: 'paid',
+      paidAt: new Date(),
+      paymentDate: new Date(),
+      dueDate: targetBill.dueDate,
+      paymentMethod: 'card',
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      providerStatus: 'captured',
+      reference: razorpayPaymentId,
+      notes: `Bill settlement payment for ${targetBill.billNumber} via Razorpay`
+    });
+
+    targetBill.payment = payment._id;
+    await targetBill.save();
+
+    await recordVerifiedRevenue({
+      paymentId: payment._id,
+      amount: totalDue,
+      platformFee: breakdown.platformFee,
+      taxAmount: breakdown.taxAmount,
+      currency: 'INR',
+      paymentMethod: 'card',
+      razorpayOrderId,
+      razorpayPaymentId,
+      leaseId: targetBill.lease,
+      propertyId: targetBill.property?._id || targetBill.property,
+      tenantId: targetBill.tenant?._id || targetBill.tenant
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        payment: resolveInvoiceUrl(payment, req),
+        bill: targetBill,
+        totalPaid: totalDue,
+        status: 'paid'
+      },
+      message: 'Bill payment verified and marked paid successfully'
+    });
   }
 
   // Recalculate authoritative server amounts

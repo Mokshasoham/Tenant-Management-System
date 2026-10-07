@@ -170,6 +170,19 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
                     && !hasTenantSubmittedMoveOut
                     && !isRenewed;
 
+  // Strict active rent payment capability:
+  // Rent payment is permitted ONLY IF the lease is authoritative and currently ACTIVE.
+  // Not expired, not past end date, not concluded, not finalized move-out.
+  const canPayRent = Boolean(
+    lease.status === 'active' &&
+    !isPastEndDate &&
+    !isDecisionDeadlinePassed &&
+    !isMoveOutFinalized &&
+    !['completed', 'refund_processing'].includes(lease.moveOutStatus) &&
+    !isRenewed &&
+    !['expired', 'terminated', 'cancelled'].includes(lease.status)
+  );
+
   // Decision deadline date: the exact lease end date (or end of the 7-day window)
   const decisionDeadlineDate = new Date(lease.endDate);
 
@@ -184,6 +197,7 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
     isPastEndDate,
     canRenew,
     canMoveOut,
+    canPayRent,
     hasTenantSubmittedDecision,
     hasTenantSubmittedMoveOut,
     hasTenantSubmittedRenewal,
@@ -195,3 +209,36 @@ export const resolveLeaseLifecycle = (lease, payments = [], now = new Date()) =>
     paymentSummary
   };
 };
+
+/**
+ * Canonical test to determine if a lease is authoritative and currently payable for rent cycles.
+ * Architectural rule:
+ * canPayRent === true ONLY when:
+ *   lease.status === 'active'
+ *   AND lease is not finalized (moveOutStatus !== 'completed' && !isMoveOutFinalized)
+ *   AND lease is not expired (!isPastEndDate && daysRemaining > 0 && lease.status !== 'expired')
+ *   AND moveOutStatus is not completed or refund_processing
+ *   AND lease is not renewed/terminated/cancelled
+ */
+export const canLeasePayRent = (lease, now = new Date()) => {
+  if (!lease) return false;
+
+  const rawStatus = String(lease.status || '').toLowerCase();
+  if (rawStatus !== 'active') return false;
+  if (['expired', 'terminated', 'cancelled', 'completed'].includes(rawStatus)) return false;
+
+  const moveOutStatus = String(lease.moveOutStatus || 'none').toLowerCase();
+  if (['completed', 'refund_processing'].includes(moveOutStatus)) return false;
+
+  if (lease.isMoveOutFinalized) return false;
+  if (lease.leaseDecision === 'renewed' || Boolean(lease.renewedTo)) return false;
+
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (lease.endDate) {
+    const endMs = new Date(lease.endDate).getTime();
+    if (nowMs > endMs) return false;
+  }
+
+  return true;
+};
+

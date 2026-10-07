@@ -9,6 +9,7 @@ import Tenant from '../models/Tenant.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
 import Maintenance from '../models/Maintenance.js';
+import AutoPay from '../models/AutoPay.js';
 import NotificationModel from '../models/Notification.js';
 import EventService from '../services/eventService.js';
 import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
@@ -1065,6 +1066,18 @@ export const finalizeMoveOut = asyncHandler(async (req, res) => {
   lease.leaseDecision = 'expired';
   lease.moveOutStatus = 'completed';
   await lease.save();
+
+  // Disable any active AutoPay configurations for this lease
+  await AutoPay.updateMany(
+    { lease: id, status: { $ne: 'disabled' } },
+    {
+      $set: {
+        status: 'disabled',
+        disabledAt: new Date(),
+        failureReason: 'Lease tenancy concluded'
+      }
+    }
+  );
 
   // Cleanup property occupant settings
   const property = await Property.findById(lease.property);

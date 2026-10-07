@@ -636,6 +636,7 @@ export default function PayNowPage() {
     const [leases, setLeases] = useState([]);
     const [selectedLeaseId, setSelectedLeaseId] = useState(leaseIdParam || null);
     const [leaseNotFound, setLeaseNotFound] = useState(false);
+    const [nonPayableReason, setNonPayableReason] = useState(null);
     const [billDetails, setBillDetails] = useState(null);
     const [loadingLease, setLoadingLease] = useState(true);
     const [rentSummary, setRentSummary] = useState(null);
@@ -645,12 +646,26 @@ export default function PayNowPage() {
     const [amountError, setAmountError] = useState('');
     const [useCustom, setUseCustom] = useState(false);
 
+    // Helper: Authoritatively determine if a lease is payable for ongoing rent
+    const isPayableLease = (l) => {
+        if (!l) return false;
+        const status = String(l.status || '').toLowerCase();
+        if (status !== 'active') return false;
+        if (l.isMoveOutFinalized) return false;
+        const moveOut = String(l.moveOutStatus || 'none').toLowerCase();
+        if (['completed', 'refund_processing'].includes(moveOut)) return false;
+        if (l.lifecycle?.canPayRent === false || l.canPayRent === false) return false;
+        if (l.endDate && new Date(l.endDate).getTime() < Date.now()) return false;
+        return true;
+    };
+
     // Initial mount: fetch all eligible leases belonging to tenant
     useEffect(() => {
         let isMounted = true;
         (async () => {
             setLoadingLease(true);
             setLeaseNotFound(false);
+            setNonPayableReason(null);
             try {
                 // 1. Fetch Bill details if billIdParam is present
                 if (billIdParam) {
@@ -688,22 +703,28 @@ export default function PayNowPage() {
                     console.warn('[PayNowPage] getMyActiveLeases warning:', lErr);
                 }
 
-                // If specific leaseIdParam is given and not in userLeases, fetch and add only if valid
+                // If specific leaseIdParam is given and not in userLeases, fetch and validate
                 const cleanParam = leaseIdParam ? String(leaseIdParam).trim() : null;
-                if (cleanParam && !userLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)) {
+                if (cleanParam) {
                     try {
                         const directRes = await leaseService.getLeaseById(cleanParam);
                         const directL = directRes?.data?.data || directRes?.data || directRes;
-                        if (directL && (directL.status === 'active' || directL.status === 'signed' || !directL.status)) {
-                            userLeases.unshift(directL);
+                        if (directL) {
+                            if (isPayableLease(directL)) {
+                                if (!userLeases.some(l => String(l._id || l.id || l.leaseNumber) === cleanParam)) {
+                                    userLeases.unshift(directL);
+                                }
+                            } else {
+                                setNonPayableReason("This lease has expired or move-out has been finalized. Rent payment cannot be completed for this tenancy.");
+                            }
                         }
                     } catch (dErr) {
                         console.warn('[PayNowPage] direct getLeaseById warning:', dErr);
                     }
                 }
 
-                // Filter to ONLY active leases
-                const activeOnly = userLeases.filter(l => l && (l.status === 'active' || l.status === 'signed' || !l.status));
+                // Filter to ONLY strictly active, payable leases
+                const activeOnly = userLeases.filter(isPayableLease);
 
                 // Deduplicate strictly by Unique Lease ID using Map
                 const uniqueLeases = Array.from(
@@ -714,30 +735,11 @@ export default function PayNowPage() {
 
                 if (!isMounted) return;
 
-                if (uniqueLeases.length === 0 && !isBooking) {
-                    try {
-                        const sumRes = await paymentService.getRentSummary({ leaseId: cleanParam || undefined, billId: billIdParam || undefined });
-                        const summary = sumRes.data?.data || sumRes.data;
-                        if (summary && summary.leaseId) {
-                            const syntheticLease = {
-                                _id: summary.leaseId,
-                                leaseNumber: summary.leaseNumber,
-                                rentAmount: summary.monthlyRent,
-                                status: 'active',
-                                property: {
-                                    _id: summary.propertyId,
-                                    name: summary.propertyName
-                                }
-                            };
-                            uniqueLeases.push(syntheticLease);
-                            setRentSummary(summary);
-                        }
-                    } catch (sErr) {
-                        console.warn('[PayNowPage] fallback summary error:', sErr);
-                    }
-                }
-
-                if (uniqueLeases.length === 0 && !isBooking) {
+                // STRICT ARCHITECTURAL INVARIANT:
+                // Never synthesize or resurrect expired/concluded leases into payable rent obligations.
+                if (uniqueLeases.length === 0 && !isBooking && !billIdParam) {
+                    setLeases([]);
+                    setSelectedLeaseId(null);
                     setLeaseNotFound(true);
                 } else {
                     setLeases(uniqueLeases);
@@ -814,7 +816,7 @@ export default function PayNowPage() {
 
     const propertyName = selectedLease?.property?.name || rentSummary?.propertyName || selectedLease?.propertyName || 'Property';
     const propertyId = bookingData.propertyId || billDetails?.property?._id || selectedLease?.property?._id || rentSummary?.propertyId;
-    const isAutoPayActive = Boolean(rentSummary?.autoPay?.enabled);
+    const isAutoPayActive = Boolean(rentSummary?.autoPay?.enabled && !billDetails);
     const dueDate = rentSummary?.dueDate || rentSummary?.nextDueDate || selectedLease?.endDate || selectedLease?.nextPaymentDueAt;
 
     const validateCustom = () => {
@@ -847,7 +849,7 @@ export default function PayNowPage() {
                         exit={{ opacity: 0 }} className="rounded-[2.5rem] border border-border bg-card p-8 shadow-xl">
                         <SuccessScreen amount={finalTotalPayable} method={method} navigate={navigate} type={isBooking ? 'booking' : 'rent'} />
                     </motion.div>
-                ) : (!isBooking && !loadingLease && (leases.length === 0 || leaseNotFound)) ? (
+                ) : (!isBooking && !billDetails && !loadingLease && (leases.length === 0 || leaseNotFound)) ? (
                     <motion.div key="no-lease" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                         className="rounded-[2.5rem] border border-border bg-card p-8 sm:p-10 shadow-xl text-center space-y-6">
                         <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30 shadow-lg shadow-emerald-500/20">
@@ -858,9 +860,9 @@ export default function PayNowPage() {
                                 <Shield className="w-3.5 h-3.5 text-emerald-500" />
                                 <span>Rent Payments</span>
                             </div>
-                            <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No active lease yet</h2>
+                            <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No Active Lease</h2>
                             <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                                You don't have an active rental lease requiring payment at this time. Book a property or check back when your rental agreement is active.
+                                {nonPayableReason || "You currently don't have an active tenancy requiring rent payment."}
                             </p>
                         </div>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto pt-2">
@@ -869,9 +871,9 @@ export default function PayNowPage() {
                                 <span>EXPLORE PROPERTIES</span>
                                 <ArrowRight className="w-4 h-4" />
                             </button>
-                            <button onClick={() => navigate('/saved')}
+                            <button onClick={() => navigate('/my-lease')}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-foreground bg-muted border border-border hover:bg-muted/80 transition-all cursor-pointer">
-                                <span>SAVED PROPERTIES</span>
+                                <span>VIEW PAST LEASES</span>
                             </button>
                         </div>
                     </motion.div>
@@ -883,7 +885,7 @@ export default function PayNowPage() {
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                                    {isBooking ? 'Total Payable' : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
+                                    {isBooking ? 'Total Payable' : billDetails ? `Invoice / Bill #${billDetails.billNumber}` : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
                                 </p>
 
                                 {!isBooking && !billIdParam && leases.length > 0 && (
@@ -930,8 +932,8 @@ export default function PayNowPage() {
                                     {/* Breakdown items */}
                                     <div className="bg-black/20 rounded-2xl p-3 mb-4 space-y-1.5 text-xs text-emerald-100/80">
                                         <div className="flex justify-between">
-                                            <span>Monthly Rent</span>
-                                            <span className="font-bold text-white">₹{(useCustom ? parsedCustom : monthlyRent).toLocaleString('en-IN')}</span>
+                                            <span>{billDetails ? `${billDetails.type ? billDetails.type.toUpperCase() : 'Bill'} Amount Due` : 'Monthly Rent'}</span>
+                                            <span className="font-bold text-white">₹{(useCustom ? parsedCustom : (billDetails ? Math.max(0, (billDetails.amountDue || 0) - (billDetails.amountPaid || 0)) : monthlyRent)).toLocaleString('en-IN')}</span>
                                         </div>
                                         {!useCustom && lateFee > 0 && (
                                             <div className="flex justify-between text-rose-300">
@@ -1041,7 +1043,7 @@ export default function PayNowPage() {
                         ) : (
                             <>
                                 {/* Lease-Specific Auto-Pay Status Banner */}
-                                {!isBooking && (
+                                {!isBooking && !billDetails && (
                                     isAutoPayActive ? (
                                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                                             className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-xs shadow-sm">
