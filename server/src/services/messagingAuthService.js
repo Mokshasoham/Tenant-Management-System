@@ -1,22 +1,24 @@
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
-import Booking from '../models/Booking.js';
 import Lease from '../models/Lease.js';
 import Tenant from '../models/Tenant.js';
-import Offer from '../models/Offer.js';
+import { isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
 
 export class MessagingAuthService {
   /**
-   * Retrieves all authorized chat partners for a given user based on Property/Booking/Lease relationships.
+   * Retrieves all authorized chat partners for a given user based strictly on authoritative ACTIVE LEASES.
+   * Business rule: Messaging is allowed ONLY when there is an active lease relationship.
    */
   async getAuthorizedPartners(userId, role) {
     if (!userId) return [];
     const isValidOid = mongoose.Types.ObjectId.isValid(String(userId));
-    const userOid = isValidOid ? new mongoose.Types.ObjectId(String(userId)) : null;
-    const userIds = [userId, userOid].filter(Boolean);
+    if (!isValidOid) return [];
+    const userOid = new mongoose.Types.ObjectId(String(userId));
+    const userIds = [userId, userOid];
+    const now = new Date();
 
-    // ADMIN: Can message anyone active
+    // ADMIN: Can message anyone active for platform administration
     if (role === 'admin') {
       const users = await User.find({ _id: { $nin: userIds }, isActive: { $ne: false } })
         .select('firstName lastName email role avatar')
@@ -25,12 +27,13 @@ export class MessagingAuthService {
         ...u,
         propertyId: null,
         propertyName: 'Platform Administration',
-        bookingId: null,
+        activePropertyIds: [],
+        leaseId: null,
         bookingStatus: 'Active'
       }));
     }
 
-    // MANAGER: Can only message tenants of manager's owned/managed properties who have a valid booking/lease
+    // MANAGER: Can only message tenants of manager's owned/managed properties who have an authoritative ACTIVE lease
     if (role === 'manager') {
       const properties = await Property.find({
         $or: [
@@ -45,53 +48,21 @@ export class MessagingAuthService {
       const propMap = new Map();
       properties.forEach(p => propMap.set(String(p._id), p.name || p.title || 'Managed Property'));
 
-      // Find valid bookings on these properties
-      const bookings = await Booking.find({
-        $or: [
-          { property: { $in: propIds } },
-          { manager: { $in: userIds } }
-        ],
-        status: { $in: ['confirmed', 'active', 'completed', 'approved'] }
-      })
-      .populate('user', 'firstName lastName email role avatar')
-      .populate('property', 'name title')
-      .lean();
-
       // Find active leases on these properties
-      const leases = await Lease.find({
+      const rawLeases = await Lease.find({
         property: { $in: propIds },
-        status: { $in: ['active', 'signed'] }
+        status: 'active'
       })
       .populate('property', 'name title')
       .populate('tenant')
       .lean();
 
+      // Filter strictly by authoritative lease lifecycle engine
+      const activeLeases = rawLeases.filter(l => isLeaseAuthoritativelyActive(l, now));
+
       const partnersMap = new Map();
 
-      // Add from bookings
-      for (const b of bookings) {
-        if (!b.user) continue;
-        const tenantUserId = String(b.user._id);
-        if (tenantUserId === String(userId)) continue;
-        if (!partnersMap.has(tenantUserId)) {
-          const propName = b.property?.name || b.property?.title || propMap.get(String(b.property?._id || b.property)) || 'Managed Property';
-          partnersMap.set(tenantUserId, {
-            _id: b.user._id,
-            firstName: b.user.firstName,
-            lastName: b.user.lastName,
-            email: b.user.email,
-            role: b.user.role || 'tenant',
-            avatar: b.user.avatar,
-            propertyId: b.property?._id || b.property,
-            propertyName: propName,
-            bookingId: b._id,
-            bookingStatus: b.status === 'confirmed' || b.status === 'active' ? 'Active Booking' : (b.status === 'approved' ? 'Approved Booking' : 'Past Booking')
-          });
-        }
-      }
-
-      // Add from leases
-      for (const l of leases) {
+      for (const l of activeLeases) {
         if (!l.tenant?.email) continue;
         const tenantUser = await User.findOne({ email: l.tenant.email.toLowerCase() })
           .select('firstName lastName email role avatar')
@@ -99,8 +70,10 @@ export class MessagingAuthService {
         if (tenantUser) {
           const tenantUserId = String(tenantUser._id);
           if (tenantUserId === String(userId)) continue;
+          const propId = String(l.property?._id || l.property);
+          const propName = l.property?.name || l.property?.title || propMap.get(propId) || 'Managed Property';
+
           if (!partnersMap.has(tenantUserId)) {
-            const propName = l.property?.name || l.property?.title || propMap.get(String(l.property?._id || l.property)) || 'Managed Property';
             partnersMap.set(tenantUserId, {
               _id: tenantUser._id,
               firstName: tenantUser.firstName,
@@ -110,107 +83,64 @@ export class MessagingAuthService {
               avatar: tenantUser.avatar,
               propertyId: l.property?._id || l.property,
               propertyName: propName,
-              bookingId: null,
+              activePropertyIds: [propId],
               leaseId: l._id,
               bookingStatus: 'Active Lease'
             });
+          } else {
+            const existing = partnersMap.get(tenantUserId);
+            if (!existing.activePropertyIds.includes(propId)) {
+              existing.activePropertyIds.push(propId);
+            }
           }
-        }
-      }
-
-      // Add from active/accepted negotiations
-      const activeOffers = await Offer.find({
-        property: { $in: propIds },
-        status: { $in: ['pending', 'countered', 'accepted'] }
-      })
-      .populate('fromUser', 'firstName lastName email role avatar')
-      .populate('property', 'name title')
-      .lean();
-
-      for (const o of activeOffers) {
-        if (!o.fromUser) continue;
-        const tenantUserId = String(o.fromUser._id);
-        if (tenantUserId === String(userId)) continue;
-        if (!partnersMap.has(tenantUserId)) {
-          const propName = o.property?.name || o.property?.title || propMap.get(String(o.property?._id || o.property)) || 'Managed Property';
-          partnersMap.set(tenantUserId, {
-            _id: o.fromUser._id,
-            firstName: o.fromUser.firstName,
-            lastName: o.fromUser.lastName,
-            email: o.fromUser.email,
-            role: o.fromUser.role || 'tenant',
-            avatar: o.fromUser.avatar,
-            propertyId: o.property?._id || o.property,
-            propertyName: propName,
-            bookingId: null,
-            offerId: o._id,
-            bookingStatus: o.status === 'accepted' ? 'Accepted Deal' : 'Active Negotiation'
-          });
         }
       }
 
       return Array.from(partnersMap.values());
     }
 
-    // TENANT / USER: Can only message managers of properties they have booked or leased
+    // TENANT / USER: Can only message managers of properties where they have an authoritative ACTIVE lease
     if (role === 'tenant' || role === 'user') {
       const currentUser = await User.findById(userId).select('email').lean();
       const userEmail = currentUser?.email?.toLowerCase();
+      if (!userEmail) return [];
 
-      // Find tenant's valid bookings
-      const bookings = await Booking.find({
-        user: { $in: userIds },
-        status: { $in: ['confirmed', 'active', 'completed', 'approved'] }
+      const tenantRecords = await Tenant.find({ email: userEmail }).select('_id').lean();
+      const tenantRecordIds = tenantRecords.map(t => t._id);
+      if (tenantRecordIds.length === 0) return [];
+
+      const rawLeases = await Lease.find({
+        tenant: { $in: tenantRecordIds },
+        status: 'active'
       })
-      .populate('manager', 'firstName lastName email role avatar')
-      .populate('property', 'name title manager owner')
+      .populate({
+        path: 'property',
+        populate: { path: 'manager owner', select: 'firstName lastName email role avatar' }
+      })
       .lean();
 
-      // Find tenant's active leases
-      let leaseManagers = [];
-      if (userEmail) {
-        const tenantRecords = await Tenant.find({ email: userEmail }).select('_id').lean();
-        const tenantRecordIds = tenantRecords.map(t => t._id);
-        if (tenantRecordIds.length > 0) {
-          const leases = await Lease.find({
-            tenant: { $in: tenantRecordIds },
-            status: { $in: ['active', 'signed'] }
-          })
-          .populate({
-            path: 'property',
-            populate: { path: 'manager owner', select: 'firstName lastName email role avatar' }
-          })
-          .lean();
-
-          for (const l of leases) {
-            const propManager = l.property?.manager || l.property?.owner;
-            if (propManager) {
-              leaseManagers.push({
-                manager: propManager,
-                property: l.property,
-                leaseId: l._id
-              });
-            }
-          }
-        }
-      }
+      // Filter strictly by authoritative lease lifecycle engine
+      const activeLeases = rawLeases.filter(l => isLeaseAuthoritativelyActive(l, now));
 
       const partnersMap = new Map();
 
-      // Add from bookings
-      for (const b of bookings) {
-        let managerUser = b.manager;
-        if (!managerUser && b.property) {
-          managerUser = b.property.manager || b.property.owner;
-          if (managerUser && (typeof managerUser === 'string' || mongoose.Types.ObjectId.isValid(String(managerUser)))) {
-            managerUser = await User.findById(managerUser).select('firstName lastName email role avatar').lean();
+      for (const l of activeLeases) {
+        let managerUser = l.property?.manager || l.property?.owner;
+        if (!managerUser) continue;
+
+        if (typeof managerUser === 'string' || mongoose.Types.ObjectId.isValid(String(managerUser._id || managerUser))) {
+          if (!managerUser.email) {
+            managerUser = await User.findById(managerUser._id || managerUser).select('firstName lastName email role avatar').lean();
           }
         }
         if (!managerUser) continue;
         const managerId = String(managerUser._id);
         if (managerId === String(userId)) continue;
+
+        const propId = String(l.property?._id || l.property);
+        const propName = l.property?.name || l.property?.title || 'Leased Property';
+
         if (!partnersMap.has(managerId)) {
-          const propName = b.property?.name || b.property?.title || 'Booked Property';
           partnersMap.set(managerId, {
             _id: managerUser._id,
             firstName: managerUser.firstName,
@@ -218,71 +148,17 @@ export class MessagingAuthService {
             email: managerUser.email,
             role: managerUser.role || 'manager',
             avatar: managerUser.avatar,
-            propertyId: b.property?._id || b.property,
+            propertyId: l.property?._id || l.property,
             propertyName: propName,
-            bookingId: b._id,
-            bookingStatus: b.status === 'confirmed' || b.status === 'active' ? 'Active Booking' : (b.status === 'approved' ? 'Approved Booking' : 'Past Booking')
-          });
-        }
-      }
-
-      // Add from leases
-      for (const lm of leaseManagers) {
-        const managerId = String(lm.manager._id);
-        if (managerId === String(userId)) continue;
-        if (!partnersMap.has(managerId)) {
-          const propName = lm.property?.name || lm.property?.title || 'Leased Property';
-          partnersMap.set(managerId, {
-            _id: lm.manager._id,
-            firstName: lm.manager.firstName,
-            lastName: lm.manager.lastName,
-            email: lm.manager.email,
-            role: lm.manager.role || 'manager',
-            avatar: lm.manager.avatar,
-            propertyId: lm.property?._id || lm.property,
-            propertyName: propName,
-            bookingId: null,
-            leaseId: lm.leaseId,
+            activePropertyIds: [propId],
+            leaseId: l._id,
             bookingStatus: 'Active Lease'
           });
-        }
-      }
-
-      // Add from active/accepted negotiations
-      const tenantOffers = await Offer.find({
-        fromUser: { $in: userIds },
-        status: { $in: ['pending', 'countered', 'accepted'] }
-      })
-      .populate('toUser', 'firstName lastName email role avatar')
-      .populate('property', 'name title manager owner')
-      .lean();
-
-      for (const o of tenantOffers) {
-        let managerUser = o.toUser;
-        if (!managerUser && o.property) {
-          managerUser = o.property.manager || o.property.owner;
-          if (managerUser && (typeof managerUser === 'string' || mongoose.Types.ObjectId.isValid(String(managerUser)))) {
-            managerUser = await User.findById(managerUser).select('firstName lastName email role avatar').lean();
+        } else {
+          const existing = partnersMap.get(managerId);
+          if (!existing.activePropertyIds.includes(propId)) {
+            existing.activePropertyIds.push(propId);
           }
-        }
-        if (!managerUser) continue;
-        const managerId = String(managerUser._id);
-        if (managerId === String(userId)) continue;
-        if (!partnersMap.has(managerId)) {
-          const propName = o.property?.name || o.property?.title || 'Negotiation Property';
-          partnersMap.set(managerId, {
-            _id: managerUser._id,
-            firstName: managerUser.firstName,
-            lastName: managerUser.lastName,
-            email: managerUser.email,
-            role: managerUser.role || 'manager',
-            avatar: managerUser.avatar,
-            propertyId: o.property?._id || o.property,
-            propertyName: propName,
-            bookingId: null,
-            offerId: o._id,
-            bookingStatus: o.status === 'accepted' ? 'Accepted Deal' : 'Active Negotiation'
-          });
         }
       }
 
@@ -293,8 +169,8 @@ export class MessagingAuthService {
   }
 
   /**
-   * Verifies whether senderId and receiverId have an authorized relationship.
-   * If propertyId is provided, also checks that the relationship is on that property.
+   * Verifies whether senderId and receiverId have an authorized ACTIVE LEASE relationship.
+   * If propertyId is provided, also checks that the relationship matches that active property.
    */
   async verifyRelationship(senderId, receiverId, propertyId = null, senderRole = null) {
     if (!senderId || !receiverId) return { isAuthorized: false, reason: 'Sender and receiver are required.' };
@@ -309,21 +185,24 @@ export class MessagingAuthService {
     const matchedPartner = partners.find(p => String(p._id) === String(receiverId));
 
     if (!matchedPartner) {
-      return { isAuthorized: false, reason: 'Forbidden: No active booking, lease, or negotiation relationship exists between these users.' };
+      return { isAuthorized: false, reason: 'Forbidden: No active lease relationship exists between these users.' };
     }
 
-    // Cross-property check: If propertyId is provided, verify it matches
+    // Cross-property check: If propertyId is provided, verify it matches an authorized active property
     if (propertyId) {
-      const propMatches = partners.some(p => String(p._id) === String(receiverId) && String(p.propertyId) === String(propertyId));
+      const targetPropId = String(propertyId);
+      const propMatches = matchedPartner.activePropertyIds
+        ? matchedPartner.activePropertyIds.includes(targetPropId)
+        : String(matchedPartner.propertyId) === targetPropId;
+
       if (!propMatches) {
-        return { isAuthorized: false, reason: 'Forbidden: Property does not match the authorized booking relationship.' };
+        return { isAuthorized: false, reason: 'Forbidden: Property does not match the active lease relationship.' };
       }
     }
 
     return {
       isAuthorized: true,
       propertyId: propertyId || matchedPartner.propertyId,
-      bookingId: matchedPartner.bookingId,
       leaseId: matchedPartner.leaseId,
       partner: matchedPartner
     };

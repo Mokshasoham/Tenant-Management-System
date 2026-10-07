@@ -242,3 +242,29 @@ export const canLeasePayRent = (lease, now = new Date()) => {
   return true;
 };
 
+/**
+ * Canonical test to determine if a lease is authoritatively ACTIVE for messaging and live tenancy operations.
+ * Strictly consistent with canLeasePayRent and resolveLeaseLifecycle.
+ * Architectural rule:
+ * isLeaseAuthoritativelyActive === true ONLY when:
+ *   lease.status === 'active'
+ *   AND lease is not finalized (moveOutStatus !== 'completed' && !isMoveOutFinalized)
+ *   AND lease is not expired (!isPastEndDate && daysRemaining >= 0 && lease.status !== 'expired')
+ *   AND moveOutStatus is not completed or refund_processing
+ *   AND lease is not renewed/terminated/cancelled
+ */
+export const isLeaseAuthoritativelyActive = (lease, now = new Date()) => {
+  if (!lease) return false;
+  if (!canLeasePayRent(lease, now)) return false;
+
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (lease.endDate) {
+    const endMs = new Date(lease.endDate).getTime();
+    const diffMs = endMs - nowMs;
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (daysRemaining < 0) return false;
+  }
+
+  return true;
+};
+

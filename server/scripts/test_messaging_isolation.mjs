@@ -21,11 +21,27 @@ async function run() {
   console.log('Connected to MongoDB Atlas');
 
   const managers = await User.find({ role: 'manager' }).select('email firstName lastName');
-  const madhu = managers.find(m => (m.firstName && m.firstName.toLowerCase().includes('madhu')) || m.email.includes('madhu')) || managers[1];
-  const activeManager = managers.find(m => m._id.toString() !== madhu?._id?.toString());
+  // Dynamically find an isolated manager with 0 properties
+  let madhu = null;
+  for (const m of managers) {
+    const pCount = await Property.countDocuments({ $or: [{ manager: m._id }, { owner: m._id }, { createdBy: m._id }] });
+    if (pCount === 0) {
+      madhu = m;
+      break;
+    }
+  }
+  // Find an active manager with managed properties
+  let activeManager = null;
+  for (const m of managers) {
+    const pCount = await Property.countDocuments({ $or: [{ manager: m._id }, { owner: m._id }, { createdBy: m._id }] });
+    if (pCount > 0) {
+      activeManager = m;
+      break;
+    }
+  }
 
-  console.log('New Manager (Madhu):', madhu?.firstName, madhu?._id?.toString());
-  console.log('Active Manager:', activeManager?.firstName, activeManager?._id?.toString());
+  console.log('New/Isolated Manager (0 props):', madhu?.firstName, madhu?._id?.toString());
+  console.log('Active Manager (with props):', activeManager?.firstName, activeManager?._id?.toString());
 
   // -------------------------------------------------------------
   // TEST 1: New Manager (0 properties / 0 bookings)

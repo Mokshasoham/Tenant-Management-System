@@ -421,8 +421,8 @@ export default function MessagesPage() {
                                         <p className="font-black text-sm text-foreground/75">No chats yet</p>
                                         <p className="text-[10px] text-muted-foreground/60 font-medium">
                                             {role === 'manager' 
-                                                ? "Tenants who book your properties will appear here." 
-                                                : "Book a property to connect with its manager."}
+                                                ? "Tenants with active leases on your properties will appear here." 
+                                                : "You can message your property manager once your lease is active."}
                                         </p>
                                     </div>
                                     <motion.button

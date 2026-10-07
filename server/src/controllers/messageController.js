@@ -55,7 +55,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
         throw new AppError('Receiver not found', 404);
     }
 
-    // 3. Authorize relationship: Tenant <-> Booking/Lease <-> Property <-> Manager
+    // 3. Authorize relationship: Tenant <-> Active Lease <-> Property <-> Manager
     const authCheck = await messagingAuthService.verifyRelationship(
         senderId,
         receiverId,
@@ -65,18 +65,17 @@ export const sendMessage = asyncHandler(async (req, res) => {
 
     if (!authCheck.isAuthorized) {
         throw new AppError(
-            authCheck.reason || 'Forbidden: You can only message users connected through a confirmed property booking or lease.',
+            authCheck.reason || 'Forbidden: You can only message users with an active lease relationship.',
             403
         );
     }
 
-    // 4. Create Message with property & booking association
+    // 4. Create Message with property association
     const message = await Message.create({
         sender: senderId,
         receiver: receiverId,
         content: content || '',
         property: authCheck.propertyId || propertyId,
-        booking: authCheck.bookingId,
         attachments: req.body.attachments || []
     });
 
@@ -123,28 +122,27 @@ export const getMessages = asyncHandler(async (req, res) => {
         req.user.role
     );
 
-    // If no active relationship, check if prior conversation history exists
+    // Strict authorization: historical messages do NOT grant access
     if (!authCheck.isAuthorized && req.user.role !== 'admin') {
-        const historyCount = await Message.countDocuments({
-            $or: [
-                { sender: currentUserId, receiver: otherUserId },
-                { sender: otherUserId, receiver: currentUserId },
-            ]
-        });
-
-        if (historyCount === 0) {
-            throw new AppError('Forbidden: Access denied to conversation with this user.', 403);
-        }
+        throw new AppError('Forbidden: Access denied to conversation with this user.', 403);
     }
 
-    const messages = await Message.find({
+    const filter = {
         $or: [
             { sender: currentUserId, receiver: otherUserId },
             { sender: otherUserId, receiver: currentUserId },
         ],
-    })
-    .sort({ createdAt: 1 })
-    .populate('property', 'name title');
+        isDeleted: false
+    };
+
+    // Scoped strictly to the active property relationship to prevent cross-lease history bleed (Correction 3)
+    if (authCheck.propertyId && req.user.role !== 'admin') {
+        filter.property = authCheck.propertyId;
+    }
+
+    const messages = await Message.find(filter)
+        .sort({ createdAt: 1 })
+        .populate('property', 'name title');
 
     res.status(200).json({
         success: true,
@@ -155,20 +153,28 @@ export const getMessages = asyncHandler(async (req, res) => {
 export const getConversations = asyncHandler(async (req, res) => {
     const currentUserId = req.user.userId || req.user._id || req.user.id;
 
+    // Get authorized partners based strictly on active lease relationships
+    const authorizedPartners = await messagingAuthService.getAuthorizedPartners(currentUserId, req.user.role);
+    if (!authorizedPartners || authorizedPartners.length === 0) {
+        return res.status(200).json({
+            success: true,
+            data: [],
+        });
+    }
+
+    const partnerMap = new Map();
+    authorizedPartners.forEach(p => partnerMap.set(String(p._id), p));
+
     // Find all messages where user is involved
     const messages = await Message.find({
         $or: [{ sender: currentUserId }, { receiver: currentUserId }],
+        isDeleted: false
     })
     .sort({ createdAt: -1 })
     .populate('sender receiver', 'firstName lastName avatar email role')
     .populate('property', 'name title');
 
-    // Get authorized partners to enrich active conversations
-    const authorizedPartners = await messagingAuthService.getAuthorizedPartners(currentUserId, req.user.role);
-    const partnerMap = new Map();
-    authorizedPartners.forEach(p => partnerMap.set(String(p._id), p));
-
-    // Group by other user
+    // Group by other user, strictly enforcing authorized partner & active property isolation
     const conversationsMap = new Map();
 
     for (const msg of messages) {
@@ -176,16 +182,31 @@ export const getConversations = asyncHandler(async (req, res) => {
         const otherUser = msg.sender._id.toString() === String(currentUserId) ? msg.receiver : msg.sender;
         const otherUserId = otherUser._id.toString();
 
+        // 1. Strict partner authorization check: must be an authorized active partner
+        if (!partnerMap.has(otherUserId)) {
+            continue;
+        }
+
+        const partnerInfo = partnerMap.get(otherUserId);
+        const activePropertyIds = partnerInfo.activePropertyIds || (partnerInfo.propertyId ? [String(partnerInfo.propertyId)] : []);
+
+        // 2. Multi-property isolation check (Correction 3):
+        // If message has a property reference, it MUST match one of the partner's active lease properties!
+        // This prevents an expired Property A's messages from becoming the preview for active Property B.
+        const msgPropId = msg.property?._id ? String(msg.property._id) : (msg.property ? String(msg.property) : null);
+        if (msgPropId && activePropertyIds.length > 0 && !activePropertyIds.includes(msgPropId)) {
+            continue;
+        }
+
         if (!conversationsMap.has(otherUserId)) {
-            const partnerInfo = partnerMap.get(otherUserId);
-            const propName = msg.property?.name || msg.property?.title || partnerInfo?.propertyName || null;
-            const propId = msg.property?._id || partnerInfo?.propertyId || null;
+            const propName = msg.property?.name || msg.property?.title || partnerInfo.propertyName || null;
+            const propId = msg.property?._id || partnerInfo.propertyId || null;
 
             conversationsMap.set(otherUserId, {
                 lastMessage: resolveMessageUrls(msg, req),
                 user: otherUser,
                 property: propId ? { _id: propId, name: propName } : null,
-                bookingStatus: partnerInfo?.bookingStatus || 'Active'
+                bookingStatus: partnerInfo.bookingStatus || 'Active Lease'
             });
         }
     }
@@ -199,6 +220,12 @@ export const getConversations = asyncHandler(async (req, res) => {
 export const markAsRead = asyncHandler(async (req, res) => {
     const { senderId } = req.params;
     const currentUserId = req.user.userId || req.user._id || req.user.id;
+
+    // Verify active relationship
+    const authCheck = await messagingAuthService.verifyRelationship(currentUserId, senderId, null, req.user.role);
+    if (!authCheck.isAuthorized && req.user.role !== 'admin') {
+        throw new AppError('Forbidden: Cannot mark messages as read for inactive relationship', 403);
+    }
 
     await Message.updateMany(
         { sender: senderId, receiver: currentUserId, read: false },
@@ -238,16 +265,58 @@ export const searchMessages = asyncHandler(async (req, res) => {
 
     if (!query) throw new AppError('Search query is required', 400);
 
-    const messages = await Message.find({
-        $and: [
-            { $or: [{ sender: userId }, { receiver: userId }] },
-            { content: { $regex: query, $options: 'i' } },
-            { isDeleted: false }
-        ]
-    })
-    .sort({ createdAt: -1 })
-    .populate('sender receiver', 'firstName lastName avatar')
-    .populate('property', 'name title');
+    // Admin can search all messages
+    if (req.user.role === 'admin') {
+        const messages = await Message.find({
+            $and: [
+                { $or: [{ sender: userId }, { receiver: userId }] },
+                { content: { $regex: query, $options: 'i' } },
+                { isDeleted: false }
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .populate('sender receiver', 'firstName lastName avatar')
+        .populate('property', 'name title');
+
+        return res.status(200).json({
+            success: true,
+            data: messages.map(m => resolveMessageUrls(m, req)),
+        });
+    }
+
+    // For tenant and manager: MUST scope search strictly to currently active authorized relationships (Correction 3)
+    const authorizedPartners = await messagingAuthService.getAuthorizedPartners(userId, req.user.role);
+    if (!authorizedPartners || authorizedPartners.length === 0) {
+        return res.status(200).json({
+            success: true,
+            data: [],
+        });
+    }
+
+    const partnerIds = authorizedPartners.map(p => p._id);
+    const activePropertyIds = authorizedPartners
+        .flatMap(p => p.activePropertyIds || (p.propertyId ? [p.propertyId] : []))
+        .filter(Boolean);
+
+    const filterConditions = [
+        {
+            $or: [
+                { sender: userId, receiver: { $in: partnerIds } },
+                { sender: { $in: partnerIds }, receiver: userId }
+            ]
+        },
+        { content: { $regex: query, $options: 'i' } },
+        { isDeleted: false }
+    ];
+
+    if (activePropertyIds.length > 0) {
+        filterConditions.push({ property: { $in: activePropertyIds } });
+    }
+
+    const messages = await Message.find({ $and: filterConditions })
+        .sort({ createdAt: -1 })
+        .populate('sender receiver', 'firstName lastName avatar')
+        .populate('property', 'name title');
 
     res.status(200).json({
         success: true,

@@ -57,7 +57,7 @@ const socketHandler = (server) => {
             const { receiverId, content, attachments, propertyId } = data;
             
             try {
-                // Authorize relationship: Tenant <-> Booking/Lease <-> Property <-> Manager
+                // Authorize relationship strictly at event time: Tenant <-> Active Lease <-> Property <-> Manager
                 const authCheck = await messagingAuthService.verifyRelationship(
                     userId,
                     receiverId,
@@ -68,7 +68,7 @@ const socketHandler = (server) => {
                 if (!authCheck.isAuthorized) {
                     logger.warn(`Unauthorized socket message attempt from ${userId} to ${receiverId}`);
                     return socket.emit('error', {
-                        message: authCheck.reason || 'Forbidden: You can only message users connected through a confirmed property booking or lease.'
+                        message: authCheck.reason || 'Forbidden: You can only message users with an active lease relationship.'
                     });
                 }
 
@@ -77,8 +77,7 @@ const socketHandler = (server) => {
                     receiver: receiverId,
                     content,
                     attachments,
-                    property: authCheck.propertyId || propertyId,
-                    booking: authCheck.bookingId
+                    property: authCheck.propertyId || propertyId
                 });
 
                 // Confirm back to sender
@@ -116,16 +115,25 @@ const socketHandler = (server) => {
             }
         });
 
-        // 2. Typing Indicator
-        socket.on('typing', (data) => {
+        // 2. Typing Indicator (Event-time authorization)
+        socket.on('typing', async (data) => {
             const { receiverId, isTyping } = data;
-            io.to(receiverId).emit('userTyping', { userId, isTyping });
+            try {
+                const authCheck = await messagingAuthService.verifyRelationship(userId, receiverId, null, userRole);
+                if (!authCheck.isAuthorized && userRole !== 'admin') return;
+                io.to(receiverId).emit('userTyping', { userId, isTyping });
+            } catch (err) {
+                // Ignore error on typing
+            }
         });
 
-        // 3. Mark Message as Read
+        // 3. Mark Message as Read (Event-time authorization)
         socket.on('markAsRead', async (data) => {
             const { messageIds, senderId } = data;
             try {
+                const authCheck = await messagingAuthService.verifyRelationship(userId, senderId, null, userRole);
+                if (!authCheck.isAuthorized && userRole !== 'admin') return;
+
                 await Message.updateMany(
                     { _id: { $in: messageIds }, receiver: userId },
                     { read: true, readAt: new Date() }
@@ -133,7 +141,7 @@ const socketHandler = (server) => {
                 // Notify sender that their messages were read
                 io.to(senderId).emit('messagesRead', { receiverId: userId, messageIds });
             } catch (err) {
-                 logger.error(`Error marking messages as read: ${err.message}`);
+                  logger.error(`Error marking messages as read: ${err.message}`);
             }
         });
 

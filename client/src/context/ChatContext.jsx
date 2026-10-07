@@ -99,7 +99,17 @@ export const ChatProvider = ({ children }) => {
         setIsLoading(true);
         try {
             const res = await messageService.getConversations();
-            setConversations(res.data || []);
+            const list = res.data || [];
+            setConversations(list);
+            // If activeChat is selected but no longer present in authorized conversations, deselect
+            const currentActive = activeChatRef.current;
+            if (currentActive) {
+                const currentId = currentActive.user?._id || currentActive.user?.id || currentActive._id || currentActive.id;
+                const isStillValid = list.some(c => (c.user?._id || c.user?.id || c._id) === currentId);
+                if (!isStillValid) {
+                    setActiveChat(null);
+                }
+            }
         } catch (err) {
             console.error('Failed to fetch conversations', err);
         } finally {
@@ -114,6 +124,10 @@ export const ChatProvider = ({ children }) => {
             setMessages(res.data || []);
         } catch (err) {
             console.error('Failed to fetch messages', err);
+            setMessages([]);
+            if (err?.response?.status === 403) {
+                setActiveChat(null);
+            }
         } finally {
             setIsLoading(false);
         }
