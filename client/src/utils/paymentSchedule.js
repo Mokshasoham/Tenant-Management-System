@@ -51,6 +51,19 @@ export function calculateNextPaymentDue(lease, leasePayments = [], currentDate =
     return null;
   }
 
+  // Authoritative Lease Lifecycle Guard: only active, non-expired leases have payment schedules
+  const nowRef = new Date(currentDate);
+  const endDate = lease.endDate ? new Date(lease.endDate) : null;
+  const isSameDay = endDate && !isNaN(endDate.getTime()) &&
+    endDate.getUTCFullYear() === nowRef.getUTCFullYear() &&
+    endDate.getUTCMonth() === nowRef.getUTCMonth() &&
+    endDate.getUTCDate() === nowRef.getUTCDate();
+  const isPastEnd = endDate && !isNaN(endDate.getTime()) ? (endDate < nowRef && !isSameDay) : false;
+
+  if (lease.status !== 'active' || isPastEnd || lease.isMoveOutFinalized) {
+    return null;
+  }
+
   // If the backend already provided authoritative nextPaymentDueAt / nextPaymentSchedule on the lease object
   if (lease.nextPaymentDueAt && lease.nextPaymentSchedule) {
     const s = lease.nextPaymentSchedule;

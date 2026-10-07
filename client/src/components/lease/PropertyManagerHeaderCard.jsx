@@ -49,6 +49,18 @@ export default function PropertyManagerHeaderCard({
         ? managerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
         : 'TM';
 
+    const isLeaseActive = (() => {
+        if (!lease) return false;
+        const now = new Date();
+        const endDate = lease.endDate ? new Date(lease.endDate) : null;
+        const isSameDay = endDate && !isNaN(endDate.getTime()) &&
+            endDate.getFullYear() === now.getFullYear() &&
+            endDate.getMonth() === now.getMonth() &&
+            endDate.getDate() === now.getDate();
+        const isPastEnd = endDate && !isNaN(endDate.getTime()) ? (endDate < now && !isSameDay) : false;
+        return lease.status === 'active' && !isPastEnd && !lease.isMoveOutFinalized;
+    })();
+
     // Fetch secure navigation info dynamically whenever propId changes
     useEffect(() => {
         let isMounted = true;
@@ -220,7 +232,7 @@ export default function PropertyManagerHeaderCard({
     };
 
     const handleMessageManager = () => {
-        if (!manager) return;
+        if (!manager || !isLeaseActive) return;
         navigate('/messages', {
             state: {
                 recipientId: manager._id || manager.id,
@@ -410,9 +422,15 @@ export default function PropertyManagerHeaderCard({
                                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-1.5">
                                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Assigned Property Manager
                                         </span>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Manager
-                                        </span>
+                                        {isLeaseActive ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Manager
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted text-muted-foreground border border-border">
+                                                Property Manager
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div className="flex items-center gap-3.5">
@@ -494,14 +512,16 @@ export default function PropertyManagerHeaderCard({
                                         </a>
                                     )}
 
-                                    <button
-                                        type="button"
-                                        onClick={handleMessageManager}
-                                        className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                                    >
-                                        <MessageSquare className="w-3.5 h-3.5" />
-                                        <span>Message</span>
-                                    </button>
+                                    {isLeaseActive && (
+                                        <button
+                                            type="button"
+                                            onClick={handleMessageManager}
+                                            className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-indigo-950/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                                        >
+                                            <MessageSquare className="w-3.5 h-3.5" />
+                                            <span>Message</span>
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         ) : (

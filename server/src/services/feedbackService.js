@@ -17,29 +17,14 @@ import logger from '../utils/logger.js';
 export async function getTenantIdsForUser(userId) {
   if (!userId) return [];
   const actualUserId = userId.toString();
-  const user = await User.findById(actualUserId).select('email phone firstName lastName');
-  if (!user) return [actualUserId];
+  const user = await User.findById(actualUserId).select('email firstName lastName');
+  if (!user || !user.email) return [];
 
-  const cleanEmail = (user.email || '').trim();
-  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const cleanPhone = (user.phone || '').trim();
-  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  const cleanEmail = user.email.trim().toLowerCase();
+  const tenant = await Tenant.findOne({ email: cleanEmail }).select('_id');
+  if (!tenant) return [];
 
-  const tenants = await Tenant.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { user: actualUserId },
-      { userId: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
-    ]
-  }).select('_id leases');
-
-  const tenantIds = new Set([
-    actualUserId,
-    ...tenants.map(t => t._id.toString()),
-  ]);
-
-  return Array.from(tenantIds);
+  return [tenant._id.toString()];
 }
 
 /**
@@ -55,27 +40,23 @@ export async function isUserLeaseOwner(lease, userId) {
   const actualUserId = userId.toString();
   const validTenantIds = await getTenantIdsForUser(actualUserId);
   const leaseTenantId = String(lease.tenant?._id || lease.tenant || '');
-  const leaseUserId = String(lease.user?._id || lease.user || '');
 
-  if (validTenantIds.includes(leaseTenantId) || validTenantIds.includes(leaseUserId) || leaseTenantId === actualUserId) {
+  if (validTenantIds.length > 0 && validTenantIds.includes(leaseTenantId)) {
     return true;
   }
 
   // Also verify via tenant document email or user link
   let tenantDoc = lease.tenant;
   if (tenantDoc && (!tenantDoc.email || typeof tenantDoc === 'string' || tenantDoc instanceof mongoose.Types.ObjectId)) {
-    tenantDoc = await Tenant.findById(leaseTenantId).select('email phone user userId');
+    tenantDoc = await Tenant.findById(leaseTenantId).select('email user userId');
   }
 
   if (tenantDoc) {
     if (tenantDoc.user && tenantDoc.user.toString() === actualUserId) return true;
     if (tenantDoc.userId && tenantDoc.userId.toString() === actualUserId) return true;
 
-    const user = await User.findById(actualUserId).select('email phone');
+    const user = await User.findById(actualUserId).select('email');
     if (user && tenantDoc.email && user.email && tenantDoc.email.trim().toLowerCase() === user.email.trim().toLowerCase()) {
-      return true;
-    }
-    if (user && tenantDoc.phone && user.phone && tenantDoc.phone.trim() === user.phone.trim()) {
       return true;
     }
   }

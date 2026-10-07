@@ -551,7 +551,7 @@ export default function MyLeasePage() {
     const isSignedByTenant = Boolean(currentLease && currentLease.signature && currentLease.signedBy && currentLease.signedAt);
     const isManagerSigned = Boolean(currentLease && (currentLease.managerSignature || currentLease.managerSignedAt));
     const isBothSigned = isSignedByTenant && isManagerSigned;
-    const isUnsigned = !isSignedByTenant;
+    const isUnsigned = Boolean(currentLease && currentLease.status === 'pending' && !isSignedByTenant);
 
     const statusCfg = (() => {
         if (!currentLease) return STATUS_CONFIG.pending;

@@ -13,7 +13,8 @@ import logger from '../utils/logger.js';
 import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleService.js';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 import { resolvePropertyUrls } from './propertyController.js';
-import { resolveLeaseLifecycle, computeLeasePaymentSummary } from '../utils/leaseLifecycle.js';
+import { resolveLeaseLifecycle, computeLeasePaymentSummary, isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
+import { getAuthenticatedTenant, isTenantRole } from '../utils/tenantHelper.js';
 
 export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -51,71 +52,13 @@ export const resolveLeaseUrls = (lease, req) => {
 
 // Tenant-scoped: get the current user's own lease
 export const getMyLease = asyncHandler(async (req, res) => {
-  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId).select('email phone firstName lastName');
-  if (!user) return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
-
-  const cleanEmail = (user.email || '').trim();
-  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const cleanPhone = (user.phone || '').trim();
-  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-
-  const tenants = await Tenant.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { user: actualUserId },
-      { userId: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
-      ...(user.firstName && user.lastName ? [{
-        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
-        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
-      }] : [])
-    ]
-  });
-  const allUsersWithEmail = await User.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { _id: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : [])
-    ]
-  }).select('_id');
-  const tenantIds = Array.from(new Set([
-    actualUserId,
-    user._id,
-    ...tenants.map(t => t._id),
-    ...allUsersWithEmail.map(u => u._id)
-  ].filter(Boolean).map(id => id.toString())));
-
-  // Collect lease IDs embedded in tenant documents
-  const embeddedLeaseIds = [];
-  for (const t of tenants) {
-    if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases.filter(Boolean));
-    }
-  }
-
-  // 4. Find all bookings for this user/tenant that have an explicit linked lease
-  const userBookings = await Booking.find({
-    $or: [
-      { user: { $in: tenantIds } },
-      { tenant: { $in: tenantIds } },
-      { email: emailRegex }
-    ]
-  }).select('_id lease');
-  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
-
-  if (tenantIds.length === 0 && allTargetLeaseIds.length === 0) {
+  const { user, tenant } = await getAuthenticatedTenant(req);
+  if (!user || !tenant) {
     return res.status(200).json({ success: true, data: null, activeLeases: [], pastLeases: [] });
   }
 
-  const allLeases = await Lease.find({
-    $or: [
-      { tenant: { $in: tenantIds } },
-      { user: { $in: tenantIds } },
-      ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-    ]
-  })
+  // Exact single authoritative tenant ID — strictly isolated, zero phone/name matching
+  const allLeases = await Lease.find({ tenant: tenant._id })
     .sort({ createdAt: -1 })
     .populate({
       path: 'property',
@@ -131,12 +74,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
 
   const allLeaseIds = allLeases.map(l => l._id);
   const [tenantPayments, settlements] = await Promise.all([
-    Payment.find({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { lease: { $in: allLeaseIds } }
-      ]
-    }).sort({ dueDate: -1, createdAt: -1 }),
+    Payment.find({ tenant: tenant._id }).sort({ dueDate: -1, createdAt: -1 }),
     DepositSettlement.find({
       lease: { $in: allLeaseIds },
       isArchived: { $ne: true }
@@ -175,7 +113,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
 
     return {
       ...resolved,
-      status: lifecycle.effectiveStatus === 'expired' ? 'expired' : lease.status,
+      status: ['terminated', 'cancelled'].includes(lease.status) ? lease.status : (lifecycle.effectiveStatus === 'expired' ? 'expired' : lease.status),
       effectiveStatus: lifecycle.effectiveStatus,
       canPayRent: lifecycle.canPayRent,
       lifecycle,
@@ -217,30 +155,25 @@ export const getMyLease = asyncHandler(async (req, res) => {
     };
   });
 
-  // Separate active/current candidate tenancies from completed/historical past leases
-  // Note: An expired lease that is recent remains accessible under activeLeases (with status: 'expired' and badge 'EXPIRED')
-  // so the tenant can view outstanding dues or submit move out, unless it is superseded by a renewed lease.
+  // Authoritative separation: ONLY currently active leases enter activeLeases.
+  // Expired, terminated, cancelled, renewed, and move-out finalized tenancies are routed strictly to pastLeases.
   const activeLeases = [];
   const pastLeases = [];
 
   for (const enriched of enrichedLeases) {
-    if (enriched.status === 'terminated' || enriched.status === 'cancelled') {
-      pastLeases.push(enriched);
-    } else if (enriched.effectiveStatus === 'renewed' && enriched.renewedLease && enriched.renewedLease.status === 'active') {
-      // Historical lease that has been superseded by an active renewed lease
-      pastLeases.push(enriched);
-    } else {
+    if (isLeaseAuthoritativelyActive(enriched, now)) {
       activeLeases.push(enriched);
+    } else {
+      pastLeases.push(enriched);
     }
   }
 
-  // Prioritize primary lease: active/expiring first, then expired with dues/moveout
-  const primaryActiveLease = activeLeases.find(l => ['active', 'expiring_soon', 'renewal_requested', 'upcoming'].includes(l.effectiveStatus)) 
-    || activeLeases[0] 
+  // Prioritize primary lease: authoritative active lease first, then primary past lease
+  const primaryActiveLease = activeLeases[0] 
     || pastLeases[0] 
     || null;
 
-  logger.info(`[MY LEASES] tenantUserId=${req.user.userId}, tenantCount=${tenantIds.length}, activeCount=${activeLeases.length}, pastCount=${pastLeases.length}`);
+  logger.info(`[MY LEASES] tenantUserId=${req.user?.userId || req.user?._id}, tenantId=${tenant._id}, activeCount=${activeLeases.length}, pastCount=${pastLeases.length}`);
 
   res.status(200).json({ 
     success: true, 
@@ -254,6 +187,7 @@ export const getMyLease = asyncHandler(async (req, res) => {
     paymentFrequency: 'MONTHLY'
   });
 });
+
 
 
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
@@ -509,14 +443,12 @@ export const getLeaseById = asyncHandler(async (req, res) => {
     }
   }
 
-  // Tenant authorization: verify tenant ownership
-  if (req.user?.role === 'tenant') {
-    const user = await User.findById(userId).select('email');
-    const tenants = user ? await Tenant.find({ email: user.email }) : [];
-    const tenantIds = [String(userId), ...tenants.map(t => String(t._id))];
+  // Tenant authorization: verify strict tenant ownership
+  if (isTenantRole(req.user)) {
+    const { tenant } = await getAuthenticatedTenant(req);
     const leaseTenantId = lease.tenant?._id ? String(lease.tenant._id) : (lease.tenant ? String(lease.tenant) : '');
 
-    if (leaseTenantId && !tenantIds.includes(leaseTenantId)) {
+    if (!tenant || leaseTenantId !== String(tenant._id)) {
       throw new AppError('Access denied. You do not own this lease.', 403);
     }
   }

@@ -17,6 +17,7 @@ import { getSignedUrlForFile } from './fileController.js';
 import { calculatePaymentBreakdown, recordVerifiedRevenue } from '../services/platformFeeService.js';
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 import { canLeasePayRent } from '../utils/leaseLifecycle.js';
+import { getAuthenticatedTenant, isTenantRole } from '../utils/tenantHelper.js';
 
 const resolveInvoiceUrl = (payment, req) => {
   if (!payment) return payment;
@@ -247,6 +248,12 @@ export const getPaymentById = asyncHandler(async (req, res) => {
     if (paymentPropId && !propIds.map(String).includes(paymentPropId)) {
       throw new AppError('Forbidden: Access denied to this payment record', 403);
     }
+  } else if (isTenantRole(req.user)) {
+    const { tenant } = await getAuthenticatedTenant(req);
+    const paymentTenantId = payment.tenant?._id ? payment.tenant._id.toString() : (payment.tenant ? payment.tenant.toString() : '');
+    if (!tenant || paymentTenantId !== String(tenant._id)) {
+      throw new AppError('Forbidden: Access denied to this payment record', 403);
+    }
   }
 
   res.status(200).json({
@@ -261,12 +268,11 @@ export const getPaymentInvoice = asyncHandler(async (req, res) => {
   if (!payment) throw new AppError('Payment not found', 404);
 
   // Authenticate ownership: tenants can only see their own payments
-  if (req.user.role === 'tenant') {
-    const user = await User.findById(req.user.userId).select('email');
-    const tenants = await Tenant.find({ email: user.email });
-    const tenantIds = tenants.map(t => t._id.toString());
-    if (!tenantIds.includes(payment.tenant.toString())) {
-      throw new AppError('Forbidden: Access denied', 403);
+  if (isTenantRole(req.user)) {
+    const { tenant } = await getAuthenticatedTenant(req);
+    const paymentTenantId = payment.tenant?._id ? payment.tenant._id.toString() : (payment.tenant ? payment.tenant.toString() : '');
+    if (!tenant || paymentTenantId !== String(tenant._id)) {
+      throw new AppError('Forbidden: Access denied to this invoice', 403);
     }
   }
 
@@ -597,58 +603,12 @@ export const getPaymentStats = asyncHandler(async (req, res) => {
  */
 export const getRentPaymentSummary = asyncHandler(async (req, res) => {
   const { leaseId, billId, paymentId } = req.query;
-  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId).select('email phone firstName lastName');
-
-  let targetLease = null;
-  const cleanEmail = user ? (user.email || '').trim() : '';
-  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const cleanPhone = user ? (user.phone || '').trim() : '';
-  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-
-  const tenantRecords = await Tenant.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { user: actualUserId },
-      { userId: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
-      ...(user?.firstName && user?.lastName ? [{
-        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
-        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
-      }] : [])
-    ]
-  });
-  const allUsersWithEmail = await User.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { _id: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : [])
-    ]
-  }).select('_id');
-  const tenantIds = Array.from(new Set([
-    actualUserId,
-    ...(user ? [user._id] : []),
-    ...tenantRecords.map(t => t._id),
-    ...allUsersWithEmail.map(u => u._id)
-  ].filter(Boolean).map(id => id.toString())));
-
-  // Collect embedded lease IDs and booking lease IDs
-  const embeddedLeaseIds = [];
-  for (const t of tenantRecords) {
-    if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases.filter(Boolean));
-    }
+  const { user, tenant } = await getAuthenticatedTenant(req);
+  if (!user || !tenant) {
+    throw new AppError('Tenant profile not found', 404);
   }
-
-  const userBookings = await Booking.find({
-    $or: [
-      { user: { $in: tenantIds } },
-      { tenant: { $in: tenantIds } },
-      { email: emailRegex }
-    ]
-  }).select('_id lease');
-  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
+  const tenantId = String(tenant._id);
+  let targetLease = null;
 
   if (billId) {
     let bill = null;
@@ -662,7 +622,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
       throw new AppError('Bill not found', 404);
     }
     const billTenantId = String(bill.tenant?._id || bill.tenant);
-    if (!tenantIds.includes(billTenantId)) {
+    if (billTenantId !== tenantId) {
       throw new AppError('Forbidden: Access denied to this bill', 403);
     }
     const unpaidBalance = Math.max(0, (bill.amountDue || 0) - (bill.amountPaid || 0));
@@ -717,8 +677,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     if (!targetLease) {
       throw new AppError('Lease not found', 404);
     }
-    const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant)) ||
-                    allTargetLeaseIds.includes(String(targetLease._id));
+    const isOwner = String(targetLease.tenant?._id || targetLease.tenant) === tenantId;
     if (!isOwner) {
       throw new AppError('Forbidden: Access denied to this lease', 403);
     }
@@ -736,7 +695,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     if (!targetPayment) {
       throw new AppError('Payment record not found', 404);
     }
-    const isOwner = tenantIds.includes(String(targetPayment.tenant));
+    const isOwner = String(targetPayment.tenant) === tenantId;
     if (!isOwner) {
       throw new AppError('Forbidden: Access denied to this payment record', 403);
     }
@@ -745,14 +704,10 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
     }
   }
 
-  // If no explicit lease requested, find authoritative ACTIVE payable lease only
+  // If no explicit lease requested, find authoritative ACTIVE payable lease only for this tenant
   if (!targetLease) {
     targetLease = await Lease.findOne({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ],
+      tenant: tenant._id,
       status: 'active'
     }).sort({ createdAt: -1 }).populate('property tenant');
   }
@@ -787,7 +742,7 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
 
   // Authoritative lease-specific AutoPay check
   const autoPayDoc = await AutoPay.findOne({
-    tenant: { $in: tenantIds },
+    tenant: tenant._id,
     lease: targetLease._id,
   });
 
@@ -833,11 +788,11 @@ export const getRentPaymentSummary = asyncHandler(async (req, res) => {
  */
 export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
   const { leaseId, billId, paymentId } = req.body;
-  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId);
-
-  const tenantRecords = user ? await Tenant.find({ email: user.email }) : [];
-  const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)].map(String);
+  const { user, tenant } = await getAuthenticatedTenant(req);
+  if (!user || !tenant) {
+    throw new AppError('Tenant profile not found', 404);
+  }
+  const tenantId = String(tenant._id);
 
   let targetLease = null;
   let targetBill = null;
@@ -858,7 +813,7 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
       throw new AppError('Bill not found', 404);
     }
     const billTenantId = String(targetBill.tenant?._id || targetBill.tenant);
-    if (!tenantIds.includes(billTenantId)) {
+    if (billTenantId !== tenantId) {
       throw new AppError('Forbidden: Access denied to this bill', 403);
     }
     const unpaidBillBalance = Math.max(0, (targetBill.amountDue || 0) - (targetBill.amountPaid || 0));
@@ -870,7 +825,7 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
   } else if (paymentId) {
     targetPayment = await Payment.findById(paymentId);
     if (!targetPayment) throw new AppError('Payment record not found', 404);
-    if (!tenantIds.includes(String(targetPayment.tenant))) {
+    if (String(targetPayment.tenant) !== tenantId) {
       throw new AppError('Forbidden: Access denied to this payment record', 403);
     }
     const unpaidBalance = Math.max(0, (targetPayment.amount || 0) - (targetPayment.amountPaid || 0));
@@ -891,7 +846,7 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
       if (!targetLease) {
         throw new AppError('Lease not found', 404);
       }
-      const isOwner = tenantIds.includes(String(targetLease.tenant?._id || targetLease.tenant));
+      const isOwner = String(targetLease.tenant?._id || targetLease.tenant) === tenantId;
       if (!isOwner) {
         throw new AppError('Forbidden: Access denied to this lease', 403);
       }
@@ -899,9 +854,9 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
         throw new AppError('Lease is not active for rent payment', 400);
       }
     } else {
-      // Find active payable lease
+      // Find active payable lease for this single tenant
       targetLease = await Lease.findOne({
-        tenant: { $in: tenantIds },
+        tenant: tenant._id,
         status: 'active'
       }).sort({ createdAt: -1 }).populate('property tenant');
 
@@ -986,11 +941,11 @@ export const createRazorpayRentOrder = asyncHandler(async (req, res) => {
  */
 export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
   const { leaseId, billId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId);
-
-  const tenantRecords = user ? await Tenant.find({ email: user.email }) : [];
-  const tenantIds = [actualUserId, ...tenantRecords.map(t => t._id)];
+  const { user, tenant } = await getAuthenticatedTenant(req);
+  if (!user || !tenant) {
+    throw new AppError('Tenant profile not found for payment verification', 404);
+  }
+  const tenantId = String(tenant._id);
 
   let targetLease = null;
   let targetBill = null;
@@ -1006,7 +961,7 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
       throw new AppError('Bill not found for payment verification', 404);
     }
     const billTenantId = String(targetBill.tenant?._id || targetBill.tenant);
-    if (!tenantIds.map(String).includes(billTenantId)) {
+    if (billTenantId !== tenantId) {
       throw new AppError('Forbidden: Access denied to this bill', 403);
     }
     if (targetBill.status === 'paid') {
@@ -1025,13 +980,13 @@ export const verifyRazorpayRentPayment = asyncHandler(async (req, res) => {
       if (!targetLease) {
         throw new AppError('Lease not found for payment verification', 404);
       }
-      const isOwner = tenantIds.map(String).includes(String(targetLease.tenant?._id || targetLease.tenant));
+      const isOwner = String(targetLease.tenant?._id || targetLease.tenant) === tenantId;
       if (!isOwner) {
         throw new AppError('Forbidden: Access denied to this lease', 403);
       }
     } else {
       targetLease = await Lease.findOne({
-        tenant: { $in: tenantIds },
+        tenant: tenant._id,
         status: 'active'
       }).sort({ createdAt: -1 }).populate('property tenant');
 

@@ -268,6 +268,19 @@ export default function TenantDashboard({ user, navigate }) {
         );
 
         return activeLeases.map(activeLease => {
+            if (!activeLease) return null;
+            const now = new Date();
+            const endDate = activeLease.endDate ? new Date(activeLease.endDate) : null;
+            const isSameDay = endDate && !isNaN(endDate.getTime()) &&
+                endDate.getFullYear() === now.getFullYear() &&
+                endDate.getMonth() === now.getMonth() &&
+                endDate.getDate() === now.getDate();
+            const isPastEnd = endDate && !isNaN(endDate.getTime()) ? (endDate < now && !isSameDay) : false;
+
+            if (activeLease.status !== 'active' || isPastEnd || activeLease.isMoveOutFinalized) {
+                return null;
+            }
+
             const schedule = calculateNextPaymentDue(activeLease, payments);
             if (!schedule || !schedule.nextPaymentDueAt) return null;
             const leaseIdStr = activeLease._id ? activeLease._id.toString() : '';

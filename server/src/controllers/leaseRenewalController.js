@@ -16,6 +16,7 @@ import { executeRenewalApproval } from '../services/leaseRenewalHelper.js';
 import { NotificationService } from '../services/NotificationService.js';
 import { isManagerPropertyOwner, getManagerPropertyIds } from '../utils/managerHelper.js';
 import Razorpay from 'razorpay';
+import { isTenantRole, getAuthenticatedTenant } from '../utils/tenantHelper.js';
 
 // Backward-compatible Event proxy
 const Notification = {
@@ -1201,12 +1202,10 @@ export const getDepositByLeaseId = asyncHandler(async (req, res) => {
     const propId = deposit.lease?.property?._id ? deposit.lease.property._id.toString() : deposit.lease?.property?.toString();
     const isOwner = await isManagerPropertyOwner(propId, req.user.userId);
     if (!isOwner) throw new AppError('Forbidden: Access denied to view this deposit settlement', 403);
-  } else if (req.user?.role === 'tenant') {
-    const tenantUser = await User.findById(req.user.userId).select('email');
-    const isMatchingTenant = deposit.lease?.tenant?.email === tenantUser?.email || 
-      deposit.lease?.tenant?._id?.toString() === req.user.userId ||
-      deposit.lease?.user?.toString() === req.user.userId;
-    if (!isMatchingTenant) {
+  } else if (isTenantRole(req.user)) {
+    const { tenant } = await getAuthenticatedTenant(req);
+    const leaseTenantId = deposit.lease?.tenant?._id ? deposit.lease.tenant._id.toString() : deposit.lease?.tenant?.toString();
+    if (!tenant || leaseTenantId !== String(tenant._id)) {
       throw new AppError('Forbidden: Access denied to view another tenant\'s deposit settlement', 403);
     }
   }

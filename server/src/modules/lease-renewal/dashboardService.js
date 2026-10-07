@@ -9,6 +9,7 @@ import Booking from '../../models/Booking.js';
 import LeaseRenewalAudit from '../../models/LeaseRenewalAudit.js';
 import LeaseRenewal from './model.js';
 import { DomainError, ErrorCatalog } from '../../platform/errors/errorCatalog.js';
+import { isLeaseAuthoritativelyActive } from '../../utils/leaseLifecycle.js';
 
 /**
  * Fetch aggregated Lease Renewal Dashboard payload for a specific lease or single active lease.
@@ -23,49 +24,16 @@ export const getTenantDashboardData = async (userId, targetLeaseId = null) => {
     throw new DomainError(ErrorCatalog.AUTH.UNAUTHORIZED);
   }
 
-  // 1. Resolve all tenant records & associated identities for this user
-  const cleanEmail = (user.email || '').trim();
-  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const cleanPhone = (user.phone || '').trim();
-  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-
-  const tenants = await Tenant.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { user: userId },
-      { userId: userId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
-      ...(user.firstName && user.lastName ? [{
-        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
-        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
-      }] : [])
-    ]
-  });
-
-  const tenantIds = Array.from(new Set([
-    userId,
-    user._id,
-    ...tenants.map(t => t._id),
-  ].filter(Boolean).map(id => id.toString())));
-
-  // Collect embedded lease IDs
-  const embeddedLeaseIds = [];
-  for (const t of tenants) {
-    if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases.filter(Boolean));
-    }
+  // 1. Resolve authoritative tenant record from normalized email
+  const cleanEmail = (user.email || '').trim().toLowerCase();
+  if (!cleanEmail) {
+    return { hasActiveLease: false, user: { name: user.name } };
   }
 
-  // Find all bookings with linked leases
-  const userBookings = await Booking.find({
-    $or: [
-      { user: { $in: tenantIds } },
-      { tenant: { $in: tenantIds } },
-      ...(emailRegex ? [{ email: emailRegex }] : [])
-    ]
-  }).select('_id lease');
-  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
+  const tenant = await Tenant.findOne({ email: cleanEmail });
+  if (!tenant) {
+    return { hasActiveLease: false, user: { name: user.name } };
+  }
 
   // 2. Resolve the Target Lease
   let lease = null;
@@ -77,10 +45,7 @@ export const getTenantDashboardData = async (userId, targetLeaseId = null) => {
 
     lease = await Lease.findOne({
       _id: targetLeaseId,
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { _id: { $in: allTargetLeaseIds } },
-      ]
+      tenant: tenant._id,
     }).populate({
       path: 'property',
       populate: { path: 'manager', select: 'name email phone firstName lastName profilePicture' }
@@ -95,17 +60,15 @@ export const getTenantDashboardData = async (userId, targetLeaseId = null) => {
       throw new DomainError(ErrorCatalog.LEASE.NOT_FOUND);
     }
   } else {
-    // No specific lease ID passed in query: check tenant's active leases
-    const activeLeases = await Lease.find({
-      status: 'active',
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { _id: { $in: allTargetLeaseIds } },
-      ]
+    // No specific lease ID passed in query: check tenant's authoritatively active leases
+    const leases = await Lease.find({
+      tenant: tenant._id,
     }).populate({
       path: 'property',
       populate: { path: 'manager', select: 'name email phone firstName lastName profilePicture' }
     });
+
+    const activeLeases = leases.filter(l => isLeaseAuthoritativelyActive(l));
 
     if (activeLeases.length === 0) {
       return { hasActiveLease: false, user: { name: user.name } };
@@ -163,7 +126,7 @@ export const getTenantDashboardData = async (userId, targetLeaseId = null) => {
   // 6. Check Active Maintenance Requests for this property / tenant
   const maintenanceRequests = await Maintenance.find({
     property: property?._id,
-    tenant: { $in: tenantIds }
+    tenant: tenant._id
   });
   const openMaintenanceCount = maintenanceRequests.filter(m => ['open', 'in_progress'].includes(m.status)).length;
 
@@ -235,9 +198,9 @@ export const getTenantDashboardData = async (userId, targetLeaseId = null) => {
     hasActiveLease: true,
     user: { name: user.name, email: user.email },
     tenant: {
-      id: tenantIds[0] || userId,
-      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name,
-      email: user.email
+      id: tenant._id,
+      name: `${tenant.firstName || user.firstName || ''} ${tenant.lastName || user.lastName || ''}`.trim() || user.name,
+      email: tenant.email || user.email
     },
     property: {
       id: property?._id,

@@ -7,6 +7,8 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { resolveLeaseUrls } from './leaseController.js';
 import { resolvePropertyUrls } from './propertyController.js';
+import { isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
+import { isTenantRole, getAuthenticatedTenant } from '../utils/tenantHelper.js';
 
 import { getAuthenticatedUserId } from '../utils/managerHelper.js';
 
@@ -250,8 +252,7 @@ export const getTenantStats = asyncHandler(async (req, res) => {
 
 // Unified Context for Authenticated Tenant
 export const getMyTenantContext = asyncHandler(async (req, res) => {
-  const actualUserId = req.user?.userId || req.user?._id || req.user?.id;
-  const user = await User.findById(actualUserId).select('email phone firstName lastName avatar role');
+  const { user, tenant } = await getAuthenticatedTenant(req);
   if (!user) {
     return res.status(200).json({
       success: true,
@@ -270,44 +271,61 @@ export const getMyTenantContext = asyncHandler(async (req, res) => {
     });
   }
 
-  const cleanEmail = (user.email || '').trim();
-  const emailRegex = cleanEmail ? new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
-  const cleanPhone = (user.phone || '').trim();
-  const phoneRegex = cleanPhone ? new RegExp(`^${cleanPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') : null;
+  // If no tenant record exists, resolve user-level bookings only
+  if (!tenant) {
+    const userBookings = await Booking.find({ user: user._id })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'property',
+        select: 'name address city state zipCode images coverImage manager rentAmount depositAmount',
+        populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
+      })
+      .populate('manager', 'firstName lastName email phone avatar');
 
-  const tenants = await Tenant.find({
-    $or: [
-      ...(emailRegex ? [{ email: emailRegex }] : []),
-      { user: actualUserId },
-      { userId: actualUserId },
-      ...(phoneRegex ? [{ phone: phoneRegex }] : []),
-      ...(user.firstName && user.lastName ? [{
-        firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
-        lastName: new RegExp(`^${user.lastName.trim()}$`, 'i')
-      }] : [])
-    ]
-  });
+    const activeBookings = userBookings.filter(b => ['pending', 'approved', 'active'].includes(b.status));
+    const primaryBooking = activeBookings[0] || userBookings[0] || null;
 
-  const tenantIds = Array.from(new Set([
-    actualUserId,
-    user._id,
-    ...tenants.map(t => t._id)
-  ].filter(Boolean).map(id => id.toString())));
-
-  // Collect lease IDs embedded in tenant documents
-  const embeddedLeaseIds = [];
-  for (const t of tenants) {
-    if (Array.isArray(t.leases)) {
-      embeddedLeaseIds.push(...t.leases.filter(Boolean));
+    let property = null;
+    if (primaryBooking?.property) {
+      property = typeof primaryBooking.property === 'object' ? resolvePropertyUrls(primaryBooking.property, req) : primaryBooking.property;
     }
+
+    let manager = null;
+    if (primaryBooking?.manager && typeof primaryBooking.manager === 'object') {
+      manager = primaryBooking.manager;
+    } else if (primaryBooking?.property?.manager && typeof primaryBooking.property.manager === 'object') {
+      manager = primaryBooking.property.manager;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        hasActiveLease: false,
+        hasProperty: Boolean(property),
+        hasBooking: Boolean(primaryBooking),
+        hasEndedLease: false,
+        activeLease: null,
+        activeLeases: [],
+        endedLeases: [],
+        property,
+        manager: manager ? {
+          _id: manager._id,
+          firstName: manager.firstName,
+          lastName: manager.lastName,
+          email: manager.email,
+          phone: manager.phone || '',
+          avatar: manager.avatar || null,
+        } : null,
+        booking: primaryBooking,
+      },
+    });
   }
 
-  // Find bookings for this user
+  // Find bookings strictly for this tenant / user
   const userBookings = await Booking.find({
     $or: [
-      { user: { $in: tenantIds } },
-      { tenant: { $in: tenantIds } },
-      ...(emailRegex ? [{ email: emailRegex }] : [])
+      { user: user._id },
+      { tenant: tenant._id }
     ]
   })
     .sort({ createdAt: -1 })
@@ -318,43 +336,27 @@ export const getMyTenantContext = asyncHandler(async (req, res) => {
     })
     .populate('manager', 'firstName lastName email phone avatar');
 
-  const bookingLeaseIds = userBookings.map(b => b.lease).filter(Boolean);
-  const allTargetLeaseIds = Array.from(new Set([...embeddedLeaseIds, ...bookingLeaseIds].map(id => id.toString())));
-
-  // Find active leases & past leases
-  const [activeLeases, endedLeases] = await Promise.all([
-    Lease.find({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ],
-      status: { $nin: ['terminated', 'expired', 'cancelled', 'completed'] },
+  // Query ALL leases strictly for this authoritative tenant record
+  const allLeases = await Lease.find({ tenant: tenant._id })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'property',
+      select: 'name address city state zipCode type bedrooms bathrooms floor squareFeet rentAmount depositAmount amenities images coverImage manager',
+      populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
     })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: 'property',
-        select: 'name address city state zipCode type bedrooms bathrooms floor squareFeet rentAmount depositAmount amenities images coverImage manager',
-        populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
-      })
-      .populate('tenant', 'firstName lastName email phone'),
+    .populate('tenant', 'firstName lastName email phone');
 
-    Lease.find({
-      $or: [
-        { tenant: { $in: tenantIds } },
-        { user: { $in: tenantIds } },
-        ...(allTargetLeaseIds.length > 0 ? [{ _id: { $in: allTargetLeaseIds } }] : [])
-      ],
-      status: { $in: ['terminated', 'expired', 'cancelled', 'completed'] },
-    })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: 'property',
-        select: 'name address city state zipCode images coverImage manager',
-        populate: { path: 'manager', select: 'firstName lastName email phone avatar' }
-      })
-      .populate('tenant', 'firstName lastName email phone')
-  ]);
+  const now = new Date();
+  const activeLeases = [];
+  const endedLeases = [];
+
+  for (const lease of allLeases) {
+    if (isLeaseAuthoritativelyActive(lease, now)) {
+      activeLeases.push(lease);
+    } else {
+      endedLeases.push(lease);
+    }
+  }
 
   const resolvedActiveLeases = activeLeases.map(l => resolveLeaseUrls(l, req));
   const resolvedEndedLeases = endedLeases.map(l => resolveLeaseUrls(l, req));
