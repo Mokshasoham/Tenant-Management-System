@@ -20,8 +20,8 @@ export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
   const leaseObj = lease.toObject ? lease.toObject() : lease;
 
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.get('host');
+  const protocol = req?.headers?.['x-forwarded-proto'] || req?.protocol || 'http';
+  const host = (req?.get ? req.get('host') : req?.headers?.host) || 'localhost:5000';
   const baseUrl = `${protocol}://${host}`;
 
   if (leaseObj.fileId) {
@@ -188,7 +188,88 @@ export const getMyLease = asyncHandler(async (req, res) => {
   });
 });
 
+// Tenant-scoped: get all historical (past/ended) leases for the authenticated tenant
+export const getMyLeaseHistory = asyncHandler(async (req, res) => {
+  const { user, tenant } = await getAuthenticatedTenant(req);
+  if (!user || !tenant) {
+    return res.status(200).json({ 
+      success: true, 
+      count: 0, 
+      propertiesCount: 0, 
+      data: [] 
+    });
+  }
 
+  // Exact single authoritative tenant ID — strictly isolated, zero phone/name matching
+  const allLeases = await Lease.find({ tenant: tenant._id })
+    .sort({ endDate: -1, createdAt: -1 })
+    .populate({
+      path: 'property',
+      select: 'name address city state zipCode type bedrooms bathrooms floor totalFloors squareFeet furnishing rentAmount depositAmount amenities images videos media virtualTourUrl coverImage manager location geo owner',
+      populate: [
+        { path: 'manager', select: 'firstName lastName name email phone phoneNumber avatar role' },
+        { path: 'owner', select: 'firstName lastName name email phone phoneNumber avatar role' }
+      ]
+    })
+    .populate('tenant', 'firstName lastName email phone')
+    .populate('renewedTo', 'leaseNumber startDate endDate rentAmount status')
+    .populate('renewedFrom', 'leaseNumber startDate endDate rentAmount status');
+
+  const allLeaseIds = allLeases.map(l => l._id);
+  const settlements = await DepositSettlement.find({
+    lease: { $in: allLeaseIds },
+    isArchived: { $ne: true }
+  }).sort({ createdAt: -1 }).lean();
+
+  const settlementsByLease = {};
+  settlements.forEach(s => {
+    const k = s.lease?.toString();
+    if (!settlementsByLease[k]) {
+      settlementsByLease[k] = s;
+    }
+  });
+
+  const now = new Date();
+
+  // Filter STRICTLY for non-active (historical) leases
+  const historicalLeases = [];
+  const uniquePropertyIds = new Set();
+
+  for (const lease of allLeases) {
+    if (!isLeaseAuthoritativelyActive(lease, now)) {
+      const resolved = resolveLeaseUrls(lease, req);
+      const leaseSettlement = settlementsByLease[lease._id.toString()] || null;
+
+      if (lease.property?._id) {
+        uniquePropertyIds.add(lease.property._id.toString());
+      }
+
+      historicalLeases.push({
+        ...resolved,
+        settlement: leaseSettlement ? {
+          _id: leaseSettlement._id,
+          depositAmount: leaseSettlement.depositAmount,
+          totalDeduction: leaseSettlement.totalDeduction,
+          refundAmount: leaseSettlement.refundAmount,
+          outstandingBalance: leaseSettlement.outstandingBalance || 0,
+          refundStatus: leaseSettlement.refundStatus || 'due',
+          refundDate: leaseSettlement.refundDate,
+          status: leaseSettlement.status,
+          deductions: leaseSettlement.deductions || [],
+        } : null,
+      });
+    }
+  }
+
+  logger.info(`[MY LEASE HISTORY] tenantUserId=${req.user?.userId || req.user?._id}, tenantId=${tenant._id}, historyCount=${historicalLeases.length}`);
+
+  res.status(200).json({
+    success: true,
+    count: historicalLeases.length,
+    propertiesCount: uniquePropertyIds.size,
+    data: historicalLeases,
+  });
+});
 
 import { getAuthenticatedUserId, getManagerPropertyIds } from '../utils/managerHelper.js';
 

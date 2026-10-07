@@ -9,7 +9,7 @@ import {
     Mail, MapPin, Bed, Bath, ChevronDown, ChevronUp,
     PenTool, Type, Upload, Fingerprint, FileSignature, FileCheck,
     ChevronLeft, ChevronRight, User, IdCard, CreditCard as CreditCardIcon,
-    CheckSquare, XCircle, ExternalLink, Loader2, ClipboardList
+    CheckSquare, XCircle, ExternalLink, Loader2, ClipboardList, History
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import {
@@ -20,6 +20,7 @@ import {
     LeasePropertyMediaGallery,
     PropertyManagerHeaderCard,
 } from '../components/lease';
+import RentalHistoryDrawer from '../components/lease/RentalHistoryDrawer';
 import LeaseFeedbackCard from '../components/feedback/LeaseFeedbackCard';
 import TenantFeedbackModal from '../components/feedback/TenantFeedbackModal';
 
@@ -94,6 +95,7 @@ export default function MyLeasePage() {
     const [selectedLeaseIndex, setSelectedLeaseIndex] = useState(0);
     const [selectedPastLease, setSelectedPastLease] = useState(null);
     const [invalidLeaseRequested, setInvalidLeaseRequested] = useState(false);
+    const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAllPayments, setShowAllPayments] = useState(false);
@@ -630,7 +632,7 @@ export default function MyLeasePage() {
                 }
             `}} />
             {/* Page Header */}
-            <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+            <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-emerald-500" />
@@ -639,13 +641,31 @@ export default function MyLeasePage() {
                     <h1 className="text-3xl font-black text-foreground tracking-tight">Lease &amp; Rent 🏠</h1>
                     <p className="text-muted-foreground/40 text-sm mt-0.5">All your tenancy details in one place</p>
                 </div>
-                {pendingPay && (
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                        onClick={() => navigate(currentLease?._id ? `/pay-now?leaseId=${currentLease._id}` : '/pay-now', { state: { leaseId: currentLease?._id } })}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
-                        <Wallet className="w-4 h-4" /> Pay Rent Now
+                <div className="flex items-center gap-3 shrink-0">
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setIsHistoryDrawerOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card/80 hover:bg-card hover:border-emerald-500/40 text-foreground text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md cursor-pointer select-none"
+                        title="View your previous rental agreements and stay history"
+                    >
+                        <History className="w-4 h-4 text-emerald-500" />
+                        <span className="hidden xs:inline sm:inline">Rental History</span>
+                        {pastLeases.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black border border-emerald-500/20">
+                                {pastLeases.length}
+                            </span>
+                        )}
                     </motion.button>
-                )}
+
+                    {pendingPay && (
+                        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                            onClick={() => navigate(currentLease?._id ? `/pay-now?leaseId=${currentLease._id}` : '/pay-now', { state: { leaseId: currentLease?._id } })}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 cursor-pointer">
+                            <Wallet className="w-4 h-4" /> Pay Rent Now
+                        </motion.button>
+                    )}
+                </div>
             </motion.div>
 
             {/* Multi-Lease Selection Switcher Tabs */}
@@ -2135,6 +2155,12 @@ export default function MyLeasePage() {
                         fetchFeedbackEligibility(currentLease._id);
                     }
                 }}
+            />
+
+            {/* Rental History & Past Leases Drawer */}
+            <RentalHistoryDrawer
+                open={isHistoryDrawerOpen}
+                onClose={() => setIsHistoryDrawerOpen(false)}
             />
         </div>
     );

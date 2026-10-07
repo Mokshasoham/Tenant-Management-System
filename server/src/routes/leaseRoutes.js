@@ -9,6 +9,7 @@ router.use(authenticate);
 // Tenant-accessible routes
 router.get('/my-active', leaseController.getMyLease);
 router.get('/my-lease', leaseController.getMyLease);
+router.get('/my-history', leaseController.getMyLeaseHistory);
 router.get('/move-outs', managerOrAdmin, leaseController.getMoveOutRequests);
 router.get('/:id', leaseController.getLeaseById);
 router.post('/:id/sign', leaseController.signLease);
