@@ -4,6 +4,9 @@ import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../../utils/cn';
 
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+
 export default function PeopleSpatialMap({
   properties = [],
   tenants = [],
@@ -27,14 +30,10 @@ export default function PeopleSpatialMap({
     risk: true,
   });
 
-  // 1. Dynamic Light/Dark Tile Layer Swapping
+  // 1. Keep Tile Layer on Canonical OSM (Dark styling handled via scoped CSS filter)
   useEffect(() => {
-    const tileUrl = theme === 'light'
-      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-
     if (tileLayerRef.current) {
-      tileLayerRef.current.setUrl(tileUrl);
+      tileLayerRef.current.setUrl(OSM_TILE_URL);
     }
   }, [theme]);
 
@@ -51,12 +50,8 @@ export default function PeopleSpatialMap({
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      const tileUrl = theme === 'light'
-        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-
-      const tileLayer = L.tileLayer(tileUrl, {
-        attribution: '&copy; CartoDB &copy; OpenStreetMap',
+      const tileLayer = L.tileLayer(OSM_TILE_URL, {
+        attribution: OSM_ATTRIBUTION,
         maxZoom: 19,
       }).addTo(map);
 
@@ -271,7 +266,7 @@ export default function PeopleSpatialMap({
 
   return (
     <div className={cn(
-      "h-[420px] w-full rounded-[2.25rem] border shadow-2xl relative transition-all backdrop-blur-2xl overflow-hidden",
+      "h-[420px] w-full rounded-[2.25rem] border shadow-2xl relative transition-all backdrop-blur-2xl overflow-hidden tms-map-dark",
       theme === 'light' ? "bg-white/80 border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
     )}>
       {/* Interactive Layer Toggles Bar */}

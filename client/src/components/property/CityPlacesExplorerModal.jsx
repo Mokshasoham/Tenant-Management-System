@@ -391,13 +391,11 @@ export default function CityPlacesExplorerModal({
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    const tileUrl = isDark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     L.tileLayer(tileUrl, {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
     }).addTo(map);
 
     const bounds = L.latLngBounds();
@@ -884,7 +882,7 @@ export default function CityPlacesExplorerModal({
               <div className="space-y-3">
                 <div
                   ref={mapContainerRef}
-                  className="w-full h-[520px] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-inner relative z-0"
+                  className="w-full h-[520px] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-inner relative z-0 tms-map-dark"
                 />
                 <p className={cn("text-[11px] text-center", isDark ? "text-slate-400" : "text-slate-500")}>
                   💡 Showing <b>{filteredPlaces.length}</b> places across the city. Click any marker to view details and navigate.

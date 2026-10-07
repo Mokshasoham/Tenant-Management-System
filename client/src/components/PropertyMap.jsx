@@ -35,6 +35,10 @@ const TYPE_COLORS = {
 };
 const DEF_COLOR = '#6366f1';
 
+// Canonical OpenStreetMap tile endpoint per OSM Operations Policy (no legacy {s} shards)
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+
 const TYPE_PILLS = [
     { val: '', label: '🏠 All' },
     { val: 'apartment', label: '🏢 Apt' },
@@ -141,14 +145,10 @@ export default function InteractivePropertyMap({
             zoomControl: false,
         });
 
-        const tileLayer = L.tileLayer(
-            theme === 'dark'
-                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            {
-                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            }
-        ).addTo(map);
+        const tileLayer = L.tileLayer(OSM_TILE_URL, {
+            attribution: OSM_ATTRIBUTION,
+            maxZoom: 19,
+        }).addTo(map);
 
         tileLayerRef.current = tileLayer;
 
@@ -177,14 +177,10 @@ export default function InteractivePropertyMap({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Update Tile Layer Theme ──
+    // ── Keep Tile Layer On Canonical OSM (Dark styling handled via scoped CSS filter) ──
     useEffect(() => {
         if (tileLayerRef.current) {
-            const url =
-                theme === 'dark'
-                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-            tileLayerRef.current.setUrl(url);
+            tileLayerRef.current.setUrl(OSM_TILE_URL);
         }
     }, [theme]);
 
@@ -334,7 +330,7 @@ export default function InteractivePropertyMap({
     }, [onBoundsChange]);
 
     return (
-        <div className="relative w-full h-full min-h-[480px] overflow-hidden rounded-[2.5rem]">
+        <div className="relative w-full h-full min-h-[480px] overflow-hidden rounded-[2.5rem] tms-map-dark">
             {/* ── TOP OVERLAY: Quick Type Pills + Hierarchical Location Filter ── */}
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 pointer-events-auto max-w-[95%]">
                 {/* Property Type Pills */}
@@ -388,7 +384,7 @@ export default function InteractivePropertyMap({
             </div>
 
             {/* ── Leaflet Container ── */}
-            <div ref={containerRef} className="w-full h-full min-h-[480px] relative z-0" />
+            <div ref={containerRef} className="w-full h-full min-h-[480px] relative z-0 tms-map-dark" />
         </div>
     );
 }

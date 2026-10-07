@@ -3,6 +3,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '../../../../utils/cn';
 
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+
 export default function ManagerMaintenanceMap({
   properties = [],
   requests = [],
@@ -16,6 +19,13 @@ export default function ManagerMaintenanceMap({
   const tileLayerRef = useRef(null);
   const markersRef = useRef([]);
 
+  // Keep Tile Layer on Canonical OSM (Dark styling handled via scoped CSS filter)
+  useEffect(() => {
+    if (tileLayerRef.current) {
+      tileLayerRef.current.setUrl(OSM_TILE_URL);
+    }
+  }, [theme]);
+
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -28,12 +38,8 @@ export default function ManagerMaintenanceMap({
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      const tileUrl = theme === 'light'
-        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-
-      const tileLayer = L.tileLayer(tileUrl, {
-        attribution: '&copy; CartoDB &copy; OpenStreetMap',
+      const tileLayer = L.tileLayer(OSM_TILE_URL, {
+        attribution: OSM_ATTRIBUTION,
         maxZoom: 19,
       }).addTo(map);
 
@@ -104,7 +110,7 @@ export default function ManagerMaintenanceMap({
 
   return (
     <div className={cn(
-      "h-[360px] w-full rounded-[2.25rem] border shadow-2xl relative transition-all backdrop-blur-2xl overflow-hidden",
+      "h-[360px] w-full rounded-[2.25rem] border shadow-2xl relative transition-all backdrop-blur-2xl overflow-hidden tms-map-dark",
       theme === 'light' ? "bg-white/80 border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
     )}>
       <div className="absolute top-4 left-4 z-[400] px-3 py-1.5 rounded-full border shadow-xl backdrop-blur-2xl bg-slate-900/90 border-white/10 text-xs font-black text-white flex items-center gap-2">

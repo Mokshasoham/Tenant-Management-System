@@ -150,9 +150,30 @@
     animation: gradientShift 12s ease infinite;
   }
 
-  /* Leaflet fix */
+  /* Leaflet Map Styles */
   .leaflet-container {
     z-index: 1;
+  }
+
+  /* Scoped TMS Leaflet Dark Mode Tile Filter */
+  .dark .tms-map-dark .leaflet-tile-pane,
+  .dark .tms-map-dark.leaflet-container .leaflet-tile-pane {
+    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+  }
+
+  .dark .tms-map-dark .leaflet-container,
+  .dark .tms-map-dark.leaflet-container {
+    background-color: #0b0f19;
+  }
+
+  /* Ensure markers, popups, and zoom controls are never inverted or washed out */
+  .dark .tms-map-dark .leaflet-marker-pane,
+  .dark .tms-map-dark .leaflet-popup-pane,
+  .dark .tms-map-dark .leaflet-control-container,
+  .dark .tms-map-dark.leaflet-container .leaflet-marker-pane,
+  .dark .tms-map-dark.leaflet-container .leaflet-popup-pane,
+  .dark .tms-map-dark.leaflet-container .leaflet-control-container {
+    filter: none !important;
   }
 
   /* ADMIN THEME - Deep Violet/Purple Galaxy */
