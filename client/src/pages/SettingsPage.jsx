@@ -46,7 +46,7 @@ const Toggle = ({ value, onChange, label, sublabel }) => (
 );
 
 const SettingsPage = () => {
-    const { theme, toggleTheme } = useTheme();
+    const { theme, toggleTheme, setTheme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const user = useAuthStore((state) => state.user);
     const [showLangDropdown, setShowLangDropdown] = useState(false);
@@ -84,7 +84,7 @@ const SettingsPage = () => {
                         {/* Dark Mode Card */}
                         <motion.button
                             whileTap={{ scale: 0.97 }}
-                            onClick={() => theme !== 'dark' && toggleTheme()}
+                            onClick={() => (setTheme ? setTheme('dark') : toggleTheme())}
                             className={cn(
                                 "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
                                 theme === 'dark' ? "bg-primary/10 border-primary" : "bg-muted border-border"
@@ -104,7 +104,7 @@ const SettingsPage = () => {
                         {/* Light Mode Card */}
                         <motion.button
                             whileTap={{ scale: 0.97 }}
-                            onClick={() => theme !== 'light' && toggleTheme()}
+                            onClick={() => (setTheme ? setTheme('light') : toggleTheme())}
                             className={cn(
                                 "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
                                 theme === 'light' ? "bg-amber-500/10 border-amber-500" : "bg-muted border-border"

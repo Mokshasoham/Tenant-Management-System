@@ -30,6 +30,8 @@ export const userService = {
   getPeople: (params) => apiClient.get('/users/admin/people', { params }),
   getAvailableTechnicians: (params) => apiClient.get('/users/technicians/available', { params }),
   uploadKycDocuments: (formData) => apiClient.post('/users/kyc', formData),
+  getPreferences: () => apiClient.get('/users/preferences'),
+  updatePreferences: (data) => apiClient.put('/users/preferences', data),
 };
 
 export const tenantService = {

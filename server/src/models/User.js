@@ -265,7 +265,14 @@ const userSchema = new mongoose.Schema(
         push: { type: Boolean, default: true },
         inApp: { type: Boolean, default: true },
       },
-    }
+    },
+    preferences: {
+      theme: {
+        type: String,
+        enum: ['light', 'dark'],
+        default: 'light',
+      },
+    },
   },
   {
     timestamps: true,

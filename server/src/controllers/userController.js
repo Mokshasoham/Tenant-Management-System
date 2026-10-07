@@ -529,12 +529,66 @@ export const getAvailableTechnicians = asyncHandler(async (req, res) => {
       avatar: userObj.avatar || null
     };
   });
-
   res.status(200).json({
     success: true,
     data: formattedTechnicians
   });
 });
+
+// User Preferences (Authenticated Self-Ownership)
+export const getUserPreferences = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId || req.user?._id;
+  if (!userId) {
+    throw new AppError('Authentication required', 401);
+  }
+
+  const user = await User.findById(userId).select('preferences');
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      theme: user.preferences?.theme || 'light',
+    },
+  });
+});
+
+export const updateUserPreferences = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId || req.user?._id;
+  if (!userId) {
+    throw new AppError('Authentication required', 401);
+  }
+
+  const { theme } = req.body;
+  if (!theme || !['light', 'dark'].includes(theme)) {
+    throw new AppError("Invalid theme preference. Allowed values are 'light' or 'dark'", 400);
+  }
+
+  // Derive target exclusively from authenticated user - completely ignore any req.body.userId or params
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!user.preferences) {
+    user.preferences = {};
+  }
+  user.preferences.theme = theme;
+  await user.save();
+
+  logger.info(`[UserPreferences] Updated theme for userId=${userId} (${user.email}) to ${theme}`);
+
+  res.status(200).json({
+    success: true,
+    message: 'User preferences updated successfully',
+    data: {
+      theme: user.preferences.theme,
+    },
+  });
+});
+
 
 
 

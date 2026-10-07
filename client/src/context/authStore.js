@@ -213,6 +213,21 @@ const useAuthStore = create((set) => ({
     localStorage.setItem('user', JSON.stringify(user));
     set({ user });
   },
+
+  setUserPreferences: (preferences) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updatedUser = {
+        ...state.user,
+        preferences: {
+          ...(state.user.preferences || {}),
+          ...preferences,
+        },
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return { user: updatedUser };
+    });
+  },
 }));
 
 export default useAuthStore;
