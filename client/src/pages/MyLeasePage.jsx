@@ -646,11 +646,12 @@ export default function MyLeasePage() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setIsHistoryDrawerOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card/80 hover:bg-card hover:border-emerald-500/40 text-foreground text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md cursor-pointer select-none"
-                        title="View your previous rental agreements and stay history"
+                        className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-border bg-card/90 hover:bg-card hover:border-emerald-500/40 text-foreground text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md cursor-pointer select-none"
+                        title="View your personal rental journey and past stays"
                     >
-                        <History className="w-4 h-4 text-emerald-500" />
-                        <span className="hidden xs:inline sm:inline">Rental History</span>
+                        <History className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="hidden sm:inline">Rental Journey</span>
+                        <span className="inline sm:hidden">Journey</span>
                         {pastLeases.length > 0 && (
                             <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black border border-emerald-500/20">
                                 {pastLeases.length}
