@@ -72,6 +72,8 @@ const subscriptionSchema = new mongoose.Schema(
     },
     features: [String],
     metadata: mongoose.Schema.Types.Mixed,
+    lockId: mongoose.Schema.Types.ObjectId,
+    lockedAt: Date,
   },
   {
     timestamps: true,

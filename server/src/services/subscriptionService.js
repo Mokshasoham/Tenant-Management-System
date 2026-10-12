@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import Subscription from '../models/Subscription.js';
@@ -6,9 +7,11 @@ import Tenant from '../models/Tenant.js';
 import Lease from '../models/Lease.js';
 import Property from '../models/Property.js';
 import Payment from '../models/Payment.js';
+import Booking from '../models/Booking.js';
 import PlatformSetting from '../models/PlatformSetting.js';
 import logger from '../utils/logger.js';
 import { AppError } from '../utils/errorHandling.js';
+import { isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
 
 /**
  * Default Plan Metadata & Configurations
@@ -156,35 +159,148 @@ export async function getPlanConfigs() {
 }
 
 /**
- * Compute the tenant's current ACTIVE lease count.
- * Excludes pending/upcoming, historical completed, terminated, or cancelled leases.
+ * Compute the tenant's live committed capacity consumption.
+ * Formula: Capacity Used = L_active (Authoritatively Active Leases) + B_reserved (Approved Commitments)
+ *
+ * Rules:
+ * 1. L_active: Evaluated strictly using canonical isLeaseAuthoritativelyActive(lease, now)
+ *    - Automatically excludes leases where now > endDate, moveOutStatus is completed, or renewed.
+ * 2. B_reserved:
+ *    - Approved bookings awaiting payment: status === 'approved', paymentStatus === 'pending',
+ *      within 48h from immutable approvalDate, OR within checkoutExpiresAt grace period.
+ *    - Paid future bookings/leases: paymentStatus === 'paid', startDate > now.
+ *    - Deduplication: If a booking's associated lease is already in L_active, it is not counted in B_reserved.
+ *    - If excludeBookingId is passed, that specific booking is omitted (useful when converting reservation -> lease).
  */
-export async function getTenantActiveLeaseCount(userId) {
+export async function getTenantCommittedCapacity(userId, options = {}) {
+  const { now = new Date(), excludeBookingId = null, session = null } = options;
+  if (!userId) {
+    return {
+      totalCommitted: 0,
+      activeLeaseCount: 0,
+      reservedCommitmentCount: 0,
+      activeLeases: [],
+      reservedBookings: []
+    };
+  }
+
   try {
-    if (!userId) return 0;
-    const user = await User.findById(userId).select('email');
-    if (!user) return 0;
+    const user = await User.findById(userId).select('email').session(session || null);
+    if (!user) {
+      return {
+        totalCommitted: 0,
+        activeLeaseCount: 0,
+        reservedCommitmentCount: 0,
+        activeLeases: [],
+        reservedBookings: []
+      };
+    }
 
     const email = (user.email || '').toLowerCase().trim();
     const tenantIds = [userId];
-
     if (email) {
-      const tenants = await Tenant.find({
-        email: { $regex: new RegExp(`^${email}$`, 'i') }
-      }).select('_id');
+      const tenants = await Tenant.find({ email }).select('_id').session(session || null);
       tenants.forEach((t) => tenantIds.push(t._id));
     }
 
-    // Count strictly ACTIVE leases according to the existing Lease status model
-    const count = await Lease.countDocuments({
+    // 1. Fetch all candidate leases for this tenant
+    const candidateLeases = await Lease.find({
       $or: [
         { tenant: { $in: tenantIds } },
-        { tenantEmail: { $regex: new RegExp(`^${email}$`, 'i') } }
+        { tenantEmail: email }
       ],
-      status: { $in: ['active', 'ACTIVE'] },
-    });
+      status: { $in: ['active', 'ACTIVE', 'pending'] }
+    }).session(session || null);
 
-    return count;
+    // Filter using canonical lifecycle predicate
+    const authoritativeActiveLeases = [];
+    const activeLeaseIds = new Set();
+    const activeLeaseBookingIds = new Set();
+
+    for (const lease of candidateLeases) {
+      if (isLeaseAuthoritativelyActive(lease, now)) {
+        authoritativeActiveLeases.push(lease);
+        activeLeaseIds.add(lease._id.toString());
+        if (lease.booking) {
+          activeLeaseBookingIds.add(lease.booking.toString());
+        }
+      }
+    }
+
+    // 2. Fetch approved booking commitments awaiting payment/signature or paid future stays
+    const ttlThreshold = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    const bookingQuery = {
+      user: userId,
+      status: { $in: ['approved', 'active'] },
+      $or: [
+        // Case A: Approved, awaiting payment, within 48h immutable approvalDate or active checkout
+        {
+          status: 'approved',
+          paymentStatus: 'pending',
+          $or: [
+            { approvalDate: { $gt: ttlThreshold } },
+            { approvalDate: { $exists: false }, updatedAt: { $gt: ttlThreshold } },
+            { checkoutExpiresAt: { $gt: now } }
+          ]
+        },
+        // Case B: Paid booking awaiting active lease conversion or future move-in (not expired)
+        {
+          paymentStatus: 'paid',
+          endDate: { $gt: now }
+        }
+      ]
+    };
+
+    if (excludeBookingId) {
+      bookingQuery._id = { $ne: excludeBookingId };
+    }
+
+    const candidateBookings = await Booking.find(bookingQuery).session(session || null);
+
+    const reservedBookings = [];
+    for (const booking of candidateBookings) {
+      // Anti-double-counting:
+      // If this booking is already attached to an active lease counted in authoritativeActiveLeases, skip it!
+      const bIdStr = booking._id.toString();
+      const isAlreadyActiveLease = activeLeaseBookingIds.has(bIdStr) || 
+        (booking.lease && activeLeaseIds.has(booking.lease.toString()));
+
+      if (!isAlreadyActiveLease) {
+        reservedBookings.push(booking);
+      }
+    }
+
+    const activeCount = authoritativeActiveLeases.length;
+    const reservedCount = reservedBookings.length;
+    const totalCommitted = activeCount + reservedCount;
+
+    return {
+      totalCommitted,
+      activeLeaseCount: activeCount,
+      reservedCommitmentCount: reservedCount,
+      activeLeases: authoritativeActiveLeases,
+      reservedBookings: reservedBookings
+    };
+  } catch (err) {
+    logger.warn(`[Subscription] Error calculating tenant committed capacity: ${err.message}`);
+    return {
+      totalCommitted: 0,
+      activeLeaseCount: 0,
+      reservedCommitmentCount: 0,
+      activeLeases: [],
+      reservedBookings: []
+    };
+  }
+}
+
+/**
+ * Compute the tenant's current active lease count.
+ * Returns total committed capacity (canonical active leases + valid approved commitments).
+ */
+export async function getTenantActiveLeaseCount(userId, options = {}) {
+  try {
+    const cap = await getTenantCommittedCapacity(userId, options);
+    return cap.totalCommitted;
   } catch (err) {
     logger.warn(`[Subscription] Error calculating tenant active lease count: ${err.message}`);
     return 0;
@@ -333,17 +449,347 @@ export async function getUserSubscription(userId, role) {
 }
 
 /**
+ * Transaction runner with automatic retry for transient errors.
+ * Gracefully degrades to non-transactional execution on standalone MongoDB environments.
+ *
+ * ARCHITECTURAL NOTICE ON TRANSACTION SAFETY & ISOLATION GUARANTEES:
+ * - Production (MongoDB Replica Sets / Atlas):
+ *   ACID multi-document transactions (session.withTransaction) guarantee engine-level atomicity.
+ *   If a worker loses its lock, experiences preemption, or abruptly crashes (SIGKILL, OOM, hardware failure),
+ *   the MongoDB database engine automatically aborts uncommitted writes. Stale workers CANNOT persist orphan leases.
+ * - Standalone MongoDB (Single-node development/testing):
+ *   MongoDB engine does NOT support multi-document transactions (Error 20). Execution falls back to
+ *   application-level compensating rollback (Sagas). While effective against ordinary exceptions, if a worker
+ *   suffers an unhandled crash between an individual write and its compensation, the engine cannot auto-rollback.
+ *   CRITICAL: Production environments MUST run a MongoDB Replica Set (Atlas default) for guaranteed ACID isolation.
+ */
+export async function runInTransactionWithRetry(workFn, maxRetries = 3) {
+  let session = null;
+  try {
+    session = await mongoose.startSession();
+  } catch (err) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new AppError(
+        'PRODUCTION_TRANSACTIONS_REQUIRED: MongoDB client sessions are not supported on this deployment. A MongoDB Replica Set is strictly required in production for subscription lease-capacity operations.',
+        500
+      );
+    }
+    logger.debug(`[Subscription Lock] Sessions not supported, running non-transactional: ${err.message}`);
+    return await workFn(null);
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      let result;
+      await session.withTransaction(async () => {
+        result = await workFn(session);
+      });
+      return result;
+    } catch (err) {
+      const isTransient =
+        err.hasErrorLabel?.('TransientTransactionError') ||
+        err.message?.includes('WriteConflict') ||
+        err.code === 112;
+      const isReplicaSetRequired =
+        err.code === 20 ||
+        err.message?.includes('replica set') ||
+        err.message?.includes('Transactions are not supported');
+
+      if (isReplicaSetRequired) {
+        if (process.env.NODE_ENV === 'production') {
+          throw new AppError(
+            'PRODUCTION_TRANSACTIONS_REQUIRED: MongoDB multi-document transactions are not supported on this deployment. A MongoDB Replica Set is strictly required in production for subscription lease-capacity operations.',
+            500
+          );
+        }
+        logger.debug(`[Subscription Lock] Standalone mongod detected. Executing without replica transaction.`);
+        return await workFn(null);
+      }
+
+      if (isTransient && attempt < maxRetries) {
+        logger.warn(`[Subscription Lock] Transient transaction conflict (attempt ${attempt}/${maxRetries}): ${err.message}. Retrying...`);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 120));
+        continue;
+      }
+      throw err;
+    } finally {
+      if (session && (attempt === maxRetries || !session.inTransaction())) {
+        await session.endSession().catch(() => {});
+      }
+    }
+  }
+}
+
+/**
+ * Validates that the executing worker still owns the fencing token lock on the Subscription document.
+ * Prevents split-brain writes if another worker took over a stale lock during a long-running execution.
+ */
+export async function assertLockOwnership(userId, lockId, session = null) {
+  if (!userId || !lockId) return;
+  const targetUserId = userId.toString();
+
+  // Atomically touch Subscription document conditional on owning the fencing lockId.
+  // In Standalone MongoDB: single-document atomic update. If lock was stolen/reset, returns null.
+  // In Replica Set Transactions: forces MongoDB write-conflict detection against concurrent writers,
+  // preventing snapshot isolation from masking preempted locks.
+  const sub = await Subscription.findOneAndUpdate(
+    {
+      $or: [{ user: targetUserId }, { owner: targetUserId }],
+      role: 'tenant',
+      lockId: lockId,
+    },
+    {
+      $set: { lockedAt: new Date() },
+    },
+    { session: session || null, new: true }
+  );
+
+  if (!sub) {
+    throw new AppError(
+      'FENCING_TOKEN_INVALID: Lock ownership was preempted or lost. Operation aborted to prevent split-brain write conflict.',
+      409,
+      { code: 'LOCK_OWNERSHIP_LOST', userId: targetUserId, lockId }
+    );
+  }
+  return sub;
+}
+
+/**
+ * Acquire tenant capacity mutex lock with active heartbeat, fencing tokens, and self-healing timeout.
+ * Prevents race conditions during concurrent bookings, approvals, and lease creations.
+ *
+ * Guarantees:
+ * - On MongoDB Replica Sets: Coupled with runInTransactionWithRetry to ensure full ACID serializability.
+ *   Pre/post fencing token validation (assertLockOwnership) causes write conflicts on preempted workers,
+ *   prompting automatic engine-level rollback even on process death.
+ * - On Standalone MongoDB: Uses atomic findOneAndUpdate for fencing checks and registered compensating
+ *   rollbacks. Provides application-level recovery, but cannot guarantee transactional atomicity against
+ *   unhandled process termination (SIGKILL) mid-write.
+ */
+export async function withTenantCapacityLock(userId, workFn, options = {}) {
+  if (!userId) return await workFn({});
+
+  const targetUserId = userId.toString();
+  // Ensure subscription document exists for user
+  let sub = await Subscription.findOne({ user: targetUserId, role: 'tenant' });
+  if (!sub) {
+    await getUserSubscription(targetUserId, 'tenant');
+  }
+
+  const maxWaitMs = 12000;
+  const pollIntervalMs = 150;
+  const staleThresholdMs = 15000;
+  const lockId = new mongoose.Types.ObjectId();
+  const startTime = Date.now();
+  let acquired = false;
+
+  while (Date.now() - startTime < maxWaitMs) {
+    const staleThreshold = new Date(Date.now() - staleThresholdMs);
+    const updated = await Subscription.findOneAndUpdate(
+      {
+        user: targetUserId,
+        role: 'tenant',
+        $or: [
+          { lockId: null },
+          { lockId: { $exists: false } },
+          { lockedAt: { $lt: staleThreshold } },
+        ],
+      },
+      {
+        $set: { lockId, lockedAt: new Date() },
+      },
+      { new: true }
+    );
+
+    if (updated && updated.lockId?.toString() === lockId.toString()) {
+      acquired = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  if (!acquired) {
+    throw new AppError(
+      'Unable to acquire capacity lock. Another operation is in progress for this tenant. Please retry in a moment.',
+      409
+    );
+  }
+
+  // Active heartbeat extends lease while operation runs
+  const heartbeat = setInterval(async () => {
+    try {
+      await Subscription.updateOne(
+        { user: targetUserId, role: 'tenant', lockId },
+        { $set: { lockedAt: new Date() } }
+      );
+    } catch (hErr) {
+      logger.warn(`[Subscription Lock Heartbeat] Error: ${hErr.message}`);
+    }
+  }, 4000);
+
+  const compensations = [];
+  const registerCompensation = (fn) => {
+    if (typeof fn === 'function') {
+      compensations.push(fn);
+    }
+  };
+
+  const executeCompensations = async (reason) => {
+    if (compensations.length === 0) return;
+    logger.warn(`[Subscription Lock] Executing ${compensations.length} compensating rollback action(s) due to: ${reason}`);
+    while (compensations.length > 0) {
+      const rollbackFn = compensations.pop();
+      try {
+        await rollbackFn();
+      } catch (rbErr) {
+        logger.error(`[Subscription Lock Compensating Rollback Error] ${rbErr.message}`);
+      }
+    }
+  };
+
+  const runner = options.forceNonTransactional
+    ? async (cb) => cb(null)
+    : runInTransactionWithRetry;
+
+  try {
+    return await runner(async (session) => {
+      const isTransactional = Boolean(session && session.inTransaction && session.inTransaction());
+
+      // 1. Pre-execution fencing token verification
+      await assertLockOwnership(targetUserId, lockId, session);
+
+      try {
+        const result = await workFn({
+          lockId,
+          session,
+          assertOwnership: () => assertLockOwnership(targetUserId, lockId, session),
+          registerCompensation: (fn) => {
+            if (!isTransactional) {
+              registerCompensation(fn);
+            }
+          },
+        });
+
+        // 2. Post-execution fencing token verification before committing / completing
+        await assertLockOwnership(targetUserId, lockId, session);
+        return result;
+      } catch (err) {
+        if (!isTransactional) {
+          await executeCompensations(err.message || 'Execution error');
+        }
+        throw err;
+      }
+    });
+  } catch (outerErr) {
+    await executeCompensations(outerErr.message || 'Outer lock error');
+    throw outerErr;
+  } finally {
+    clearInterval(heartbeat);
+    try {
+      await Subscription.updateOne(
+        { user: targetUserId, role: 'tenant', lockId },
+        { $set: { lockId: null, lockedAt: null } }
+      );
+    } catch (releaseErr) {
+      logger.warn(`[Subscription Lock Release] Error: ${releaseErr.message}`);
+    }
+  }
+}
+
+/**
+ * Authoritative capacity assertion & reservation guard.
+ * Validates that adding a new lease/booking will not exceed the tenant's plan capacity.
+ *
+ * Rules:
+ * - Free: 2 concurrent active leases
+ * - Plus: 4 concurrent active leases
+ * - Pro: Unlimited (999999)
+ *
+ * Excludes booking when converting approved reservation -> paid/active lease.
+ */
+export async function assertAndReserveCapacity(userId, role = 'tenant', actionType = 'create', options = {}) {
+  const { excludeBookingId = null, session = null } = options;
+  const normalizedRole = role === 'admin' ? 'manager' : (role || 'tenant');
+
+  if (normalizedRole === 'manager') {
+    return checkSubscriptionLimit(userId, 'manager', actionType);
+  }
+
+  const planConfigs = await getPlanConfigs();
+  const tenantPlans = planConfigs.tenant;
+
+  let subscription = await Subscription.findOne({
+    $or: [{ user: userId }, { owner: userId }],
+    role: 'tenant',
+  }).session(session || null);
+
+  const activePlanId = (subscription?.planId || 'free').toLowerCase();
+  const currentPlanMeta = tenantPlans[activePlanId] || tenantPlans.free;
+
+  // Strict tenant limits: Free = 2, Plus = 4, Pro = 999999
+  const maxLimit = activePlanId === 'free' ? 2 : (activePlanId === 'plus' ? 4 : (currentPlanMeta.maxLeases || 999999));
+  const isUnlimited = maxLimit >= 999999;
+
+  if (isUnlimited) {
+    return {
+      allowed: true,
+      currentCount: 0,
+      maxLimit,
+      isUnlimited: true,
+      planId: activePlanId,
+      planName: currentPlanMeta.planName || 'Resident Pro',
+    };
+  }
+
+  const { totalCommitted, activeLeaseCount, reservedCommitmentCount } = await getTenantCommittedCapacity(userId, {
+    excludeBookingId,
+    session,
+  });
+
+  if (totalCommitted >= maxLimit) {
+    const planName = currentPlanMeta.planName || (activePlanId === 'plus' ? 'Resident Plus' : 'Resident Free');
+    throw new AppError(
+      `SUBSCRIPTION_LIMIT_REACHED: You have reached the maximum limit of ${maxLimit} leases on the ${planName} plan. Please upgrade your subscription to add more.`,
+      403,
+      {
+        code: 'SUBSCRIPTION_LIMIT_REACHED',
+        currentCount: totalCommitted,
+        activeLeases: activeLeaseCount,
+        reservedCommitments: reservedCommitmentCount,
+        maxLimit,
+        planId: activePlanId,
+        planName,
+        role: 'tenant',
+        actionType,
+      }
+    );
+  }
+
+  return {
+    allowed: true,
+    currentCount: totalCommitted,
+    maxLimit,
+    isUnlimited: false,
+    planId: activePlanId,
+    planName: currentPlanMeta.planName || (activePlanId === 'plus' ? 'Resident Plus' : 'Resident Free'),
+  };
+}
+
+/**
  * Server-Side Limit Check Middleware / Guard.
  * Throws 403 AppError if subscription limit reached.
  */
-export async function checkSubscriptionLimit(userId, role, actionType = 'create') {
+export async function checkSubscriptionLimit(userId, role, actionType = 'create', options = {}) {
   const normalizedRole = role === 'admin' ? 'manager' : (role || 'tenant');
-  const userSub = await getUserSubscription(userId, normalizedRole);
+  if (normalizedRole === 'tenant') {
+    return assertAndReserveCapacity(userId, 'tenant', actionType, options);
+  }
 
+  const userSub = await getUserSubscription(userId, normalizedRole);
   const { currentCount, maxLimit, isUnlimited, isAtLimit, isExceeded } = userSub.usage;
 
   if (!isUnlimited && (isAtLimit || isExceeded)) {
-    const unitName = normalizedRole === 'tenant' ? 'leases' : 'properties';
+    const unitName = 'properties';
     const planName = userSub.subscription.planName;
 
     throw new AppError(

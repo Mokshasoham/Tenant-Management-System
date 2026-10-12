@@ -112,3 +112,45 @@ export const isTenantPaymentOwner = (payment, tenant) => {
   const paymentTenantIdStr = String(payment.tenant?._id || payment.tenant || '');
   return paymentTenantIdStr === tenantIdStr;
 };
+
+/**
+ * Authoritatively resolves the User document associated with a Tenant document ID.
+ * Used for tenant subscription capacity checks when an operation is initiated
+ * by an external party (e.g. manager creating a lease for a tenant).
+ *
+ * Strict Invariant Ownership Chain:
+ * Tenant._id
+ *   ↓
+ * tenant.user (if populated/valid) OR exact normalized tenant.email match
+ *   ↓
+ * ONE User._id (fails closed if multiple or none)
+ *
+ * @param {string|mongoose.Types.ObjectId} tenantId - Tenant ObjectId
+ * @returns {Promise<Object|null>} User document or null
+ */
+export const getTenantUserForCapacity = async (tenantId) => {
+  if (!tenantId) return null;
+  const tenant = await Tenant.findById(tenantId).select('_id user email');
+  if (!tenant) return null;
+
+  // 1. Direct authoritative ObjectId link
+  if (tenant.user && mongoose.Types.ObjectId.isValid(tenant.user)) {
+    const user = await User.findById(tenant.user).select('_id email role firstName lastName');
+    if (user) return user;
+  }
+
+  // 2. Exact normalized email match (strictly scoped, no phone, no name regex)
+  if (tenant.email) {
+    const normalizedEmail = String(tenant.email).trim().toLowerCase();
+    const users = await User.find({ email: normalizedEmail }).select('_id email role firstName lastName');
+    if (users.length === 1) {
+      return users[0];
+    } else if (users.length > 1) {
+      logger.warn(`[CAPACITY GUARD] Multiple User accounts (${users.length}) found for tenant email ${normalizedEmail}. Failing closed to prevent cross-account capacity bleed.`);
+      return null;
+    }
+  }
+
+  return null;
+};
+

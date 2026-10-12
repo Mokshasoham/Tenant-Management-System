@@ -130,8 +130,8 @@ export default function TenantSubscriptionPage() {
       const activePlanId = (payload?.subscription?.planId || payload?.subscription?.plan || 'free').toLowerCase();
       const currentPlanLimit = activePlanId === 'plus' ? 4 : (activePlanId === 'pro' ? 999999 : 2);
       
-      const backendCount = payload?.usage?.activeLeases ?? payload?.usage?.currentCount ?? 0;
-      const finalActiveCount = Math.max(backendCount, directActiveLeaseCount);
+      const backendCount = payload?.usage?.currentCount ?? payload?.usage?.activeLeases ?? 0;
+      const finalActiveCount = backendCount;
       const isUnlimited = currentPlanLimit >= 999999;
       const remainingSlots = isUnlimited ? 999999 : Math.max(0, currentPlanLimit - finalActiveCount);
       const percentage = isUnlimited ? 100 : Math.min(100, Math.round((finalActiveCount / Math.max(1, currentPlanLimit)) * 100));

@@ -80,11 +80,24 @@ export const startCronJobs = () => {
         try {
             // Compute the exact threshold for 48 hours ago
             const threshold = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            const now = new Date();
             
             const expiredBookings = await Booking.find({
                 status: 'approved',
                 paymentStatus: 'pending',
-                updatedAt: { $lt: threshold }
+                $or: [
+                    { approvalDate: { $lt: threshold } },
+                    { approvalDate: { $exists: false }, updatedAt: { $lt: threshold } }
+                ],
+                $and: [
+                    {
+                        $or: [
+                            { checkoutExpiresAt: null },
+                            { checkoutExpiresAt: { $exists: false } },
+                            { checkoutExpiresAt: { $lt: now } }
+                        ]
+                    }
+                ]
             });
 
             if (expiredBookings.length === 0) {

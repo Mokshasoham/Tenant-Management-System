@@ -43,6 +43,7 @@ const bookingSchema = new mongoose.Schema(
         razorpayOrderId: String,
         razorpayPaymentId: String,
         razorpaySignature: String,
+        checkoutExpiresAt: Date,
 
         // Escrow
         escrowStatus: {

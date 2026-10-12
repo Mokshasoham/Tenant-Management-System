@@ -14,7 +14,8 @@ import { leaseLifecycleService } from '../modules/lease-engine/leaseLifecycleSer
 import { calculateNextPaymentDue } from '../utils/paymentSchedule.js';
 import { resolvePropertyUrls } from './propertyController.js';
 import { resolveLeaseLifecycle, computeLeasePaymentSummary, isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
-import { getAuthenticatedTenant, isTenantRole } from '../utils/tenantHelper.js';
+import { getAuthenticatedTenant, isTenantRole, getTenantUserForCapacity } from '../utils/tenantHelper.js';
+import { withTenantCapacityLock, assertAndReserveCapacity } from '../services/subscriptionService.js';
 
 export const resolveLeaseUrls = (lease, req) => {
   if (!lease) return lease;
@@ -616,33 +617,76 @@ export const createLease = asyncHandler(async (req, res) => {
     throw new AppError('Tenant not found', 404);
   }
 
+  // Authoritatively resolve tenant User for subscription lease capacity check
+  const tenantUser = await getTenantUserForCapacity(tenantId);
+  if (!tenantUser) {
+    throw new AppError(
+      'TENANT_ACCOUNT_REQUIRED: Unable to resolve an authoritative registered tenant user account for subscription capacity verification. Leases can only be created for tenants with an unambiguous registered user profile.',
+      400,
+      { code: 'TENANT_ACCOUNT_UNRESOLVED', tenantId }
+    );
+  }
+
   const now = new Date();
   const isFuture = new Date(startDate) > now;
 
-  const lease = await Lease.create({
-    property: propertyId,
-    tenant: tenantId,
-    startDate,
-    endDate,
-    rentAmount,
-    depositAmount,
-    utilities,
-    terms,
-    status: isFuture ? 'pending' : 'active',
-    createdBy: req.user.userId,
+  let lease;
+
+  await withTenantCapacityLock(tenantUser._id, async ({ lockId, session, assertOwnership, registerCompensation }) => {
+    await assertAndReserveCapacity(tenantUser._id, 'tenant', 'manager_create_lease', { session });
+
+    await assertOwnership?.();
+
+    const createdLeases = await Lease.create([
+      {
+        property: propertyId,
+        tenant: tenantId,
+        startDate,
+        endDate,
+        rentAmount,
+        depositAmount,
+        utilities,
+        terms,
+        status: isFuture ? 'pending' : 'active',
+        createdBy: req.user.userId,
+      }
+    ], { session: session || undefined });
+    lease = createdLeases[0];
+
+    registerCompensation?.(async () => {
+      logger.warn(`[Compensating Rollback] Deleting lease ${lease._id} created under preempted lock.`);
+      await Lease.deleteOne({ _id: lease._id });
+    });
+
+    // Add lease to tenant's leases
+    tenant.leases.push(lease._id);
+    await tenant.save({ session: session || undefined });
+    registerCompensation?.(async () => {
+      await Tenant.updateOne({ _id: tenantId }, { $pull: { leases: lease._id } });
+    });
+
+    // Add lease to property's leases
+    property.leases.push(lease._id);
+    if (!isFuture) {
+      property.currentTenant = tenantId;
+      property.status = 'occupied';
+    }
+    await property.save({ session: session || undefined });
+    registerCompensation?.(async () => {
+      await Property.updateOne(
+        { _id: propertyId },
+        { $pull: { leases: lease._id } }
+      );
+      if (!isFuture) {
+        await Property.updateOne(
+          { _id: propertyId, currentTenant: tenantId },
+          { $set: { status: 'available', currentTenant: null } }
+        );
+      }
+    });
+
+    await assertOwnership?.();
   });
-
-  // Add lease to tenant's leases
-  tenant.leases.push(lease._id);
-  await tenant.save();
-
-  // Add lease to property's leases
-  property.leases.push(lease._id);
-  if (!isFuture) {
-    property.currentTenant = tenantId;
-    property.status = 'occupied';
-  }
-  await property.save();
 
   logger.info(`New lease created: ${lease.leaseNumber}`);
 

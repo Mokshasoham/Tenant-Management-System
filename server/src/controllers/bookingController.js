@@ -116,10 +116,12 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         throw new AppError('This booking has already been paid and processed.', 400);
     }
 
-    // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD ══
+    // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD & CHECKOUT GRACE WINDOW ══
     if (req.user?.userId) {
-        const { checkSubscriptionLimit } = await import('../services/subscriptionService.js');
-        await checkSubscriptionLimit(req.user.userId, 'tenant', 'create_lease');
+        const { assertAndReserveCapacity } = await import('../services/subscriptionService.js');
+        await assertAndReserveCapacity(req.user.userId, 'tenant', 'payment_checkout', { excludeBookingId: booking._id });
+        booking.checkoutExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+        await booking.save();
     }
 
     const property = booking.property;
@@ -214,8 +216,33 @@ export const verifyAndProcessPaymentInternal = async ({
     razorpaySignature,
     signature
 }) => {
-    const booking = await Booking.findById(bookingId).populate('property');
-    if (!booking) throw new AppError('Booking not found', 404);
+    const rawBooking = await Booking.findById(bookingId).populate('property');
+    if (!rawBooking) throw new AppError('Booking not found', 404);
+
+    const { withTenantCapacityLock, assertAndReserveCapacity } = await import('../services/subscriptionService.js');
+
+    return await withTenantCapacityLock(rawBooking.user, async ({ lockId, session, assertOwnership, registerCompensation }) => {
+        const booking = await Booking.findById(bookingId).populate('property').session(session || null);
+        if (!booking) throw new AppError('Booking not found', 404);
+
+        // ══ IDEMPOTENT CALLBACK PROTECTION & SAFE CONVERSION ══
+        if (booking.paymentStatus === 'paid') {
+            if (booking.lease) {
+                const existingLease = await Lease.findById(booking.lease).session(session || null);
+                if (existingLease) {
+                    logger.info(`[Payment Verification] Booking ${bookingId} already paid and converted to lease ${existingLease._id}. Returning existing booking idempotently.`);
+                    return booking;
+                }
+            }
+            logger.warn(`[Payment Reconciliation] Booking ${bookingId} was marked paid without confirmed lease. Proceeding to safe reconciliation.`);
+        }
+
+        // Capacity safety guard: assert capacity before converting
+        if (booking.user) {
+            await assertAndReserveCapacity(booking.user, 'tenant', 'payment_verification', { excludeBookingId: booking._id, session });
+        }
+
+        await assertOwnership?.();
 
     logger.info(`Processing payment verification: bookingId=${bookingId}, orderId=${razorpayOrderId}, paymentId=${razorpayPaymentId}, hasSignature=${!!razorpaySignature}`);
 
@@ -317,7 +344,7 @@ export const verifyAndProcessPaymentInternal = async ({
 
         if (!lease) {
             const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            lease = await Lease.create({
+            const createdLeases = await Lease.create([{
                 leaseNumber,
                 booking: booking._id,
                 property: booking.property._id,
@@ -340,10 +367,20 @@ export const verifyAndProcessPaymentInternal = async ({
                 maintenanceTermsAccepted: booking.maintenanceTermsAccepted === true,
                 maintenanceTermsAcceptedAt: booking.maintenanceTermsAcceptedAt,
                 maintenanceTermsVersion: booking.maintenanceTermsVersion,
+            }], { session: session || undefined });
+            lease = createdLeases[0];
+
+            registerCompensation?.(async () => {
+                logger.warn(`[Compensating Rollback] Deleting lease ${lease._id} created under preempted payment lock.`);
+                await Lease.deleteOne({ _id: lease._id });
             });
+
             if (!tenant.leases.includes(lease._id)) {
                 tenant.leases.push(lease._id);
-                await tenant.save();
+                await tenant.save({ session: session || undefined });
+                registerCompensation?.(async () => {
+                    await Tenant.updateOne({ _id: tenant._id }, { $pull: { leases: lease._id } });
+                });
             }
         } else {
             if (!lease.booking) {
@@ -535,7 +572,9 @@ export const verifyAndProcessPaymentInternal = async ({
         link: `/my-lease`,
     });
 
-    return booking;
+        await assertOwnership?.();
+        return booking;
+    });
 };
 
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
@@ -622,93 +661,135 @@ export const approveBooking = asyncHandler(async (req, res, next) => {
         }
         // ----------------------------------------------------------------
 
-        // ─── NEW LOGIC: Make User a Tenant & Create Lease ───
+        // ─── NEW LOGIC: Make User a Tenant & Create Lease with Capacity Lock ───
+        const { withTenantCapacityLock, assertAndReserveCapacity } = await import('../services/subscriptionService.js');
+        const tenantTargetUserId = booking.user._id || booking.user;
 
-        // 1. Check/Create Tenant
-        console.log(`[Approve] Fetching user ${booking.user}`);
-        const user = await User.findById(booking.user._id || booking.user);
-        if (!user) throw new AppError('User not found', 404);
+        await withTenantCapacityLock(tenantTargetUserId, async ({ lockId, session, assertOwnership, registerCompensation }) => {
+            // Guard: Assert that adding this booking reservation will not violate the tenant's plan capacity
+            await assertAndReserveCapacity(tenantTargetUserId, 'tenant', 'approve_booking', { session });
 
-        const managerId = booking.manager || (booking.property ? booking.property.owner : null);
-        if (!managerId) throw new AppError('Manager context missing', 400);
+            await assertOwnership?.();
 
-        let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId });
-        if (!tenant) {
-            console.log(`[Approve] Creating new tenant for ${user.email}`);
-            tenant = await Tenant.create({
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                phone: user.phone || 'N/A',
-                address: 'Update Address', // Placeholder
-                managedBy: managerId,
-                status: 'active',
-            });
-        } else {
-            console.log(`[Approve] Found existing tenant ${tenant._id}`);
-        }
+            // 1. Check/Create Tenant
+            console.log(`[Approve] Fetching user ${booking.user}`);
+            const user = await User.findById(tenantTargetUserId).session(session || null);
+            if (!user) throw new AppError('User not found', 404);
 
-        // 2. Check/Create Lease (Idempotent per property + tenant)
-        console.log(`[Approve] Checking/Creating lease for property ${booking.property._id}`);
-        let lease = await Lease.findOne({
-            property: booking.property._id,
-            tenant: tenant._id,
-            status: { $in: ['pending', 'active'] }
-        });
+            const managerId = booking.manager || (booking.property ? booking.property.owner : null);
+            if (!managerId) throw new AppError('Manager context missing', 400);
 
-        if (!lease) {
-            const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            lease = await Lease.create({
-                leaseNumber,
-                booking: booking._id,
+            let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId }).session(session || null);
+            if (!tenant) {
+                console.log(`[Approve] Creating new tenant for ${user.email}`);
+                const createdTenants = await Tenant.create([{
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                    phone: user.phone || 'N/A',
+                    address: 'Update Address', // Placeholder
+                    managedBy: managerId,
+                    status: 'active',
+                }], { session: session || undefined });
+                tenant = createdTenants[0];
+
+                registerCompensation?.(async () => {
+                    await Tenant.deleteOne({ _id: tenant._id, leases: { $size: 0 } });
+                });
+            } else {
+                console.log(`[Approve] Found existing tenant ${tenant._id}`);
+            }
+
+            // 2. Check/Create Lease (Idempotent per property + tenant)
+            console.log(`[Approve] Checking/Creating lease for property ${booking.property._id}`);
+            let lease = await Lease.findOne({
                 property: booking.property._id,
                 tenant: tenant._id,
-                startDate: booking.startDate,
-                endDate: booking.endDate,
-                rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
-                depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || 0,
-                status: 'pending', // Lease awaits Razorpay security deposit payment
-                createdBy: managerId,
-                terms: 'Generated from booking approval',
-                utilities: {
-                    water: true, electricity: true, gas: false, internet: false
-                },
-                maintenanceEnabled: booking.maintenanceSelected === true,
-                maintenanceAccessStatus: booking.maintenanceSelected ? 'included' : 'locked',
-                maintenancePlan: booking.maintenanceSelected ? 'included' : 'none',
-                maintenanceFee: booking.maintenanceFeeAtBooking || 0,
-                maintenanceTermsAccepted: booking.maintenanceTermsAccepted === true,
-                maintenanceTermsAcceptedAt: booking.maintenanceTermsAcceptedAt,
-                maintenanceTermsVersion: booking.maintenanceTermsVersion,
+                status: { $in: ['pending', 'active'] }
+            }).session(session || null);
+
+            if (!lease) {
+                const leaseNumber = `LEASE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                const createdLeases = await Lease.create([{
+                    leaseNumber,
+                    booking: booking._id,
+                    property: booking.property._id,
+                    tenant: tenant._id,
+                    startDate: booking.startDate,
+                    endDate: booking.endDate,
+                    rentAmount: booking.agreedRent || (booking.property ? booking.property.rentAmount : 0) || booking.totalAmount || 0,
+                    depositAmount: booking.depositAmount || (booking.property ? booking.property.depositAmount : 0) || 0,
+                    status: 'pending', // Lease awaits Razorpay security deposit payment
+                    createdBy: managerId,
+                    terms: 'Generated from booking approval',
+                    utilities: {
+                        water: true, electricity: true, gas: false, internet: false
+                    },
+                    maintenanceEnabled: booking.maintenanceSelected === true,
+                    maintenanceAccessStatus: booking.maintenanceSelected ? 'included' : 'locked',
+                    maintenancePlan: booking.maintenanceSelected ? 'included' : 'none',
+                    maintenanceFee: booking.maintenanceFeeAtBooking || 0,
+                    maintenanceTermsAccepted: booking.maintenanceTermsAccepted === true,
+                    maintenanceTermsAcceptedAt: booking.maintenanceTermsAcceptedAt,
+                    maintenanceTermsVersion: booking.maintenanceTermsVersion,
+                }], { session: session || undefined });
+                lease = createdLeases[0];
+
+                registerCompensation?.(async () => {
+                    logger.warn(`[Compensating Rollback] Deleting lease ${lease._id} created under preempted approval lock.`);
+                    await Lease.deleteOne({ _id: lease._id });
+                });
+
+                if (!tenant.leases.includes(lease._id)) {
+                    tenant.leases.push(lease._id);
+                    await tenant.save({ session: session || undefined });
+                    registerCompensation?.(async () => {
+                        await Tenant.updateOne({ _id: tenant._id }, { $pull: { leases: lease._id } });
+                    });
+                }
+            } else {
+                if (!lease.booking) {
+                    lease.booking = booking._id;
+                    await lease.save({ session: session || undefined });
+                }
+            }
+
+            const prevStatus = booking.status;
+            const prevPaymentStatus = booking.paymentStatus;
+            const prevLease = booking.lease;
+
+            booking.lease = lease._id;
+            booking.status = 'approved';
+            booking.paymentStatus = 'pending';
+            booking.approvalDate = new Date();
+            booking.approvedBy = req.user.userId;
+            addTimeline(booking, 'approved', 'Booking approved. Pending security deposit & payment.');
+            await booking.save({ session: session || undefined });
+
+            registerCompensation?.(async () => {
+                logger.warn(`[Compensating Rollback] Reverting booking ${booking._id} approval status.`);
+                await Booking.updateOne(
+                    { _id: booking._id, status: 'approved' },
+                    {
+                        $set: { status: prevStatus, paymentStatus: prevPaymentStatus },
+                        $unset: { approvalDate: '', approvedBy: '' },
+                        ...(prevLease ? { $set: { lease: prevLease } } : { $unset: { lease: '' } })
+                    }
+                );
             });
 
-            if (!tenant.leases.includes(lease._id)) {
-                tenant.leases.push(lease._id);
-                await tenant.save();
-            }
-        } else {
-            if (!lease.booking) {
-                lease.booking = booking._id;
-                await lease.save();
-            }
-        }
+            // Note: Property status remains 'available' until Escrow clears!
+            // We only reserve the date block on calendar temporarily.
+            console.log(`[Approve] Updating property calendar blocks`);
+            // Update the specific booked date entry status
+            await Property.updateOne(
+                { _id: booking.property._id, 'bookedDates.bookingId': booking._id },
+                { $set: { 'bookedDates.$.status': 'approved_pending_payment' } },
+                { session: session || undefined }
+            );
 
-        booking.lease = lease._id;
-        booking.status = 'approved';
-        booking.paymentStatus = 'pending';
-        booking.approvalDate = new Date();
-        booking.approvedBy = req.user.userId;
-        addTimeline(booking, 'approved', 'Booking approved. Pending security deposit & payment.');
-        await booking.save();
-
-        // Note: Property status remains 'available' until Escrow clears!
-        // We only reserve the date block on calendar temporarily.
-        console.log(`[Approve] Updating property calendar blocks`);
-        // Update the specific booked date entry status
-        await Property.updateOne(
-            { _id: booking.property._id, 'bookedDates.bookingId': booking._id },
-            { $set: { 'bookedDates.$.status': 'approved_pending_payment' } }
-        );
+            await assertOwnership?.();
+        });
 
         // Notify tenant
         console.log(`[Approve] Sending notification`);
@@ -1415,6 +1496,13 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
         const managerId = property.manager || property.owner || userId; 
         console.log('[MockPay] Trace: Using managerId:', managerId);
 
+        // ══ TENANT SUBSCRIPTION LEASE CAPACITY GUARD ══
+        const { withTenantCapacityLock, assertAndReserveCapacity } = await import('../services/subscriptionService.js');
+        let finalLease = null;
+        await withTenantCapacityLock(userId, async ({ lockId, session, assertOwnership, registerCompensation }) => {
+            await assertAndReserveCapacity(userId, 'tenant', 'mock_payment', { session });
+            await assertOwnership?.();
+
         // 1. Create Booking
         console.log('[MockPay] Trace: Step 1 (Booking)');
         const start = startDate ? new Date(startDate) : new Date();
@@ -1441,6 +1529,10 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             maintenanceTermsVersion: isMaint ? '1.0' : null,
         });
 
+        registerCompensation?.(async () => {
+            await Booking.deleteOne({ _id: booking._id });
+        });
+
         // 2. Ensure Tenant
         console.log('[MockPay] Trace: Step 2 (Tenant)');
         let tenant = await Tenant.findOne({ email: user.email, managedBy: managerId });
@@ -1454,6 +1546,9 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 managedBy: managerId,
                 status: 'active',
                 address: 'Simulated Address'
+            });
+            registerCompensation?.(async () => {
+                await Tenant.deleteOne({ _id: tenant._id, leases: { $size: 0 } });
             });
         }
 
@@ -1492,6 +1587,9 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
                 maintenanceTermsAccepted: isMaint,
                 maintenanceTermsAcceptedAt: isMaint ? new Date() : null,
                 maintenanceTermsVersion: isMaint ? '1.0' : null,
+            });
+            registerCompensation?.(async () => {
+                await Lease.deleteOne({ _id: lease._id });
             });
         }
 
@@ -1619,11 +1717,15 @@ export const processMockPayment = asyncHandler(async (req, res, next) => {
             link: '/my-lease'
         });
 
+        await assertOwnership?.();
+        finalLease = lease;
+    });
+
         console.log('[MockPay] TRACE COMPLETE: SUCCESS');
         res.status(200).json({ 
             success: true, 
             message: 'Payment recorded in history!',
-            data: { lease } 
+            data: { lease: finalLease } 
         });
     } catch (error) {
         console.error('[MockPay] TRACE ERROR:', error);
