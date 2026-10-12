@@ -1691,7 +1691,10 @@ export default function PropertyDetailsPage() {
                                ═══════════════════════════════════════════════════════════ */
                             <div className="space-y-8">
                                 {/* Booking Card */}
-                                <div className="sticky top-8 p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6">
+                                <div
+                                    className="sticky top-8 p-6 sm:p-7 xl:p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6 min-w-0"
+                                    style={{ containerType: 'inline-size' }}
+                                >
                                     <div>
                                         <h3 className="text-2xl font-black text-white">
                                             {property.bookingType === 'free' ? 'Request Demo Booking' : 'Book this place'}
@@ -1751,13 +1754,25 @@ export default function PropertyDetailsPage() {
                                             )}
 
                                             {/* Booking Schedule Selector */}
-                                            <div className="space-y-2">
-                                                <div className="flex gap-4">
-                                                    <div className="flex-1 space-y-1">
+                                            <div className="space-y-2 min-w-0">
+                                                <style>{`
+                                                    @container (min-width: 320px) {
+                                                        .booking-dates-responsive-grid {
+                                                            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                                                        }
+                                                    }
+                                                    @container (max-width: 319px) {
+                                                        .booking-dates-responsive-grid {
+                                                            grid-template-columns: minmax(0, 1fr) !important;
+                                                        }
+                                                    }
+                                                `}</style>
+                                                <div className="booking-dates-responsive-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-3 w-full min-w-0">
+                                                    <div className="w-full min-w-0 space-y-1">
                                                         <div className="flex items-center justify-between pl-1">
-                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Start Date</label>
+                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest truncate">Start Date</label>
                                                             {property.privateDeal && (
-                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1 shrink-0">
                                                                     <Lock className="w-2.5 h-2.5" /> Locked
                                                                 </span>
                                                             )}
@@ -1768,15 +1783,15 @@ export default function PropertyDetailsPage() {
                                                             onChange={(e) => setStartDate(e.target.value)}
                                                             min={minAvailableDate}
                                                             disabled={isNotBookable || Boolean(property.privateDeal)}
-                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            className="w-full min-w-0 box-border px-3 sm:px-3.5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                                             style={{ colorScheme: 'dark' }}
                                                         />
                                                     </div>
-                                                    <div className="flex-1 space-y-1">
+                                                    <div className="w-full min-w-0 space-y-1">
                                                         <div className="flex items-center justify-between pl-1">
-                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">End Date</label>
+                                                            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest truncate">End Date</label>
                                                             {property.privateDeal && (
-                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                                                                <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1 shrink-0">
                                                                     <Lock className="w-2.5 h-2.5" /> Locked
                                                                 </span>
                                                             )}
@@ -1787,15 +1802,15 @@ export default function PropertyDetailsPage() {
                                                             onChange={(e) => setEndDate(e.target.value)}
                                                             min={startDate}
                                                             disabled={isNotBookable || Boolean(property.privateDeal)}
-                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            className="w-full min-w-0 box-border px-3 sm:px-3.5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                                             style={{ colorScheme: 'dark' }}
                                                         />
                                                     </div>
                                                 </div>
                                                 {property.privateDeal && (
                                                     <p className="text-[10px] text-emerald-300/80 pl-1 font-semibold flex items-center gap-1">
-                                                        <Lock className="w-3 h-3 text-emerald-400" />
-                                                        Lease period locked by your accepted private agreement ({calculateLeaseDuration(startDate, endDate)?.text || ''})
+                                                        <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
+                                                        <span>Lease period locked by your accepted private agreement ({calculateLeaseDuration(startDate, endDate)?.text || ''})</span>
                                                     </p>
                                                 )}
                                             </div>
@@ -2078,7 +2093,7 @@ export default function PropertyDetailsPage() {
                                                             value={visitDate}
                                                             onChange={(e) => setVisitDate(e.target.value)}
                                                             min={new Date().toISOString().split('T')[0]}
-                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
+                                                            className="w-full min-w-0 box-border px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm"
                                                             style={{ colorScheme: 'dark' }}
                                                         />
                                                     </div>
@@ -2088,7 +2103,7 @@ export default function PropertyDetailsPage() {
                                                         <select
                                                             value={visitSlot}
                                                             onChange={(e) => setVisitSlot(e.target.value)}
-                                                            className="w-full px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm appearance-none cursor-pointer"
+                                                            className="w-full min-w-0 box-border px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm appearance-none cursor-pointer"
                                                             style={{ colorScheme: 'dark' }}
                                                         >
                                                             {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM', '05:00 PM - 06:00 PM'].map(slot => (
