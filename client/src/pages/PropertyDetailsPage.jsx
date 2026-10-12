@@ -254,6 +254,7 @@ export default function PropertyDetailsPage() {
     const [visitSlot, setVisitSlot] = useState('10:00 AM - 11:00 AM');
     const [visitLoading, setVisitLoading] = useState(false);
     const [visitSuccess, setVisitSuccess] = useState(false);
+    const [visitError, setVisitError] = useState('');
     const [existingVisit, setExistingVisit] = useState(null);
 
     // Private Rent Negotiation States
@@ -439,8 +440,11 @@ export default function PropertyDetailsPage() {
             // Check for existing visit request
             try {
                 const myVisitsRes = await visitService.getMyVisits();
-                const currentVisit = myVisitsRes.data.find(v => v.property?._id === id);
-                setExistingVisit(currentVisit);
+                const visitsList = Array.isArray(myVisitsRes.data?.data)
+                    ? myVisitsRes.data.data
+                    : (Array.isArray(myVisitsRes.data) ? myVisitsRes.data : []);
+                const currentVisit = visitsList.find(v => (v.property?._id || v.property) === id);
+                setExistingVisit(currentVisit || null);
             } catch (err) {
                 console.log('User not logged in or failed to fetch visits');
             }
@@ -1705,7 +1709,10 @@ export default function PropertyDetailsPage() {
                                     <div className="grid grid-cols-2 p-1 bg-white/5 rounded-xl border border-white/10">
                                         <button
                                             type="button"
-                                            onClick={() => setActiveBookingTab('book')}
+                                            onClick={() => {
+                                                setActiveBookingTab('book');
+                                                setVisitError('');
+                                            }}
                                             className={cn(
                                                 "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
                                                 activeBookingTab === 'book' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
@@ -1715,7 +1722,10 @@ export default function PropertyDetailsPage() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setActiveBookingTab('visit')}
+                                            onClick={() => {
+                                                setActiveBookingTab('visit');
+                                                setVisitError('');
+                                            }}
                                             className={cn(
                                                 "py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all",
                                                 activeBookingTab === 'visit' ? "bg-white text-indigo-900 shadow-sm" : "text-white/60 hover:text-white"
@@ -2108,6 +2118,14 @@ export default function PropertyDetailsPage() {
                                                         type="button"
                                                         disabled={visitLoading}
                                                         onClick={async () => {
+                                                            if (!user) {
+                                                                navigate('/login', { state: { from: `/properties/${id}`, activeBookingTab: 'visit' } });
+                                                                return;
+                                                            }
+                                                            if (!visitDate) {
+                                                                setVisitError('Please select a preferred visit date.');
+                                                                return;
+                                                            }
                                                             setVisitLoading(true);
                                                             setVisitSuccess(false);
                                                             setVisitError('');
@@ -2118,7 +2136,7 @@ export default function PropertyDetailsPage() {
                                                                     timeSlot: visitSlot
                                                                 });
                                                                 setVisitSuccess(true);
-                                                                setExistingVisit(res.data);
+                                                                setExistingVisit(res.data?.data || res.data);
                                                             } catch (err) {
                                                                 setVisitError(err.response?.data?.message || 'Failed to submit visit request. Please try again.');
                                                             } finally {
@@ -2134,6 +2152,12 @@ export default function PropertyDetailsPage() {
                                             ) : (
                                                 /* Handle existing visit statuses */
                                                 <div className="space-y-4">
+                                                    {visitSuccess && (
+                                                        <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl flex items-center gap-2 text-white text-xs">
+                                                            <CheckCircle2 className="w-4 h-4 text-emerald-300 flex-shrink-0" />
+                                                            <span>Visit request submitted successfully! Pending manager review.</span>
+                                                        </div>
+                                                    )}
                                                     <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2">
                                                         <div className="flex justify-between items-center">
                                                             <p className="text-xs font-black uppercase tracking-wider text-white/80">Visit Request Details</p>
