@@ -1691,10 +1691,7 @@ export default function PropertyDetailsPage() {
                                ═══════════════════════════════════════════════════════════ */
                             <div className="space-y-8">
                                 {/* Booking Card */}
-                                <div
-                                    className="sticky top-8 p-6 sm:p-7 xl:p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6 min-w-0"
-                                    style={{ containerType: 'inline-size' }}
-                                >
+                                <div className="sticky top-8 p-6 sm:p-7 xl:p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6 min-w-0">
                                     <div>
                                         <h3 className="text-2xl font-black text-white">
                                             {property.bookingType === 'free' ? 'Request Demo Booking' : 'Book this place'}
@@ -1755,19 +1752,7 @@ export default function PropertyDetailsPage() {
 
                                             {/* Booking Schedule Selector */}
                                             <div className="space-y-2 min-w-0">
-                                                <style>{`
-                                                    @container (min-width: 320px) {
-                                                        .booking-dates-responsive-grid {
-                                                            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                                                        }
-                                                    }
-                                                    @container (max-width: 319px) {
-                                                        .booking-dates-responsive-grid {
-                                                            grid-template-columns: minmax(0, 1fr) !important;
-                                                        }
-                                                    }
-                                                `}</style>
-                                                <div className="booking-dates-responsive-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-3 w-full min-w-0">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 w-full min-w-0">
                                                     <div className="w-full min-w-0 space-y-1">
                                                         <div className="flex items-center justify-between pl-1">
                                                             <label className="text-[10px] font-black text-white/40 uppercase tracking-widest truncate">Start Date</label>
@@ -1783,7 +1768,7 @@ export default function PropertyDetailsPage() {
                                                             onChange={(e) => setStartDate(e.target.value)}
                                                             min={minAvailableDate}
                                                             disabled={isNotBookable || Boolean(property.privateDeal)}
-                                                            className="w-full min-w-0 box-border px-3 sm:px-3.5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            className="w-full min-w-0 box-border px-2.5 sm:px-3 py-2.5 sm:py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                                             style={{ colorScheme: 'dark' }}
                                                         />
                                                     </div>
@@ -1802,7 +1787,7 @@ export default function PropertyDetailsPage() {
                                                             onChange={(e) => setEndDate(e.target.value)}
                                                             min={startDate}
                                                             disabled={isNotBookable || Boolean(property.privateDeal)}
-                                                            className="w-full min-w-0 box-border px-3 sm:px-3.5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                                            className="w-full min-w-0 box-border px-2.5 sm:px-3 py-2.5 sm:py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                                             style={{ colorScheme: 'dark' }}
                                                         />
                                                     </div>
