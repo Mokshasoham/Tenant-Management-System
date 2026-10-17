@@ -233,8 +233,13 @@ export default function TenantSubscriptionPage() {
         throw new Error('Could not initiate upgrade order.');
       }
 
+      const gatewayKey = orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!gatewayKey) {
+        throw new Error('Payment gateway configuration is missing on server.');
+      }
+
       const options = {
-        key: orderData.keyId || 'rzp_test_SUn7uPXz1VaEa1',
+        key: gatewayKey,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'Tenant Management System',

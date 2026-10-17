@@ -7,6 +7,7 @@ import {
   ChevronRight, BarChart3, Database, Eye, ShieldAlert
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { resolveMediaBaseUrl } from '../../utils/envConfig.js';
 
 const REPORT_DOMAINS = [
   { id: 'revenue',             label: 'Revenue Report',           icon: TrendingUp,     color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
@@ -126,8 +127,7 @@ export default function ReportingHubTab() {
         let downloadUrl = res?.data?.downloadUrl || res?.downloadUrl;
         if (downloadUrl) {
           if (downloadUrl.startsWith('/')) {
-            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-            const backendOrigin = apiBase.replace(/\/api\/?$/, '');
+            const backendOrigin = resolveMediaBaseUrl();
             downloadUrl = `${backendOrigin}${downloadUrl}`;
           }
           window.open(downloadUrl, '_blank');

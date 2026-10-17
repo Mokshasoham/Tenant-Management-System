@@ -6,7 +6,7 @@ import ManagerBankAccount from '../models/ManagerBankAccount.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import NotificationService from '../services/NotificationService.js';
-import Razorpay from 'razorpay';
+import { isMockPaymentsEnabled } from '../services/paymentGatewayService.js';
 
 // Comprehensive Indian Bank IFSC prefix dictionary
 const IFSC_BANK_MAP = {
@@ -43,6 +43,19 @@ export async function lookupIfscDetails(ifscCode) {
   const cleanIfsc = (ifscCode || '').trim().toUpperCase();
   const prefix = cleanIfsc.substring(0, 4);
   const fallbackBankName = IFSC_BANK_MAP[prefix] || `${prefix} Bank`;
+
+  if (isMockPaymentsEnabled()) {
+    const isValid = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc);
+    return {
+      valid: isValid,
+      bankName: fallbackBankName,
+      branch: isValid ? 'Staging Main Branch' : null,
+      city: isValid ? 'Staging City' : null,
+      state: isValid ? 'Staging State' : null,
+      micr: null,
+      ifsc: cleanIfsc
+    };
+  }
 
   try {
     const controller = new AbortController();
@@ -278,9 +291,14 @@ export const saveBankAccount = asyncHandler(async (req, res) => {
 
   const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const isConfigured = Boolean(keyId && keySecret && !keyId.includes('mock'));
-
-  if (isConfigured) {
+  if (isMockPaymentsEnabled()) {
+    verificationStatus = 'verified';
+    connectionStatus = 'connected';
+    providerVerificationAvailable = true;
+    fundAccountId = `fa_mock_${Date.now()}`;
+    providerReference = fundAccountId;
+    verifiedAt = new Date();
+  } else if (isConfigured) {
     try {
       const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
       const user = await User.findById(managerId).select('firstName lastName email phone');
@@ -671,6 +689,27 @@ export const requestPayout = asyncHandler(async (req, res) => {
   logger.info(`[Payout] Created PayoutRequest ${payoutRecord._id} for Manager ${managerId} (₹${numericAmount})`);
 
   // 5. Payout Provider Check
+  if (isMockPaymentsEnabled()) {
+    payoutRecord.providerPayoutId = `pout_mock_${Date.now()}`;
+    payoutRecord.status = 'paid';
+    payoutRecord.completedAt = new Date();
+    await payoutRecord.save();
+
+    logger.info(`[Payout Mock] Completed mock payout ${payoutRecord._id} (₹${numericAmount}) for Manager ${managerId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mock payout processed successfully in staging mode.',
+      data: {
+        payoutId: payoutRecord._id,
+        amount: numericAmount,
+        status: payoutRecord.status,
+        providerPayoutId: payoutRecord.providerPayoutId,
+        isMock: true
+      }
+    });
+  }
+
   const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
   const isRazorpayConfigured = keyId && keySecret && !keyId.includes('mock');

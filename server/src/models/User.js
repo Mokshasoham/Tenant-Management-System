@@ -34,8 +34,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'manager', 'tenant', 'technician', 'user'],
+      enum: ['super_admin', 'admin', 'manager', 'tenant', 'technician', 'user'],
       default: 'tenant',
+    },
+    isSuperAdmin: {
+      type: Boolean,
+      default: false,
     },
     technicianProfile: {
       employeeId: { type: String },

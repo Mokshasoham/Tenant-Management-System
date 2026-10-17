@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, ExternalLink, Download, FileCheck, FolderOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { resolveApiBaseUrl, resolveMediaBaseUrl } from '../../utils/envConfig.js';
 
 /**
  * Lease Documents Center Component (Simplified V3.0.2)
@@ -40,9 +41,8 @@ export const LeaseDocuments = React.memo(({ lease }) => {
     }
 
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const cleanApiBase = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
-    const serverOrigin = import.meta.env.VITE_API_URL || cleanApiBase.replace(/\/api$/, '') || 'http://localhost:5000';
+    const cleanApiBase = resolveApiBaseUrl();
+    const serverOrigin = resolveMediaBaseUrl();
 
     try {
       const res = await fetch(`${cleanApiBase}/files/signed-url/${fileId}`, {

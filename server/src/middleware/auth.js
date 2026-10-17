@@ -52,8 +52,19 @@ export const authorize = (...roles) => {
   };
 };
 
-export const adminOnly = authorize('admin');
-export const managerOrAdmin = authorize('manager', 'admin');
+export const adminOnly = authorize('admin', 'super_admin');
+export const managerOrAdmin = authorize('manager', 'admin', 'super_admin');
+export const superAdminOnly = (req, res, next) => {
+  if (!req.user) {
+    throw new AppError('Unauthorized access', 401);
+  }
+  const isSuper = req.user.role === 'super_admin' || req.user.isSuperAdmin === true;
+  if (!isSuper) {
+    throw new AppError('Forbidden: Requires Super Administrator privileges', 403);
+  }
+  next();
+};
 export const authorizeRoles = authorize;
 export const protect = authenticate;
+
 

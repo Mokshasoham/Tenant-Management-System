@@ -55,6 +55,11 @@ export const register = asyncHandler(async (req, res) => {
     throw new AppError('User with this email already exists', 400);
   }
 
+  // Prevent privilege escalation in public registration
+  if (req.body.isSuperAdmin !== undefined || req.body.role === 'super_admin' || req.body.role === 'admin') {
+    throw new AppError('Forbidden: Privilege escalation forbidden during registration', 403);
+  }
+
   // Validate allowed role for public signup (only tenant or manager allowed from registration)
   const chosenRole = (role && ['tenant', 'manager'].includes(role)) ? role : 'tenant';
 
@@ -193,6 +198,11 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
+  // Prevent privilege escalation via profile updates
+  if (req.body.role !== undefined || req.body.isSuperAdmin !== undefined) {
+    throw new AppError('Forbidden: Profile updates cannot modify role or isSuperAdmin', 403);
+  }
+
   const existingUser = await User.findById(req.user.userId);
   if (!existingUser) {
     throw new AppError('User not found', 404);

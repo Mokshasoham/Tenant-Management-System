@@ -78,6 +78,12 @@ import { generateAndUploadLeasePDF, generateInvoicePDF, buildInvoiceViewModel } 
 import { processPostPayment } from '../services/paymentAutomation.js';
 import { getSignedUrlForFile } from './fileController.js';
 import { calculatePaymentBreakdown, recordVerifiedRevenue } from '../services/platformFeeService.js';
+import {
+    isMockPaymentsEnabled,
+    getRazorpayClient,
+    createMockBookingOrder,
+    verifyMockSignature
+} from '../services/paymentGatewayService.js';
 
 // Helper: add timeline event
 const addTimeline = (booking, event, note = '') => {
@@ -131,14 +137,46 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     const securityDeposit = booking.depositAmount || property.depositAmount || (property.rentAmount * 2) || booking.totalAmount || 1000;
     const breakdown = await calculatePaymentBreakdown(securityDeposit, booking.maintenanceSelected === true);
 
-    const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
+    const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
 
     logger.info(`[RAZORPAY CREATE ORDER DEBUG] authenticatedUserId: ${req.user?.userId || 'anonymous'}, propertyId: ${property._id}, bookingId: ${booking._id}, rentAmount: ${breakdown.rentAmount}, platformFee: ${breakdown.platformFee}, totalPayable: ${breakdown.totalPayable}`);
 
     let amountInPaise = Math.round(Number(breakdown.totalPayable) * 100);
-    const isTestMode = keyId.startsWith('rzp_test_');
 
+    let razorpayOrderId;
+
+    // Staging / Test Mock Mode: ZERO external network or SDK calls
+    if (isMockPaymentsEnabled()) {
+        const mockOrder = createMockBookingOrder({
+            amountInPaise,
+            bookingId: booking._id,
+        });
+
+        razorpayOrderId = mockOrder.id;
+        booking.razorpayOrderId = razorpayOrderId;
+        booking.platformFee = breakdown.platformFee;
+        booking.managerEarnings = breakdown.managerNetAmount;
+        booking.ownerEarnings = breakdown.managerNetAmount;
+        booking.totalAmount = breakdown.totalPayable;
+        booking.isMock = true;
+        await booking.save();
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                orderId: razorpayOrderId,
+                amount: amountInPaise,
+                currency: 'INR',
+                keyId: 'mock_key_staging',
+                isMock: true,
+                booking
+            }
+        });
+    }
+
+    // Live Gateway Order Creation (Mock Disabled)
+    const isTestMode = keyId.startsWith('rzp_test_');
     if (isTestMode && amountInPaise > 10000000) {
         logger.warn(`Test mode transaction amount ${amountInPaise} paise exceeds ₹1,00,000. Capping Razorpay order to 100,000 paise (₹1,000).`);
         amountInPaise = 100000;
@@ -146,13 +184,8 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
 
     logger.info(`[RAZORPAY] creating order - amount: ${amountInPaise} paise, currency: INR`);
 
-    let razorpayOrderId;
     try {
-        const rzp = new Razorpay({
-            key_id: keyId,
-            key_secret: keySecret
-        });
-
+        const rzp = getRazorpayClient();
         const rzpOrder = await rzp.orders.create({
             amount: amountInPaise, 
             currency: 'INR',
@@ -164,7 +197,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     } catch (rzpErr) {
         const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
         logger.error(`Razorpay API Order Creation Failed: ${errMsg}`);
-        throw new AppError(`Razorpay API Order Creation Failed: ${errMsg}`, 400);
+        throw new AppError(`Razorpay API Order Creation Failed: ${errMsg}`, rzpErr.statusCode || 400);
     }
 
     booking.razorpayOrderId = razorpayOrderId;
@@ -246,53 +279,59 @@ export const verifyAndProcessPaymentInternal = async ({
 
     logger.info(`Processing payment verification: bookingId=${bookingId}, orderId=${razorpayOrderId}, paymentId=${razorpayPaymentId}, hasSignature=${!!razorpaySignature}`);
 
-    // Verify signature
-    const body = razorpayOrderId + '|' + razorpayPaymentId;
-    const resolvedKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1';
-    const resolvedKeySecret = process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ';
-    
-    const expectedSig = crypto
-        .createHmac('sha256', resolvedKeySecret)
-        .update(body)
-        .digest('hex');
+    // Verify signature & gateway status
+    let isPaymentValid = false;
 
-    const isValid = expectedSig === razorpaySignature;
-    
-    // For local isolated testing, sandbox accounts, or key mismatches, skip signature check if keys are placeholders or test keys
-    const testMode = !process.env.RAZORPAY_KEY_SECRET || 
-                     process.env.RAZORPAY_KEY_SECRET === 'test_secret' || 
-                     process.env.RAZORPAY_KEY_SECRET === 'rzp_test_placeholder_secret' ||
-                     process.env.RAZORPAY_KEY_ID === 'rzp_test_placeholder' ||
-                     (razorpayOrderId && razorpayOrderId.startsWith('order_test_')) ||
-                     razorpaySignature === 'mock_signature_data';
-
-    logger.info(`Signature verification: isValid=${isValid}, expectedSig=${expectedSig}, receivedSig=${razorpaySignature}, testModeActive=${testMode}`);
-
-    let isPaymentValid = isValid;
-
-    // Direct fetch fallback for test modes or key mismatches
-    if (!isPaymentValid) {
-        try {
-            const rzpInstance = new Razorpay({
-                key_id: resolvedKeyId,
-                key_secret: resolvedKeySecret
-            });
-            const paymentDetails = await rzpInstance.payments.fetch(razorpayPaymentId);
-            if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
-                isPaymentValid = true;
-                logger.info(`Payment verified directly via Razorpay API: ${razorpayPaymentId}`);
-            }
-        } catch (apiErr) {
-            logger.warn(`Razorpay API verification fallback failed: ${apiErr.message}`);
+    if (isMockPaymentsEnabled()) {
+        const isMockSigValid = verifyMockSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+        if (!isMockSigValid) {
+            logger.error(`[Mock Booking] Invalid mock signature for order ${razorpayOrderId}`);
+            booking.paymentStatus = 'failed';
+            await booking.save();
+            throw new AppError('Payment verification failed. Invalid transaction signature.', 400);
         }
-    }
 
-    // If it's a test environment or starts with mock details, let it pass.
-    if (!isPaymentValid && !testMode) {
-        logger.error(`Razorpay signature and API fallback both failed. Setting booking ${bookingId} paymentStatus to failed.`);
-        booking.paymentStatus = 'failed';
-        await booking.save();
-        throw new AppError('Payment verification failed. Key/Secret mismatch or invalid signature.', 400);
+        if (booking.razorpayOrderId && booking.razorpayOrderId !== razorpayOrderId) {
+            logger.error(`[Mock Booking] Order ID mismatch: booking has ${booking.razorpayOrderId}, received ${razorpayOrderId}`);
+            throw new AppError('Payment verification failed. Order ID mismatch.', 400);
+        }
+
+        isPaymentValid = true;
+        booking.isMock = true;
+    } else {
+        const resolvedKeySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+        if (!resolvedKeySecret) {
+            throw new AppError('Razorpay payment gateway credentials not configured (RAZORPAY_KEY_SECRET missing)', 503);
+        }
+
+        const body = razorpayOrderId + '|' + razorpayPaymentId;
+        const expectedSig = crypto
+            .createHmac('sha256', resolvedKeySecret)
+            .update(body)
+            .digest('hex');
+
+        isPaymentValid = expectedSig === razorpaySignature;
+
+        // Direct fetch fallback if signature fails but client configured
+        if (!isPaymentValid) {
+            try {
+                const rzpInstance = getRazorpayClient();
+                const paymentDetails = await rzpInstance.payments.fetch(razorpayPaymentId);
+                if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
+                    isPaymentValid = true;
+                    logger.info(`Payment verified directly via Razorpay API: ${razorpayPaymentId}`);
+                }
+            } catch (apiErr) {
+                logger.warn(`Razorpay API verification fallback failed: ${apiErr.message}`);
+            }
+        }
+
+        if (!isPaymentValid) {
+            logger.error(`Razorpay signature and API fallback both failed. Setting booking ${bookingId} paymentStatus to failed.`);
+            booking.paymentStatus = 'failed';
+            await booking.save();
+            throw new AppError('Payment verification failed. Key/Secret mismatch or invalid signature.', 400);
+        }
     }
 
     // Payment verified
@@ -984,16 +1023,12 @@ export const cancelBooking = asyncHandler(async (req, res) => {
         const policy = property?.cancellationPolicy || 'flexible';
 
         if (booking.razorpayPaymentId) {
-            const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
-            const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-            const isTestMode = !keySecret || keySecret === 'test_secret' || keySecret.startsWith('rzp_test_');
-
-            if (keyId && keySecret && !isTestMode) {
+            if (isMockPaymentsEnabled() || booking.isMock || booking.razorpayPaymentId.startsWith('pay_mock_') || booking.razorpayPaymentId.startsWith('mock_pay_')) {
+                refundProcessed = true;
+                logger.info(`[MOCK REFUND SUCCESS] Mock refund of ₹${refundAmount} processed for booking ${booking._id}`);
+            } else {
                 try {
-                    const rzp = new Razorpay({
-                        key_id: keyId,
-                        key_secret: keySecret
-                    });
+                    const rzp = getRazorpayClient();
                     await rzp.payments.refund(booking.razorpayPaymentId, {
                         amount: Math.round(refundAmount * 100) // in paise
                     });

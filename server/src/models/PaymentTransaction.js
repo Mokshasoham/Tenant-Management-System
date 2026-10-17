@@ -126,12 +126,18 @@ const paymentTransactionSchema = new mongoose.Schema(
     },
     refundReason: String,
     refundedAt: Date,
+    isMock: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+paymentTransactionSchema.index({ payment: 1 }, { unique: true });
 paymentTransactionSchema.index({ property: 1, manager: 1, status: 1 });
 paymentTransactionSchema.index({ createdAt: -1 });
 

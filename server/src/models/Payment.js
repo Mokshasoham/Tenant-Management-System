@@ -148,9 +148,38 @@ const paymentSchema = new mongoose.Schema(
         amount: Number,
         date: Date,
         method: String,
+        reference: String,
       },
     ],
     bill: { type: mongoose.Schema.Types.ObjectId, ref: 'Bill' },
+    isMock: {
+      type: Boolean,
+      default: false,
+    },
+    sideEffects: {
+      invoice: {
+        status: {
+          type: String,
+          enum: ['PENDING', 'STAGED', 'COMMITTED', 'COMMIT_INDETERMINATE', 'FAILED'],
+          default: 'PENDING',
+        },
+        fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'FileMetadata' },
+        key: String,
+        leaseVersion: { type: Number, default: 1 },
+        attempt: { type: Number, default: 0 },
+        updatedAt: Date,
+        lastError: String,
+      },
+      email: {
+        status: {
+          type: String,
+          enum: ['PENDING', 'SENT', 'FAILED'],
+          default: 'PENDING',
+        },
+        sentAt: Date,
+        lastError: String,
+      },
+    },
   },
   {
     timestamps: true,

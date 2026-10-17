@@ -67,6 +67,19 @@ const FileMetadataSchema = new mongoose.Schema(
       enum: ['active', 'superseded', 'archived'],
       default: 'active',
     },
+    publicationState: {
+      type: String,
+      enum: ['STAGED', 'COMMITTED', 'PURGE_CLAIMED', 'PURGED'],
+      default: 'STAGED',
+      index: true,
+    },
+    leaseVersion: {
+      type: Number,
+      default: 1,
+    },
+    committedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

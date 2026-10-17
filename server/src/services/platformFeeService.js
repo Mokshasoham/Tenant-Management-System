@@ -196,6 +196,7 @@ export async function recordVerifiedRevenue(data) {
     razorpaySignature,
     status: 'paid',
     netPlatformRevenue: platformRevenue !== undefined ? platformRevenue : (platformFee || 0),
+    isMock: Boolean(data.isMock),
   };
 
   if (transaction) {

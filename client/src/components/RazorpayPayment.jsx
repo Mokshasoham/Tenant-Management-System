@@ -95,8 +95,16 @@ export default function RazorpayPayment({ bookingId, property, onClose, onSucces
                 return;
             }
 
+            const gatewayKey = keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+            if (!gatewayKey) {
+                console.error('[RazorpayPayment] Missing payment gateway key configuration.');
+                setErrorMsg('Payment gateway configuration is missing.');
+                setStep('error');
+                return;
+            }
+
             const rzp = new window.Razorpay({
-                key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1',
+                key: gatewayKey,
                 amount,
                 currency: 'INR',
                 order_id: razorpayOrderId,

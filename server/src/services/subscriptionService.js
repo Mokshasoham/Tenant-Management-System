@@ -12,6 +12,12 @@ import PlatformSetting from '../models/PlatformSetting.js';
 import logger from '../utils/logger.js';
 import { AppError } from '../utils/errorHandling.js';
 import { isLeaseAuthoritativelyActive } from '../utils/leaseLifecycle.js';
+import {
+  isMockPaymentsEnabled,
+  getRazorpayClient,
+  createMockSubscriptionOrder,
+  verifyMockSignature
+} from './paymentGatewayService.js';
 
 /**
  * Default Plan Metadata & Configurations
@@ -831,10 +837,35 @@ export async function createSubscriptionOrder(userId, role, targetPlanId, billin
 
   const amountInPaise = Math.round(Number(targetPlan.price) * 100);
 
-  const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
+  // Staging / Test Mock Mode: ZERO external network or SDK calls
+  if (isMockPaymentsEnabled()) {
+    const mockOrder = createMockSubscriptionOrder({
+      amountInPaise,
+      userId,
+      planId: targetPlanId,
+      billingCycle,
+      notes: {
+        targetPlanName: targetPlan.planName,
+        role: normalizedRole,
+      },
+    });
 
-  const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    return {
+      orderId: mockOrder.id,
+      amount: amountInPaise,
+      currency: 'INR',
+      keyId: 'mock_key_staging',
+      planId: targetPlanId,
+      planName: targetPlan.planName,
+      price: targetPlan.price,
+      billingCycle,
+      isMock: true,
+    };
+  }
+
+  // Live Gateway Order Creation (Mock Disabled)
+  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+  const rzp = getRazorpayClient();
 
   const receipt = `sub_${normalizedRole.slice(0, 3)}_${userId.toString().slice(-6)}_${Date.now().toString().slice(-4)}`;
 
@@ -892,37 +923,42 @@ export async function verifySubscriptionPayment({
     throw new AppError('Invalid target subscription plan', 400);
   }
 
-  const resolvedKeyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-  const resolvedKeySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
+  let isPaymentValid = false;
 
-  // HMAC SHA256 Signature Verification
-  const body = razorpayOrderId + '|' + razorpayPaymentId;
-  const expectedSig = crypto.createHmac('sha256', resolvedKeySecret).update(body).digest('hex');
-
-  const isValid = expectedSig === razorpaySignature;
-  const testMode =
-    !process.env.RAZORPAY_KEY_SECRET ||
-    process.env.RAZORPAY_KEY_SECRET === 'test_secret' ||
-    process.env.RAZORPAY_KEY_SECRET === 'rzp_test_placeholder_secret' ||
-    (razorpayOrderId && razorpayOrderId.startsWith('order_test_')) ||
-    razorpaySignature === 'mock_signature_data';
-
-  let isPaymentValid = isValid;
-
-  if (!isPaymentValid) {
-    try {
-      const rzp = new Razorpay({ key_id: resolvedKeyId, key_secret: resolvedKeySecret });
-      const paymentDetails = await rzp.payments.fetch(razorpayPaymentId);
-      if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
-        isPaymentValid = true;
-      }
-    } catch (apiErr) {
-      logger.warn(`[Subscription] Razorpay fetch verification fallback: ${apiErr.message}`);
+  if (isMockPaymentsEnabled()) {
+    const isMockSigValid = verifyMockSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+    if (!isMockSigValid) {
+      logger.error(`[Mock Subscription] Invalid mock signature for order ${razorpayOrderId}`);
+      throw new AppError('Payment verification failed. Invalid Razorpay signature.', 400);
     }
-  }
+    isPaymentValid = true;
+  } else {
+    const resolvedKeySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+    if (!resolvedKeySecret) {
+      throw new AppError('Razorpay credentials not configured (RAZORPAY_KEY_SECRET missing)', 503);
+    }
 
-  if (!isPaymentValid && !testMode) {
-    throw new AppError('Payment verification failed. Invalid Razorpay signature.', 400);
+    // HMAC SHA256 Signature Verification
+    const body = razorpayOrderId + '|' + razorpayPaymentId;
+    const expectedSig = crypto.createHmac('sha256', resolvedKeySecret).update(body).digest('hex');
+
+    isPaymentValid = expectedSig === razorpaySignature;
+
+    if (!isPaymentValid) {
+      try {
+        const rzp = getRazorpayClient();
+        const paymentDetails = await rzp.payments.fetch(razorpayPaymentId);
+        if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
+          isPaymentValid = true;
+        }
+      } catch (apiErr) {
+        logger.warn(`[Subscription] Razorpay fetch verification fallback: ${apiErr.message}`);
+      }
+    }
+
+    if (!isPaymentValid) {
+      throw new AppError('Payment verification failed. Invalid Razorpay signature.', 400);
+    }
   }
 
   const user = await User.findById(userId);

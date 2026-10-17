@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { cn } from '../utils/cn';
+import { resolveApiBaseUrl, resolveMediaBaseUrl } from '../utils/envConfig.js';
 
 const ROLE_COLORS = {
     admin: { 
@@ -112,8 +113,8 @@ export default function MessagesPage() {
     const myTheme = ROLE_COLORS[role] || ROLE_COLORS.tenant;
     const userId = user?._id || user?.id;
 
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const serverUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+    const apiBase = resolveApiBaseUrl();
+    const serverUrl = resolveMediaBaseUrl();
 
     const getFullUrl = (url) => {
         if (!url) return '';

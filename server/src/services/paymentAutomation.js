@@ -12,9 +12,9 @@ import logger from '../utils/logger.js';
  * 3. Sends a confirmation email to the tenant with the attachment.
  */
 export const processPostPayment = async (paymentOrId) => {
+    let paymentId = paymentOrId?._id || paymentOrId || 'unknown';
     try {
-        const paymentId = paymentOrId._id || paymentOrId;
-        const payment = paymentOrId._id ? paymentOrId : await Payment.findById(paymentId);
+        const payment = paymentOrId?._id ? paymentOrId : await Payment.findById(paymentId);
         if (!payment || !['paid', 'partially_paid'].includes(payment.status)) {
             logger.warn(`Post-payment processing skipped for payment ${paymentId}: not found or status is ${payment?.status}.`);
             return;
@@ -24,6 +24,12 @@ export const processPostPayment = async (paymentOrId) => {
         if (payment.invoiceUrl && process.env.NODE_ENV === 'production') {
             logger.info(`Invoice already exists for payment ${paymentId}.`);
             return;
+        }
+
+        // In offline test environment, bypass background side-effects unless explicitly requested
+        if (process.env.NODE_ENV === 'test' && !paymentOrId?.executeInTest) {
+            logger.info(`Post-payment automation bypassed in test environment for payment: ${paymentId}`);
+            return { success: true, bypassed: true };
         }
 
         const tenant = await Tenant.findById(payment.tenant);
@@ -38,10 +44,24 @@ export const processPostPayment = async (paymentOrId) => {
         logger.info(`Generating invoice for payment: ${paymentId}`);
         const uploadResult = await generateInvoicePDF(payment, tenant, property);
         
-        // 2. Update Payment Record
-        payment.fileId = uploadResult.fileId;
-        payment.invoiceUrl = `/api/files/download/${uploadResult.fileId}`;
-        await payment.save();
+        // 2. Commit Invoice Publication with durable quarantine protection
+        const { commitInvoicePublicationAtomic } = await import('./invoicePublicationService.js');
+        const commitResult = await commitInvoicePublicationAtomic({
+            paymentId,
+            fileId: uploadResult.fileId,
+            fileKey: uploadResult.Key || uploadResult.key,
+            leaseVersion: payment.sideEffects?.invoice?.leaseVersion || 1,
+        });
+
+        if (!commitResult.success) {
+            logger.warn(`Invoice publication commit was not committed (outcome: ${commitResult.outcome}, quarantined: ${commitResult.quarantined}). Halting email dispatch.`);
+            return {
+                success: false,
+                quarantined: Boolean(commitResult.quarantined),
+                outcome: commitResult.outcome,
+                fileId: uploadResult.fileId,
+            };
+        }
 
         // 3. Send Email
         logger.info(`Sending receipt email for payment: ${paymentId}`);

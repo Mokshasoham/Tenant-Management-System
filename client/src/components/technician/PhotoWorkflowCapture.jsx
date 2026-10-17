@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { compressImage } from '../../utils/compressImage';
 import { maintenanceService } from '../../services/api';
+import { resolveMediaBaseUrl } from '../../utils/envConfig.js';
 
 /**
  * PhotoWorkflowCapture Component
@@ -28,20 +29,7 @@ export function resolveImageUrl(rawUrl) {
     return url;
   }
 
-  let serverUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
-  if (!serverUrl || serverUrl.includes('localhost')) {
-    if (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-      serverUrl = 'https://tenant-management-backend-ohr6.onrender.com';
-    } else {
-      serverUrl = 'http://localhost:5000';
-    }
-  }
-
-  if (serverUrl.endsWith('/api')) {
-    serverUrl = serverUrl.slice(0, -4);
-  }
-
-  const cleanServer = serverUrl.replace(/\/$/, '');
+  const cleanServer = resolveMediaBaseUrl().replace(/\/$/, '');
   const cleanUrl = url.startsWith('/') ? url : '/' + url;
   return `${cleanServer}${cleanUrl}`;
 }

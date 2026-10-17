@@ -87,6 +87,14 @@ export const getUserById = asyncHandler(async (req, res) => {
 export const createUser = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, password, phone, role } = req.body;
 
+  // Protect super_admin creation
+  const isCallerSuperAdmin = req.user && (req.user.role === 'super_admin' || req.user.isSuperAdmin === true);
+  if (role === 'super_admin' || req.body.isSuperAdmin === true) {
+    if (!isCallerSuperAdmin) {
+      throw new AppError('Forbidden: Only Super Administrators can grant super_admin role or isSuperAdmin privilege', 403);
+    }
+  }
+
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -103,6 +111,7 @@ export const createUser = asyncHandler(async (req, res) => {
     password: hashedPassword,
     phone,
     role: role || 'user',
+    isSuperAdmin: (isCallerSuperAdmin && req.body.isSuperAdmin === true) ? true : false,
   });
 
   user.password = undefined;
@@ -118,19 +127,43 @@ export const createUser = asyncHandler(async (req, res) => {
 
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = { ...req.body };
 
   // Don't allow direct password update through this endpoint
   delete updateData.password;
+
+  // Protect super_admin privilege against unauthorized mass-assignment
+  const isCallerSuperAdmin = req.user && (req.user.role === 'super_admin' || req.user.isSuperAdmin === true);
+
+  if (updateData.role === 'super_admin' || updateData.isSuperAdmin !== undefined) {
+    if (!isCallerSuperAdmin) {
+      throw new AppError('Forbidden: Only Super Administrators can grant or modify super_admin role or isSuperAdmin privilege', 403);
+    }
+  }
+
+  const targetUser = await User.findById(id);
+  if (!targetUser) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Non-super-admins cannot alter accounts that hold super_admin privilege
+  const isTargetSuperAdmin = targetUser.role === 'super_admin' || targetUser.isSuperAdmin === true;
+  if (isTargetSuperAdmin && !isCallerSuperAdmin) {
+    throw new AppError('Forbidden: Cannot modify an account with Super Administrator privileges', 403);
+  }
+
+  // Ensure non-super-admins cannot alter roles or isSuperAdmin
+  if (!isCallerSuperAdmin) {
+    delete updateData.isSuperAdmin;
+    if (updateData.role && updateData.role !== targetUser.role) {
+      throw new AppError('Forbidden: Only Super Administrators can alter user roles in updateUser', 403);
+    }
+  }
 
   const user = await User.findByIdAndUpdate(id, updateData, {
     new: true,
     runValidators: true,
   }).select('-password');
-
-  if (!user) {
-    throw new AppError('User not found', 404);
-  }
 
   logger.info(`User updated: ${user.email}`);
 
@@ -164,24 +197,38 @@ export const assignRole = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
 
-  if (!['admin', 'manager', 'user'].includes(role)) {
+  const isCallerSuperAdmin = req.user && (req.user.role === 'super_admin' || req.user.isSuperAdmin === true);
+
+  if (role === 'super_admin') {
+    if (!isCallerSuperAdmin) {
+      throw new AppError('Forbidden: Only Super Administrators can assign the super_admin role', 403);
+    }
+  } else if (!['admin', 'manager', 'user', 'technician', 'tenant'].includes(role)) {
     throw new AppError('Invalid role', 400);
   }
 
-  const user = await User.findByIdAndUpdate(id, { role }, { new: true }).select(
-    '-password'
-  );
-
-  if (!user) {
+  const targetUser = await User.findById(id);
+  if (!targetUser) {
     throw new AppError('User not found', 404);
   }
 
-  logger.info(`Role changed for user ${user.email}: ${role}`);
+  const isTargetSuperAdmin = targetUser.role === 'super_admin' || targetUser.isSuperAdmin === true;
+  if (isTargetSuperAdmin && !isCallerSuperAdmin) {
+    throw new AppError('Forbidden: Cannot modify roles for Super Administrator accounts', 403);
+  }
+
+  targetUser.role = role;
+  if (role !== 'super_admin' && !isCallerSuperAdmin) {
+    targetUser.isSuperAdmin = false;
+  }
+  await targetUser.save();
+
+  logger.info(`Role changed for user ${targetUser.email}: ${role}`);
 
   res.status(200).json({
     success: true,
     message: 'Role assigned successfully',
-    data: user,
+    data: targetUser,
   });
 });
 

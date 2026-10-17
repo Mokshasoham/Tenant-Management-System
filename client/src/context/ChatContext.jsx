@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { io } from 'socket.io-client';
 import useAuthStore from './authStore';
 import { messageService } from '../services/api';
+import { resolveSocketUrl } from '../utils/envConfig.js';
 
 const ChatContext = createContext();
 
@@ -37,8 +38,7 @@ export const ChatProvider = ({ children }) => {
     // Initialize Socket
     useEffect(() => {
         if (token) {
-            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-            const socketUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+            const socketUrl = resolveSocketUrl();
             const newSocket = io(socketUrl, {
                 auth: { token }
             });

@@ -1,3 +1,5 @@
+import { resolveMediaBaseUrl, PRODUCTION_BACKEND_HOST } from './envConfig.js';
+
 const parseDateSafe = (val) => {
     if (!val) return null;
     if (val instanceof Date) {
@@ -100,14 +102,7 @@ export const getDisplayStatus = (property) => {
 };
 
 export const getBackendBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-    return 'https://tenant-management-backend-ohr6.onrender.com';
-  }
-  const envBase = import.meta.env?.VITE_API_BASE_URL;
-  if (envBase && !envBase.includes('localhost')) {
-    return envBase.replace(/\/api\/?$/, '');
-  }
-  return 'http://localhost:5000';
+  return resolveMediaBaseUrl();
 };
 
 export const resolveMediaUrl = (rawUrl) => {
@@ -127,8 +122,8 @@ export const resolveMediaUrl = (rawUrl) => {
     u = u.replace(/^https?:\/\/[^\/]+/, '');
   }
 
-  // If URL points to onrender backend with double slashes or extra path, clean origin
-  if (u.includes('tenant-management-backend-ohr6.onrender.com')) {
+  // If URL points to production backend with double slashes or extra path, clean origin
+  if (u.includes(PRODUCTION_BACKEND_HOST)) {
     u = u.replace(/^https?:\/\/[^\/]+/, '');
   }
 

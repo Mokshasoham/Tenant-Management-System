@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { resolveSocketUrl } from '../utils/envConfig.js';
 
 let socketInstance = null;
 
@@ -22,13 +23,7 @@ export const getSocket = () => {
     return socketInstance;
   }
 
-  const envBase = import.meta.env.VITE_API_BASE_URL;
-  let apiBase = envBase || 'http://localhost:5000/api';
-  if (typeof window !== 'undefined' && window.location && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-    apiBase = (envBase && !envBase.includes('localhost')) ? envBase : 'https://tenant-management-backend-ohr6.onrender.com/api';
-  }
-
-  const socketUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+  const socketUrl = resolveSocketUrl();
 
   socketInstance = io(socketUrl, {
     auth: { token },

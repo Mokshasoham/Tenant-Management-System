@@ -17,6 +17,7 @@ import { NotificationService } from '../services/NotificationService.js';
 import { isManagerPropertyOwner, getManagerPropertyIds } from '../utils/managerHelper.js';
 import Razorpay from 'razorpay';
 import { isTenantRole, getAuthenticatedTenant } from '../utils/tenantHelper.js';
+import { isMockPaymentsEnabled, getRazorpayClient } from '../services/paymentGatewayService.js';
 
 // Backward-compatible Event proxy
 const Notification = {
@@ -1582,13 +1583,13 @@ export const executeDepositRefundPayout = asyncHandler(async (req, res) => {
   // 7. SAFEGUARD 2: Gateway reconciliation before issuing refund
   const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
   const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const isMock = !keyId || !keySecret || keySecret === 'test_secret' || keySecret.startsWith('rzp_test_') || selectedPayment.razorpayPaymentId.startsWith('mock_') || selectedPayment.razorpayPaymentId.startsWith('pay_test_A_');
+  const isMock = isMockPaymentsEnabled() || !keyId || !keySecret || keySecret === 'test_secret' || keySecret.startsWith('rzp_test_') || selectedPayment.razorpayPaymentId.startsWith('mock_') || selectedPayment.razorpayPaymentId.startsWith('pay_test_A_');
 
   try {
     let refundResult = null;
 
     if (!isMock) {
-      const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+      const rzp = getRazorpayClient();
 
       // Step A: Reconcile against Razorpay prior refunds for this payment
       try {

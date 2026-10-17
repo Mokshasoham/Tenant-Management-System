@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import Razorpay from 'razorpay';
 import maintenanceService from '../services/maintenanceService.js';
 import maintenanceRepository from '../repositories/maintenanceRepository.js';
 import * as maintenanceTicketService from '../services/maintenanceTicketService.js';
@@ -13,6 +12,13 @@ import Payment from '../models/Payment.js';
 import PaymentTransaction from '../models/PaymentTransaction.js';
 import Notification from '../models/Notification.js';
 import { getPlatformFeeConfig } from '../services/platformFeeService.js';
+import {
+  isMockPaymentsEnabled,
+  getRazorpayClient,
+  createMockMaintenanceOrder,
+  verifyMockSignature,
+  verifyMockPayment
+} from '../services/paymentGatewayService.js';
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 
@@ -886,21 +892,13 @@ export const createUnlockRazorpayOrder = asyncHandler(async (req, res) => {
     const feeAmount = config.maintenanceFee !== undefined ? config.maintenanceFee : 500;
     let amountInPaise = Math.round(feeAmount * 100);
 
-    const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
-
     let razorpayOrderId;
-    try {
-        const rzp = new Razorpay({
-            key_id: keyId,
-            key_secret: keySecret
-        });
+    let keyId;
 
-        const receipt = `rcpt_maint_${lease._id.toString().slice(-8)}_${Date.now().toString().slice(-4)}`;
-        const rzpOrder = await rzp.orders.create({
-            amount: amountInPaise,
-            currency: 'INR',
-            receipt,
+    if (isMockPaymentsEnabled()) {
+        const mockOrder = createMockMaintenanceOrder({
+            leaseId: lease._id,
+            amountInPaise,
             notes: {
                 purpose: 'maintenance_unlock',
                 leaseId: lease._id.toString(),
@@ -908,13 +906,33 @@ export const createUnlockRazorpayOrder = asyncHandler(async (req, res) => {
                 tenantEmail: user?.email || req.user?.email || 'tenant@tms.com'
             }
         });
+        razorpayOrderId = mockOrder.id;
+        keyId = 'rzp_mock_key';
+        logger.info(`[MAINTENANCE UNLOCK] Created mock maintenance order ${razorpayOrderId} for lease ${lease._id}, fee: ₹${feeAmount}`);
+    } else {
+        const rzp = getRazorpayClient();
+        keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+        try {
+            const receipt = `rcpt_maint_${lease._id.toString().slice(-8)}_${Date.now().toString().slice(-4)}`;
+            const rzpOrder = await rzp.orders.create({
+                amount: amountInPaise,
+                currency: 'INR',
+                receipt,
+                notes: {
+                    purpose: 'maintenance_unlock',
+                    leaseId: lease._id.toString(),
+                    propertyId: (lease.property?._id || lease.property).toString(),
+                    tenantEmail: user?.email || req.user?.email || 'tenant@tms.com'
+                }
+            });
 
-        razorpayOrderId = rzpOrder.id;
-        logger.info(`[MAINTENANCE UNLOCK] Created Razorpay order ${razorpayOrderId} for lease ${lease._id}, fee: ₹${feeAmount}`);
-    } catch (rzpErr) {
-        const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
-        logger.error(`Razorpay Maintenance Unlock Order Failed: ${errMsg}`);
-        throw new AppError(`Razorpay Order Creation Failed: ${errMsg}`, 400);
+            razorpayOrderId = rzpOrder.id;
+            logger.info(`[MAINTENANCE UNLOCK] Created Razorpay order ${razorpayOrderId} for lease ${lease._id}, fee: ₹${feeAmount}`);
+        } catch (rzpErr) {
+            const errMsg = rzpErr.description || rzpErr.error?.description || rzpErr.message || JSON.stringify(rzpErr);
+            logger.error(`Razorpay Maintenance Unlock Order Failed: ${errMsg}`);
+            throw new AppError(`Razorpay Order Creation Failed: ${errMsg}`, 400);
+        }
     }
 
     res.status(201).json({
@@ -962,44 +980,54 @@ export const verifyUnlockRazorpayPayment = asyncHandler(async (req, res) => {
         });
     }
 
-    // Verify HMAC SHA256 Signature
-    const resolvedKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1';
-    const resolvedKeySecret = process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ';
-    const body = razorpayOrderId + '|' + razorpayPaymentId;
+    const config = await getPlatformFeeConfig();
+    const fee = config.maintenanceFee !== undefined ? config.maintenanceFee : 500;
+    const feeInPaise = Math.round(fee * 100);
 
-    const expectedSig = crypto
-        .createHmac('sha256', resolvedKeySecret)
-        .update(body)
-        .digest('hex');
+    const isMock = isMockPaymentsEnabled();
 
-    const isValid = expectedSig === razorpaySignature;
-    const testMode = !process.env.RAZORPAY_KEY_SECRET ||
-                     process.env.RAZORPAY_KEY_SECRET === 'test_secret' ||
-                     process.env.RAZORPAY_KEY_SECRET === 'rzp_test_placeholder_secret' ||
-                     process.env.RAZORPAY_KEY_ID === 'rzp_test_placeholder' ||
-                     (razorpayOrderId && razorpayOrderId.startsWith('order_test_')) ||
-                     razorpaySignature === 'mock_signature_data';
+    if (isMock) {
+        const isMockSigValid = verifyMockSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+        if (!isMockSigValid) {
+            throw new AppError('Mock payment verification failed. Invalid mock signature.', 400);
+        }
+        verifyMockPayment({
+            orderId: razorpayOrderId,
+            paymentId: razorpayPaymentId,
+            expectedAmountPaise: feeInPaise
+        });
+    } else {
+        const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+        if (!keySecret) {
+            throw new AppError('Payment gateway credentials missing on server.', 503);
+        }
 
-    let isPaymentValid = isValid;
+        const body = razorpayOrderId + '|' + razorpayPaymentId;
+        const expectedSig = crypto
+            .createHmac('sha256', keySecret)
+            .update(body)
+            .digest('hex');
 
-    if (!isPaymentValid) {
-        try {
-            const rzp = new Razorpay({ key_id: resolvedKeyId, key_secret: resolvedKeySecret });
-            const paymentDetails = await rzp.payments.fetch(razorpayPaymentId);
-            if (paymentDetails && (paymentDetails.status === 'captured' || paymentDetails.status === 'authorized')) {
-                isPaymentValid = true;
+        let isPaymentValid = (expectedSig === razorpaySignature);
+
+        if (!isPaymentValid) {
+            try {
+                const rzp = getRazorpayClient();
+                const paymentDetails = await rzp.payments.fetch(razorpayPaymentId);
+                // Captured only - authorized payments are not settled
+                if (paymentDetails && paymentDetails.status === 'captured' && Number(paymentDetails.amount) === feeInPaise) {
+                    isPaymentValid = true;
+                }
+            } catch (apiErr) {
+                logger.warn(`Razorpay verify fallback warning: ${apiErr.message}`);
             }
-        } catch (apiErr) {
-            logger.warn(`Razorpay verify fallback warning: ${apiErr.message}`);
+        }
+
+        if (!isPaymentValid) {
+            throw new AppError('Payment verification failed. Invalid signature.', 400);
         }
     }
 
-    if (!isPaymentValid && !testMode) {
-        throw new AppError('Payment verification failed. Invalid signature.', 400);
-    }
-
-    const config = await getPlatformFeeConfig();
-    const fee = config.maintenanceFee !== undefined ? config.maintenanceFee : 500;
     const propId = lease.property?._id || lease.property;
     const managerId = lease.property?.manager || lease.property?.owner || userId;
     const tenantDocId = lease.tenant?._id || lease.tenant;
@@ -1023,6 +1051,7 @@ export const verifyUnlockRazorpayPayment = asyncHandler(async (req, res) => {
         razorpayPaymentId,
         razorpaySignature,
         paidAt: new Date(),
+        isMock,
         description: `Maintenance & Repairs Unlock Fee for ${lease.property?.name || 'Property'}`
     }).catch(err => {
         logger.warn(`Payment record creation warning: ${err.message}`);
@@ -1046,7 +1075,8 @@ export const verifyUnlockRazorpayPayment = asyncHandler(async (req, res) => {
             razorpayPaymentId,
             razorpaySignature,
             status: 'paid',
-            feePayer: 'tenant'
+            feePayer: 'tenant',
+            isMock
         }).catch(e => logger.warn(`PaymentTransaction ledger creation notice: ${e.message}`));
     }
 

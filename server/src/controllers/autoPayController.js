@@ -15,6 +15,7 @@ import { generateInvoicePDF, buildInvoiceViewModel } from '../services/pdfServic
 import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import { canLeasePayRent } from '../utils/leaseLifecycle.js';
+import { isMockPaymentsEnabled, getRazorpayClient } from '../services/paymentGatewayService.js';
 
 // Safe Notification dispatcher proxy
 const dispatchNotification = async (data) => {
@@ -146,6 +147,10 @@ export const getMyAutoPays = asyncHandler(async (req, res) => {
  * Creates a Razorpay customer and mandate authorization order for Auto-Pay setup.
  */
 export const createSetupIntent = asyncHandler(async (req, res) => {
+  if (isMockPaymentsEnabled()) {
+    throw new AppError('Auto-Pay recurring mandate configuration is not supported in staging mock-payment mode.', 400);
+  }
+
   const { leaseId, paymentMethodType = 'upi_autopay' } = req.body;
   if (!leaseId) throw new AppError('Lease ID is required', 400);
 
@@ -156,8 +161,8 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
     throw new AppError('This lease is no longer active and cannot be configured for Auto-Pay.', 400);
   }
 
-  const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
+  const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
 
   if (!keyId || !keySecret || keyId.includes('placeholder')) {
     return res.status(503).json({
@@ -167,10 +172,7 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
     });
   }
 
-  const rzp = new Razorpay({
-    key_id: keyId,
-    key_secret: keySecret,
-  });
+  const rzp = getRazorpayClient();
 
   // Calculate standard token authorization amount (₹1 token registration)
   const authAmountInPaise = 100;
@@ -241,6 +243,10 @@ export const createSetupIntent = asyncHandler(async (req, res) => {
  * Verifies Razorpay mandate authorization response and activates Auto-Pay for the lease.
  */
 export const verifyAndEnableAutoPay = asyncHandler(async (req, res) => {
+  if (isMockPaymentsEnabled()) {
+    throw new AppError('Recurring payment mandate verification is not supported in staging mock-payment mode.', 400);
+  }
+
   const {
     leaseId,
     razorpayOrderId,
@@ -256,8 +262,10 @@ export const verifyAndEnableAutoPay = asyncHandler(async (req, res) => {
 
   const { user, lease, primaryTenant } = await verifyTenantLeaseOwnership(req.user.userId, leaseId);
 
-  const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1').trim();
-  const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'J1XPHqYCTE8sSNhNtzarqYaQ').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  if (!keySecret) {
+    throw new AppError('Razorpay credentials not configured (RAZORPAY_KEY_SECRET missing)', 503);
+  }
 
   // 1. HMAC Signature Verification
   let isValid = false;
@@ -274,7 +282,7 @@ export const verifyAndEnableAutoPay = asyncHandler(async (req, res) => {
   let verifiedPayment = null;
   if (!isValid) {
     try {
-      const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+      const rzp = getRazorpayClient();
       verifiedPayment = await rzp.payments.fetch(razorpayPaymentId);
       if (verifiedPayment && ['authorized', 'captured'].includes(verifiedPayment.status)) {
         isValid = true;
@@ -416,7 +424,7 @@ export const processDueAutoPayments = async () => {
 
     const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-    const isProviderReady = Boolean(keyId && keySecret && !keyId.includes('placeholder'));
+    const isProviderReady = Boolean(!isMockPaymentsEnabled() && keyId && keySecret && !keyId.includes('placeholder'));
 
     for (const autoPay of activeAutoPays) {
       const lease = autoPay.lease;
@@ -487,7 +495,7 @@ export const processDueAutoPayments = async () => {
 
       // 3. Attempt Real Razorpay Recurring Charge
       try {
-        const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        const rzp = getRazorpayClient();
         const amountInPaise = Math.round(Number(lease.rentAmount || autoPay.monthlyAmount) * 100);
 
         // Call Razorpay recurring payment / mandate charge

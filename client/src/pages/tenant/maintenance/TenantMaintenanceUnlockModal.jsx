@@ -59,8 +59,13 @@ export default function TenantMaintenanceUnlockModal({
         throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
       }
 
+      const gatewayKey = keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!gatewayKey) {
+        throw new Error('Payment gateway configuration is missing.');
+      }
+
       const rzp = new window.Razorpay({
-        key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1',
+        key: gatewayKey,
         amount,
         currency: 'INR',
         order_id: razorpayOrderId,

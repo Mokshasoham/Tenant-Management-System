@@ -1,6 +1,6 @@
 import express from 'express';
 import * as paymentController from '../controllers/paymentController.js';
-import { authenticate, managerOrAdmin } from '../middleware/auth.js';
+import { authenticate, managerOrAdmin, adminOnly, superAdminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -29,5 +29,14 @@ router.get('/:id/invoice', paymentController.getPaymentInvoice);
 router.post('/', managerOrAdmin, paymentController.createPayment);
 router.post('/:id/record', paymentController.recordPayment);
 router.put('/:id/status', managerOrAdmin, paymentController.updatePaymentStatus);
+
+// Offline recovery and invoice reconciliation routes
+router.post('/:id/offline-recovery/propose', managerOrAdmin, paymentController.proposeOfflineRecovery);
+router.post('/offline-recovery/:approvalId/approve', superAdminOnly, paymentController.approveOfflineRecovery);
+router.post('/offline-recovery/:approvalId/execute', managerOrAdmin, paymentController.executeOfflineRecovery);
+router.post('/:id/reconcile-invoice', managerOrAdmin, paymentController.reconcileInvoice);
+
+// Durable refund endpoints (Admin / Super Admin only)
+router.post('/:id/refund', adminOnly, paymentController.processPaymentRefund);
 
 export default router;

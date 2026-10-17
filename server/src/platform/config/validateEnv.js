@@ -31,6 +31,15 @@ export const validateEnv = () => {
   }
 
   // Feature-Specific checks
+  const mockPaymentsEnabled = process.env.ENABLE_MOCK_PAYMENTS === 'true';
+  const appEnv = (process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development')).toLowerCase();
+
+  if (mockPaymentsEnabled) {
+    if (appEnv === 'production' && process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL CONFIGURATION ERROR: ENABLE_MOCK_PAYMENTS cannot be enabled in live production environment.');
+    }
+  }
+
   const emailEnabled = process.env.EMAIL_ENABLED !== 'false';
   if (emailEnabled) {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_PASS) {
@@ -39,7 +48,7 @@ export const validateEnv = () => {
   }
 
   const paymentEnabled = process.env.PAYMENTS_ENABLED !== 'false';
-  if (paymentEnabled) {
+  if (paymentEnabled && !mockPaymentsEnabled) {
     if (!process.env.STRIPE_SECRET_KEY && !process.env.RAZORPAY_KEY_SECRET) {
       console.warn(`[WARN] Payments feature is enabled but no payment secrets (STRIPE_SECRET_KEY, RAZORPAY_KEY_SECRET) were detected.`);
     }

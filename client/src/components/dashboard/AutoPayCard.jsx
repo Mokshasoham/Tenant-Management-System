@@ -209,9 +209,16 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
         throw new Error('Razorpay payment gateway failed to load. Please check your internet connection.');
       }
 
+      const gatewayKey = keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!gatewayKey) {
+        toast.error('Payment gateway configuration is missing.');
+        setProcessing(false);
+        return;
+      }
+
       // 3. Open Razorpay Checkout for Mandate / Recurring Authorization
       const options = {
-        key: keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SUn7uPXz1VaEa1',
+        key: gatewayKey,
         amount: amount || 100, // ₹1 token registration
         currency: 'INR',
         name: 'Tenant Management System',
