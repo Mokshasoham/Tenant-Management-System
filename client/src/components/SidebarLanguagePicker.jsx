@@ -41,13 +41,33 @@ export function SidebarLanguagePicker({ isOpen, colorTheme = 'dark', effectiveRo
     const bottom = Math.max(12, windowHeight - rect.top + gap);
     const maxHeight = Math.min(360, Math.max(160, rect.top - 16));
 
-    setMenuPos({
-      bottom,
-      left,
-      width: menuWidth,
-      maxHeight,
+    setMenuPos((prev) => {
+      if (
+        prev.bottom === bottom &&
+        prev.left === left &&
+        prev.width === menuWidth &&
+        prev.maxHeight === maxHeight
+      ) {
+        return prev;
+      }
+      return {
+        bottom,
+        left,
+        width: menuWidth,
+        maxHeight,
+      };
     });
   }, [isOpen]);
+
+  const handleToggle = (e) => {
+    e?.stopPropagation?.();
+    if (!showLangPicker) {
+      updateMenuPosition();
+      setShowLangPicker(true);
+    } else {
+      setShowLangPicker(false);
+    }
+  };
 
   // Click-outside, Escape key, and window resize/scroll listeners
   useEffect(() => {
@@ -121,7 +141,7 @@ export function SidebarLanguagePicker({ isOpen, colorTheme = 'dark', effectiveRo
         ref={triggerRef}
         type="button"
         whileTap={{ scale: 0.92 }}
-        onClick={() => setShowLangPicker((v) => !v)}
+        onClick={handleToggle}
         aria-haspopup="true"
         aria-expanded={showLangPicker}
         aria-label="Select language"
@@ -141,74 +161,77 @@ export function SidebarLanguagePicker({ isOpen, colorTheme = 'dark', effectiveRo
       </motion.button>
 
       {/* Language Options Portal */}
-      <AnimatePresence>
-        {showLangPicker && typeof document !== 'undefined' && createPortal(
-          <motion.div
-            ref={menuRef}
-            key="sidebar-language-dropdown"
-            initial={{ opacity: 0, y: 8, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            role="menu"
-            aria-label="Language selection"
-            data-testid="sidebar-language-menu"
-            className={cn(
-              "fixed rounded-xl overflow-hidden shadow-2xl transition-colors backdrop-blur-md",
-              `theme-${effectiveRole}`
-            )}
-            style={{
-              position: 'fixed',
-              left: `${menuPos.left}px`,
-              bottom: `${menuPos.bottom}px`,
-              minWidth: `${menuPos.width}px`,
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              boxShadow: colorTheme === 'dark'
-                ? '0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)'
-                : '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-              maxHeight: `${menuPos.maxHeight}px`,
-              overflowY: 'auto',
-              zIndex: 9999,
-            }}
-          >
-            {SUPPORTED_LANGUAGES.map(({ code, name, nativeName, flag }) => {
-              const isSelected = code === language;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  role="menuitem"
-                  aria-selected={isSelected}
-                  data-testid={`lang-option-${code}`}
-                  onClick={() => {
-                    setLanguage(code);
-                    setShowLangPicker(false);
-                    triggerRef.current?.focus();
-                  }}
-                  className={cn(
-                    "w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between gap-2",
-                    "hover:bg-black/5 dark:hover:bg-white/10"
-                  )}
-                  style={{
-                    color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
-                    background: isSelected ? 'rgba(var(--primary), 0.1)' : 'transparent',
-                  }}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-sm select-none shrink-0">{flag}</span>
-                    <span className="truncate">{nativeName || name}</span>
-                  </div>
-                  {isSelected && (
-                    <Check className="w-3.5 h-3.5 shrink-0 opacity-80" />
-                  )}
-                </button>
-              );
-            })}
-          </motion.div>,
-          document.body
-        )}
-      </AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showLangPicker && (
+            <motion.div
+              ref={menuRef}
+              key="sidebar-language-dropdown"
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              role="menu"
+              aria-label="Language selection"
+              data-testid="sidebar-language-menu"
+              className={cn(
+                "fixed rounded-xl overflow-hidden shadow-2xl transition-colors backdrop-blur-md",
+                `theme-${effectiveRole}`
+              )}
+              style={{
+                position: 'fixed',
+                left: `${menuPos.left}px`,
+                bottom: `${menuPos.bottom}px`,
+                minWidth: `${menuPos.width}px`,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                boxShadow: colorTheme === 'dark'
+                  ? '0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)'
+                  : '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                maxHeight: `${menuPos.maxHeight}px`,
+                overflowY: 'auto',
+                zIndex: 9999,
+              }}
+            >
+              {SUPPORTED_LANGUAGES.map(({ code, name, nativeName, flag }) => {
+                const isSelected = code === language;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    role="menuitem"
+                    aria-selected={isSelected}
+                    data-testid={`lang-option-${code}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLanguage(code);
+                      setShowLangPicker(false);
+                      triggerRef.current?.focus();
+                    }}
+                    className={cn(
+                      "w-full text-left px-3.5 py-2.5 text-xs font-bold transition-all flex items-center justify-between gap-2",
+                      "hover:bg-black/5 dark:hover:bg-white/10"
+                    )}
+                    style={{
+                      color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                      background: isSelected ? 'rgba(var(--primary), 0.1)' : 'transparent',
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-sm select-none shrink-0">{flag}</span>
+                      <span className="truncate">{nativeName || name}</span>
+                    </div>
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                    )}
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

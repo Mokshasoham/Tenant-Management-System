@@ -133,4 +133,43 @@ describe('TMS Language Selector & Collapsed Sidebar Clipping Prevention Tests', 
     expect(left + menuWidth).toBeLessThanOrEqual(smallWindowWidth - 12);
     expect(left).toBeGreaterThanOrEqual(12);
   });
+
+  test('9. Framer Motion Portal Hierarchy: createPortal must encapsulate AnimatePresence to prevent React.cloneElement destruction', () => {
+    const pickerCode = fs.readFileSync(languagePickerPath, 'utf8');
+
+    // createPortal must wrap AnimatePresence, NOT vice versa
+    const portalIndex = pickerCode.indexOf('createPortal(');
+    const animatePresenceIndex = pickerCode.indexOf('<AnimatePresence>', portalIndex);
+    const motionDivIndex = pickerCode.indexOf('<motion.div', animatePresenceIndex);
+
+    expect(portalIndex).toBeGreaterThan(-1);
+    expect(animatePresenceIndex).toBeGreaterThan(portalIndex);
+    expect(motionDivIndex).toBeGreaterThan(animatePresenceIndex);
+
+    // Ensure AnimatePresence is NOT placed outside createPortal
+    const outerAnimatePresence = pickerCode.slice(0, portalIndex);
+    expect(outerAnimatePresence).not.toContain('<AnimatePresence>');
+  });
+
+  test('10. Toggle interaction & synchronous position update: prevents initial (0, 0) position flash', () => {
+    const pickerCode = fs.readFileSync(languagePickerPath, 'utf8');
+
+    expect(pickerCode).toContain('const handleToggle = (e) => {');
+    expect(pickerCode).toContain('updateMenuPosition();');
+    expect(pickerCode).toContain('setShowLangPicker(true);');
+    expect(pickerCode).toContain('onClick={handleToggle}');
+  });
+
+  test('11. Target containment & propagation safety: preserves inside click targets and stops unwanted bubble', () => {
+    const pickerCode = fs.readFileSync(languagePickerPath, 'utf8');
+
+    // Inside target protections
+    expect(pickerCode).toContain('triggerRef.current && !triggerRef.current.contains(e.target)');
+    expect(pickerCode).toContain('menuRef.current && !menuRef.current.contains(e.target)');
+
+    // Option clicks stop propagation and set language
+    expect(pickerCode).toContain('e.stopPropagation()');
+    expect(pickerCode).toContain('setShowLangPicker(false)');
+    expect(pickerCode).toContain('triggerRef.current?.focus()');
+  });
 });
