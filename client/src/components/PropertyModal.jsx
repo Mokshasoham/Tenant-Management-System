@@ -11,6 +11,7 @@ import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../utils/cn';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
+import { COMBINED_COORDS_MAP as COORDS_MAP, resolveCoordinatesFromInput, isDefaultCoordinates, DEFAULT_COORDINATES } from '../utils/locationCoordinatesHelper';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -59,49 +60,6 @@ const PG_FACILITIES = [
   'High-Speed WiFi', 'Daily Housekeeping', 'RO Purified Water', 'Washing Machine',
   'Refrigerator', 'Geyser / Hot Water', 'Power Backup', 'Attached Bathroom'
 ];
-
-const COORDS_MAP = {
-  'Andhra Pradesh': { lat: 15.9129, lng: 79.7400 },
-  'Arunachal Pradesh': { lat: 28.2180, lng: 94.7278 },
-  'Assam': { lat: 26.2006, lng: 92.9376 },
-  'Bihar': { lat: 25.0961, lng: 85.3131 },
-  'Chhattisgarh': { lat: 21.2787, lng: 81.8661 },
-  'Goa': { lat: 15.2993, lng: 74.1240 },
-  'Gujarat': { lat: 22.2587, lng: 71.1924 },
-  'Haryana': { lat: 29.0588, lng: 76.0856 },
-  'Himachal Pradesh': { lat: 31.1048, lng: 77.1734 },
-  'Jharkhand': { lat: 23.6102, lng: 85.2799 },
-  'Karnataka': { lat: 15.3173, lng: 75.7139 },
-  'Kerala': { lat: 10.8505, lng: 76.2711 },
-  'Madhya Pradesh': { lat: 22.9734, lng: 78.6569 },
-  'Maharashtra': { lat: 19.7515, lng: 75.7139 },
-  'Manipur': { lat: 24.6637, lng: 93.9063 },
-  'Meghalaya': { lat: 25.4670, lng: 91.3662 },
-  'Mizoram': { lat: 23.1645, lng: 92.9376 },
-  'Nagaland': { lat: 26.1584, lng: 94.5624 },
-  'Odisha': { lat: 20.9517, lng: 85.0985 },
-  'Punjab': { lat: 31.1471, lng: 75.3412 },
-  'Rajasthan': { lat: 27.0238, lng: 74.2179 },
-  'Sikkim': { lat: 27.5330, lng: 88.5122 },
-  'Tamil Nadu': { lat: 11.1271, lng: 78.6569 },
-  'Telangana': { lat: 18.1124, lng: 79.0193 },
-  'Tripura': { lat: 23.9408, lng: 91.9882 },
-  'Uttar Pradesh': { lat: 26.8467, lng: 80.9462 },
-  'Uttarakhand': { lat: 30.0668, lng: 79.0193 },
-  'West Bengal': { lat: 22.9868, lng: 87.8550 },
-  'Delhi': { lat: 28.7041, lng: 77.1025 },
-  'Chandigarh': { lat: 30.7333, lng: 76.7794 },
-  'Jammu & Kashmir': { lat: 33.7782, lng: 76.5762 },
-  'Puducherry': { lat: 11.9416, lng: 79.8083 },
-  'Mumbai': { lat: 19.0760, lng: 72.8777 },
-  'Bengaluru': { lat: 12.9716, lng: 77.5946 },
-  'Chennai': { lat: 13.0827, lng: 80.2707 },
-  'Hyderabad': { lat: 17.3850, lng: 78.4867 },
-  'Kolkata': { lat: 22.5726, lng: 88.3639 },
-  'Ahmedabad': { lat: 23.0225, lng: 72.5714 },
-  'Jaipur': { lat: 26.9124, lng: 75.7873 },
-  'Pune': { lat: 18.5204, lng: 73.8567 }
-};
 
 const EMPTY_FORM = {
   name: '', address: '', city: '', state: '', zipCode: '', country: 'India',
@@ -193,6 +151,12 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
   const [successMessage, setSuccessMessage] = useState('');
   const [autocompleteInstance, setAutocompleteInstance] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [isPinCustomized, setIsPinCustomized] = useState(() => {
+    if (property && property.location && !isDefaultCoordinates(property.location.lat, property.location.lng)) {
+      return true;
+    }
+    return false;
+  });
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -228,58 +192,112 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
     }
   });
 
-  // Handle Dynamic Leaflet Interactive Map Pin Sync
+  // Effect 1: Handle Dynamic Leaflet Interactive Map Lifecycle & Container Mount/Unmount
   useEffect(() => {
-    if (activeTab === 'location' && mapContainerRef.current) {
-      const lat = Number(form.location?.lat) || 12.9716;
-      const lng = Number(form.location?.lng) || 77.5946;
-
-      if (!mapInstanceRef.current) {
-        const map = L.map(mapContainerRef.current, {
-          center: [lat, lng],
-          zoom: 13,
-          zoomControl: true,
-        });
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(map);
-
-        const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-
-        marker.on('dragend', (e) => {
-          const position = e.target.getLatLng();
-          setForm(p => ({
-            ...p,
-            location: {
-              lat: parseFloat(position.lat.toFixed(6)),
-              lng: parseFloat(position.lng.toFixed(6)),
-            }
-          }));
-        });
-
-        map.on('click', (e) => {
-          const { lat: clickedLat, lng: clickedLng } = e.latlng;
-          marker.setLatLng([clickedLat, clickedLng]);
-          setForm(p => ({
-            ...p,
-            location: {
-              lat: parseFloat(clickedLat.toFixed(6)),
-              lng: parseFloat(clickedLng.toFixed(6)),
-            }
-          }));
-        });
-
-        mapInstanceRef.current = map;
-        markerInstanceRef.current = marker;
-      } else {
-        const map = mapInstanceRef.current;
-        const marker = markerInstanceRef.current;
-        map.setView([lat, lng], map.getZoom() || 13);
-        if (marker) marker.setLatLng([lat, lng]);
-        setTimeout(() => map.invalidateSize(), 200);
+    if (activeTab !== 'location' || !mapContainerRef.current) {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerInstanceRef.current = null;
       }
+      return;
+    }
+
+    const container = mapContainerRef.current;
+    if (container._leaflet_id) {
+      delete container._leaflet_id;
+    }
+
+    const initialLat = Number(form.location?.lat) || DEFAULT_COORDINATES.lat;
+    const initialLng = Number(form.location?.lng) || DEFAULT_COORDINATES.lng;
+
+    const map = L.map(container, {
+      center: [initialLat, initialLng],
+      zoom: 13,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+
+    marker.on('dragend', (e) => {
+      const position = e.target.getLatLng();
+      const nextLat = parseFloat(position.lat.toFixed(6));
+      const nextLng = parseFloat(position.lng.toFixed(6));
+      setIsPinCustomized(true);
+      setForm(p => ({
+        ...p,
+        location: {
+          lat: nextLat,
+          lng: nextLng,
+        }
+      }));
+    });
+
+    map.on('click', (e) => {
+      const { lat: clickedLat, lng: clickedLng } = e.latlng;
+      const nextLat = parseFloat(clickedLat.toFixed(6));
+      const nextLng = parseFloat(clickedLng.toFixed(6));
+      marker.setLatLng([nextLat, nextLng]);
+      setIsPinCustomized(true);
+      setForm(p => ({
+        ...p,
+        location: {
+          lat: nextLat,
+          lng: nextLng,
+        }
+      }));
+    });
+
+    mapInstanceRef.current = map;
+    markerInstanceRef.current = marker;
+
+    // Perform multiple invalidation passes to guarantee tile rendering as Framer Motion animates
+    const t0 = setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 50);
+    const t1 = setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 180);
+    const t2 = setTimeout(() => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    }, 450);
+
+    const handleResize = () => {
+      if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(t0);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', handleResize);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerInstanceRef.current = null;
+      }
+    };
+  }, [activeTab]);
+
+  // Effect 2: Update marker position & map center when coordinates change
+  useEffect(() => {
+    if (activeTab === 'location' && mapInstanceRef.current && markerInstanceRef.current) {
+      const lat = Number(form.location?.lat) || DEFAULT_COORDINATES.lat;
+      const lng = Number(form.location?.lng) || DEFAULT_COORDINATES.lng;
+      const currentPos = markerInstanceRef.current.getLatLng();
+      if (!currentPos || Math.abs(currentPos.lat - lat) > 0.0001 || Math.abs(currentPos.lng - lng) > 0.0001) {
+        markerInstanceRef.current.setLatLng([lat, lng]);
+        mapInstanceRef.current.setView([lat, lng], mapInstanceRef.current.getZoom() || 13);
+      }
+      setTimeout(() => {
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+      }, 100);
     }
   }, [activeTab, form.location?.lat, form.location?.lng]);
 
@@ -287,26 +305,61 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
     setForm(p => ({ ...p, [key]: value }));
   };
 
+  const handleAddressChange = (addressText) => {
+    set('address', addressText);
+    const detected = resolveCoordinatesFromInput(addressText);
+    if (detected && (!isPinCustomized || isDefaultCoordinates(form.location?.lat, form.location?.lng))) {
+      setForm(p => {
+        const next = { ...p, address: addressText };
+        next.location = { lat: detected.lat, lng: detected.lng };
+        if (detected.state && !p.state) next.state = detected.state;
+        if (detected.type === 'city' && !p.city) next.city = detected.matchedName;
+        return next;
+      });
+    }
+  };
+
   const handleStateChange = (stateName) => {
-    const coords = COORDS_MAP[stateName];
+    const detected = resolveCoordinatesFromInput(stateName);
     setForm(p => {
-      const updated = { ...p, state: stateName };
-      if (coords) {
-        updated.location = { lat: coords.lat, lng: coords.lng };
+      const next = { ...p, state: stateName };
+      if (!p.city && (!isPinCustomized || isDefaultCoordinates(p.location?.lat, p.location?.lng)) && detected) {
+        next.location = { lat: detected.lat, lng: detected.lng };
       }
-      return updated;
+      return next;
     });
   };
 
   const handleCityChange = (cityName) => {
-    const coords = COORDS_MAP[cityName];
+    const detected = resolveCoordinatesFromInput(cityName);
     setForm(p => {
-      const updated = { ...p, city: cityName };
-      if (coords) {
-        updated.location = { lat: coords.lat, lng: coords.lng };
+      const next = { ...p, city: cityName };
+      if (detected) {
+        if (detected.state && !p.state) next.state = detected.state;
+        if (!isPinCustomized || isDefaultCoordinates(p.location?.lat, p.location?.lng)) {
+          next.location = { lat: detected.lat, lng: detected.lng };
+        }
       }
-      return updated;
+      return next;
     });
+  };
+
+  const handleSyncPinToLocation = (loc) => {
+    if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return;
+    setIsPinCustomized(true);
+    setForm(p => ({
+      ...p,
+      location: { lat: loc.lat, lng: loc.lng },
+      ...(loc.state && !p.state ? { state: loc.state } : {}),
+      ...(loc.type === 'city' && !p.city ? { city: loc.matchedName } : {})
+    }));
+    if (mapInstanceRef.current && markerInstanceRef.current) {
+      markerInstanceRef.current.setLatLng([loc.lat, loc.lng]);
+      mapInstanceRef.current.setView([loc.lat, loc.lng], 13);
+      setTimeout(() => {
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+      }, 100);
+    }
   };
 
   const handleUseMyLocation = () => {
@@ -320,6 +373,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
       (pos) => {
         const lat = parseFloat(pos.coords.latitude.toFixed(6));
         const lng = parseFloat(pos.coords.longitude.toFixed(6));
+        setIsPinCustomized(true);
         setForm(p => ({
           ...p,
           location: { lat, lng }
@@ -1181,7 +1235,14 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
           )}
 
           {/* TAB 3: LOCATION & MAP */}
-          {activeTab === 'location' && (
+          {activeTab === 'location' && (() => {
+            const detectedFromAddress = resolveCoordinatesFromInput(form.address);
+            const detectedFromCity = resolveCoordinatesFromInput(form.city);
+            const activeDetected = detectedFromCity || detectedFromAddress;
+            const hasCoordMismatch = activeDetected &&
+              isDefaultCoordinates(form.location?.lat, form.location?.lng) &&
+              !isDefaultCoordinates(activeDetected.lat, activeDetected.lng);
+            return (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
                 <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 3 — Geolocation & Interactive Map</h3>
@@ -1214,13 +1275,13 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                       >
                         <div className="relative">
                           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <input type="text" value={form.address} onChange={e => set('address', e.target.value)} required
+                          <input type="text" value={form.address} onChange={e => handleAddressChange(e.target.value)} required
                             placeholder="Search address or enter street..."
                             className="w-full pl-11 pr-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500" />
                         </div>
                       </Autocomplete>
                     ) : (
-                      <Field label="" required value={form.address} onChange={v => set('address', v)} placeholder="e.g. 123 Main Street" />
+                      <Field label="" required value={form.address} onChange={v => handleAddressChange(v)} placeholder="e.g. 123 Main Street" />
                     )}
                   </div>
 
@@ -1257,37 +1318,74 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                   <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">GPS Coordinates</span>
-                      <button
-                        type="button"
-                        onClick={handleUseMyLocation}
-                        disabled={gettingLocation}
-                        className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer"
-                      >
-                        <Navigation className="w-3 h-3" />
-                        <span>{gettingLocation ? 'Locating...' : 'Use My GPS'}</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {form.city && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const match = resolveCoordinatesFromInput(form.city);
+                              if (match) handleSyncPinToLocation(match);
+                            }}
+                            className="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:bg-indigo-500/20 transition-all cursor-pointer"
+                            title="Center pin on current city"
+                          >
+                            <Compass className="w-3 h-3" />
+                            <span>Center on {form.city}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleUseMyLocation}
+                          disabled={gettingLocation}
+                          className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                        >
+                          <Navigation className="w-3 h-3" />
+                          <span>{gettingLocation ? 'Locating...' : 'Use My GPS'}</span>
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Latitude" type="number" step="any" value={form.location?.lat} onChange={v => set('location', { ...form.location, lat: v })} placeholder="12.9716" />
-                      <Field label="Longitude" type="number" step="any" value={form.location?.lng} onChange={v => set('location', { ...form.location, lng: v })} placeholder="77.5946" />
+                      <Field label="Latitude" type="number" step="any" value={form.location?.lat} onChange={v => { setIsPinCustomized(true); set('location', { ...form.location, lat: v }); }} placeholder="12.9716" />
+                      <Field label="Longitude" type="number" step="any" value={form.location?.lng} onChange={v => { setIsPinCustomized(true); set('location', { ...form.location, lng: v }); }} placeholder="77.5946" />
                     </div>
                   </div>
                 </div>
 
                 {/* Leaflet Interactive Map Container */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <span>Interactive Pin Drop</span>
-                    <span className="text-[9px] text-emerald-500 font-bold">(Drag pin or click map)</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <span>Interactive Pin Drop</span>
+                      <span className="text-[9px] text-emerald-500 font-bold">(Drag pin or click map)</span>
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {form.location?.lat !== undefined && !isNaN(Number(form.location.lat)) ? Number(form.location.lat).toFixed(4) : form.location?.lat}, {form.location?.lng !== undefined && !isNaN(Number(form.location.lng)) ? Number(form.location.lng).toFixed(4) : form.location?.lng}
+                    </span>
+                  </div>
                   <div 
                     ref={mapContainerRef} 
-                    className="w-full h-72 sm:h-80 rounded-2xl border border-border overflow-hidden shadow-inner z-0 bg-muted" 
+                    className="relative w-full h-72 sm:h-80 rounded-2xl border border-border overflow-hidden shadow-inner z-0 bg-muted"
                   />
+                  {hasCoordMismatch && (
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center justify-between gap-3 animate-in fade-in">
+                      <div className="flex items-center gap-2">
+                        <Compass className="w-4 h-4 flex-shrink-0 text-amber-500" />
+                        <span>Address indicates <strong>{activeDetected.matchedName}</strong>, but pin is at Bengaluru default.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSyncPinToLocation(activeDetected)}
+                        className="px-3 py-1 rounded-xl bg-amber-500 text-white font-black text-[10px] uppercase tracking-wider hover:bg-amber-600 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        Update Pin to {activeDetected.matchedName}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* TAB 4: MEDIA & 3D TOUR */}
           {activeTab === 'media' && (

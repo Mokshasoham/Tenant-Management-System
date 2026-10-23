@@ -67,8 +67,8 @@ export const validateAndReconcileNegotiation = (negotiation, rentAmount) => {
 export const resolvePropertyUrls = (property, req) => {
   if (!property) return property;
   const propObj = property.toObject ? property.toObject() : property;
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  const host = req.get('host');
+  const protocol = req.headers?.['x-forwarded-proto'] || req.protocol || 'https';
+  const host = (typeof req.get === 'function' ? req.get('host') : req.headers?.host) || 'localhost:5000';
   const baseUrl = `${protocol}://${host}`;
 
   const cleanUrl = (rawUrl, fileId = null) => {
@@ -519,18 +519,24 @@ export const createProperty = asyncHandler(async (req, res) => {
     negotiation
   } = req.body;
 
+  let reconciledLocation = undefined;
   let geo = undefined;
-  if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
-    geo = {
-      type: 'Point',
-      coordinates: [Number(location.lng), Number(location.lat)]
-    };
+  if (location && location.lat !== undefined && location.lat !== null && location.lng !== undefined && location.lng !== null) {
+    const latNum = Number(location.lat);
+    const lngNum = Number(location.lng);
+    if (!isNaN(latNum) && !isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180) {
+      reconciledLocation = { lat: latNum, lng: lngNum };
+      geo = {
+        type: 'Point',
+        coordinates: [lngNum, latNum]
+      };
+    }
   }
 
   const reconciledNegotiation = validateAndReconcileNegotiation(negotiation, rentAmount);
 
   const property = await Property.create({
-    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location, geo, seo, openGraph, virtualTourUrl,
+    name, address, city, state, zipCode, country, type, bedrooms, bathrooms, squareFeet, rentAmount, depositAmount, amenities, owner: userId, manager: manager || userId, description, status: 'available', publishStatus, bookingType, location: reconciledLocation || location, geo, seo, openGraph, virtualTourUrl,
     bhk, floor, totalFloors, furnishing, balcony, parking, garden, builtUpArea,
     commercialArea, frontage, washroom, electricity, suitableFor,
     totalBeds, roomType, occupancyCapacity, genderPreference, foodAvailability, acAvailable, roomSharing, bathroomType, facilities, commonFacilities, typeDetails,
@@ -565,19 +571,23 @@ export const updateProperty = asyncHandler(async (req, res) => {
     throw new AppError('Property not found', 404);
   }
 
-  if (req.user?.role !== 'admin' && existing.owner?.toString() !== userId && existing.manager?.toString() !== userId) {
+  if (req.user?.role !== 'admin' && existing.owner?.toString() !== userId?.toString() && existing.manager?.toString() !== userId?.toString()) {
     throw new AppError('Forbidden: You do not have permission to update this property', 403);
   }
 
   // Use the spread payload but sanitize manager ID & sync geo coordinates
   const updateData = { ...rest };
   if (manager) updateData.manager = manager;
-  if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
-    updateData.location = location;
-    updateData.geo = {
-      type: 'Point',
-      coordinates: [Number(location.lng), Number(location.lat)]
-    };
+  if (location && location.lat !== undefined && location.lat !== null && location.lng !== undefined && location.lng !== null) {
+    const latNum = Number(location.lat);
+    const lngNum = Number(location.lng);
+    if (!isNaN(latNum) && !isNaN(lngNum) && latNum >= -90 && latNum <= 90 && lngNum >= -180 && lngNum <= 180) {
+      updateData.location = { lat: latNum, lng: lngNum };
+      updateData.geo = {
+        type: 'Point',
+        coordinates: [lngNum, latNum]
+      };
+    }
   }
 
   if (negotiation !== undefined) {
