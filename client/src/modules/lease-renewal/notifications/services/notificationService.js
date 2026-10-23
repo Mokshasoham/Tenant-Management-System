@@ -28,6 +28,22 @@ export const notificationService = {
     },
 
     /**
+     * Get monthly or date-range notification counts & summary per day
+     */
+    getCalendarSummary: async (params = {}) => {
+        const response = await apiClient.get('/v1/notifications/calendar-summary', { params });
+        return response?.data || response;
+    },
+
+    /**
+     * Get date-aggregated notification events
+     */
+    getCalendarAgenda: async (params = {}) => {
+        const response = await apiClient.get('/v1/notifications/calendar', { params });
+        return response?.data || response;
+    },
+
+    /**
      * Mark single notification read
      */
     markAsRead: async (id) => {

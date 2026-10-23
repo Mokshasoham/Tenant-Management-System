@@ -238,6 +238,7 @@ export const notificationService = {
   
   // --- Versioned V1 Notification endpoints ---
   getV1Notifications: (params) => apiClient.get('/v1/notifications', { params }),
+  getCalendarSummary: (params) => apiClient.get('/v1/notifications/calendar-summary', { params }),
   getCalendarAgenda: (params) => apiClient.get('/v1/notifications/calendar', { params }),
   getEventStats: () => apiClient.get('/v1/notifications/stats'),
   archiveNotification: (id) => apiClient.put(`/v1/notifications/${id}/archive`),

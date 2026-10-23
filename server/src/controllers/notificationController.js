@@ -1,14 +1,35 @@
 import Notification from '../models/Notification.js';
 import { asyncHandler } from '../utils/errorHandling.js';
+import {
+    getCalendarSummary,
+    getCalendarAgenda
+} from './v1NotificationController.js';
+
+export { getCalendarSummary, getCalendarAgenda };
 
 export const getMyNotifications = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, startDate, endDate } = req.query;
     const skip = (page - 1) * limit;
 
     const query = {
         recipient: req.user.userId,
         isDeleted: { $ne: true }
     };
+
+    if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) {
+            const pStart = new Date(startDate);
+            if (!isNaN(pStart.getTime())) query.createdAt.$gte = pStart;
+        }
+        if (endDate) {
+            const pEnd = new Date(endDate);
+            if (!isNaN(pEnd.getTime())) query.createdAt.$lte = pEnd;
+        }
+        if (Object.keys(query.createdAt).length === 0) {
+            delete query.createdAt;
+        }
+    }
 
     const [notifications, total] = await Promise.all([
         Notification.find(query)

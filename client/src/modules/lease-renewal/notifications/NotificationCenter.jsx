@@ -1,10 +1,10 @@
-import React from 'react';
-import { Bell, Settings, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, Settings, CheckCircle2, Trash2, RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
 import useNotifications from './hooks/useNotifications';
 import NotificationFilterBar from './components/NotificationFilterBar';
 import NotificationListSection from './components/NotificationListSection';
 import NotificationSettingsTab from './components/NotificationSettingsTab';
-import { useState } from 'react';
+import NotificationCalendarTab from './components/NotificationCalendarTab';
 
 export function NotificationCenter() {
     const [activeTab, setActiveTab] = useState('all');
@@ -32,6 +32,7 @@ export function NotificationCenter() {
         setPage,
 
         fetchNotifications,
+        fetchUnreadCount,
         markAsRead,
         bulkMarkAsRead,
         markAllAsRead,
@@ -77,6 +78,7 @@ export function NotificationCenter() {
             {/* Navigation Tabs */}
             <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2">
                 <button
+                    type="button"
                     onClick={() => setActiveTab('all')}
                     className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
                         activeTab === 'all'
@@ -94,6 +96,20 @@ export function NotificationCenter() {
                 </button>
 
                 <button
+                    type="button"
+                    onClick={() => setActiveTab('calendar')}
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
+                        activeTab === 'calendar'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-indigo-300 dark:border-indigo-500/50 shadow-md'
+                            : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                >
+                    <CalendarIcon className="w-4 h-4" />
+                    <span>Calendar</span>
+                </button>
+
+                <button
+                    type="button"
                     onClick={() => setActiveTab('settings')}
                     className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
                         activeTab === 'settings'
@@ -114,7 +130,7 @@ export function NotificationCenter() {
             )}
 
             {/* Tab Contents */}
-            {activeTab === 'all' ? (
+            {activeTab === 'all' && (
                 <div className="space-y-6">
                     <NotificationFilterBar
                         category={category}
@@ -151,7 +167,20 @@ export function NotificationCenter() {
                         onPageChange={setPage}
                     />
                 </div>
-            ) : (
+            )}
+
+            {activeTab === 'calendar' && (
+                <NotificationCalendarTab
+                    onMarkAllRead={markAllAsRead}
+                    unreadCount={unreadCount}
+                    onNotificationMutated={() => {
+                        fetchUnreadCount();
+                        fetchNotifications(true);
+                    }}
+                />
+            )}
+
+            {activeTab === 'settings' && (
                 <NotificationSettingsTab />
             )}
         </div>

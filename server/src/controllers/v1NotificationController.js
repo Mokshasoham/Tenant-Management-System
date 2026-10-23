@@ -76,9 +76,17 @@ export const getMyNotifications = asyncHandler(async (req, res) => {
     // Date Range Filter
     if (startDate || endDate) {
         const dateCond = {};
-        if (startDate) dateCond.$gte = new Date(startDate);
-        if (endDate) dateCond.$lte = new Date(endDate);
-        conditions.push({ createdAt: dateCond });
+        if (startDate) {
+            const parsedStart = new Date(startDate);
+            if (!isNaN(parsedStart.getTime())) dateCond.$gte = parsedStart;
+        }
+        if (endDate) {
+            const parsedEnd = new Date(endDate);
+            if (!isNaN(parsedEnd.getTime())) dateCond.$lte = parsedEnd;
+        }
+        if (Object.keys(dateCond).length > 0) {
+            conditions.push({ createdAt: dateCond });
+        }
     }
 
     // Search Filter
@@ -380,28 +388,232 @@ export const toggleArchive = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Helper to normalize timezone or offset into a format supported by MongoDB $dateToString
+ * Supports IANA timezones (e.g. "Asia/Kolkata", "America/New_York") or offsets (e.g. "+05:30", "-04:00")
+ */
+function resolveMongoTimezone(timezone, timezoneOffset) {
+    if (typeof timezone === 'string' && timezone.trim()) {
+        const trimmed = timezone.trim();
+        return trimmed;
+    }
+    if (timezoneOffset !== undefined && timezoneOffset !== null) {
+        const offsetMin = parseInt(timezoneOffset, 10);
+        if (!isNaN(offsetMin)) {
+            // JavaScript getTimezoneOffset(): positive if UTC is ahead of local time, negative if local time is ahead
+            // MongoDB / ISO offset is opposite sign: UTC+5:30 means local is +5h30m relative to UTC
+            const sign = offsetMin <= 0 ? '+' : '-';
+            const abs = Math.abs(offsetMin);
+            const hours = String(Math.floor(abs / 60)).padStart(2, '0');
+            const mins = String(abs % 60).padStart(2, '0');
+            return `${sign}${hours}:${mins}`;
+        }
+    }
+    return 'UTC';
+}
+
+/**
+ * Format a Date object into 'YYYY-MM-DD' in a specified timezone (for safe fallback grouping)
+ */
+function formatDateInTimezone(date, timezone) {
+    try {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: timezone === 'UTC' || !timezone ? 'UTC' : timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        return formatter.format(date); // 'YYYY-MM-DD' in en-CA locale
+    } catch {
+        return date.toISOString().split('T')[0];
+    }
+}
+
+/**
+ * GET /api/v1/notifications/calendar-summary
+ * High-performance aggregation providing notification counts, unread status, and priority indicators
+ * per date for a given calendar range (month or interval), respecting the user's timezone.
+ */
+export const getCalendarSummary = asyncHandler(async (req, res) => {
+    const {
+        startDate,
+        endDate,
+        start,
+        end,
+        timezone,
+        timezoneOffset,
+        category,
+        priority,
+        unreadOnly
+    } = req.query;
+
+    const actualStart = startDate || start;
+    const actualEnd = endDate || end;
+
+    const recipientId = new mongoose.Types.ObjectId(req.user.userId);
+    const resolvedTz = resolveMongoTimezone(timezone, timezoneOffset);
+
+    const matchConditions = {
+        recipient: recipientId,
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true }
+    };
+
+    if (actualStart || actualEnd) {
+        matchConditions.createdAt = {};
+        if (actualStart) {
+            const pStart = new Date(actualStart);
+            if (!isNaN(pStart.getTime())) matchConditions.createdAt.$gte = pStart;
+        }
+        if (actualEnd) {
+            const pEnd = new Date(actualEnd);
+            if (!isNaN(pEnd.getTime())) matchConditions.createdAt.$lte = pEnd;
+        }
+        if (Object.keys(matchConditions.createdAt).length === 0) {
+            delete matchConditions.createdAt;
+        }
+    }
+
+    if (category && category !== 'all') {
+        matchConditions.category = category;
+    }
+    if (priority && priority !== 'all') {
+        matchConditions.priority = priority;
+    }
+    if (unreadOnly === 'true' || unreadOnly === true) {
+        matchConditions.$or = [{ isRead: false }, { read: false }];
+    }
+
+    const summaryMap = {};
+
+    try {
+        // High-performance MongoDB aggregation
+        const aggregationPipeline = [
+            { $match: matchConditions },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: {
+                            date: '$createdAt',
+                            format: '%Y-%m-%d',
+                            timezone: resolvedTz
+                        }
+                    },
+                    count: { $sum: 1 },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [{ $or: [{ $eq: ['$isRead', false] }, { $eq: ['$read', false] }] }, 1, 0]
+                        }
+                    },
+                    criticalCount: {
+                        $sum: {
+                            $cond: [{ $in: ['$priority', ['critical', 'high']] }, 1, 0]
+                        }
+                    },
+                    categories: { $addToSet: '$category' }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ];
+
+        const results = await Notification.aggregate(aggregationPipeline);
+
+        results.forEach(row => {
+            if (row._id) {
+                summaryMap[row._id] = {
+                    date: row._id,
+                    count: row.count,
+                    unreadCount: row.unreadCount,
+                    criticalCount: row.criticalCount,
+                    categories: row.categories || []
+                };
+            }
+        });
+    } catch (aggErr) {
+        // Fallback for cases where MongoDB timezone database does not recognize an exotic IANA string:
+        // Query matching documents and group safely in JS using Intl.DateTimeFormat
+        console.warn('[getCalendarSummary] Mongo aggregate error, falling back to JS grouping:', aggErr.message);
+        const docs = await Notification.find(matchConditions, {
+            createdAt: 1,
+            isRead: 1,
+            read: 1,
+            priority: 1,
+            category: 1
+        }).lean();
+
+        docs.forEach(doc => {
+            const dateKey = formatDateInTimezone(new Date(doc.createdAt), resolvedTz);
+            if (!summaryMap[dateKey]) {
+                summaryMap[dateKey] = {
+                    date: dateKey,
+                    count: 0,
+                    unreadCount: 0,
+                    criticalCount: 0,
+                    categories: []
+                };
+            }
+            summaryMap[dateKey].count += 1;
+            if (doc.isRead === false || doc.read === false) {
+                summaryMap[dateKey].unreadCount += 1;
+            }
+            if (['critical', 'high'].includes(doc.priority)) {
+                summaryMap[dateKey].criticalCount += 1;
+            }
+            if (doc.category && !summaryMap[dateKey].categories.includes(doc.category)) {
+                summaryMap[dateKey].categories.push(doc.category);
+            }
+        });
+    }
+
+    res.status(200).json({
+        success: true,
+        data: {
+            summary: summaryMap,
+            timezone: resolvedTz,
+            range: {
+                startDate: actualStart || null,
+                endDate: actualEnd || null
+            }
+        }
+    });
+});
+
+/**
  * GET /api/v1/notifications/calendar
  * Fetch date-aggregated timeline agendas for Calendar views
  */
 export const getCalendarAgenda = asyncHandler(async (req, res) => {
-    const { start, end } = req.query;
+    const { start, end, startDate, endDate, timezone, timezoneOffset } = req.query;
+
+    const actualStart = startDate || start;
+    const actualEnd = endDate || end;
 
     const query = {
         recipient: new mongoose.Types.ObjectId(req.user.userId),
-        isDeleted: { $ne: true }
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true }
     };
 
-    if (start || end) {
+    if (actualStart || actualEnd) {
         query.createdAt = {};
-        if (start) query.createdAt.$gte = new Date(start);
-        if (end) query.createdAt.$lte = new Date(end);
+        if (actualStart) {
+            const pStart = new Date(actualStart);
+            if (!isNaN(pStart.getTime())) query.createdAt.$gte = pStart;
+        }
+        if (actualEnd) {
+            const pEnd = new Date(actualEnd);
+            if (!isNaN(pEnd.getTime())) query.createdAt.$lte = pEnd;
+        }
+        if (Object.keys(query.createdAt).length === 0) {
+            delete query.createdAt;
+        }
     }
 
+    const resolvedTz = resolveMongoTimezone(timezone, timezoneOffset);
     const events = await Notification.find(query).sort({ createdAt: 1 });
 
     const grouped = {};
     events.forEach(evt => {
-        const dateStr = new Date(evt.createdAt).toISOString().split('T')[0];
+        const dateStr = formatDateInTimezone(new Date(evt.createdAt), resolvedTz);
         if (!grouped[dateStr]) {
             grouped[dateStr] = [];
         }
@@ -415,7 +627,8 @@ export const getCalendarAgenda = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        data
+        data,
+        timezone: resolvedTz
     });
 });
 

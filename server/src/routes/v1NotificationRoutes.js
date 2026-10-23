@@ -13,6 +13,7 @@ router.use(authenticate);
 
 // Queries & Stats
 router.get('/unread-count', v1NotificationController.getUnreadCount);
+router.get('/calendar-summary', v1NotificationController.getCalendarSummary);
 router.get('/calendar', v1NotificationController.getCalendarAgenda);
 router.get('/stats', v1NotificationController.getStats);
 
