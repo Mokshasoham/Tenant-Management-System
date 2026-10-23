@@ -3,11 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../context/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
+import { useLanguage } from '../context/LanguageContext';
+import SidebarLanguagePicker from './SidebarLanguagePicker';
 import {
   LayoutDashboard, Users, FileText, CreditCard, X,
   Building2, Wrench, UserCog, MessageSquare, Home, LogOut, BarChart2, Wallet, Compass,
-  Bookmark, Scale, Settings, Sun, Moon, Languages, Receipt, Bell, UserCheck, Calendar, ShieldCheck,
+  Bookmark, Scale, Settings, Sun, Moon, Receipt, Bell, UserCheck, Calendar, ShieldCheck,
   PanelLeftClose, PanelLeftOpen, Sparkles, Handshake
 } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -121,8 +122,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { theme: colorTheme, toggleTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
-  const [showLangPicker, setShowLangPicker] = React.useState(false);
+  const { t } = useLanguage();
+
 
   // Local Two-Finger Trackpad & Touch Swipe Gesture Handlers (Scoped Strictly to Sidebar Element)
   const swipeLockRef = React.useRef(false);
@@ -467,48 +468,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             </motion.button>
 
             {/* Language picker */}
-            <div className={cn("relative", !isOpen && "w-full")}>
-              <motion.button
-                whileTap={{ scale: 0.92 }}
-                onClick={() => setShowLangPicker(v => !v)}
-                className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all", !isOpen && "w-full justify-center py-2.5")}
-                style={{
-                  background: colorTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  border: colorTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <Languages className="w-4 h-4" />
-                {isOpen && <span className="uppercase">{language}</span>}
-              </motion.button>
-              <AnimatePresence>
-                {showLangPicker && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className={cn("absolute bottom-full mb-2 right-0 rounded-xl overflow-hidden shadow-2xl z-50 transition-colors", !isOpen && "left-0 right-auto")}
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', minWidth: '120px' }}
-                  >
-                    {SUPPORTED_LANGUAGES.map(({ code, name, nativeName, flag }) => (
-                      <button
-                        key={code}
-                        onClick={() => { setLanguage(code); setShowLangPicker(false); }}
-                        className="w-full text-left px-4 py-2.5 text-xs font-bold transition-all hover:bg-white/10"
-                        style={{
-                          color: code === language ? 'var(--primary)' : 'var(--text-secondary)',
-                          background: code === language ? 'rgba(var(--primary), 0.1)' : 'transparent',
-                          display: 'flex', alignItems: 'center', gap: 8,
-                        }}
-                      >
-                        <span>{flag}</span>
-                        <span>{nativeName || name}</span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <SidebarLanguagePicker isOpen={isOpen} colorTheme={colorTheme} effectiveRole={effectiveRole} />
           </div>
 
           {/* Logout */}
