@@ -884,14 +884,20 @@ export default function PropertiesPage() {
             property={modal === 'edit' ? selected : null}
             initialType={modal === 'edit' ? selected?.type : selectedType}
             onChangeType={() => {
+              const pacContainers = document.querySelectorAll('.pac-container');
+              pacContainers.forEach(el => { el.style.display = 'none'; el.remove(); });
               setModal(null);
               setShowTypeSelectorModal(true);
             }}
             onClose={() => {
+              const pacContainers = document.querySelectorAll('.pac-container');
+              pacContainers.forEach(el => { el.style.display = 'none'; el.remove(); });
               setModal(null);
               setSelected(null);
             }}
             onSave={() => {
+              const pacContainers = document.querySelectorAll('.pac-container');
+              pacContainers.forEach(el => { el.style.display = 'none'; el.remove(); });
               setModal(null);
               setSelected(null);
               fetchProperties();

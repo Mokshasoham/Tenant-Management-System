@@ -301,6 +301,23 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
     }
   }, [activeTab, form.location?.lat, form.location?.lng]);
 
+  // Effect 3: Purge orphaned Google Maps Places Autocomplete dropdown containers (.pac-container) from document.body
+  useEffect(() => {
+    const purgePacContainers = () => {
+      const containers = document.querySelectorAll('.pac-container');
+      containers.forEach(el => {
+        el.style.display = 'none';
+        el.remove();
+      });
+    };
+
+    if (activeTab !== 'location') {
+      purgePacContainers();
+    }
+
+    return purgePacContainers;
+  }, [activeTab]);
+
   const set = (key, value) => {
     setForm(p => ({ ...p, [key]: value }));
   };
@@ -602,11 +619,21 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
   const currentTypeInfo = getTypeDisplay(form.type);
   const TypeIcon = currentTypeInfo.icon;
 
+  const handleClose = () => {
+    const containers = document.querySelectorAll('.pac-container');
+    containers.forEach(el => {
+      el.style.display = 'none';
+      el.remove();
+    });
+    onClose();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
-      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ backfaceVisibility: 'hidden' }}
+      className="fixed -inset-2 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      onClick={e => e.target === e.currentTarget && handleClose()}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
@@ -633,7 +660,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+          <button onClick={handleClose} className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>

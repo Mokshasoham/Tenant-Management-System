@@ -792,3 +792,69 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* =============================================
+   GOOGLE PLACES AUTOCOMPLETE DROPDOWN OVERRIDES
+   Prevents orphan border lines and ghost boxes
+   ============================================= */
+.pac-container {
+  border-top: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Strictly hide empty autocomplete containers without prediction items */
+.pac-container:empty,
+.pac-container:not(:has(.pac-item)) {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+/* Styled autocomplete dropdown when predictions are actively displayed */
+.pac-container:has(.pac-item) {
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15)) !important;
+  border-radius: 1rem !important;
+  background-color: hsl(var(--card)) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden !important;
+  margin-top: 4px !important;
+  z-index: 10000 !important;
+}
+
+.pac-item {
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  color: hsl(var(--foreground)) !important;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
+  cursor: pointer !important;
+}
+
+.pac-item:first-child {
+  border-top: none !important;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.pac-item-query {
+  font-size: 13px !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.pac-matched {
+  font-weight: 700 !important;
+  color: #10b981 !important;
+}
