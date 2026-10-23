@@ -152,8 +152,7 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
     const { category } = req.query;
     const filter = {
         recipient: recipientId,
-        isRead: false,
-        read: false,
+        $or: [{ isRead: false }, { read: false }],
         isDeleted: { $ne: true },
         isArchived: { $ne: true }
     };

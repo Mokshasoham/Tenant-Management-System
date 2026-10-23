@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import notificationService from '../services/notificationService';
+import { getSocket } from '../../../../services/socket';
 
 export function useNotifications(initialParams = {}) {
     const [notifications, setNotifications] = useState([]);
@@ -102,6 +103,48 @@ export function useNotifications(initialParams = {}) {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
             }
             clearInterval(intervalId);
+        };
+    }, [fetchUnreadCount, fetchNotifications]);
+
+    // Real-Time Socket.IO Synchronization
+    useEffect(() => {
+        let socket = null;
+        try {
+            socket = getSocket();
+        } catch (e) {
+            console.warn('[useNotifications] Failed to acquire socket:', e);
+        }
+
+        if (!socket) return;
+
+        const handleRealtimeEvent = (eventData) => {
+            console.log('[useNotifications] Realtime event received:', eventData);
+            setUnreadCount(prev => prev + 1);
+            fetchUnreadCount();
+            fetchNotifications(true);
+        };
+
+        const handleSync = () => {
+            fetchUnreadCount();
+            fetchNotifications(true);
+        };
+
+        socket.on('new_event', handleRealtimeEvent);
+        socket.on('new_notification', handleRealtimeEvent);
+        socket.on('notification_created', handleRealtimeEvent);
+        socket.on('visit_update', handleRealtimeEvent);
+        socket.on('lease_lifecycle_update', handleRealtimeEvent);
+        socket.on('connect', handleSync);
+
+        return () => {
+            if (socket) {
+                socket.off('new_event', handleRealtimeEvent);
+                socket.off('new_notification', handleRealtimeEvent);
+                socket.off('notification_created', handleRealtimeEvent);
+                socket.off('visit_update', handleRealtimeEvent);
+                socket.off('lease_lifecycle_update', handleRealtimeEvent);
+                socket.off('connect', handleSync);
+            }
         };
     }, [fetchUnreadCount, fetchNotifications]);
 

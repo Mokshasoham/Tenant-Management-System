@@ -13,30 +13,56 @@ import {
     DEFAULT_TIMEZONE
 } from '../utils/visitTimeHelper.js';
 
+const resolveRecipientId = (recipient) => {
+    if (!recipient) return null;
+    if (typeof recipient === 'string') return recipient;
+    if (recipient._id) return recipient._id.toString();
+    if (typeof recipient.toString === 'function') return recipient.toString();
+    return null;
+};
+
 // Backward-compatible Event proxy
 const Notification = {
     create: async (data) => {
         try {
+            const recipientId = resolveRecipientId(data.recipient);
+            if (!recipientId) {
+                logger.warn('[Notification Wrapper] Skipping notification: No valid recipient ID found.');
+                return null;
+            }
+
+            const category = data.category || data.type || 'booking';
+            const event = data.event || 'visit_update';
+            const entityType = data.entityType || data.relatedModel || 'PropertyVisit';
+            const entityId = data.entityId || data.relatedId;
+
             return await EventService.publish({
-                recipient: data.recipient,
-                category: 'booking',
-                event: 'visit_update',
+                recipient: recipientId,
+                category,
+                event,
                 title: data.title,
-                description: data.message,
-                sourceModule: 'booking',
-                entityType: data.relatedModel || 'PropertyVisit',
-                entityId: data.relatedId,
-                redirectUrl: data.link || '/dashboard',
-                action: 'view',
-                priority: 'medium',
-                severity: 'information',
+                description: data.message || data.description,
+                sourceModule: data.sourceModule || 'booking',
+                entityType,
+                entityId,
+                redirectUrl: data.redirectUrl || data.link || '/dashboard',
+                action: data.action || 'view',
+                priority: data.priority || 'medium',
+                severity: data.severity || 'information',
+                idempotencyKey: data.idempotencyKey,
                 metadata: {
-                    relatedId: data.relatedId
+                    relatedId: entityId,
+                    ...(data.metadata || {})
                 }
             });
         } catch (err) {
             logger.error('[Notification Wrapper] Failed: ' + err.message);
-            return await NotificationModel.create(data);
+            const fallbackRecipient = resolveRecipientId(data.recipient);
+            if (!fallbackRecipient) return null;
+            return await NotificationModel.create({
+                ...data,
+                recipient: fallbackRecipient
+            });
         }
     },
     find: (...args) => NotificationModel.find(...args),
@@ -173,14 +199,31 @@ export const requestVisit = asyncHandler(async (req, res) => {
 
     // Notify manager
     try {
-        await Notification.create({
-            recipient: property.manager || property.owner,
-            type: 'booking',
-            title: 'New Property Visit Request',
-            message: `A tenant has requested to visit "${property.name}" on ${new Date(visitDate).toLocaleDateString()} at ${timeSlot}.`,
-            relatedId: visit._id,
-            relatedModel: 'Property'
-        });
+        const managerRecipient = resolveRecipientId(property.manager || property.owner);
+        if (managerRecipient) {
+            await Notification.create({
+                recipient: managerRecipient,
+                category: 'booking',
+                type: 'booking',
+                event: 'visit_requested',
+                action: 'requested',
+                title: 'New Property Visit Request',
+                message: `A tenant has requested to visit "${property.name}" on ${new Date(visitDate).toLocaleDateString()} at ${timeSlot}.`,
+                entityType: 'PropertyVisit',
+                entityId: visit._id,
+                relatedId: visit._id,
+                relatedModel: 'PropertyVisit',
+                redirectUrl: '/dashboard',
+                idempotencyKey: `booking-propertyvisit-${visit._id}-visit_requested`,
+                metadata: {
+                    visitId: visit._id.toString(),
+                    propertyId: property._id.toString(),
+                    propertyName: property.name,
+                    visitDate,
+                    timeSlot
+                }
+            });
+        }
     } catch (err) {
         logger.error('Failed to notify manager of visit request:', err);
     }
@@ -325,14 +368,31 @@ export const updateVisitStatus = asyncHandler(async (req, res) => {
 
         // Notify tenant of approval
         try {
-            await Notification.create({
-                recipient: updated.tenant,
-                type: 'booking',
-                title: 'Property Visit Approved',
-                message: `Your visit request for "${updated.property?.name}" has been scheduled for ${new Date(updated.visitDate).toLocaleDateString()} at ${updated.timeSlot}.`,
-                relatedId: updated._id,
-                relatedModel: 'Property'
-            });
+            const tenantRecipient = resolveRecipientId(updated.tenant);
+            if (tenantRecipient) {
+                await Notification.create({
+                    recipient: tenantRecipient,
+                    category: 'booking',
+                    type: 'booking',
+                    event: 'visit_approved',
+                    action: 'approved',
+                    title: 'Property Visit Approved',
+                    message: `Your visit request for "${updated.property?.name}" has been scheduled for ${new Date(updated.visitDate).toLocaleDateString()} at ${updated.timeSlot}.`,
+                    entityType: 'PropertyVisit',
+                    entityId: updated._id,
+                    relatedId: updated._id,
+                    relatedModel: 'PropertyVisit',
+                    redirectUrl: '/visits',
+                    idempotencyKey: `booking-propertyvisit-${updated._id}-visit_approved`,
+                    metadata: {
+                        visitId: updated._id.toString(),
+                        propertyId: updated.property?._id ? updated.property._id.toString() : updated.property?.toString(),
+                        propertyName: updated.property?.name,
+                        visitDate: updated.visitDate,
+                        timeSlot: updated.timeSlot
+                    }
+                });
+            }
         } catch (err) {
             logger.error('Failed to notify tenant of visit approval:', err);
         }
@@ -376,14 +436,29 @@ export const updateVisitStatus = asyncHandler(async (req, res) => {
         await visit.save();
 
         try {
-            await Notification.create({
-                recipient: visit.tenant,
-                type: 'booking',
-                title: 'Property Visit Request Rejected',
-                message: `Your visit request for "${visit.property?.name}" has been declined by the property manager.`,
-                relatedId: visit._id,
-                relatedModel: 'Property'
-            });
+            const tenantRecipient = resolveRecipientId(visit.tenant);
+            if (tenantRecipient) {
+                await Notification.create({
+                    recipient: tenantRecipient,
+                    category: 'booking',
+                    type: 'booking',
+                    event: 'visit_rejected',
+                    action: 'rejected',
+                    title: 'Property Visit Request Rejected',
+                    message: `Your visit request for "${visit.property?.name}" has been declined by the property manager.`,
+                    entityType: 'PropertyVisit',
+                    entityId: visit._id,
+                    relatedId: visit._id,
+                    relatedModel: 'PropertyVisit',
+                    redirectUrl: '/visits',
+                    idempotencyKey: `booking-propertyvisit-${visit._id}-visit_rejected`,
+                    metadata: {
+                        visitId: visit._id.toString(),
+                        propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                        propertyName: visit.property?.name
+                    }
+                });
+            }
         } catch (err) {
             logger.error('Failed to notify tenant of visit rejection:', err);
         }
@@ -488,14 +563,33 @@ export const proposeReschedule = asyncHandler(async (req, res) => {
 
     // Notify tenant
     try {
-        await Notification.create({
-            recipient: visit.tenant,
-            type: 'booking',
-            title: 'Property Visit Reschedule Proposal',
-            message: `The manager has proposed a new time for your visit to "${visit.property?.name}": ${proposedDateObj.toLocaleDateString()} at ${timeSlot}. Please review and confirm.`,
-            relatedId: visit._id,
-            relatedModel: 'Property'
-        });
+        const tenantRecipient = resolveRecipientId(visit.tenant);
+        if (tenantRecipient) {
+            const historySeq = visit.rescheduleHistory?.length || 1;
+            await Notification.create({
+                recipient: tenantRecipient,
+                category: 'booking',
+                type: 'booking',
+                event: 'visit_reschedule_proposed',
+                action: 'reschedule_proposed',
+                title: 'Property Visit Reschedule Proposal',
+                message: `The manager has proposed a new time for your visit to "${visit.property?.name}": ${proposedDateObj.toLocaleDateString()} at ${timeSlot}. Please review and confirm.`,
+                entityType: 'PropertyVisit',
+                entityId: visit._id,
+                relatedId: visit._id,
+                relatedModel: 'PropertyVisit',
+                redirectUrl: '/visits',
+                idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_proposed-${historySeq}`,
+                metadata: {
+                    visitId: visit._id.toString(),
+                    propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                    propertyName: visit.property?.name,
+                    proposedDate: proposedDateObj,
+                    timeSlot,
+                    note
+                }
+            });
+        }
     } catch (err) {
         logger.error('Failed to notify tenant of reschedule proposal:', err);
     }
@@ -569,14 +663,32 @@ export const respondReschedule = asyncHandler(async (req, res) => {
 
         // Notify manager
         try {
-            await Notification.create({
-                recipient: visit.manager,
-                type: 'booking',
-                title: 'Visit Reschedule Accepted',
-                message: `Tenant has accepted the rescheduled visit for "${visit.property?.name}" on ${new Date(visit.visitDate).toLocaleDateString()} at ${visit.timeSlot}.`,
-                relatedId: visit._id,
-                relatedModel: 'Property'
-            });
+            const managerRecipient = resolveRecipientId(visit.manager || visit.property?.manager || visit.property?.owner);
+            if (managerRecipient) {
+                const historySeq = visit.rescheduleHistory?.length || 1;
+                await Notification.create({
+                    recipient: managerRecipient,
+                    category: 'booking',
+                    type: 'booking',
+                    event: 'visit_reschedule_accepted',
+                    action: 'reschedule_accepted',
+                    title: 'Visit Reschedule Accepted',
+                    message: `Tenant has accepted the rescheduled visit for "${visit.property?.name}" on ${new Date(visit.visitDate).toLocaleDateString()} at ${visit.timeSlot}.`,
+                    entityType: 'PropertyVisit',
+                    entityId: visit._id,
+                    relatedId: visit._id,
+                    relatedModel: 'PropertyVisit',
+                    redirectUrl: '/dashboard',
+                    idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_accepted-${historySeq}`,
+                    metadata: {
+                        visitId: visit._id.toString(),
+                        propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                        propertyName: visit.property?.name,
+                        visitDate: visit.visitDate,
+                        timeSlot: visit.timeSlot
+                    }
+                });
+            }
         } catch (err) {
             logger.error('Failed to notify manager of reschedule acceptance:', err);
         }
@@ -607,14 +719,31 @@ export const respondReschedule = asyncHandler(async (req, res) => {
 
         // Notify manager
         try {
-            await Notification.create({
-                recipient: visit.manager,
-                type: 'booking',
-                title: 'Visit Reschedule Declined',
-                message: `Tenant declined the proposed visit reschedule for "${visit.property?.name}".${reason ? ` Reason: ${reason}` : ''}`,
-                relatedId: visit._id,
-                relatedModel: 'Property'
-            });
+            const managerRecipient = resolveRecipientId(visit.manager || visit.property?.manager || visit.property?.owner);
+            if (managerRecipient) {
+                const historySeq = visit.rescheduleHistory?.length || 1;
+                await Notification.create({
+                    recipient: managerRecipient,
+                    category: 'booking',
+                    type: 'booking',
+                    event: 'visit_reschedule_declined',
+                    action: 'reschedule_declined',
+                    title: 'Visit Reschedule Declined',
+                    message: `Tenant declined the proposed visit reschedule for "${visit.property?.name}".${reason ? ` Reason: ${reason}` : ''}`,
+                    entityType: 'PropertyVisit',
+                    entityId: visit._id,
+                    relatedId: visit._id,
+                    relatedModel: 'PropertyVisit',
+                    redirectUrl: '/dashboard',
+                    idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_declined-${historySeq}`,
+                    metadata: {
+                        visitId: visit._id.toString(),
+                        propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                        propertyName: visit.property?.name,
+                        reason
+                    }
+                });
+            }
         } catch (err) {
             logger.error('Failed to notify manager of reschedule decline:', err);
         }
@@ -675,14 +804,30 @@ export const submitVisitFeedback = asyncHandler(async (req, res) => {
 
     // Notify manager
     try {
-        await Notification.create({
-            recipient: visit.manager,
-            type: 'booking',
-            title: 'New Property Visit Feedback',
-            message: `Tenant has submitted feedback and rated their visit for "${visit.property.name}" with a ${rating}/5 star rating.`,
-            relatedId: visit._id,
-            relatedModel: 'Property'
-        });
+        const managerRecipient = resolveRecipientId(visit.manager || visit.property?.manager || visit.property?.owner);
+        if (managerRecipient) {
+            await Notification.create({
+                recipient: managerRecipient,
+                category: 'booking',
+                type: 'booking',
+                event: 'visit_feedback_submitted',
+                action: 'feedback_submitted',
+                title: 'New Property Visit Feedback',
+                message: `Tenant has submitted feedback and rated their visit for "${visit.property?.name || 'the property'}" with a ${rating}/5 star rating.`,
+                entityType: 'PropertyVisit',
+                entityId: visit._id,
+                relatedId: visit._id,
+                relatedModel: 'PropertyVisit',
+                redirectUrl: '/dashboard',
+                idempotencyKey: `booking-propertyvisit-${visit._id}-visit_feedback_submitted`,
+                metadata: {
+                    visitId: visit._id.toString(),
+                    propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                    propertyName: visit.property?.name,
+                    rating
+                }
+            });
+        }
     } catch (err) {
         logger.error('Failed to notify manager of visit feedback:', err);
     }
@@ -712,14 +857,29 @@ export const setNotInterested = asyncHandler(async (req, res) => {
 
     // Notify manager
     try {
-        await Notification.create({
-            recipient: visit.manager,
-            type: 'system',
-            title: 'Tenant Not Interested after Visit',
-            message: `The tenant who visited "${visit.property.name}" has marked the property as "Not Interested".`,
-            relatedId: visit._id,
-            relatedModel: 'Property'
-        });
+        const managerRecipient = resolveRecipientId(visit.manager || visit.property?.manager || visit.property?.owner);
+        if (managerRecipient) {
+            await Notification.create({
+                recipient: managerRecipient,
+                category: 'booking',
+                type: 'system',
+                event: 'visit_not_interested',
+                action: 'not_interested',
+                title: 'Tenant Not Interested after Visit',
+                message: `The tenant who visited "${visit.property?.name || 'the property'}" has marked the property as "Not Interested".`,
+                entityType: 'PropertyVisit',
+                entityId: visit._id,
+                relatedId: visit._id,
+                relatedModel: 'PropertyVisit',
+                redirectUrl: '/dashboard',
+                idempotencyKey: `booking-propertyvisit-${visit._id}-visit_not_interested`,
+                metadata: {
+                    visitId: visit._id.toString(),
+                    propertyId: visit.property?._id ? visit.property._id.toString() : visit.property?.toString(),
+                    propertyName: visit.property?.name
+                }
+            });
+        }
     } catch (err) {
         logger.error('Failed to notify manager of Not Interested state:', err);
     }

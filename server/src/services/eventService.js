@@ -78,7 +78,14 @@ class EventService {
                 } else if (cat === 'payment' || cat === 'rent' || evt.includes('payment') || title.includes('payment')) {
                     emitToUser(eventData.recipient, 'payment_completed', eventData);
                     emitToUser(eventData.recipient, 'lease_lifecycle_update', { type: 'payment_completed', ...eventData });
+                } else if (cat === 'booking' || evt.includes('visit') || title.includes('visit')) {
+                    emitToUser(eventData.recipient, 'visit_update', eventData);
+                    emitToUser(eventData.recipient, 'lease_lifecycle_update', { type: 'visit_update', ...eventData });
                 }
+
+                // General notification channels for bell and popover updates
+                emitToUser(eventData.recipient, 'notification_created', eventData);
+                emitToUser(eventData.recipient, 'new_notification', eventData);
 
                 logger.info(`[SocketEmitterConsumer] Broadcasted event ${eventData.eventId} to socket room.`);
             }
