@@ -97,7 +97,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'requested',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_requested`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_requested`,
+                    redirectUrl: `/dashboard?tab=visits&visitTab=pending&visitId=${mockVisitId}`
                 })
             );
         });
@@ -186,7 +187,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'approved',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_approved`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_approved`,
+                    redirectUrl: `/properties/${mockPropId}?action=visit`
                 })
             );
         });
@@ -230,7 +232,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'rejected',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_rejected`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_rejected`,
+                    redirectUrl: `/properties/${mockPropId}?action=visit`
                 })
             );
         });
@@ -281,7 +284,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'reschedule_proposed',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_proposed-1`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_proposed-1`,
+                    redirectUrl: `/properties/${mockPropId}?action=visit`
                 })
             );
         });
@@ -331,7 +335,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'reschedule_accepted',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_accepted-2`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_accepted-2`,
+                    redirectUrl: `/dashboard?tab=visits&visitTab=approved&visitId=${mockVisitId}`
                 })
             );
         });
@@ -379,7 +384,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'reschedule_declined',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_declined-2`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_reschedule_declined-2`,
+                    redirectUrl: `/dashboard?tab=visits&visitTab=pending&visitId=${mockVisitId}`
                 })
             );
         });
@@ -419,7 +425,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'feedback_submitted',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_feedback_submitted`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_feedback_submitted`,
+                    redirectUrl: `/dashboard?tab=visits&visitTab=completed&visitId=${mockVisitId}`
                 })
             );
         });
@@ -455,7 +462,8 @@ describe('TMS Property Visit Notification & Event Dispatch Pipeline', () => {
                     action: 'not_interested',
                     entityType: 'PropertyVisit',
                     entityId: mockVisitId,
-                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_not_interested`
+                    idempotencyKey: `booking-propertyvisit-${mockVisitId}-visit_not_interested`,
+                    redirectUrl: `/dashboard?tab=visits&visitTab=completed&visitId=${mockVisitId}`
                 })
             );
         });

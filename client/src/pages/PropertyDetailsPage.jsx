@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService, bookingService, visitService, offerService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
@@ -249,7 +249,24 @@ export default function PropertyDetailsPage() {
         })();
     }, []);
 
-    const [activeBookingTab, setActiveBookingTab] = useState(location.state?.activeBookingTab || 'book');
+    const [searchParams] = useSearchParams();
+    const [activeBookingTab, setActiveBookingTab] = useState(
+        (location.state?.activeBookingTab) ||
+        (new URLSearchParams(window.location.search).get('action') === 'visit' ? 'visit' : 'book')
+    );
+
+    useEffect(() => {
+        if (searchParams.get('action') === 'visit' || searchParams.get('tab') === 'visit') {
+            setActiveBookingTab('visit');
+            const timer = setTimeout(() => {
+                const card = document.getElementById('booking-card');
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 350);
+            return () => clearTimeout(timer);
+        }
+    }, [searchParams]);
     const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
     const [visitSlot, setVisitSlot] = useState('10:00 AM - 11:00 AM');
     const [visitLoading, setVisitLoading] = useState(false);
@@ -1722,7 +1739,7 @@ export default function PropertyDetailsPage() {
                                ═══════════════════════════════════════════════════════════ */
                             <div className="space-y-8">
                                 {/* Booking Card */}
-                                <div className="sticky top-8 p-6 sm:p-7 xl:p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6 min-w-0">
+                                <div id="booking-card" className="sticky top-8 p-6 sm:p-7 xl:p-8 rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-950 shadow-2xl shadow-primary/20 border border-white/10 space-y-6 min-w-0">
                                     <div>
                                         <h3 className="text-2xl font-black text-white">
                                             {property.bookingType === 'free' ? 'Request Demo Booking' : 'Book this place'}

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../../../context/authStore';
+import { resolveNotificationDestination } from '../utils/notificationNavigation';
 import {
     CheckCircle2,
     Trash2,
@@ -79,9 +81,14 @@ export function NotificationItem({
     isSelected = false,
     onToggleSelect,
     onMarkAsRead,
-    onDelete
+    onDelete,
+    onClose
 }) {
     const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
+    const isNavigatingRef = useRef(false);
+
+    const destination = resolveNotificationDestination(notification, user?.role);
 
     const handleCardClick = (e) => {
         if (e.target.closest('.action-button') || e.target.closest('.item-checkbox')) return;
@@ -90,12 +97,18 @@ export function NotificationItem({
             onMarkAsRead(notification.id);
         }
 
-        if (notification.actionUrl) {
-            if (notification.actionUrl.startsWith('http')) {
-                window.open(notification.actionUrl, '_blank', 'noopener,noreferrer');
-            } else {
-                navigate(notification.actionUrl);
+        if (destination) {
+            if (isNavigatingRef.current) return;
+            isNavigatingRef.current = true;
+            setTimeout(() => {
+                isNavigatingRef.current = false;
+            }, 500);
+
+            if (onClose) {
+                onClose();
             }
+
+            navigate(destination);
         }
     };
 
@@ -160,8 +173,11 @@ export function NotificationItem({
                     </p>
 
                     {/* Footer Meta & Deep Link */}
-                    {notification.actionUrl && (
-                        <div className="inline-flex items-center text-xs font-medium text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
+                    {destination && (
+                        <div
+                            onClick={handleCardClick}
+                            className="inline-flex items-center text-xs font-medium text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors cursor-pointer"
+                        >
                             <span>View details</span>
                             <ExternalLink className="ml-1 w-3 h-3" />
                         </div>

@@ -213,7 +213,7 @@ export const requestVisit = asyncHandler(async (req, res) => {
                 entityId: visit._id,
                 relatedId: visit._id,
                 relatedModel: 'PropertyVisit',
-                redirectUrl: '/dashboard',
+                redirectUrl: `/dashboard?tab=visits&visitTab=pending&visitId=${visit._id}`,
                 idempotencyKey: `booking-propertyvisit-${visit._id}-visit_requested`,
                 metadata: {
                     visitId: visit._id.toString(),
@@ -382,7 +382,7 @@ export const updateVisitStatus = asyncHandler(async (req, res) => {
                     entityId: updated._id,
                     relatedId: updated._id,
                     relatedModel: 'PropertyVisit',
-                    redirectUrl: '/visits',
+                    redirectUrl: `/properties/${updated.property?._id ? updated.property._id.toString() : updated.property?.toString()}?action=visit`,
                     idempotencyKey: `booking-propertyvisit-${updated._id}-visit_approved`,
                     metadata: {
                         visitId: updated._id.toString(),
@@ -450,7 +450,7 @@ export const updateVisitStatus = asyncHandler(async (req, res) => {
                     entityId: visit._id,
                     relatedId: visit._id,
                     relatedModel: 'PropertyVisit',
-                    redirectUrl: '/visits',
+                    redirectUrl: `/properties/${visit.property?._id ? visit.property._id.toString() : visit.property?.toString()}?action=visit`,
                     idempotencyKey: `booking-propertyvisit-${visit._id}-visit_rejected`,
                     metadata: {
                         visitId: visit._id.toString(),
@@ -578,7 +578,7 @@ export const proposeReschedule = asyncHandler(async (req, res) => {
                 entityId: visit._id,
                 relatedId: visit._id,
                 relatedModel: 'PropertyVisit',
-                redirectUrl: '/visits',
+                redirectUrl: `/properties/${visit.property?._id ? visit.property._id.toString() : visit.property?.toString()}?action=visit`,
                 idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_proposed-${historySeq}`,
                 metadata: {
                     visitId: visit._id.toString(),
@@ -678,7 +678,7 @@ export const respondReschedule = asyncHandler(async (req, res) => {
                     entityId: visit._id,
                     relatedId: visit._id,
                     relatedModel: 'PropertyVisit',
-                    redirectUrl: '/dashboard',
+                    redirectUrl: `/dashboard?tab=visits&visitTab=approved&visitId=${visit._id}`,
                     idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_accepted-${historySeq}`,
                     metadata: {
                         visitId: visit._id.toString(),
@@ -734,7 +734,7 @@ export const respondReschedule = asyncHandler(async (req, res) => {
                     entityId: visit._id,
                     relatedId: visit._id,
                     relatedModel: 'PropertyVisit',
-                    redirectUrl: '/dashboard',
+                    redirectUrl: `/dashboard?tab=visits&visitTab=pending&visitId=${visit._id}`,
                     idempotencyKey: `booking-propertyvisit-${visit._id}-visit_reschedule_declined-${historySeq}`,
                     metadata: {
                         visitId: visit._id.toString(),
@@ -818,7 +818,7 @@ export const submitVisitFeedback = asyncHandler(async (req, res) => {
                 entityId: visit._id,
                 relatedId: visit._id,
                 relatedModel: 'PropertyVisit',
-                redirectUrl: '/dashboard',
+                redirectUrl: `/dashboard?tab=visits&visitTab=completed&visitId=${visit._id}`,
                 idempotencyKey: `booking-propertyvisit-${visit._id}-visit_feedback_submitted`,
                 metadata: {
                     visitId: visit._id.toString(),
@@ -871,7 +871,7 @@ export const setNotInterested = asyncHandler(async (req, res) => {
                 entityId: visit._id,
                 relatedId: visit._id,
                 relatedModel: 'PropertyVisit',
-                redirectUrl: '/dashboard',
+                redirectUrl: `/dashboard?tab=visits&visitTab=completed&visitId=${visit._id}`,
                 idempotencyKey: `booking-propertyvisit-${visit._id}-visit_not_interested`,
                 metadata: {
                     visitId: visit._id.toString(),

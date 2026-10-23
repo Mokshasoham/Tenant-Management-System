@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, Users, Wrench, CreditCard, Plus, ArrowUpRight,
@@ -468,9 +469,27 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
     const total = occupied + vacant;
     const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
+    const [searchParams] = useSearchParams();
     const [visits, setVisits] = useState([]);
     const [visitsLoading, setVisitsLoading] = useState(true);
     const [visitTab, setVisitTab] = useState('pending');
+
+    useEffect(() => {
+        const tabParam = searchParams.get('visitTab');
+        const mainTab = searchParams.get('tab');
+        if (['pending', 'approved', 'completed'].includes(tabParam)) {
+            setVisitTab(tabParam);
+        }
+        if (mainTab === 'visits' || tabParam) {
+            const timer = setTimeout(() => {
+                const el = document.getElementById('property-visits');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 350);
+            return () => clearTimeout(timer);
+        }
+    }, [searchParams]);
 
     const [reschedulingId, setReschedulingId] = useState(null);
     const [reschedDate, setReschedDate] = useState('');
@@ -1524,8 +1543,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
             )}
 
             {/* Property Visit Requests */}
-            {visits.length > 0 && (
+            {(visitsLoading || visits.length > 0 || searchParams.get('tab') === 'visits') && (
                 <motion.div
+                    id="property-visits"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.58, duration: 0.5 }}
@@ -1571,7 +1591,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 <p className="text-xs text-muted-foreground text-center py-8">No pending property visit requests.</p>
                             ) : (
                                 pendingVisits.map(v => (
-                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-3">
+                                    <div key={v._id} id={`visit-${v._id}`} className={cn("p-4 rounded-xl bg-white/3 border border-white/5 space-y-3", searchParams.get('visitId') === v._id && "ring-2 ring-indigo-500 border-indigo-500/80 bg-indigo-500/10")}>
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                             <div>
                                                 <div className="flex items-center gap-2">
@@ -1746,7 +1766,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 approvedVisits.map(v => {
                                     const slotHasStarted = v.slotStartTime ? new Date() >= new Date(v.slotStartTime) : true;
                                     return (
-                                        <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div key={v._id} id={`visit-${v._id}`} className={cn("p-4 rounded-xl bg-white/3 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3", searchParams.get('visitId') === v._id && "ring-2 ring-indigo-500 border-indigo-500/80 bg-indigo-500/10")}>
                                             <div>
                                                 <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
                                                 <p className="text-xs text-muted-foreground">{v.property?.address}</p>
@@ -1786,7 +1806,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 completedVisits.map(v => {
                                     const isExpiredApproved = v.status === 'approved' && v.isExpired;
                                     return (
-                                        <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-2">
+                                        <div key={v._id} id={`visit-${v._id}`} className={cn("p-4 rounded-xl bg-white/3 border border-white/5 space-y-2", searchParams.get('visitId') === v._id && "ring-2 ring-indigo-500 border-indigo-500/80 bg-indigo-500/10")}>
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>

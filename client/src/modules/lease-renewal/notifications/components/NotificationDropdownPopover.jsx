@@ -61,6 +61,7 @@ export function NotificationDropdownPopover({
                             notification={item}
                             onMarkAsRead={onMarkAsRead}
                             onDelete={onDelete}
+                            onClose={onClose}
                         />
                     ))
                 )}
