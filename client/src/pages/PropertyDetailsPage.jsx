@@ -256,6 +256,25 @@ export default function PropertyDetailsPage() {
     const [visitSuccess, setVisitSuccess] = useState(false);
     const [visitError, setVisitError] = useState('');
     const [existingVisit, setExistingVisit] = useState(null);
+    const [rescheduleResponding, setRescheduleResponding] = useState(false);
+    const [rescheduleResponseError, setRescheduleResponseError] = useState('');
+
+    const isSlotInPastForDate = (dateStr, slotStr) => {
+        if (!dateStr || !slotStr) return false;
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (dateStr < todayStr) return true;
+        if (dateStr > todayStr) return false;
+        const startPart = slotStr.split('-')[0]?.trim();
+        if (!startPart) return false;
+        const [time, meridiem] = startPart.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        const slotDate = new Date();
+        slotDate.setHours(hours, minutes, 0, 0);
+        return now.getTime() >= slotDate.getTime();
+    };
 
     // Private Rent Negotiation States
     const [showNegotiationModal, setShowNegotiationModal] = useState(Boolean(location.state?.openNegotiation));
@@ -443,8 +462,16 @@ export default function PropertyDetailsPage() {
                 const visitsList = Array.isArray(myVisitsRes.data?.data)
                     ? myVisitsRes.data.data
                     : (Array.isArray(myVisitsRes.data) ? myVisitsRes.data : []);
-                const currentVisit = visitsList.find(v => (v.property?._id || v.property) === id);
-                setExistingVisit(currentVisit || null);
+                const matchingVisits = visitsList
+                    .filter(v => (v.property?._id || v.property) === id)
+                    .sort((a, b) => new Date(b.createdAt || b.visitDate) - new Date(a.createdAt || a.visitDate));
+
+                const activeVisit = matchingVisits.find(v => ['pending', 'reschedule_pending'].includes(v.status) || (v.status === 'approved' && !v.isExpired))
+                    || matchingVisits.find(v => v.status === 'approved' && v.isExpired)
+                    || matchingVisits.find(v => v.status === 'completed' && (!v.feedback || !v.feedback.submittedAt))
+                    || null;
+
+                setExistingVisit(activeVisit);
             } catch (err) {
                 console.log('User not logged in or failed to fetch visits');
             }
@@ -2101,9 +2128,14 @@ export default function PropertyDetailsPage() {
                                                             className="w-full min-w-0 box-border px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm appearance-none cursor-pointer"
                                                             style={{ colorScheme: 'dark' }}
                                                         >
-                                                            {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM', '05:00 PM - 06:00 PM'].map(slot => (
-                                                                <option key={slot} value={slot} className="bg-slate-900 text-white font-bold">{slot}</option>
-                                                            ))}
+                                                            {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM', '05:00 PM - 06:00 PM'].map(slot => {
+                                                                const isPast = isSlotInPastForDate(visitDate, slot);
+                                                                return (
+                                                                    <option key={slot} value={slot} disabled={isPast} className={cn("bg-slate-900 text-white font-bold", isPast && "text-white/30 italic")}>
+                                                                        {slot} {isPast ? '(Passed)' : ''}
+                                                                    </option>
+                                                                );
+                                                            })}
                                                         </select>
                                                     </div>
 
@@ -2124,6 +2156,10 @@ export default function PropertyDetailsPage() {
                                                             }
                                                             if (!visitDate) {
                                                                 setVisitError('Please select a preferred visit date.');
+                                                                return;
+                                                            }
+                                                            if (isSlotInPastForDate(visitDate, visitSlot)) {
+                                                                setVisitError('Selected date and time slot has already passed. Please select an upcoming slot.');
                                                                 return;
                                                             }
                                                             setVisitLoading(true);
@@ -2163,12 +2199,21 @@ export default function PropertyDetailsPage() {
                                                             <p className="text-xs font-black uppercase tracking-wider text-white/80">Visit Request Details</p>
                                                             <span className={cn(
                                                                 "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
-                                                                existingVisit.status === 'approved' && "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
-                                                                existingVisit.status === 'pending' && "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                                                                existingVisit.status === 'approved' && !existingVisit.isExpired && "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                                                                existingVisit.status === 'approved' && existingVisit.isExpired && "bg-rose-500/20 text-rose-300 border border-rose-500/30",
+                                                                existingVisit.status === 'pending' && !existingVisit.isExpired && "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                                                                existingVisit.status === 'pending' && existingVisit.isExpired && "bg-rose-500/20 text-rose-300 border border-rose-500/30",
+                                                                existingVisit.status === 'reschedule_pending' && "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30",
                                                                 existingVisit.status === 'completed' && "bg-blue-500/20 text-blue-300 border border-blue-500/30",
-                                                                existingVisit.status === 'rejected' && "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                                                (existingVisit.status === 'rejected' || existingVisit.status === 'cancelled') && "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                                                             )}>
-                                                                {existingVisit.status}
+                                                                {existingVisit.status === 'reschedule_pending'
+                                                                    ? 'Reschedule Proposed'
+                                                                    : (existingVisit.status === 'approved' && existingVisit.isExpired
+                                                                        ? 'Slot Expired'
+                                                                        : (existingVisit.status === 'pending' && existingVisit.isExpired
+                                                                            ? 'Slot Expired'
+                                                                            : existingVisit.status))}
                                                             </span>
                                                         </div>
                                                         <p className="text-xs text-white/70">
@@ -2179,16 +2224,135 @@ export default function PropertyDetailsPage() {
                                                         </p>
                                                     </div>
 
+                                                    {existingVisit.status === 'reschedule_pending' && (
+                                                        <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 backdrop-blur-md space-y-3">
+                                                            <div className="flex justify-between items-center">
+                                                                <p className="text-xs font-black uppercase tracking-wider text-indigo-300">New Slot Proposed</p>
+                                                                <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                                                    Action Required
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-white/80">
+                                                                The manager proposed a new time slot for your property visit:
+                                                            </p>
+                                                            <div className="bg-black/40 p-3 rounded-xl border border-white/10 space-y-1">
+                                                                <p className="text-xs text-white/70">
+                                                                    Proposed Date: <span className="font-bold text-indigo-300">{existingVisit.rescheduledSlot?.visitDate ? new Date(existingVisit.rescheduledSlot.visitDate).toLocaleDateString() : 'N/A'}</span>
+                                                                </p>
+                                                                <p className="text-xs text-white/70">
+                                                                    Proposed Slot: <span className="font-bold text-indigo-300">{existingVisit.rescheduledSlot?.timeSlot || 'N/A'}</span>
+                                                                </p>
+                                                                {existingVisit.rescheduledSlot?.note && (
+                                                                    <p className="text-xs text-white/60 italic pt-1 border-t border-white/10 mt-1">
+                                                                        Note: "{existingVisit.rescheduledSlot.note}"
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {rescheduleResponseError && (
+                                                                <div className="p-2.5 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 text-xs">
+                                                                    {rescheduleResponseError}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex gap-2 pt-1">
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={rescheduleResponding}
+                                                                    onClick={async () => {
+                                                                        setRescheduleResponding(true);
+                                                                        setRescheduleResponseError('');
+                                                                        try {
+                                                                            const res = await visitService.respondReschedule(existingVisit._id, { action: 'accept' });
+                                                                            setExistingVisit(res.data?.data || res.data);
+                                                                        } catch (err) {
+                                                                            setRescheduleResponseError(err.response?.data?.message || 'Failed to accept reschedule proposal.');
+                                                                        } finally {
+                                                                            setRescheduleResponding(false);
+                                                                        }
+                                                                    }}
+                                                                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                                >
+                                                                    {rescheduleResponding ? 'Confirming...' : 'Accept New Time'}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={rescheduleResponding}
+                                                                    onClick={async () => {
+                                                                        setRescheduleResponding(true);
+                                                                        setRescheduleResponseError('');
+                                                                        try {
+                                                                            await visitService.respondReschedule(existingVisit._id, { action: 'decline' });
+                                                                            setExistingVisit(null);
+                                                                        } catch (err) {
+                                                                            setRescheduleResponseError(err.response?.data?.message || 'Failed to decline reschedule proposal.');
+                                                                        } finally {
+                                                                            setRescheduleResponding(false);
+                                                                        }
+                                                                    }}
+                                                                    className="flex-1 py-2.5 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                                >
+                                                                    {rescheduleResponding ? 'Declining...' : 'Decline'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {existingVisit.status === 'pending' && (
-                                                        <p className="text-[10px] text-center text-white/60 italic">
-                                                            Visit is pending manager review. You will be notified once approved or rescheduled.
-                                                        </p>
+                                                        existingVisit.isExpired ? (
+                                                            <div className="space-y-2">
+                                                                <p className="text-[11px] text-center text-rose-300 italic">
+                                                                    The requested visit slot has passed without manager confirmation. You can request a new visit slot.
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setExistingVisit(null)}
+                                                                    className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                                                                >
+                                                                    Request a New Visit Slot
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] text-center text-white/60 italic">
+                                                                Visit is pending manager review. You will be notified once approved or rescheduled.
+                                                            </p>
+                                                        )
                                                     )}
 
                                                     {existingVisit.status === 'approved' && (
-                                                        <p className="text-[10px] text-center text-white/60 italic">
-                                                            Visit is scheduled! You can meet the manager at the property on the scheduled slot.
-                                                        </p>
+                                                        existingVisit.isExpired ? (
+                                                            <div className="space-y-2">
+                                                                <p className="text-[11px] text-center text-rose-300 italic">
+                                                                    The scheduled time for this visit has already passed.
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setExistingVisit(null)}
+                                                                    className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                                                                >
+                                                                    Request a New Visit Slot
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] text-center text-white/60 italic">
+                                                                Visit is scheduled! You can meet the manager at the property on the scheduled slot.
+                                                            </p>
+                                                        )
+                                                    )}
+
+                                                    {(existingVisit.status === 'rejected' || existingVisit.status === 'cancelled') && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-[11px] text-center text-white/60 italic">
+                                                                This visit was {existingVisit.status}. You may request a new visit if interested.
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setExistingVisit(null)}
+                                                                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                                                            >
+                                                                Request Another Visit
+                                                            </button>
+                                                        </div>
                                                     )}
 
                                                     {existingVisit.status === 'completed' && (

@@ -475,6 +475,8 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
     const [reschedulingId, setReschedulingId] = useState(null);
     const [reschedDate, setReschedDate] = useState('');
     const [reschedSlot, setReschedSlot] = useState('10:00 AM - 11:00 AM');
+    const [reschedNote, setReschedNote] = useState('');
+    const [reschedSubmitting, setReschedSubmitting] = useState(false);
 
     const fetchRenewals = useCallback(async () => {
         try {
@@ -575,11 +577,41 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
             if (timeSlot) body.timeSlot = timeSlot;
 
             const res = await visitService.updateVisitStatus(id, body);
-            setVisits(prev => prev.map(v => v._id === id ? res.data : v));
+            const updated = res.data?.data || res.data;
+            setVisits(prev => prev.map(v => v._id === id ? updated : v));
         } catch (e) {
             console.error(e);
             const errorMsg = e.response?.data?.message || e.message || 'Unknown error';
             alert(`Failed to update visit request: ${errorMsg}`);
+        }
+    };
+
+    const handleProposeReschedule = async (id) => {
+        if (!reschedDate) {
+            alert('Please select a proposed date for rescheduling.');
+            return;
+        }
+        if (!reschedSlot) {
+            alert('Please select a proposed time slot.');
+            return;
+        }
+        setReschedSubmitting(true);
+        try {
+            const res = await visitService.proposeReschedule(id, {
+                visitDate: reschedDate,
+                timeSlot: reschedSlot,
+                note: reschedNote
+            });
+            const updated = res.data?.data || res.data;
+            setVisits(prev => prev.map(v => v._id === id ? updated : v));
+            setReschedulingId(null);
+            setReschedNote('');
+        } catch (e) {
+            console.error(e);
+            const errorMsg = e.response?.data?.message || e.message || 'Unknown error';
+            alert(`Failed to propose reschedule: ${errorMsg}`);
+        } finally {
+            setReschedSubmitting(false);
         }
     };
 
@@ -590,9 +622,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
     const rejectedBookings = bookings.filter(b => b.status === 'rejected');
     const cancelledBookings = bookings.filter(b => b.status === 'cancelled');
 
-    const pendingVisits = visits.filter(v => v.status === 'pending');
-    const approvedVisits = visits.filter(v => v.status === 'approved');
-    const completedVisits = visits.filter(v => v.status === 'completed' || v.status === 'rejected');
+    const pendingVisits = visits.filter(v => v.status === 'pending' || v.status === 'reschedule_pending');
+    const approvedVisits = visits.filter(v => v.status === 'approved' && !v.isExpired);
+    const completedVisits = visits.filter(v => v.status === 'completed' || v.status === 'rejected' || (v.status === 'approved' && v.isExpired));
 
     const statCards = [
         { title: 'Managed Units', value: stats?.totalProperties || 0, icon: Building2, trend: stats?.totalProperties > 0 ? `+${stats.totalProperties}` : '', color: 'bg-blue-500', delay: 0 },
@@ -1542,50 +1574,120 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                     <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-3">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                             <div>
-                                                <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                    {v.status === 'reschedule_pending' && (
+                                                        <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[8px] font-black uppercase tracking-wider">
+                                                            Awaiting Tenant Confirmation
+                                                        </span>
+                                                    )}
+                                                    {v.status === 'pending' && v.isExpired && (
+                                                        <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[8px] font-black uppercase tracking-wider">
+                                                            Slot Expired
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-muted-foreground">{v.property?.address}</p>
                                                 <p className="text-xs text-indigo-400 mt-1 font-semibold">
                                                     Requested Date: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
                                                 </p>
+                                                {v.status === 'reschedule_pending' && v.rescheduledSlot && (
+                                                    <p className="text-xs text-amber-300/90 font-medium mt-0.5">
+                                                        Proposed New Slot: {new Date(v.rescheduledSlot.visitDate).toLocaleDateString()} at {v.rescheduledSlot.timeSlot}
+                                                    </p>
+                                                )}
                                                 <p className="text-[10px] text-muted-foreground mt-0.5">
                                                     Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
                                                 </p>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    onClick={() => handleUpdateVisit(v._id, 'approved')}
-                                                    className="px-2.5 py-1 rounded bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all"
-                                                >
-                                                    Approve
-                                                </button>
-                                                <button
-                                                    onClick={() => handleUpdateVisit(v._id, 'rejected')}
-                                                    className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
-                                                >
-                                                    Reject
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setReschedulingId(v._id);
-                                                        setReschedDate(v.visitDate ? new Date(v.visitDate).toISOString().split('T')[0] : '');
-                                                        setReschedSlot(v.timeSlot || '10:00 AM - 11:00 AM');
-                                                    }}
-                                                    className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
-                                                >
-                                                    Reschedule
-                                                </button>
+                                                {v.status === 'reschedule_pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => {
+                                                                setReschedulingId(v._id);
+                                                                setReschedDate(v.rescheduledSlot?.visitDate ? new Date(v.rescheduledSlot.visitDate).toISOString().split('T')[0] : '');
+                                                                setReschedSlot(v.rescheduledSlot?.timeSlot || '10:00 AM - 11:00 AM');
+                                                                setReschedNote(v.rescheduledSlot?.note || '');
+                                                            }}
+                                                            className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
+                                                        >
+                                                            Propose Different Time
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateVisit(v._id, 'rejected')}
+                                                            className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                ) : v.isExpired ? (
+                                                    <>
+                                                        <button
+                                                            disabled
+                                                            title="Cannot approve an expired visit slot. Please propose a new time."
+                                                            className="px-2.5 py-1 rounded bg-muted text-muted-foreground/50 text-[10px] font-black uppercase cursor-not-allowed border border-white/5"
+                                                        >
+                                                            Approve (Expired)
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setReschedulingId(v._id);
+                                                                setReschedDate('');
+                                                                setReschedSlot('10:00 AM - 11:00 AM');
+                                                                setReschedNote('Requested slot has expired; proposing new time.');
+                                                            }}
+                                                            className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[10px] font-black uppercase hover:bg-indigo-500 transition-all shadow-md"
+                                                        >
+                                                            Propose New Time
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateVisit(v._id, 'rejected')}
+                                                            className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleUpdateVisit(v._id, 'approved')}
+                                                            className="px-2.5 py-1 rounded bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateVisit(v._id, 'rejected')}
+                                                            className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setReschedulingId(v._id);
+                                                                setReschedDate(v.visitDate ? new Date(v.visitDate).toISOString().split('T')[0] : '');
+                                                                setReschedSlot(v.timeSlot || '10:00 AM - 11:00 AM');
+                                                                setReschedNote('');
+                                                            }}
+                                                            className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
+                                                        >
+                                                            Reschedule
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
                                         {reschedulingId === v._id && (
                                             <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-3 mt-2">
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-white/80">Select New Slot</p>
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-white/80">Propose New Visit Time to Tenant</p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <div className="flex-1 min-w-[120px]">
-                                                        <label className="text-[9px] text-white/50 block mb-1">Date</label>
+                                                        <label className="text-[9px] text-white/50 block mb-1">Proposed Date</label>
                                                         <input
                                                             type="date"
                                                             value={reschedDate}
+                                                            min={new Date().toISOString().split('T')[0]}
                                                             onChange={(e) => setReschedDate(e.target.value)}
                                                             className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-xs text-white"
                                                         />
@@ -1597,27 +1699,37 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                             onChange={(e) => setReschedSlot(e.target.value)}
                                                             className="w-full bg-black border border-white/10 rounded p-1.5 text-xs text-white"
                                                         >
-                                                            {['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '03:00 PM - 04:00 PM', '04:00 PM - 05:00 PM'].map(slot => (
+                                                            {['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM', '04:00 PM - 05:00 PM', '05:00 PM - 06:00 PM'].map(slot => (
                                                                 <option key={slot} value={slot}>{slot}</option>
                                                             ))}
                                                         </select>
                                                     </div>
+                                                    <div className="w-full">
+                                                        <label className="text-[9px] text-white/50 block mb-1">Note to Tenant (Optional)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={reschedNote}
+                                                            placeholder="Reason for reschedule or instructions..."
+                                                            onChange={(e) => setReschedNote(e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-xs text-white"
+                                                        />
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-end gap-2">
                                                     <button
+                                                        type="button"
                                                         onClick={() => setReschedulingId(null)}
-                                                        className="px-2 py-1 rounded bg-white/10 text-white text-[9px] font-bold uppercase"
+                                                        className="px-2 py-1 rounded bg-white/10 text-white text-[9px] font-bold uppercase hover:bg-white/20 transition-all"
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button
-                                                        onClick={async () => {
-                                                            await handleUpdateVisit(v._id, 'approved', reschedDate, reschedSlot);
-                                                            setReschedulingId(null);
-                                                        }}
-                                                        className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[9px] font-black uppercase"
+                                                        type="button"
+                                                        disabled={reschedSubmitting}
+                                                        onClick={() => handleProposeReschedule(v._id)}
+                                                        className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[9px] font-black uppercase hover:bg-indigo-500 transition-all disabled:opacity-50"
                                                     >
-                                                        Confirm & Approve
+                                                        {reschedSubmitting ? 'Sending Proposal...' : 'Send Reschedule Proposal'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1631,26 +1743,39 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                             approvedVisits.length === 0 ? (
                                 <p className="text-xs text-muted-foreground text-center py-8">No scheduled inspection visits.</p>
                             ) : (
-                                approvedVisits.map(v => (
-                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                        <div>
-                                            <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
-                                            <p className="text-xs text-muted-foreground">{v.property?.address}</p>
-                                            <p className="text-xs text-emerald-400 mt-1 font-semibold">
-                                                Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
-                                            </p>
-                                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
-                                            </p>
+                                approvedVisits.map(v => {
+                                    const slotHasStarted = v.slotStartTime ? new Date() >= new Date(v.slotStartTime) : true;
+                                    return (
+                                        <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                <p className="text-xs text-muted-foreground">{v.property?.address}</p>
+                                                <p className="text-xs text-emerald-400 mt-1 font-semibold">
+                                                    Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                </p>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
+                                                </p>
+                                            </div>
+                                            {slotHasStarted ? (
+                                                <button
+                                                    onClick={() => handleUpdateVisit(v._id, 'completed')}
+                                                    className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase transition-all"
+                                                >
+                                                    Mark Completed
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    disabled
+                                                    title="Cannot mark completed before the scheduled visit slot starts"
+                                                    className="px-3 py-1.5 rounded bg-muted text-muted-foreground/50 text-[10px] font-black uppercase cursor-not-allowed border border-white/5"
+                                                >
+                                                    Slot Pending
+                                                </button>
+                                            )}
                                         </div>
-                                        <button
-                                            onClick={() => handleUpdateVisit(v._id, 'completed')}
-                                            className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase transition-all"
-                                        >
-                                            Mark Completed
-                                        </button>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )
                         )}
 
@@ -1658,23 +1783,36 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                             completedVisits.length === 0 ? (
                                 <p className="text-xs text-muted-foreground text-center py-8">No past inspection visits.</p>
                             ) : (
-                                completedVisits.map(v => (
-                                    <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-2">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
-                                                <p className="text-xs text-muted-foreground">{v.property?.address}</p>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName}
-                                                </p>
+                                completedVisits.map(v => {
+                                    const isExpiredApproved = v.status === 'approved' && v.isExpired;
+                                    return (
+                                        <div key={v._id} className="p-4 rounded-xl bg-white/3 border border-white/5 space-y-2">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
+                                                    <p className="text-xs text-muted-foreground">{v.property?.address}</p>
+                                                    {isExpiredApproved ? (
+                                                        <p className="text-xs text-rose-400 mt-1 font-semibold">
+                                                            Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot} (Expired / Missed)
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Visit Date: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                        Tenant: {v.tenant?.firstName} {v.tenant?.lastName}
+                                                    </p>
+                                                </div>
+                                                <span className={cn(
+                                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                                                    v.status === 'completed' && "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500",
+                                                    v.status === 'rejected' && "bg-rose-500/10 border border-rose-500/20 text-rose-500",
+                                                    isExpiredApproved && "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+                                                )}>
+                                                    {isExpiredApproved ? 'Expired / Missed' : v.status}
+                                                </span>
                                             </div>
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
-                                                v.status === 'completed' ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500" : "bg-rose-500/10 border border-rose-500/20 text-rose-500"
-                                            )}>
-                                                {v.status}
-                                            </span>
-                                        </div>
 
                                         {v.feedback && v.feedback.rating ? (
                                             <div className="p-3 rounded-lg bg-black/40 border border-white/5 text-[11px] space-y-1.5">
@@ -1705,8 +1843,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             </span>
                                         )}
                                     </div>
-                                ))
-                            )
+                                );
+                            })
+                        )
                         )}
                     </div>
                 </motion.div>

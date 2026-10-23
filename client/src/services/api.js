@@ -337,6 +337,8 @@ export const visitService = {
   getMyVisits: () => apiClient.get('/visits/my-visits'),
   getManagerVisits: () => apiClient.get('/visits/manager-visits'),
   updateVisitStatus: (id, data) => apiClient.patch(`/visits/${id}/status`, data),
+  proposeReschedule: (id, data) => apiClient.post(`/visits/${id}/reschedule`, data),
+  respondReschedule: (id, data) => apiClient.post(`/visits/${id}/respond-reschedule`, data),
   submitFeedback: (id, data) => apiClient.post(`/visits/${id}/feedback`, data),
   setNotInterested: (id) => apiClient.post(`/visits/${id}/not-interested`),
 };

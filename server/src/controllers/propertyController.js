@@ -8,6 +8,7 @@ import { AppError, asyncHandler } from '../utils/errorHandling.js';
 import logger from '../utils/logger.js';
 import sharp from 'sharp';
 import { uploadFileBuffer } from '../services/fileService.js';
+import { isSlotExpired } from '../utils/visitTimeHelper.js';
 
 export const validateAndReconcileNegotiation = (negotiation, rentAmount) => {
   if (!negotiation) return undefined;
@@ -990,18 +991,25 @@ export const getPropertyNavigation = asyncHandler(async (req, res) => {
   let timeSlot = null;
 
   if (!isAuthorized) {
-    // 1. Check for Approved Visit Request
-    const approvedVisit = await PropertyVisit.findOne({
+    // 1. Check for Approved Visit Request (must not be expired)
+    const approvedVisits = await PropertyVisit.find({
       property: property._id,
       tenant: userId,
       status: 'approved'
     }).sort({ updatedAt: -1 });
 
-    if (approvedVisit) {
+    const activeVisit = approvedVisits.find(v => !isSlotExpired({
+      slotStartTime: v.slotStartTime,
+      visitDate: v.visitDate,
+      timeSlot: v.timeSlot,
+      timezone: v.timezone
+    }));
+
+    if (activeVisit) {
       isAuthorized = true;
       reason = 'visit_approved';
-      approvedDate = approvedVisit.visitDate;
-      timeSlot = approvedVisit.timeSlot;
+      approvedDate = activeVisit.visitDate;
+      timeSlot = activeVisit.timeSlot;
     }
   }
 
