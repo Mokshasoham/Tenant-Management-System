@@ -3,23 +3,8 @@ import { motion } from 'framer-motion';
 import { Scale, Check, X, Star, MapPin, Bed, Bath, Maximize, ArrowLeft, Trash2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 
-const COMPARE_FEATURES = [
-    { label: 'Type', key: 'type', format: v => v ? v.charAt(0).toUpperCase() + v.slice(1) : '—' },
-    { label: 'City', key: 'city', format: v => v || '—' },
-    { label: 'Rent/Month', key: 'rentAmount', format: v => v ? `₹${v.toLocaleString('en-IN')}` : '—' },
-    { label: 'Deposit', key: 'depositAmount', format: v => v ? `₹${v.toLocaleString('en-IN')}` : '—' },
-    { label: 'Bedrooms', key: 'bedrooms', format: v => v ?? '—' },
-    { label: 'Bathrooms', key: 'bathrooms', format: v => v ?? '—' },
-    { label: 'Area (sqft)', key: 'squareFeet', format: v => v ? `${v.toLocaleString()} ft²` : '—' },
-    { label: 'Furnishing', key: 'furnishing', format: v => v ? v.replace('-', ' ') : '—' },
-    { label: 'Floor', key: 'floor', format: v => v ?? '—' },
-    { label: 'Rating', key: 'rating', format: v => v > 0 ? `⭐ ${v}/5` : 'Not rated' },
-    { label: 'Status', key: 'displayStatus', format: v => v || '—' },
-    { label: 'Verified', key: 'verifiedBadge', format: v => v ? '✅ Yes' : '❌ No' },
-];
-
-// Compare utility: finds best value per row
 const getBestValue = (key, properties) => {
     if (key === 'rentAmount' || key === 'depositAmount') {
         const vals = properties.map(p => p[key] || Infinity);
@@ -35,6 +20,7 @@ const getBestValue = (key, properties) => {
 const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useLanguage();
     
     // Read compareList strictly from active navigation state, fallback to props, then fallback to empty array
     const [selected, setSelected] = useState(() => {
@@ -43,6 +29,21 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
         }
         return compareList || [];
     });
+
+    const compareFeatures = [
+        { label: t('property.type', 'Type'), key: 'type', format: v => v ? v.charAt(0).toUpperCase() + v.slice(1) : '—' },
+        { label: t('property.city', 'City'), key: 'city', format: v => v || '—' },
+        { label: t('dashboard.monthlyRent', 'Rent/Month'), key: 'rentAmount', format: v => v ? `₹${v.toLocaleString('en-IN')}` : '—' },
+        { label: t('property.deposit', 'Deposit'), key: 'depositAmount', format: v => v ? `₹${v.toLocaleString('en-IN')}` : '—' },
+        { label: t('property.bedrooms', 'Bedrooms'), key: 'bedrooms', format: v => v ?? '—' },
+        { label: t('property.bathrooms', 'Bathrooms'), key: 'bathrooms', format: v => v ?? '—' },
+        { label: t('property.area', 'Area (sqft)'), key: 'squareFeet', format: v => v ? `${v.toLocaleString()} ft²` : '—' },
+        { label: t('property.furnishing', 'Furnishing'), key: 'furnishing', format: v => v ? v.replace('-', ' ') : '—' },
+        { label: t('property.floor', 'Floor'), key: 'floor', format: v => v ?? '—' },
+        { label: t('property.rating', 'Rating'), key: 'rating', format: v => v > 0 ? `⭐ ${v}/5` : t('property.notRated', 'Not rated') },
+        { label: t('common.status', 'Status'), key: 'displayStatus', format: v => v || '—' },
+        { label: t('property.verifiedBadge', 'Verified'), key: 'verifiedBadge', format: v => v ? '✅ Yes' : '❌ No' },
+    ];
 
     // Clean up temporary compare state on unmount
     useEffect(() => {
@@ -73,13 +74,13 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
                 <div className="text-7xl mb-6 grayscale opacity-40">⚖️</div>
-                <h2 className="text-3xl font-black text-foreground tracking-tight mb-2">Nothing to Compare</h2>
-                <p className="mb-8 text-muted-foreground/60 text-sm font-medium tracking-wide">Browse properties and click "Compare" to add them here.</p>
+                <h2 className="text-3xl font-black text-foreground tracking-tight mb-2">{t('property.noPropertiesToCompare', 'Nothing to Compare')}</h2>
+                <p className="mb-8 text-muted-foreground/60 text-sm font-medium tracking-wide">{t('property.addPropertyToCompare', 'Browse properties and click "Compare" to add them here.')}</p>
                 <button
                     onClick={() => navigate('/browse')}
                     className="px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-xl shadow-blue-600/20 hover:shadow-2xl hover:-translate-y-1 transition-all"
                 >
-                    Browse Properties
+                    {t('nav.browse', 'Browse Properties')}
                 </button>
             </div>
         );
@@ -101,8 +102,8 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
                             <Scale className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-foreground tracking-tight">Compare Properties</h1>
-                            <p className="text-sm font-black text-muted-foreground/40 uppercase tracking-[0.2em] mt-1">Side-by-side comparison of {selected.length} properties</p>
+                            <h1 className="text-3xl font-black text-foreground tracking-tight">{t('property.compareTitle', 'Compare Properties')}</h1>
+                            <p className="text-sm font-black text-muted-foreground/40 uppercase tracking-[0.2em] mt-1">{t('property.compareSubtitle', 'Side-by-side comparison of features and pricing')}</p>
                         </div>
                     </div>
                 </div>
@@ -112,7 +113,7 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-border">
-                                <th className="p-6 text-left w-48 bg-muted/30 text-muted-foreground text-[11px] font-black uppercase tracking-[0.2em]">Comparison Points</th>
+                                <th className="p-6 text-left w-48 bg-muted/30 text-muted-foreground text-[11px] font-black uppercase tracking-[0.2em]">{t('property.comparisonPoints', 'Comparison Points')}</th>
                                 {selected.map((prop) => (
                                     <th key={prop._id} className="p-6 min-w-[280px] bg-card">
                                         <div className="relative group">
@@ -137,7 +138,7 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {COMPARE_FEATURES.map((feat, idx) => {
+                            {compareFeatures.map((feat, idx) => {
                                 const bestVal = getBestValue(feat.key, selected);
                                 return (
                                     <tr
@@ -171,7 +172,7 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
 
                             {/* Amenities row */}
                             <tr className="bg-muted/20">
-                                <td className="p-6 font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground/40">Included Amenities</td>
+                                <td className="p-6 font-black text-[10px] uppercase tracking-[0.15em] text-muted-foreground/40">{t('property.amenities', 'Included Amenities')}</td>
                                 {selected.map(prop => (
                                     <td key={prop._id} className="p-6">
                                         <div className="flex flex-wrap gap-2 justify-center">
@@ -197,7 +198,7 @@ const ComparePropertiesPage = ({ compareList = [], onRemove }) => {
                                             onClick={() => navigate(`/properties/${prop._id}`)}
                                             className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95"
                                         >
-                                            View & Book Property
+                                            {t('property.viewAndBook', 'View & Book Property')}
                                         </button>
                                     </td>
                                 ))}

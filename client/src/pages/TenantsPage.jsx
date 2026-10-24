@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { tenantService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Plus, Search, Edit2, Trash2, Eye, X, User, Mail, Phone,
   MapPin, Briefcase, IndianRupee, Shield, ChevronDown, AlertTriangle,
@@ -21,6 +22,7 @@ const EMPTY_FORM = {
 };
 
 function TenantModal({ tenant, onClose, onSave }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(tenant ? {
     ...tenant,
     monthlyIncome: tenant.monthlyIncome || '',
@@ -63,7 +65,7 @@ function TenantModal({ tenant, onClose, onSave }) {
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl transition-colors"
       >
         <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm z-10 transition-colors">
-          <h2 className="text-lg font-black text-foreground">{tenant ? 'Edit Tenant' : 'Add New Tenant'}</h2>
+          <h2 className="text-lg font-black text-foreground">{tenant ? t('tenants.editTenant', 'Edit Tenant') : t('tenants.addNewTenant', 'Add New Tenant')}</h2>
           <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
             <X className="w-4 h-4" />
           </button>
@@ -71,29 +73,29 @@ function TenantModal({ tenant, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="First Name" required value={form.firstName} onChange={v => set('firstName', v)} />
-            <Field label="Last Name" required value={form.lastName} onChange={v => set('lastName', v)} />
+            <Field label={t('tenants.firstName', 'First Name')} required value={form.firstName} onChange={v => set('firstName', v)} />
+            <Field label={t('tenants.lastName', 'Last Name')} required value={form.lastName} onChange={v => set('lastName', v)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Email" type="email" required value={form.email} onChange={v => set('email', v)} />
-            <Field label="Phone" required value={form.phone} onChange={v => set('phone', v)} />
+            <Field label={t('tenants.email', 'Email')} type="email" required value={form.email} onChange={v => set('email', v)} />
+            <Field label={t('tenants.phone', 'Phone')} required value={form.phone} onChange={v => set('phone', v)} />
           </div>
-          <Field label="Address" required value={form.address} onChange={v => set('address', v)} />
+          <Field label={t('tenants.address', 'Address')} required value={form.address} onChange={v => set('address', v)} />
           <div className="grid grid-cols-2 gap-4">
-            <Field label="ID Number" value={form.idNumber} onChange={v => set('idNumber', v)} />
-            <SelectField label="Employment" value={form.occupationStatus} onChange={v => set('occupationStatus', v)}
+            <Field label={t('tenants.idNumber', 'ID Number')} value={form.idNumber} onChange={v => set('idNumber', v)} />
+            <SelectField label={t('tenants.employment', 'Employment')} value={form.occupationStatus} onChange={v => set('occupationStatus', v)}
               options={['employed', 'self-employed', 'student', 'retired', 'other']} />
           </div>
-          <Field label="Monthly Income (₹)" type="number" value={form.monthlyIncome} onChange={v => set('monthlyIncome', v)} />
+          <Field label={t('tenants.monthlyIncome', 'Monthly Income (₹)')} type="number" value={form.monthlyIncome} onChange={v => set('monthlyIncome', v)} />
           <div className="border-t border-border pt-4">
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/40 mb-3">Emergency Contact</p>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/40 mb-3">{t('tenants.emergencyContact', 'Emergency Contact')}</p>
             <div className="grid grid-cols-3 gap-3">
-              <Field label="Name" value={form.emergencyContact.name} onChange={v => setEC('name', v)} />
+              <Field label={t('tenants.contactName', 'Name')} value={form.emergencyContact.name} onChange={v => setEC('name', v)} />
               <Field label="Phone" value={form.emergencyContact.phone} onChange={v => setEC('phone', v)} />
-              <Field label="Relationship" value={form.emergencyContact.relationship} onChange={v => setEC('relationship', v)} />
+              <Field label={t('tenants.relationship', 'Relationship')} value={form.emergencyContact.relationship} onChange={v => setEC('relationship', v)} />
             </div>
           </div>
-          <TextAreaField label="Notes" value={form.notes} onChange={v => set('notes', v)} />
+          <TextAreaField label={t('tenants.notes', 'Notes')} value={form.notes} onChange={v => set('notes', v)} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold">
@@ -101,7 +103,7 @@ function TenantModal({ tenant, onClose, onSave }) {
             </button>
             <button type="submit" disabled={loading}
               className="flex-1 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50">
-              {loading ? 'Saving...' : (tenant ? 'Save Changes' : 'Add Tenant')}
+              {loading ? t('tenants.saving', 'Saving...') : (tenant ? t('users.saveChanges', 'Save Changes') : t('tenants.addTenant', 'Add Tenant'))}
             </button>
           </div>
         </form>
@@ -212,6 +214,7 @@ function InfoItem({ icon: Icon, label, value }) {
 }
 
 export default function TenantsPage() {
+  const { t } = useLanguage();
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -265,13 +268,13 @@ export default function TenantsPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">Directory</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">{t('tenants.directory', 'Tenants Directory')}</p>
           </div>
-          <h1 className="text-3xl font-black text-foreground">Tenants <span className="text-muted-foreground/20 font-bold text-lg">({total})</span></h1>
+          <h1 className="text-3xl font-black text-foreground">{t('tenants.title', 'Tenants')} <span className="text-muted-foreground/20 font-bold text-lg">({total})</span></h1>
         </div>
         <button onClick={() => setModal('add')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg shadow-blue-500/20">
-          <Plus className="w-4 h-4" /> Add Tenant
+          <Plus className="w-4 h-4" /> {t('tenants.addTenant', 'Add Tenant')}
         </button>
       </motion.div>
 
@@ -280,15 +283,15 @@ export default function TenantsPage() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name or email..."
+            placeholder={t('tenants.searchPlaceholder', 'Search by name, email, phone...')}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm placeholder-muted-foreground/30 focus:outline-none focus:border-primary/40 transition-all" />
         </div>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none appearance-none">
-          <option value="" className="bg-card">All Statuses</option>
-          <option value="active" className="bg-card">Active</option>
-          <option value="inactive" className="bg-card">Inactive</option>
-          <option value="banned" className="bg-card">Banned</option>
+          <option value="" className="bg-card">{t('properties.allStatuses', 'All Statuses')}</option>
+          <option value="active" className="bg-card">{t('common.active', 'Active')}</option>
+          <option value="inactive" className="bg-card">{t('tenants.inactiveTenants', 'Inactive')}</option>
+          <option value="banned" className="bg-card">{t('tenants.bannedTenants', 'Banned')}</option>
         </select>
       </div>
 
@@ -298,7 +301,7 @@ export default function TenantsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {['Tenant', 'Contact', 'Employment', 'Status', 'Actions'].map(h => (
+                {[t('leases.tenant', 'Tenant'), t('users.contact', 'Contact'), t('tenants.employment', 'Employment'), t('leases.status', 'Status'), t('leases.actions', 'Actions')].map(h => (
                   <th key={h} className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{h}</th>
                 ))}
               </tr>
@@ -307,7 +310,7 @@ export default function TenantsPage() {
               {loading ? (
                 <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">Loading...</td></tr>
               ) : tenants.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">No tenants found</td></tr>
+                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">{t('tenants.noTenantsFound', 'No tenants found')}</td></tr>
               ) : tenants.map((t, i) => {
                 const sc = STATUS_CONFIG[t.status] || STATUS_CONFIG.active;
                 const StatusIcon = sc.icon;

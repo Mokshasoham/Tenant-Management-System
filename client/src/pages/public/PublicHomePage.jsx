@@ -14,11 +14,13 @@ import { propertyService } from '../../services/api';
 import useAuthStore from '../../context/authStore';
 import { GridCard, SkeletonCard } from '../../components/property/TenantBrowseProperties';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 const HERO_BG_IMAGE = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop";
 
 export default function PublicHomePage() {
+    const { t, formatCurrency } = useLanguage();
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
 
@@ -124,19 +126,17 @@ export default function PublicHomePage() {
                         >
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-slate-200 dark:border-white/15 text-emerald-700 dark:text-emerald-300 text-xs font-black uppercase tracking-wider shadow-lg">
                                 <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                                <span>Next-Generation Rental Management</span>
+                                <span>{t('publicHome.nextGenRental', 'Next-Generation Rental Management')}</span>
                             </div>
 
                             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-slate-900 dark:text-white drop-shadow-sm font-sans">
-                                SMARTER <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400">
-                                    RENTING
-                                </span> <br />
-                                STARTS HERE.
+                                    {t('publicHome.smarterRentingStarts', 'SMARTER RENTING STARTS HERE.')}
+                                </span>
                             </h1>
 
                             <p className="text-base sm:text-lg text-slate-700 dark:text-slate-300 font-medium max-w-xl leading-relaxed">
-                                Discover verified properties, sign digital leases, pay rent in ₹ (INR), and resolve maintenance — all from one intelligent platform.
+                                {t('publicHome.heroDescription', 'Discover verified properties, sign digital leases, pay rent in ₹ (INR), and resolve maintenance — all from one intelligent platform.')}
                             </p>
 
                             <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -144,35 +144,35 @@ export default function PublicHomePage() {
                                     onClick={() => navigate('/public/properties')}
                                     className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                                 >
-                                    <span>EXPLORE PROPERTIES</span>
+                                    <span>{t('publicHome.exploreProperties', 'EXPLORE PROPERTIES')}</span>
                                     <ArrowRight className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => navigate('/register')}
                                     className="px-7 py-4 rounded-2xl bg-white/80 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 border border-slate-300 dark:border-white/20 text-slate-900 dark:text-white font-black text-xs sm:text-sm uppercase tracking-wider backdrop-blur-xl transition-all shadow-md cursor-pointer"
                                 >
-                                    GET STARTED
+                                    {t('publicHome.getStarted', 'GET STARTED')}
                                 </button>
                                 <button
                                     onClick={() => navigate('/login')}
                                     className="px-5 py-4 rounded-2xl text-slate-700 dark:text-white/80 hover:text-slate-900 dark:hover:text-white font-black text-xs uppercase tracking-wider transition-colors cursor-pointer"
                                 >
-                                    SIGN IN
+                                    {t('publicHome.signIn', 'SIGN IN')}
                                 </button>
                             </div>
 
                             <div className="flex items-center gap-6 pt-4 text-xs font-bold text-slate-600 dark:text-slate-400">
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                    <span>Verified Properties</span>
+                                    <span>{t('publicHome.verifiedProperties', 'Verified Properties')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-teal-500" />
-                                    <span>Digital Lease Management</span>
+                                    <span>{t('publicHome.digitalLeaseManagement', 'Digital Lease Management')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-cyan-500" />
-                                    <span>Secure Rent Payments</span>
+                                    <span>{t('publicHome.secureRentPayments', 'Secure Rent Payments')}</span>
                                 </div>
                             </div>
                         </motion.div>
@@ -188,7 +188,7 @@ export default function PublicHomePage() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Active Lease</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('publicHome.activeLease', 'Active Lease')}</span>
                                     </div>
                                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                         ✓ ACTIVE
@@ -205,8 +205,8 @@ export default function PublicHomePage() {
 
                             <div className="p-5 rounded-[2rem] bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border border-slate-200/60 dark:border-white/10 shadow-xl space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Next Rent Payment</span>
-                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">✓ AUTO-PAY ACTIVE</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('publicHome.nextRentPayment', 'Next Rent Payment')}</span>
+                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{t('publicHome.autoPayActive', '✓ AUTO-PAY ACTIVE')}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -223,8 +223,8 @@ export default function PublicHomePage() {
                                 <div className="flex items-center gap-2.5">
                                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
                                     <div>
-                                        <p className="font-black text-slate-900 dark:text-white">Verified Listing</p>
-                                        <p className="text-[10px] text-slate-500">100% Inspected & Authenticated</p>
+                                        <p className="font-black text-slate-900 dark:text-white">{t('publicHome.verifiedListing', 'Verified Listing')}</p>
+                                        <p className="text-[10px] text-slate-500">{t('publicHome.inspectedAuthenticated', '100% Inspected & Authenticated')}</p>
                                     </div>
                                 </div>
                                 <span className="text-emerald-500 text-[10px] font-black">✓ Verified</span>
@@ -248,7 +248,7 @@ export default function PublicHomePage() {
                                 <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 <input
                                     type="text"
-                                    placeholder="City, locality, or landmark"
+                                    placeholder={t('publicHome.searchLocationPlaceholder', 'City, locality, or landmark')}
                                     value={searchLocation}
                                     onChange={(e) => setSearchLocation(e.target.value)}
                                     className="bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 w-full"
@@ -264,12 +264,12 @@ export default function PublicHomePage() {
                                 onChange={(e) => setSearchType(e.target.value)}
                                 className="bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white w-full cursor-pointer"
                             >
-                                <option value="" className="dark:bg-slate-900">All Types</option>
-                                <option value="apartment" className="dark:bg-slate-900">Apartment</option>
-                                <option value="house" className="dark:bg-slate-900">Independent House</option>
-                                <option value="villa" className="dark:bg-slate-900">Luxury Villa</option>
-                                <option value="studio" className="dark:bg-slate-900">Studio</option>
-                                <option value="commercial" className="dark:bg-slate-900">Commercial</option>
+                                <option value="" className="dark:bg-slate-900">{t('publicHome.allTypes', 'All Types')}</option>
+                                <option value="apartment" className="dark:bg-slate-900">{t('properties.apartment', 'Apartment')}</option>
+                                <option value="house" className="dark:bg-slate-900">{t('properties.house', 'Independent House')}</option>
+                                <option value="villa" className="dark:bg-slate-900">{t('properties.house', 'Luxury Villa')}</option>
+                                <option value="studio" className="dark:bg-slate-900">{t('properties.apartment', 'Studio')}</option>
+                                <option value="commercial" className="dark:bg-slate-900">{t('properties.commercial', 'Commercial')}</option>
                             </select>
                         </div>
 
@@ -281,7 +281,7 @@ export default function PublicHomePage() {
                                 onChange={(e) => setSearchBedrooms(e.target.value)}
                                 className="bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white w-full cursor-pointer"
                             >
-                                <option value="" className="dark:bg-slate-900">Any BHK</option>
+                                <option value="" className="dark:bg-slate-900">{t('publicHome.allBedrooms', 'Any BHK')}</option>
                                 <option value="1" className="dark:bg-slate-900">1 BHK</option>
                                 <option value="2" className="dark:bg-slate-900">2 BHK</option>
                                 <option value="3" className="dark:bg-slate-900">3 BHK</option>
@@ -297,7 +297,7 @@ export default function PublicHomePage() {
                                 onChange={(e) => setSearchBudget(e.target.value)}
                                 className="bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white w-full cursor-pointer"
                             >
-                                <option value="" className="dark:bg-slate-900">Any Budget</option>
+                                <option value="" className="dark:bg-slate-900">{t('publicHome.anyBudget', 'Any Budget')}</option>
                                 <option value="under-15k" className="dark:bg-slate-900">Under ₹15,000</option>
                                 <option value="15k-30k" className="dark:bg-slate-900">₹15,000 - ₹30,000</option>
                                 <option value="30k-plus" className="dark:bg-slate-900">₹30,000+</option>
@@ -310,7 +310,7 @@ export default function PublicHomePage() {
                             className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <Search className="w-4 h-4" />
-                            <span>Find Properties</span>
+                            <span>{t('publicHome.searchButton', 'Find Properties')}</span>
                         </button>
                     </form>
                 </section>
@@ -321,10 +321,10 @@ export default function PublicHomePage() {
                 <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-left">
                     <div className="space-y-4 max-w-2xl mb-16">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-widest">
-                            <Sparkles className="w-3.5 h-3.5" /> Why Choose TMS
+                            <Sparkles className="w-3.5 h-3.5" /> {t('publicHome.whyChooseTMS', 'Why Choose TMS')}
                         </div>
                         <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-                            The complete rental ecosystem, built for modern living.
+                            {t('publicHome.whyChooseSubtitle', 'The complete rental ecosystem, built for modern living.')}
                         </h2>
                         <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-medium">
                             Say goodbye to messy paperwork, hidden brokerage fees, and delayed maintenance. TMS unites every phase of the tenancy lifecycle under one transparent system.
@@ -389,16 +389,16 @@ export default function PublicHomePage() {
                 <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-left border-t border-slate-200 dark:border-white/10">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                         <div className="space-y-2 max-w-xl">
-                            <span className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Featured Listings</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('publicHome.featuredProperties', 'Featured Listings')}</span>
                             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                                Handpicked verified homes ready for move-in.
+                                {t('publicHome.featuredSubtitle', 'Handpicked verified homes ready for move-in.')}
                             </h2>
                         </div>
                         <Link
                             to="/public/properties"
                             className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors cursor-pointer"
                         >
-                            <span>View All Properties</span>
+                            <span>{t('publicHome.exploreProperties', 'View All Properties')}</span>
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                     </div>

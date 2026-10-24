@@ -5,13 +5,7 @@ import {
     ChevronRight, Sparkles, Layers 
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-}
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function UpcomingImportantCard({
     activeLeases = [],
@@ -22,6 +16,8 @@ export default function UpcomingImportantCard({
     navigate,
     loading = false
 }) {
+    const { t, formatDate } = useLanguage();
+
     // 1. Lease Expiry / Renewal Item
     let leaseExpiryItem = null;
     if (activeLeases && activeLeases.length > 0) {
@@ -34,24 +30,26 @@ export default function UpcomingImportantCard({
 
             if (daysLeft >= 0) {
                 let badgeStyle = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-                let badgeLabel = 'Active';
+                let badgeLabel = t('common.active', 'Active');
 
                 if (daysLeft <= 14) {
                     badgeStyle = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
-                    badgeLabel = 'Urgent';
+                    badgeLabel = t('dashboard.urgent', 'Urgent');
                 } else if (daysLeft <= 30) {
                     badgeStyle = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-                    badgeLabel = 'Expiring Soon';
+                    badgeLabel = t('dashboard.expiringSoon', 'Expiring Soon');
                 } else if (daysLeft <= 60) {
                     badgeStyle = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-                    badgeLabel = 'Renewal Soon';
+                    badgeLabel = t('dashboard.renewalSoon', 'Renewal Soon');
                 }
+
+                const dayText = daysLeft === 1 ? t('dashboard.dayLeftText', 'day left') : t('dashboard.daysLeftText', 'days left');
 
                 leaseExpiryItem = {
                     id: 'lease-expiry',
-                    title: 'Lease Expiry',
-                    subtitle: `Expires ${formatDate(primaryLease.endDate)} (${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left)`,
-                    extra: primaryLease.property?.name || primaryLease.propertyName || 'Active Lease',
+                    title: t('dashboard.leaseExpiry', 'Lease Expiry'),
+                    subtitle: `${t('dashboard.expires', 'Expires')} ${formatDate(primaryLease.endDate)} (${daysLeft} ${dayText})`,
+                    extra: primaryLease.property?.name || primaryLease.propertyName || t('dashboard.activeLease', 'Active Lease'),
                     badge: { label: badgeLabel, style: badgeStyle },
                     icon: FileText,
                     iconBg: 'bg-indigo-500/10 text-indigo-400',
@@ -71,10 +69,10 @@ export default function UpcomingImportantCard({
         const amt = overdueBill.totalDue ?? overdueBill.amount ?? 0;
         rentPaymentItem = {
             id: 'rent-overdue',
-            title: 'Rent Overdue',
-            subtitle: `Due ${formatDate(overdueBill.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
-            extra: overdueBill.property?.name || overdueBill.propertyName || nextScheduled?.propertyName || 'Rental Payment',
-            badge: { label: 'Overdue', style: 'bg-rose-500/10 text-rose-500 border-rose-500/20' },
+            title: t('dashboard.rentOverdue', 'Rent Overdue'),
+            subtitle: `${t('dashboard.due', 'Due')} ${formatDate(overdueBill.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
+            extra: overdueBill.property?.name || overdueBill.propertyName || nextScheduled?.propertyName || t('dashboard.rent', 'Rental Payment'),
+            badge: { label: t('dashboard.overdue', 'Overdue'), style: 'bg-rose-500/10 text-rose-500 border-rose-500/20' },
             icon: AlertTriangle,
             iconBg: 'bg-rose-500/10 text-rose-500',
             onClick: () => navigate && navigate('/pay-now')
@@ -83,10 +81,10 @@ export default function UpcomingImportantCard({
         const amt = pendingBill.totalDue ?? pendingBill.amount ?? 0;
         rentPaymentItem = {
             id: 'rent-pending',
-            title: 'Rent Payment Due',
-            subtitle: `Due ${formatDate(pendingBill.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
-            extra: pendingBill.property?.name || pendingBill.propertyName || nextScheduled?.propertyName || 'Rental Payment',
-            badge: { label: 'Due Soon', style: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+            title: t('dashboard.rentPaymentDue', 'Rent Payment Due'),
+            subtitle: `${t('dashboard.due', 'Due')} ${formatDate(pendingBill.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
+            extra: pendingBill.property?.name || pendingBill.propertyName || nextScheduled?.propertyName || t('dashboard.rent', 'Rental Payment'),
+            badge: { label: t('dashboard.dueSoon', 'Due Soon'), style: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
             icon: CreditCard,
             iconBg: 'bg-amber-500/10 text-amber-500',
             onClick: () => navigate && navigate('/pay-now')
@@ -94,21 +92,21 @@ export default function UpcomingImportantCard({
     } else if (nextScheduled && nextScheduled.dueDate) {
         const amt = nextScheduled.totalDue ?? nextScheduled.amount ?? 0;
         let badgeStyle = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-        let badgeLabel = 'Scheduled';
+        let badgeLabel = t('dashboard.scheduled', 'Scheduled');
 
         if (nextScheduled.isOverdue) {
             badgeStyle = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
-            badgeLabel = 'Overdue';
+            badgeLabel = t('dashboard.overdue', 'Overdue');
         } else if (nextScheduled.isDueToday) {
             badgeStyle = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-            badgeLabel = 'Due Today';
+            badgeLabel = t('dashboard.dueTodayUpper', 'Due Today');
         }
 
         rentPaymentItem = {
             id: 'rent-scheduled',
-            title: 'Next Rent Payment',
-            subtitle: `Due ${formatDate(nextScheduled.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
-            extra: nextScheduled.propertyName || 'Rental Payment',
+            title: t('dashboard.nextRentPayment', 'Next Rent Payment'),
+            subtitle: `${t('dashboard.due', 'Due')} ${formatDate(nextScheduled.dueDate)} • ₹${Number(amt).toLocaleString('en-IN')}`,
+            extra: nextScheduled.propertyName || t('dashboard.rent', 'Rental Payment'),
             badge: { label: badgeLabel, style: badgeStyle },
             icon: CreditCard,
             iconBg: 'bg-emerald-500/10 text-emerald-500',
@@ -122,22 +120,23 @@ export default function UpcomingImportantCard({
         if (feedbackEligibility.status === 'DUE') {
             feedbackItem = {
                 id: 'feedback-due',
-                title: `Feedback Due (Period #${feedbackEligibility.periodIndex || 1})`,
-                subtitle: `Review your stay at ${feedbackEligibility.propertyName || 'your rental'}`,
+                title: `${t('dashboard.feedbackDue', 'Feedback Due')} (Period #${feedbackEligibility.periodIndex || 1})`,
+                subtitle: `${t('dashboard.reviewStayAt', 'Review your stay at')} ${feedbackEligibility.propertyName || 'your rental'}`,
                 extra: feedbackEligibility.periodEnd ? `Deadline: ${formatDate(feedbackEligibility.periodEnd)}` : '',
-                badge: { label: 'Action Required', style: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+                badge: { label: t('dashboard.actionRequired', 'Action Required'), style: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
                 icon: Star,
                 iconBg: 'bg-amber-500/10 text-amber-500',
                 onClick: () => navigate && navigate('/my-lease?openFeedback=true')
             };
         } else if (feedbackEligibility.status === 'UPCOMING') {
             const days = feedbackEligibility.daysUntilAvailable;
+            const dayText = days === 1 ? t('dashboard.dayLeftText', 'day') : t('dashboard.daysLeftText', 'days');
             feedbackItem = {
                 id: 'feedback-upcoming',
-                title: 'Upcoming Feedback',
-                subtitle: days ? `Opens in ${days} ${days === 1 ? 'day' : 'days'} (${formatDate(feedbackEligibility.nextFeedbackAt)})` : `Opens ${formatDate(feedbackEligibility.nextFeedbackAt)}`,
+                title: t('dashboard.upcomingFeedback', 'Upcoming Feedback'),
+                subtitle: days ? `${t('dashboard.opensInDays', 'Opens in {{count}} {{dayText}}', { count: days, dayText })} (${formatDate(feedbackEligibility.nextFeedbackAt)})` : `${t('dashboard.opensInDays', 'Opens')} ${formatDate(feedbackEligibility.nextFeedbackAt)}`,
                 extra: feedbackEligibility.propertyName || '',
-                badge: { label: 'Upcoming', style: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
+                badge: { label: t('dashboard.upcoming', 'Upcoming'), style: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
                 icon: Star,
                 iconBg: 'bg-indigo-500/10 text-indigo-400',
                 onClick: () => navigate && navigate('/my-lease')
@@ -145,10 +144,10 @@ export default function UpcomingImportantCard({
         } else if (feedbackEligibility.status === 'SUBMITTED' && feedbackEligibility.nextFeedbackAt) {
             feedbackItem = {
                 id: 'feedback-next',
-                title: 'Next Feedback Review',
-                subtitle: `Opens ${formatDate(feedbackEligibility.nextFeedbackAt)}`,
+                title: t('dashboard.nextFeedbackReview', 'Next Feedback Review'),
+                subtitle: `${t('dashboard.opensInDays', 'Opens')} ${formatDate(feedbackEligibility.nextFeedbackAt)}`,
                 extra: feedbackEligibility.propertyName || '',
-                badge: { label: 'Scheduled', style: 'bg-muted text-muted-foreground border-border' },
+                badge: { label: t('dashboard.scheduled', 'Scheduled'), style: 'bg-muted text-muted-foreground border-border' },
                 icon: Star,
                 iconBg: 'bg-muted text-muted-foreground',
                 onClick: () => navigate && navigate('/my-lease')
@@ -167,11 +166,11 @@ export default function UpcomingImportantCard({
         const isUrgent = latest.priority === 'emergency' || latest.priority === 'high';
         maintenanceItem = {
             id: 'maintenance-active',
-            title: `${activeRequests.length} Active Maintenance Request${activeRequests.length > 1 ? 's' : ''}`,
+            title: t('dashboard.activeMaintenanceRequestsCount', '{{count}} Active Maintenance Request(s)', { count: activeRequests.length }),
             subtitle: `Latest: "${latest.title || latest.issue || 'Request #' + (latest.ticketId || latest._id?.slice(-5) || '')}"`,
             extra: latest.category ? `Category: ${latest.category}` : (latest.property?.name || ''),
             badge: {
-                label: isUrgent ? 'High Priority' : (latest.status ? latest.status.replace(/_/g, ' ') : 'Active'),
+                label: isUrgent ? t('dashboard.highPriority', 'High Priority') : (latest.status ? latest.status.replace(/_/g, ' ') : t('common.active', 'Active')),
                 style: isUrgent ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20 capitalize'
             },
             icon: Wrench,
@@ -196,8 +195,8 @@ export default function UpcomingImportantCard({
                         <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                        <h2 className="text-xs font-black text-foreground tracking-tight">Upcoming & Important</h2>
-                        <p className="text-[9px] text-muted-foreground/70 leading-none mt-0.5">Action items & reminders</p>
+                        <h2 className="text-xs font-black text-foreground tracking-tight">{t('dashboard.upcomingImportant', 'Upcoming & Important')}</h2>
+                        <p className="text-[9px] text-muted-foreground/70 leading-none mt-0.5">{t('dashboard.actionItemsReminders', 'Action items & reminders')}</p>
                     </div>
                 </div>
                 {items.length > 0 && (
@@ -217,9 +216,9 @@ export default function UpcomingImportantCard({
                     <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2 shadow-sm">
                         <CheckCircle2 className="w-5 h-5" />
                     </div>
-                    <p className="text-xs font-bold text-foreground">You're all caught up</p>
+                    <p className="text-xs font-bold text-foreground">{t('dashboard.allCaughtUpTitle', "You're all caught up")}</p>
                     <p className="text-[10px] text-muted-foreground/70 mt-0.5 max-w-[200px]">
-                        No urgent tasks or pending deadlines right now.
+                        {t('dashboard.allCaughtUpDesc', 'No urgent tasks or pending deadlines right now.')}
                     </p>
                 </div>
             ) : (

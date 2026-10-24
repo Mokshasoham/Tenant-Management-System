@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { paymentService, leaseService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import AutoPayCard from '../components/dashboard/AutoPayCard';
 import {
   CreditCard, TrendingUp, IndianRupee, Clock, CheckCircle2, AlertCircle,
@@ -22,6 +23,7 @@ const STATUS_CONFIG = {
 // TENANT PAY MODAL
 // =====================
 function PayModal({ payment, onSuccess, onClose, theme }) {
+  const { t, formatCurrency, formatDate } = useLanguage();
   const [step, setStep] = useState(1); // 1=details, 2=card, 3=success
   const [loading, setLoading] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -80,16 +82,16 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
             >
               <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
             </motion.div>
-            <h3 className="text-2xl font-black text-foreground">Payment Successful! 🎉</h3>
-            <p className="text-muted-foreground">Your rent payment of <span className="text-emerald-600 dark:text-emerald-400 font-black">₹{payment.amount?.toLocaleString('en-IN')}</span> has been processed.</p>
+            <h3 className="text-2xl font-black text-foreground">{t('payments.paymentSuccessful', 'Payment Successful! 🎉')}</h3>
+            <p className="text-muted-foreground">{t('payments.paymentProcessedDesc', 'Your rent payment of ₹{{amount}} has been processed.', { amount: payment.amount?.toLocaleString('en-IN') })}</p>
           </motion.div>
         ) : (
           <>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
               <div>
-                <h3 className="font-black text-foreground">Pay Rent</h3>
-                <p className="text-xs text-muted-foreground/60 mt-0.5">Secure payment processing</p>
+                <h3 className="font-black text-foreground">{t('payments.payModalTitle', 'Pay Rent')}</h3>
+                <p className="text-xs text-muted-foreground/60 mt-0.5">{t('payments.payModalSubtitle', 'Secure payment processing')}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-xl text-muted-foreground/40 hover:text-foreground hover:bg-muted">
                 <X className="w-4 h-4" />
@@ -101,7 +103,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                   {/* Amount Card */}
                   <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
-                    <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Amount Due</p>
+                    <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">{t('payments.amountDue', 'Amount Due')}</p>
                     <p className="text-4xl font-black text-foreground">₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</p>
                     <div className="flex gap-3 mt-3 text-xs text-muted-foreground/60">
                       <span>Property: {payment.property?.name || 'N/A'}</span>
@@ -125,7 +127,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                     onClick={() => setStep(2)}
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20"
                   >
-                    Continue with Card →
+                    {t('payments.continueWithCard', 'Continue with Card →')}
                   </button>
                 </motion.div>
               )}
@@ -145,7 +147,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Card Number</label>
+                      <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">{t('payments.cardNumber', 'Card Number')}</label>
                       <input
                         type="text"
                         maxLength={19}
@@ -157,7 +159,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">Expiry</label>
+                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">{t('payments.expiry', 'Expiry')}</label>
                         <input
                           type="text"
                           maxLength={5}
@@ -168,7 +170,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">CVV</label>
+                        <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-wider">{t('payments.cvv', 'CVV')}</label>
                         <input
                           type="password"
                           maxLength={4}
@@ -191,7 +193,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                       className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
                     >
                       {loading ? (
-                        <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
+                        <><RefreshCw className="w-4 h-4 animate-spin" /> {t('payments.processing', 'Processing...')}</>
                       ) : (
                         <><Check className="w-4 h-4" /> Pay ₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</>
                       )}
@@ -211,6 +213,7 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
 // MAIN PAYMENTS PAGE
 // =====================
 export default function PaymentsPage() {
+  const { t, formatCurrency, formatDate } = useLanguage();
   const user = useAuthStore((state) => state.user);
   
   const [payments, setPayments] = useState([]);
@@ -376,11 +379,11 @@ export default function PaymentsPage() {
           <div className="flex items-center gap-2 mb-1">
             <div className={cn('w-1.5 h-6 rounded-full bg-gradient-to-b', roleTheme.from, roleTheme.to)} />
             <p className={cn('text-[10px] font-black uppercase tracking-[0.25em]', roleTheme.text)}>
-              {isTenant ? 'My Payments' : 'Payment Management'}
+              {isTenant ? t('payments.myPayments', 'My Payments') : t('payments.paymentManagement', 'Payment Management')}
             </p>
           </div>
           <h1 className="text-3xl font-black text-foreground tracking-tight">
-            {isTenant ? 'Rent & Payments 💳' : 'Revenue Center 💰'}
+            {isTenant ? t('payments.rentAndPayments', 'Rent & Payments 💳') : t('payments.revenueCenter', 'Revenue Center 💰')}
           </h1>
         </div>
         {isTenant && pendingPayments.length > 0 && (
@@ -390,7 +393,7 @@ export default function PaymentsPage() {
             onClick={() => setSelectedPayment(pendingPayments[0])}
             className={cn('flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg bg-gradient-to-r', roleTheme.from, roleTheme.to)}
           >
-            <Wallet className="w-4 h-4" /> Pay Now
+            <Wallet className="w-4 h-4" /> {t('payments.payNow', 'Pay Now')}
           </motion.button>
         )}
       </motion.div>
@@ -407,10 +410,10 @@ export default function PaymentsPage() {
       {isManagerOrAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total Collected', value: `₹${(computedStats.totalCollected || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'from-emerald-600 to-teal-600' },
-            { label: 'Paid', value: computedStats.paidPayments || 0, icon: CheckCircle2, color: 'from-blue-600 to-cyan-600' },
-            { label: 'Pending', value: computedStats.pendingPayments || 0, icon: Clock, color: 'from-amber-600 to-orange-600' },
-            { label: 'Overdue', value: computedStats.overduePayments || 0, icon: AlertCircle, color: 'from-red-600 to-rose-600' },
+            { label: t('payments.totalCollected', 'Total Collected'), value: `₹${(computedStats.totalCollected || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'from-emerald-600 to-teal-600' },
+            { label: t('payments.paid', 'Paid'), value: computedStats.paidPayments || 0, icon: CheckCircle2, color: 'from-blue-600 to-cyan-600' },
+            { label: t('payments.pending', 'Pending'), value: computedStats.pendingPayments || 0, icon: Clock, color: 'from-amber-600 to-orange-600' },
+            { label: t('payments.overdue', 'Overdue'), value: computedStats.overduePayments || 0, icon: AlertCircle, color: 'from-red-600 to-rose-600' },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
@@ -463,7 +466,7 @@ export default function PaymentsPage() {
           <Search className="w-4 h-4 text-muted-foreground/30" />
           <input
             type="text"
-            placeholder={isTenant ? 'Search payments...' : 'Search tenant or property...'}
+            placeholder={t('payments.searchPlaceholder', 'Search by tenant or property...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="bg-transparent border-none outline-none text-sm text-foreground placeholder-muted-foreground/25 flex-1"
@@ -481,7 +484,7 @@ export default function PaymentsPage() {
                   : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted'
               )}
             >
-              {status === 'all' ? 'All' : STATUS_CONFIG[status]?.label}
+              {status === 'all' ? t('common.all', 'All') : t('common.' + status, STATUS_CONFIG[status]?.label)}
             </button>
           ))}
         </div>
@@ -507,17 +510,17 @@ export default function PaymentsPage() {
         ) : filteredPayments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Receipt className="w-12 h-12 text-muted-foreground/10" />
-            <p className="text-muted-foreground/40 font-bold">No payments found</p>
+            <p className="text-muted-foreground/40 font-bold">{t('payments.noPaymentsFound', 'No payments found')}</p>
           </div>
         ) : (
           <div>
             {/* Table Header */}
             <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-border bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
-              <div className="col-span-3">{isTenant ? 'Property' : 'Tenant'}</div>
-              <div className="col-span-3 hidden md:block">Property</div>
-              <div className="col-span-2">Amount</div>
-              <div className="col-span-2 hidden md:block">Due Date</div>
-              <div className="col-span-2">Status</div>
+              <div className="col-span-3">{isTenant ? t('payments.tableProperty', 'Property') : t('payments.tableTenant', 'Tenant')}</div>
+              <div className="col-span-3 hidden md:block">{t('payments.tableProperty', 'Property')}</div>
+              <div className="col-span-2">{t('payments.tableAmount', 'Amount')}</div>
+              <div className="col-span-2 hidden md:block">{t('payments.tableDueDate', 'Due Date')}</div>
+              <div className="col-span-2">{t('payments.tableStatus', 'Status')}</div>
             </div>
 
             {/* Rows */}
@@ -572,7 +575,7 @@ export default function PaymentsPage() {
                     <div className="col-span-2 flex items-center gap-2">
                       <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black', statusStyle.bg, statusStyle.color)}>
                         <span className={cn('w-1.5 h-1.5 rounded-full', statusStyle.dot)} />
-                        {statusStyle.label}
+                        {t('common.' + payment.status, statusStyle.label)}
                       </span>
 
                       {/* Download invoice button for paid records */}

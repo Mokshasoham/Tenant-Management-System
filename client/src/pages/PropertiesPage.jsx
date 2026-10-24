@@ -12,6 +12,7 @@ import {
 import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import PropertyModal from '../components/PropertyModal';
 import PropertyTypeSelectorModal from '../components/property/PropertyTypeSelectorModal';
 import ManagerPropertyLimitModal from '../components/subscription/ManagerPropertyLimitModal';
@@ -47,6 +48,7 @@ const VIEW_PROPERTY_LETTERS = ['V', 'i', 'e', 'w', '\u00A0', 'P', 'r', 'o', 'p',
 
 // ── Property Card Component ──
 function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
+  const { t } = useLanguage();
   const color = TYPE_COLORS[p.type] || '#10b981';
   const displayStatus = getDisplayStatus(p);
 
@@ -269,7 +271,7 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold hover:bg-muted transition-colors text-left"
                 >
                   <Eye className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>View Details</span>
+                  <span>{t('dashboard.viewDetails', 'View Details')}</span>
                 </button>
                 <button
                   type="button"
@@ -281,7 +283,7 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold hover:bg-muted transition-colors text-left"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Edit Property</span>
+                  <span>{t('properties.editProperty', 'Edit Property')}</span>
                 </button>
                 <div className="h-px bg-border/60 my-1" />
                 <button
@@ -294,7 +296,7 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold hover:bg-rose-500/10 text-rose-500 transition-colors text-left"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Property</span>
+                  <span>{t('properties.deleteProperty', 'Delete Property')}</span>
                 </button>
               </motion.div>
             )}
@@ -322,16 +324,16 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
           <div className="flex items-center gap-2 pt-1 flex-wrap">
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-muted/60 border border-border/50 text-[11px] font-bold text-muted-foreground">
               <Bed className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{p.bedrooms || 0} Beds</span>
+              <span>{t('properties.beds', '{{count}} Beds', { count: p.bedrooms || 0 })}</span>
             </div>
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-muted/60 border border-border/50 text-[11px] font-bold text-muted-foreground">
               <Bath className="w-3.5 h-3.5 text-teal-500" />
-              <span>{p.bathrooms || 0} Baths</span>
+              <span>{t('properties.baths', '{{count}} Baths', { count: p.bathrooms || 0 })}</span>
             </div>
             {p.squareFeet ? (
               <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-muted/60 border border-border/50 text-[11px] font-bold text-muted-foreground">
                 <Square className="w-3.5 h-3.5 text-amber-500" />
-                <span>{p.squareFeet} sqft</span>
+                <span>{t('properties.sqft', '{{count}} sqft', { count: p.squareFeet })}</span>
               </div>
             ) : null}
           </div>
@@ -342,11 +344,11 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
           {/* Rent & Manager */}
           <div className="min-w-0 pr-1">
             <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest leading-none mb-0.5">
-              Monthly Rent
+              {t('properties.monthlyRent', 'Monthly Rent')}
             </p>
             <p className="text-xl font-black text-foreground tracking-tight truncate">
               ₹{(p.rentAmount || 0).toLocaleString('en-IN')}
-              <span className="text-[10px] font-bold text-muted-foreground/50 ml-0.5">/mo</span>
+              <span className="text-[10px] font-bold text-muted-foreground/50 ml-0.5">{t('properties.perMonth', '/mo')}</span>
             </p>
           </div>
 
@@ -555,17 +557,17 @@ export default function PropertiesPage() {
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500">
-                Property Portfolio
+                {t('properties.portfolio', 'Property Portfolio')}
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black">
-                {totalCount} Units
+                {t('properties.unitsCount', '{{count}} Units', { count: totalCount })}
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
-              Properties
+              {t('properties.title', 'Properties')}
             </h1>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Manage your real-estate portfolio, listings and tenant availability
+              {t('properties.subtitle', 'Manage your real-estate portfolio, listings and tenant availability')}
             </p>
           </div>
         </div>
@@ -576,7 +578,7 @@ export default function PropertiesPage() {
           className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm transition-all shadow-xl shadow-emerald-500/20 active:scale-95 cursor-pointer self-start sm:self-auto group"
         >
           <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-          <span>Add Property</span>
+          <span>{t('properties.addProperty', 'Add Property')}</span>
         </button>
       </motion.div>
 
@@ -584,17 +586,17 @@ export default function PropertiesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
-            label: 'Total Properties',
+            label: t('properties.totalProperties', 'Total Properties'),
             value: String(totalCount).padStart(2, '0'),
-            desc: 'Portfolio units',
+            desc: t('properties.portfolioUnits', 'Portfolio units'),
             icon: Building2,
             color: 'text-emerald-500',
             bg: 'bg-emerald-500/10 border-emerald-500/20',
           },
           {
-            label: 'Available Now',
+            label: t('properties.availableNow', 'Available Now'),
             value: String(availableCount).padStart(2, '0'),
-            desc: 'Ready for lease',
+            desc: t('properties.readyForLease', 'Ready for lease'),
             icon: CheckCircle2,
             color: 'text-teal-500',
             bg: 'bg-teal-500/10 border-teal-500/20',
@@ -694,10 +696,10 @@ export default function PropertiesPage() {
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
             }}
           >
-            <option value="" className="bg-card">All Types</option>
-            <option value="apartment" className="bg-card">Apartment</option>
+            <option value="" className="bg-card">{t('properties.allTypes', 'All Types')}</option>
+            <option value="apartment" className="bg-card">{t('properties.apartment', 'Apartment')}</option>
             <option value="house" className="bg-card">House</option>
-            <option value="commercial" className="bg-card">Commercial</option>
+            <option value="commercial" className="bg-card">{t('properties.commercial', 'Commercial')}</option>
             <option value="villa" className="bg-card">Villa</option>
             <option value="studio" className="bg-card">Studio</option>
             <option value="land" className="bg-card">Land</option>
@@ -716,10 +718,10 @@ export default function PropertiesPage() {
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
             }}
           >
-            <option value="" className="bg-card">All Statuses</option>
-            <option value="available" className="bg-card">Available</option>
-            <option value="occupied" className="bg-card">Occupied</option>
-            <option value="maintenance" className="bg-card">Maintenance</option>
+            <option value="" className="bg-card">{t('properties.allStatuses', 'All Statuses')}</option>
+            <option value="available" className="bg-card">{t('properties.statusAvailable', 'Available')}</option>
+            <option value="occupied" className="bg-card">{t('properties.statusOccupied', 'Occupied')}</option>
+            <option value="maintenance" className="bg-card">{t('properties.statusMaintenance', 'Maintenance')}</option>
             <option value="rented" className="bg-card">Rented</option>
           </select>
 

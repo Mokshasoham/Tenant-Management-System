@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { bookingService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import {
     CheckCircle2, Clock, XCircle, ArrowLeft,
     Calendar, MapPin, IndianRupee, Shield,
@@ -19,6 +20,7 @@ export default function BookingStatusPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
+    const { t, formatCurrency, formatDate } = useLanguage();
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showRazorpay, setShowRazorpay] = useState(false);
@@ -84,22 +86,22 @@ export default function BookingStatusPage() {
             <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto text-rose-400">
                 <AlertTriangle className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-black text-foreground">This record is no longer available</h2>
+            <h2 className="text-xl font-black text-foreground">{t('booking.recordNotAvailable', 'This record is no longer available')}</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
-                The booking request or visit schedule you are trying to view does not exist or has been removed.
+                {t('booking.recordNotAvailableDesc', 'The booking request or visit schedule you are trying to view does not exist or has been removed.')}
             </p>
             <div className="flex gap-3 justify-center pt-2">
                 <button
                     onClick={() => navigate('/dashboard')}
                     className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
-                    Dashboard
+                    {t('nav.dashboard', 'Dashboard')}
                 </button>
                 <button
                     onClick={() => navigate('/dashboard', { state: { activeTab: 'messages' } })}
                     className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs font-black uppercase tracking-wider transition-all hover:bg-white/10 cursor-pointer"
                 >
-                    My Messages
+                    {t('nav.messages', 'My Messages')}
                 </button>
             </div>
         </div>
@@ -116,16 +118,16 @@ export default function BookingStatusPage() {
             color: 'text-amber-400',
             bg: 'bg-amber-400/10',
             border: 'border-amber-400/20',
-            title: 'Waiting for Approval',
-            desc: 'The property manager is reviewing your request. You will be notified once they respond.'
+            title: t('booking.waitingApproval', 'Waiting for Approval'),
+            desc: t('booking.waitingApprovalDesc', 'The property manager is reviewing your request. You will be notified once they respond.')
         },
         approved: {
             icon: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? AlertTriangle : CheckCircle2,
             color: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'text-indigo-500' : 'text-emerald-400',
             bg: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'bg-indigo-500/10' : 'bg-emerald-400/10',
             border: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'border-indigo-500/20' : 'border-emerald-400/20',
-            title: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'Approved – Awaiting Deposit Payment' : 'Security Deposit Secured!',
-            desc: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? 'The manager has approved your request! Please complete the security deposit payment to generate your lease agreement.' : `Your security deposit of ₹${(booking?.totalAmount || 0).toLocaleString('en-IN')} has been received into escrow. Please proceed to review and sign your lease agreement.`,
+            title: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? t('booking.awaitingDeposit', 'Approved – Awaiting Deposit Payment') : t('booking.depositSecured', 'Security Deposit Secured!'),
+            desc: (booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed') ? t('booking.awaitingDepositDesc', 'The manager has approved your request! Please complete the security deposit payment to generate your lease agreement.') : t('booking.depositSecuredDesc', 'Your security deposit of ₹{{amount}} has been received into escrow. Please proceed to review and sign your lease agreement.', { amount: (booking?.totalAmount || 0).toLocaleString('en-IN') }),
             showButton: booking?.paymentStatus !== 'pending' && booking?.paymentStatus !== 'failed',
             showPayButton: booking?.paymentStatus === 'pending' || booking?.paymentStatus === 'failed',
             showSignButton: booking?.paymentStatus === 'paid'
@@ -135,18 +137,18 @@ export default function BookingStatusPage() {
             color: 'text-rose-400',
             bg: 'bg-rose-400/10',
             border: 'border-rose-400/20',
-            title: 'Request Declined',
-            desc: booking?.rejectionReason || 'The property manager has declined your booking request.'
+            title: t('booking.requestDeclined', 'Request Declined'),
+            desc: booking?.rejectionReason || t('booking.declinedDesc', 'The property manager has declined your booking request.')
         },
         cancelled: {
             icon: XCircle,
             color: 'text-rose-500',
             bg: 'bg-rose-500/10',
             border: 'border-rose-500/20',
-            title: 'Application Cancelled',
+            title: t('booking.applicationCancelled', 'Application Cancelled'),
             desc: booking?.cancellationReason
                 ? `Cancelled: ${booking.cancellationReason}.${(booking?.paymentStatus === 'refunded' && booking?.totalAmount > 0) ? ` Security deposit refund of ₹${booking.totalAmount?.toLocaleString('en-IN')} is recorded.` : ''}`
-                : 'You have formally cancelled this lease application.',
+                : t('booking.cancelledDesc', 'You have formally cancelled this lease application.'),
             showButton: false,
             showPayButton: false
         }
@@ -216,7 +218,7 @@ export default function BookingStatusPage() {
                             onClick={handleDownloadReceipt}
                             className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-card border border-border text-foreground text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:shadow-xl transition-all w-full cursor-pointer disabled:opacity-50"
                         >
-                            <FileText className="w-4 h-4 text-emerald-500" /> {downloadingReceipt ? 'DOWNLOADING...' : 'DOWNLOAD RECEIPT'}
+                            <FileText className="w-4 h-4 text-emerald-500" /> {downloadingReceipt ? t('booking.downloadingReceipt', 'DOWNLOADING...') : t('booking.downloadReceipt', 'DOWNLOAD RECEIPT')}
                         </motion.button>
                         {config.showSignButton && (
                             <motion.button
@@ -225,7 +227,7 @@ export default function BookingStatusPage() {
                                 onClick={() => navigate('/my-lease', { state: { propertyId: booking.property?._id || booking.property, bookingId: booking._id } })}
                                 className="flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-600/30 hover:shadow-xl transition-all w-full cursor-pointer"
                             >
-                                <CheckCircle2 className="w-4 h-4" /> SIGN LEASE AGREEMENT
+                                <CheckCircle2 className="w-4 h-4" /> {t('booking.signLeaseAgreement', 'SIGN LEASE AGREEMENT')}
                             </motion.button>
                         )}
                     </div>
@@ -238,7 +240,7 @@ export default function BookingStatusPage() {
                         onClick={() => setShowRazorpay(true)}
                         className="mt-8 flex items-center justify-center gap-2.5 px-10 py-4 rounded-2xl bg-indigo-600 border border-indigo-500 text-white text-[12px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/30 hover:shadow-xl transition-all mx-auto active:scale-95 w-full max-w-sm"
                     >
-                        <IndianRupee className="w-5 h-5" /> PAY TO ACTIVATE
+                        <IndianRupee className="w-5 h-5" /> {t('booking.payToActivate', 'PAY TO ACTIVATE')}
                     </motion.button>
                 )}
             </motion.div>
@@ -252,7 +254,7 @@ export default function BookingStatusPage() {
                             <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Property</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{t('booking.property', 'Property')}</p>
                             <p className="text-foreground font-black tracking-tight">{booking.property?.name}</p>
                         </div>
                     </div>
@@ -261,7 +263,7 @@ export default function BookingStatusPage() {
                             <Calendar className="w-6 h-6 text-violet-600 dark:text-violet-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Lease Duration</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{t('booking.leaseDuration', 'Lease Duration')}</p>
                             <p className="text-foreground font-black tracking-tight">
                                 {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
                             </p>
@@ -276,9 +278,9 @@ export default function BookingStatusPage() {
                             <IndianRupee className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Amount Paid</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{t('booking.amountPaid', 'Amount Paid')}</p>
                             <p className="text-foreground font-black tracking-tight text-xl">
-                                {booking.totalAmount === 0 ? 'FREE / DEMO' : `₹${booking.totalAmount?.toLocaleString('en-IN')}`}
+                                {booking.totalAmount === 0 ? t('booking.freeOrDemo', 'FREE / DEMO') : `₹${booking.totalAmount?.toLocaleString('en-IN')}`}
                             </p>
                         </div>
                     </div>
@@ -287,14 +289,14 @@ export default function BookingStatusPage() {
                             <Shield className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">Payment Status</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{t('booking.paymentStatus', 'Payment Status')}</p>
                             <p className={cn(
                                 "font-black uppercase text-[10px] tracking-widest px-2 py-0.5 rounded-lg inline-block font-mono border",
                                 booking.paymentStatus === 'refunded' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-500 dark:text-cyan-400" :
                                 booking.paymentStatus === 'paid' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500 dark:text-emerald-400" :
                                 "bg-amber-500/10 border-amber-500/10 text-amber-600 dark:text-amber-400"
                             )}>
-                                {booking.paymentReference === 'FREE-BOOKING' ? 'EXEMPT' : booking.paymentStatus === 'refunded' ? 'REFUND PROCESSED / SCHEDULED' : booking.paymentStatus}
+                                {booking.paymentReference === 'FREE-BOOKING' ? t('booking.exempt', 'EXEMPT') : booking.paymentStatus === 'refunded' ? t('booking.refundScheduled', 'REFUND PROCESSED / SCHEDULED') : booking.paymentStatus}
                             </p>
                         </div>
                     </div>
@@ -308,8 +310,8 @@ export default function BookingStatusPage() {
                         <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                        <p className="text-foreground font-black tracking-tight">Need help with your booking?</p>
-                        <p className="text-muted-foreground/50 text-xs font-medium mt-0.5">Chat with support or message the property manager.</p>
+                        <p className="text-foreground font-black tracking-tight">{t('booking.needHelp', 'Need help with your booking?')}</p>
+                        <p className="text-muted-foreground/50 text-xs font-medium mt-0.5">{t('booking.needHelpDesc', 'Chat with support or message the property manager.')}</p>
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 w-full sm:w-auto">
@@ -317,7 +319,7 @@ export default function BookingStatusPage() {
                         onClick={handleChat}
                         className="w-full px-8 py-3.5 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
                     >
-                        CHAT WITH MANAGER
+                        {t('booking.chatWithManager', 'CHAT WITH MANAGER')}
                     </button>
                     {booking.status !== 'cancelled' && booking.status !== 'rejected' && booking.status !== 'completed' && (
                         (user?.role !== 'tenant' || booking.status === 'pending') ? (
@@ -325,7 +327,7 @@ export default function BookingStatusPage() {
                                 onClick={() => setShowCancelModal(true)}
                                 className="w-full px-8 py-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-500 w-full hover:text-white transition-all"
                             >
-                                CANCEL LEASE APPLICATION
+                                {t('booking.cancelLeaseApp', 'CANCEL LEASE APPLICATION')}
                             </button>
                         ) : null
                     )}
@@ -374,15 +376,15 @@ export default function BookingStatusPage() {
                                     <AlertTriangle className="w-6 h-6 animate-pulse" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-foreground">Cancel Lease Application</h3>
-                                    <p className="text-xs text-muted-foreground/60">Filing this request will terminate the active draft.</p>
+                                    <h3 className="text-lg font-black text-foreground">{t('booking.cancelModalTitle', 'Cancel Lease Application')}</h3>
+                                    <p className="text-xs text-muted-foreground/60">{t('booking.cancelModalDesc', 'Filing this request will terminate the active draft.')}</p>
                                 </div>
                             </div>
                             
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground/75 mb-1.5">
-                                        Cancellation Reason <span className="text-rose-500">*</span>
+                                        {t('booking.cancellationReason', 'Cancellation Reason')} <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={cancelReason}
@@ -390,24 +392,24 @@ export default function BookingStatusPage() {
                                         className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm text-foreground focus:outline-none focus:border-rose-500 transition-colors"
                                         required
                                     >
-                                        <option value="">Select a reason...</option>
-                                        <option value="Found another property">Found another property</option>
-                                        <option value="Change of plans / Relocation">Change of plans / Relocation</option>
-                                        <option value="Financial constraints">Financial constraints</option>
-                                        <option value="Manager response time / Communication issues">Manager response time / Communication issues</option>
-                                        <option value="Incorrect booking details selected">Incorrect booking details selected</option>
-                                        <option value="Other">Other</option>
+                                        <option value="">{t('booking.selectReason', 'Select a reason...')}</option>
+                                        <option value="Found another property">{t('booking.reasonAnotherProperty', 'Found another property')}</option>
+                                        <option value="Change of plans / Relocation">{t('booking.reasonRelocation', 'Change of plans / Relocation')}</option>
+                                        <option value="Financial constraints">{t('booking.reasonFinancial', 'Financial constraints')}</option>
+                                        <option value="Manager response time / Communication issues">{t('booking.reasonManagerResponse', 'Manager response time / Communication issues')}</option>
+                                        <option value="Incorrect booking details selected">{t('booking.reasonIncorrectDetails', 'Incorrect booking details selected')}</option>
+                                        <option value="Other">{t('booking.reasonOther', 'Other')}</option>
                                     </select>
                                 </div>
                                 
                                 <div>
                                     <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground/75 mb-1.5">
-                                        Optional Feedback
+                                        {t('booking.optionalFeedback', 'Optional Feedback')}
                                     </label>
                                     <textarea
                                         value={cancelFeedback}
                                         onChange={(e) => setCancelFeedback(e.target.value)}
-                                        placeholder="Share additional feedback to help us improve..."
+                                        placeholder={t('booking.feedbackPlaceholder', 'Share additional feedback to help us improve...')}
                                         rows={3}
                                         className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-sm text-foreground focus:outline-none focus:border-rose-500 transition-colors resize-none"
                                     />
@@ -423,7 +425,7 @@ export default function BookingStatusPage() {
                                     }}
                                     className="flex-1 py-3 rounded-2xl font-bold text-sm bg-muted border border-border text-muted-foreground hover:bg-muted/80 transition-colors"
                                 >
-                                    Go Back
+                                    {t('booking.goBack', 'Go Back')}
                                 </button>
                                 <button
                                     disabled={!cancelReason || isCancelling}
@@ -459,7 +461,7 @@ export default function BookingStatusPage() {
                                             : "bg-muted text-muted-foreground cursor-not-allowed"
                                     )}
                                 >
-                                    {isCancelling ? 'Cancelling...' : 'Confirm Cancel'}
+                                    {isCancelling ? t('booking.cancelling', 'Cancelling...') : t('booking.confirmCancel', 'Confirm Cancel')}
                                 </button>
                             </div>
                         </motion.div>

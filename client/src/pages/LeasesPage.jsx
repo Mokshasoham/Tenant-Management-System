@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { leaseService, tenantService, propertyService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Plus, Search, Eye, X, FileText, Calendar, IndianRupee,
   Building2, User, CheckCircle2, Clock, XCircle, AlertTriangle,
@@ -20,6 +21,7 @@ const STATUS_CONFIG = {
 };
 
 function CreateLeaseModal({ onClose, onSave }) {
+  const { t } = useLanguage();
   const [tenants, setTenants] = useState([]);
   const [properties, setProperties] = useState([]);
   const [form, setForm] = useState({
@@ -67,13 +69,13 @@ function CreateLeaseModal({ onClose, onSave }) {
         className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl transition-colors"
       >
         <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-border bg-card/95 backdrop-blur-sm z-10 transition-colors">
-          <h2 className="text-lg font-black text-foreground">Create Lease</h2>
+          <h2 className="text-lg font-black text-foreground">{t('leases.createLease', 'Create Lease')}</h2>
           <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>}
           <SelectField label="Tenant *" value={form.tenantId} onChange={v => set('tenantId', v)}>
-            <option value="" className="bg-card">Select Tenant</option>
+            <option value="" className="bg-card">{t('leases.selectTenant', 'Select Tenant')}</option>
             {tenants.map(t => <option key={t._id} value={t._id} className="bg-card">{t.firstName} {t.lastName} — {t.email}</option>)}
           </SelectField>
           <SelectField label="Property *" value={form.propertyId} onChange={v => {
@@ -81,19 +83,19 @@ function CreateLeaseModal({ onClose, onSave }) {
             set('propertyId', v);
             if (p) { set('rentAmount', p.rentAmount); set('depositAmount', p.depositAmount || ''); }
           }}>
-            <option value="" className="bg-card">Select Property</option>
+            <option value="" className="bg-card">{t('leases.selectProperty', 'Select Property')}</option>
             {properties.map(p => <option key={p._id} value={p._id} className="bg-card">{p.name} — {p.address}</option>)}
           </SelectField>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start Date *" type="date" required value={form.startDate} onChange={v => set('startDate', v)} />
-            <Field label="End Date *" type="date" required value={form.endDate} onChange={v => set('endDate', v)} />
+            <Field label={t('leases.startDate', 'Start Date') + ' *'} type="date" required value={form.startDate} onChange={v => set('startDate', v)} />
+            <Field label={t('leases.endDate', 'End Date') + ' *'} type="date" required value={form.endDate} onChange={v => set('endDate', v)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Monthly Rent (₹) *" type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} />
-            <Field label="Security Deposit (₹)" type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} />
+            <Field label={t('properties.monthlyRent', 'Monthly Rent') + ' (₹) *'} type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} />
+            <Field label={t('dashboard.securityDeposit', 'Security Deposit') + ' (₹)'} type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">Utilities Included</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">{t('leases.utilitiesIncluded', 'Utilities Included')}</p>
             <div className="flex gap-3 flex-wrap">
               {['water', 'electricity', 'gas', 'internet'].map(u => (
                 <button key={u} type="button" onClick={() => setUtil(u)}
@@ -105,13 +107,13 @@ function CreateLeaseModal({ onClose, onSave }) {
               ))}
             </div>
           </div>
-          <TextAreaField label="Terms & Conditions" value={form.terms} onChange={v => set('terms', v)} />
+          <TextAreaField label={t('leases.termsAndConditions', 'Terms & Conditions')} value={form.terms} onChange={v => set('terms', v)} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold">Cancel</button>
+              className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold">{t('common.cancel', 'Cancel')}</button>
             <button type="submit" disabled={loading}
               className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-black hover:opacity-90 transition-all disabled:opacity-50">
-              {loading ? 'Creating...' : 'Create Lease'}
+              {loading ? t('leases.creating', 'Creating...') : t('leases.createLease', 'Create Lease')}
             </button>
           </div>
         </form>
@@ -916,6 +918,7 @@ function TextAreaField({ label, value, onChange }) {
 }
 
 export default function LeasesPage() {
+  const { t, formatDate, formatCurrency } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTabParam = searchParams.get('tab') || 'all';
   const filterParam = searchParams.get('filter') || '';
@@ -1118,13 +1121,13 @@ export default function LeasesPage() {
             <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">Contracts &amp; Lifecycle</p>
           </div>
-          <h1 className="text-3xl font-black text-foreground">Lease Management</h1>
+          <h1 className="text-3xl font-black text-foreground">{t('leases.management', 'Lease Management')}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Authoritative portal for tenancies, renewals, move-outs &amp; inspections</p>
         </div>
         <button onClick={() => setModal('create')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg active:scale-95 transition-transform cursor-pointer"
         >
-          <Plus className="w-4 h-4" /> Create Lease
+          <Plus className="w-4 h-4" /> {t('leases.createLease', 'Create Lease')}
         </button>
       </motion.div>
 

@@ -1,16 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar as CalendarIcon, MapPin, Globe } from 'lucide-react';
+import { useLanguage, LOCALE_MAP } from '../../context/LanguageContext';
 
 export function CalendarWidget() {
+    const { language } = useLanguage();
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
 
-    const monthName = today.toLocaleString('default', { month: 'long' });
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const locale = LOCALE_MAP[language] || 'en-IN';
+    const monthName = new Intl.DateTimeFormat(locale, { month: 'long' }).format(today);
+
+    // Generate localized day headers starting from Sunday
+    const days = useMemo(() => {
+        const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+        return Array.from({ length: 7 }).map((_, i) => formatter.format(new Date(2023, 0, 1 + i)));
+    }, [locale]);
 
     return (
         <div className="bg-card border border-border rounded-2xl p-4 flex flex-col h-full overflow-hidden">
@@ -136,6 +144,7 @@ function AnalogClock({ tz, name, code }) {
 }
 
 export function WorldClockWidget() {
+    const { t } = useLanguage();
     const cities = [
         { name: 'India', tz: 'Asia/Kolkata', code: 'IND' },
         { name: 'New York', tz: 'America/New_York', code: 'NYC' },
@@ -150,7 +159,7 @@ export function WorldClockWidget() {
                 <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
                     <Globe className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-foreground text-sm">World Clock</span>
+                <span className="font-bold text-foreground text-sm">{t('dashboard.worldClock', 'World Clock')}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-y-4 gap-x-2 place-items-center flex-1 overflow-y-auto custom-scrollbar">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { userService } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Plus, Search, Edit2, Trash2, X, Shield, User, Mail, Phone,
   CheckCircle2, XCircle, Key
@@ -16,6 +17,7 @@ const ROLE_CONFIG = {
 const EMPTY_FORM = { firstName: '', lastName: '', email: '', phone: '', password: '', role: 'tenant' };
 
 function UserModal({ user, onClose, onSave }) {
+  const { t } = useLanguage();
   const isEdit = !!user;
   const [form, setForm] = useState(isEdit ? {
     firstName: user.firstName, lastName: user.lastName,
@@ -46,20 +48,20 @@ function UserModal({ user, onClose, onSave }) {
       <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
         className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-black text-foreground">{isEdit ? 'Edit User' : 'Create User'}</h2>
+          <h2 className="text-lg font-black text-foreground">{isEdit ? t('users.editUser', 'Edit User') : t('users.createUser', 'Create User')}</h2>
           <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="First Name *" value={form.firstName} onChange={v => set('firstName', v)} required />
-            <Field label="Last Name *" value={form.lastName} onChange={v => set('lastName', v)} required />
+            <Field label={t('tenants.firstName', 'First Name') + ' *'} value={form.firstName} onChange={v => set('firstName', v)} required />
+            <Field label={t('tenants.lastName', 'Last Name') + ' *'} value={form.lastName} onChange={v => set('lastName', v)} required />
           </div>
-          <Field label="Email *" type="email" value={form.email} onChange={v => set('email', v)} required disabled={isEdit} />
-          <Field label="Phone" value={form.phone} onChange={v => set('phone', v)} />
-          {!isEdit && <Field label="Password *" type="password" value={form.password} onChange={v => set('password', v)} required />}
+          <Field label={t('tenants.email', 'Email') + ' *'} type="email" value={form.email} onChange={v => set('email', v)} required disabled={isEdit} />
+          <Field label={t('tenants.phone', 'Phone')} value={form.phone} onChange={v => set('phone', v)} />
+          {!isEdit && <Field label={t('users.password', 'Password') + ' *'} type="password" value={form.password} onChange={v => set('password', v)} required />}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Role</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{t('users.role', 'Role')}</label>
             <div className="flex gap-2">
               {['tenant', 'manager', 'admin'].map(r => (
                 <button key={r} type="button" disabled={isEdit} onClick={() => set('role', r)}
@@ -73,10 +75,10 @@ function UserModal({ user, onClose, onSave }) {
           </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground font-bold transition-all transition-colors">Cancel</button>
+              className="flex-1 py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground font-bold transition-all transition-colors">{t('common.cancel', 'Cancel')}</button>
             <button type="submit" disabled={loading}
               className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-black hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/20">
-              {loading ? 'Saving...' : (isEdit ? 'Save Changes' : 'Create User')}
+              {loading ? t('tenants.saving', 'Saving...') : (isEdit ? t('users.saveChanges', 'Save Changes') : t('users.createUser', 'Create User'))}
             </button>
           </div>
         </form>
@@ -96,6 +98,7 @@ function Field({ label, value, onChange, type = 'text', required, disabled }) {
 }
 
 export default function UsersPage() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -137,13 +140,13 @@ export default function UsersPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-primary" />
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">Administration</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">{t('users.administration', 'Administration')}</p>
           </div>
           <h1 className="text-3xl font-black text-foreground">Users <span className="text-muted-foreground/20 font-bold text-lg">({total})</span></h1>
         </div>
         <button onClick={() => setModal('add')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-black text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/20">
-          <Plus className="w-4 h-4" /> Add User
+          <Plus className="w-4 h-4" /> {t('users.addUser', 'Add User')}
         </button>
       </motion.div>
 
@@ -151,12 +154,12 @@ export default function UsersPage() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name or email..."
+            placeholder={t('users.searchPlaceholder', 'Search by name or email...')}
             className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-card border border-border text-foreground text-sm placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
         </div>
         <select value={roleFilter} onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
           className="px-4 py-2.5 rounded-xl bg-card border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
-          <option value="" className="bg-card">All Roles</option>
+          <option value="" className="bg-card">{t('users.allRoles', 'All Roles')}</option>
           <option value="admin" className="bg-card">Admin</option>
           <option value="manager" className="bg-card">Manager</option>
           <option value="tenant" className="bg-card">Tenant</option>
@@ -167,7 +170,7 @@ export default function UsersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              {['User', 'Contact', 'Role', 'Status', 'Actions'].map(h => (
+              {[t('users.user', 'User'), t('users.contact', 'Contact'), t('users.role', 'Role'), t('users.status', 'Status'), t('users.actions', 'Actions')].map(h => (
                 <th key={h} className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">{h}</th>
               ))}
             </tr>

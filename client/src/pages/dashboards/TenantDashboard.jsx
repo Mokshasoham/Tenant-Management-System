@@ -95,7 +95,7 @@ function PaymentCountdown({ dueDate, amount, isEstimate, propertyName, onPayRent
 }
 
 export default function TenantDashboard({ user, navigate }) {
-    const { t } = useLanguage();
+    const { t, language, formatDate } = useLanguage();
     const [searchQuery, setSearchQuery] = useState('');
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
@@ -519,10 +519,10 @@ export default function TenantDashboard({ user, navigate }) {
                     <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
                             <Building2 className="w-5 h-5 text-emerald-500" />
-                            <h2 className="text-lg font-black text-foreground tracking-tight">My Lease Agreements</h2>
+                            <h2 className="text-lg font-black text-foreground tracking-tight">{t('dashboard.myLeaseAgreements', 'My Lease Agreements')}</h2>
                         </div>
                         <span className="px-3 py-1 rounded-full bg-muted border border-border text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                            Total Leases: {activeLeases.length + pastLeases.length} ({trulyActiveLeases.length} Active, {uniqueCompletedLeases.length} Completed)
+                            {t('dashboard.totalLeases', 'Total Leases: {{total}} ({{active}} Active, {{completed}} Completed)', { total: activeLeases.length + pastLeases.length, active: trulyActiveLeases.length, completed: uniqueCompletedLeases.length })}
                         </span>
                     </div>
 
@@ -572,7 +572,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                     <div className="flex items-center gap-2 mb-1.5">
                                                         <div className={cn("w-2 h-2 rounded-full", (activeLease.status === 'pending' && activeLease.signature) ? "bg-indigo-400 animate-pulse" : "bg-emerald-400 animate-pulse")} />
                                                         <span className={cn("text-[10px] font-black uppercase tracking-widest", (activeLease.status === 'pending' && activeLease.signature) ? "text-indigo-400" : "text-emerald-400")}>
-                                                            {(activeLease.status === 'pending' && activeLease.signature) ? 'Upcoming Lease' : (activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease'))} • #{activeLease.leaseNumber || '—'}
+                                                            {(activeLease.status === 'pending' && activeLease.signature) ? t('dashboard.upcomingLease', 'Upcoming Lease') : (activeLease.status === 'active' ? t('dashboard.activeLease') : t('dashboard.pendingLease'))} • #{activeLease.leaseNumber || '—'}
                                                         </span>
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{t('dashboard.currentResidence')}</p>
@@ -580,11 +580,11 @@ export default function TenantDashboard({ user, navigate }) {
                                                         onClick={() => navigate(`/my-lease?leaseId=${activeLease._id}`, { state: { leaseId: activeLease._id, propertyId: activeLease.property?._id } })}
                                                         className="text-xl font-black text-foreground hover:text-emerald-500 cursor-pointer transition-colors"
                                                     >
-                                                        {activeLease?.property?.name || 'Not Assigned'}
+                                                        {activeLease?.property?.name || t('dashboard.notAssigned', 'Not Assigned')}
                                                     </h2>
                                                     <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                                        {activeLease?.property?.address || 'Property details will appear once assigned'}
+                                                        {activeLease?.property?.address || t('dashboard.propertyDetailsOnceAssigned', 'Property details will appear once assigned')}
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
@@ -597,13 +597,13 @@ export default function TenantDashboard({ user, navigate }) {
                                             <div className="grid grid-cols-3 gap-3 mt-4">
                                                 {[
                                                     { 
-                                                        label: t('status') || 'Status', 
-                                                        value: (activeLease.status === 'pending' && activeLease.signature) ? 'UPCOMING' : (activeLease.status?.toUpperCase() || '—'), 
+                                                        label: t('common.status', 'Status'), 
+                                                        value: (activeLease.status === 'pending' && activeLease.signature) ? t('dashboard.upcomingUpper', 'UPCOMING') : (t('common.' + activeLease.status, activeLease.status?.toUpperCase() || '—')), 
                                                         hl: true,
                                                         isUpcoming: (activeLease.status === 'pending' && activeLease.signature)
                                                     },
-                                                    { label: t('start') || 'Start', value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
-                                                    { label: t('ends') || 'Ends', value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                    { label: t('lease.startDate', 'Start'), value: new Date(activeLease.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                                                    { label: t('lease.endDate', 'Ends'), value: new Date(activeLease.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) },
                                                 ].map((item) => (
                                                     <div key={item.label} className={cn('p-2.5 rounded-xl text-center', item.hl ? (item.isUpcoming ? 'bg-indigo-500/15 border border-indigo-500/20' : 'bg-emerald-500/15 border border-emerald-500/20') : 'bg-muted border border-border')}>
                                                         <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 mb-1">{item.label}</p>
@@ -628,7 +628,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                              <span key={a} className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground capitalize">{a}</span>
                                                         ))}
                                                         {activeLease.property.amenities.length > 4 && (
-                                                            <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} more</span>
+                                                            <span className="px-2 py-0.5 rounded-lg bg-muted border border-border text-[9px] text-muted-foreground">+{activeLease.property.amenities.length - 4} {t('dashboard.moreAmenities', 'more')}</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -640,7 +640,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                                     onClick={() => navigate(`/my-lease?leaseId=${activeLease._id}`, { state: { leaseId: activeLease._id, propertyId: activeLease.property?._id } })}
                                                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs shadow-md hover:opacity-90 transition-all uppercase tracking-wider">
-                                                    <FileSignature className="w-3.5 h-3.5" /> Sign Lease
+                                                    <FileSignature className="w-3.5 h-3.5" /> {t('dashboard.signLease', 'Sign Lease')}
                                                 </motion.button>
                                             ) : (
                                                 <>
@@ -670,7 +670,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
                                                     onClick={() => navigate('/messages', { state: { recipientId: activeLease.property.manager._id, recipientName: `${activeLease.property.manager.firstName} ${activeLease.property.manager.lastName}` } })}
                                                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted-foreground font-bold text-xs hover:bg-muted transition-all">
-                                                    <MessageSquare className="w-3.5 h-3.5" /> Chat
+                                                    <MessageSquare className="w-3.5 h-3.5" /> {t('dashboard.chat', 'Chat')}
                                                 </motion.button>
                                             )}
                                         </div>
@@ -692,15 +692,15 @@ export default function TenantDashboard({ user, navigate }) {
                                             <Sparkles className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-black text-foreground">Welcome to Your Resident Portal</h3>
-                                            <p className="text-xs text-muted-foreground font-medium">Get started by discovering your next home or checking your shortlists.</p>
+                                            <h3 className="text-lg font-black text-foreground">{t('dashboard.welcomeResidentPortal', 'Welcome to Your Resident Portal')}</h3>
+                                            <p className="text-xs text-muted-foreground font-medium">{t('dashboard.getStartedSubtitle', 'Get started by discovering your next home or checking your shortlists.')}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => navigate('/browse')}
                                         className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer"
                                     >
-                                        <span>Explore Properties</span>
+                                        <span>{t('dashboard.exploreProperties', 'Explore Properties')}</span>
                                         <ArrowRight className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
@@ -709,35 +709,35 @@ export default function TenantDashboard({ user, navigate }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     {[
                                         {
-                                            title: 'Explore Properties',
-                                            desc: 'Discover verified rental apartments and luxury homes',
+                                            title: t('dashboard.exploreProperties', 'Explore Properties'),
+                                            desc: t('dashboard.explorePropertiesDesc', 'Discover verified rental apartments and luxury homes'),
                                             icon: Compass,
                                             path: '/browse',
-                                            badge: 'Browse',
+                                            badge: t('dashboard.badgeBrowse', 'Browse'),
                                             color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
                                         },
                                         {
-                                            title: 'Saved Properties',
-                                            desc: 'View and shortlist your favorite properties',
+                                            title: t('dashboard.savedProperties', 'Saved Properties'),
+                                            desc: t('dashboard.savedPropertiesDesc', 'View and shortlist your favorite properties'),
                                             icon: Bookmark,
                                             path: '/saved',
-                                            badge: 'Favorites',
+                                            badge: t('dashboard.badgeFavorites', 'Favorites'),
                                             color: 'text-rose-500 bg-rose-500/10 border-rose-500/20'
                                         },
                                         {
-                                            title: 'Compare Units',
-                                            desc: 'Side-by-side comparison of amenities and pricing',
+                                            title: t('dashboard.compareUnits', 'Compare Units'),
+                                            desc: t('dashboard.compareUnitsDesc', 'Side-by-side comparison of amenities and pricing'),
                                             icon: Scale,
                                             path: '/compare',
-                                            badge: 'Compare',
+                                            badge: t('dashboard.badgeCompare', 'Compare'),
                                             color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
                                         },
                                         {
-                                            title: 'Track Bookings',
-                                            desc: 'Check status of pending or approved reservations',
+                                            title: t('dashboard.trackBookings', 'Track Bookings'),
+                                            desc: t('dashboard.trackBookingsDesc', 'Check status of pending or approved reservations'),
                                             icon: Clock,
                                             path: '/bookings',
-                                            badge: 'Reservations',
+                                            badge: t('dashboard.badgeReservations', 'Reservations'),
                                             color: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
                                         },
                                     ].map((action, idx) => {
@@ -765,7 +765,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                     </p>
                                                 </div>
                                                 <div className="pt-3 mt-2 border-t border-border/40 flex items-center justify-between text-[10px] font-black text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
-                                                    <span>Open</span>
+                                                    <span>{t('dashboard.open', 'Open')}</span>
                                                     <ArrowRight className="w-3 h-3" />
                                                 </div>
                                             </div>
@@ -775,13 +775,13 @@ export default function TenantDashboard({ user, navigate }) {
 
                                 {/* How TMS Works step guide */}
                                 <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">How TMS Rental Process Works</span>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('dashboard.howRentalProcessWorks', 'How TMS Rental Process Works')}</span>
                                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                                         {[
-                                            { step: '1', title: 'Find & Compare', desc: 'Browse verified listings' },
-                                            { step: '2', title: 'Reserve & Book', desc: 'Instant booking requests' },
-                                            { step: '3', title: 'Digital Lease', desc: 'Secure online signing' },
-                                            { step: '4', title: 'Move In & Pay', desc: 'Automated rent & repairs' },
+                                            { step: '1', title: t('dashboard.stepFindCompare', 'Find & Compare'), desc: t('dashboard.stepFindCompareDesc', 'Browse verified listings') },
+                                            { step: '2', title: t('dashboard.stepReserveBook', 'Reserve & Book'), desc: t('dashboard.stepReserveBookDesc', 'Instant booking requests') },
+                                            { step: '3', title: t('dashboard.stepDigitalLease', 'Digital Lease'), desc: t('dashboard.stepDigitalLeaseDesc', 'Secure online signing') },
+                                            { step: '4', title: t('dashboard.stepMoveInPay', 'Move In & Pay'), desc: t('dashboard.stepMoveInPayDesc', 'Automated rent & repairs') },
                                         ].map((s, i) => (
                                             <div key={i} className="flex items-start gap-2">
                                                 <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0">
@@ -802,7 +802,7 @@ export default function TenantDashboard({ user, navigate }) {
                     {/* Collapsible Completed Leases Stack */}
                     {uniqueCompletedLeases.length > 0 && (
                         <div className="space-y-3 pt-3">
-                            <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Past & Completed Rentals</h3>
+                            <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">{t('dashboard.pastCompletedRentals', 'Past & Completed Rentals')}</h3>
                             
                             <div className="relative group">
                                 {/* 3D Card Stack visual deck effect when collapsed */}
@@ -825,13 +825,13 @@ export default function TenantDashboard({ user, navigate }) {
                                             <FileText className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">Completed Leases Stack</h4>
-                                            <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-wider mt-0.5">{uniqueCompletedLeases.length} expired or completed lease agreement{uniqueCompletedLeases.length > 1 ? 's' : ''}</p>
+                                            <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{t('dashboard.completedLeasesStack', 'Completed Leases Stack')}</h4>
+                                            <p className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-wider mt-0.5">{t('dashboard.expiredOrCompleted', '{{count}} expired or completed lease agreement(s)', { count: uniqueCompletedLeases.length })}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 bg-muted border border-border/80 px-2 py-0.5 rounded-lg select-none">
-                                            {completedStackOpen ? 'Hide' : 'Reveal Stack'}
+                                            {completedStackOpen ? t('dashboard.hide', 'Hide') : t('dashboard.revealStack', 'Reveal Stack')}
                                         </span>
                                         <ChevronDown className={cn("w-4 h-4 text-muted-foreground/60 transition-transform duration-300", completedStackOpen && "rotate-180")} />
                                     </div>
@@ -858,18 +858,18 @@ export default function TenantDashboard({ user, navigate }) {
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-1.5 mb-1">
                                                             <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-500">
-                                                                Expired
+                                                                {t('dashboard.expired', 'Expired')}
                                                             </span>
                                                             <span className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-wider">#{pastLease.leaseNumber}</span>
                                                         </div>
-                                                        <h4 className="text-sm font-black text-foreground truncate">{pastLease?.property?.name || 'Previous Residence'}</h4>
+                                                        <h4 className="text-sm font-black text-foreground truncate">{pastLease?.property?.name || t('dashboard.previousResidence', 'Previous Residence')}</h4>
                                                         <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{pastLease?.property?.address}</p>
                                                         <p className="text-[9px] text-muted-foreground/45 mt-1 font-bold">
                                                             {new Date(pastLease.startDate).toLocaleDateString()} - {new Date(pastLease.endDate).toLocaleDateString()}
                                                         </p>
                                                     </div>
                                                     <div className="text-right flex-shrink-0">
-                                                        <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">Rent</p>
+                                                        <p className="text-[8px] font-black text-muted-foreground/45 uppercase tracking-widest">{t('dashboard.rent', 'Rent')}</p>
                                                         <p className="text-sm font-black text-foreground">₹{(pastLease.rentAmount || 0).toLocaleString('en-IN')}</p>
                                                     </div>
                                                 </div>
@@ -978,24 +978,24 @@ export default function TenantDashboard({ user, navigate }) {
             {/* ══ BOOKINGS & DEPOSITS SECTION ══ */}
             {bookings.length > 0 && (
                 <div className="space-y-3 pt-3">
-                    <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">Booking Requests & Deposits</h3>
+                    <h3 className="text-xs font-black text-muted-foreground/45 uppercase tracking-widest px-1">{t('dashboard.bookingRequestsDeposits', 'Booking Requests & Deposits')}</h3>
 
                     {/* Booking Stats Summary Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                         <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Pending</span>
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">{t('common.pending', 'Pending')}</span>
                             <span className="text-xl font-black text-amber-500 leading-none">{pendingTenantBookings.length}</span>
                         </div>
                         <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Approved</span>
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">{t('common.approved', 'Approved')}</span>
                             <span className="text-xl font-black text-indigo-500 leading-none">{approvedTenantBookings.length}</span>
                         </div>
                         <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">Upcoming Move-ins</span>
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">{t('dashboard.upcomingMoveIns', 'Upcoming Move-ins')}</span>
                             <span className="text-xl font-black text-emerald-500 leading-none">{upcomingMoveIns.length}</span>
                         </div>
                         <div className="p-4 rounded-2xl bg-card border border-border flex flex-col justify-between shadow-sm">
-                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">History</span>
+                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-2">{t('dashboard.history', 'History')}</span>
                             <span className="text-xl font-black text-muted-foreground/60 leading-none">{historicalBookings.length}</span>
                         </div>
                     </div>
@@ -1021,15 +1021,15 @@ export default function TenantDashboard({ user, navigate }) {
                                     <Calendar className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-black text-foreground">Active Booking Requests</h4>
+                                    <h4 className="text-sm font-black text-foreground">{t('dashboard.activeBookingRequests', 'Active Booking Requests')}</h4>
                                     <p className="text-[10px] text-muted-foreground/60 mt-0.5 uppercase tracking-wider font-bold">
-                                        {bookings.length} request{bookings.length > 1 ? 's' : ''} in total
+                                        {t('dashboard.requestsInTotal', '{{count}} request(s) in total', { count: bookings.length })}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-[10px] font-black uppercase text-muted-foreground/40 hidden sm:inline">
-                                    {bookingsStackOpen ? 'Hide List' : 'Reveal Stack'}
+                                    {bookingsStackOpen ? t('dashboard.hideList', 'Hide List') : t('dashboard.revealStack', 'Reveal Stack')}
                                 </span>
                                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground/60 transition-transform duration-300", bookingsStackOpen && "rotate-180")} />
                             </div>
@@ -1078,7 +1078,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                     {/* Bottom: Deposit Amount & Compact Action */}
                                                     <div className="flex items-end justify-between pt-2.5 border-t border-border/40 z-10">
                                                         <div className="flex flex-col">
-                                                            <span className="text-[7.5px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">Security Deposit</span>
+                                                            <span className="text-[7.5px] font-black text-muted-foreground/50 uppercase tracking-widest leading-none mb-1">{t('dashboard.securityDeposit', 'Security Deposit')}</span>
                                                             <span className="text-xs font-black text-indigo-400 leading-none">
                                                                 ₹{(b.depositAmount || b.totalAmount || b.property?.depositAmount || (b.property?.rentAmount ? b.property.rentAmount * 2 : 0) || 0).toLocaleString('en-IN')}
                                                             </span>
@@ -1088,14 +1088,14 @@ export default function TenantDashboard({ user, navigate }) {
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
                                                                 className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-widest shadow-md hover:shadow-indigo-600/15 flex items-center gap-1 active:scale-95 transition-all"
                                                             >
-                                                                <Wallet className="w-3 h-3" /> Pay Deposit
+                                                                <Wallet className="w-3 h-3" /> {t('dashboard.payDeposit', 'Pay Deposit')}
                                                             </button>
                                                         ) : (
                                                             <button
                                                                 onClick={() => navigate(`/bookings/${b._id}`)}
                                                                 className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground/75 font-black text-[9px] uppercase tracking-widest hover:bg-muted active:scale-95 transition-all"
                                                             >
-                                                                View Details
+                                                                {t('dashboard.viewDetails', 'View Details')}
                                                             </button>
                                                         )}
                                                     </div>
@@ -1138,8 +1138,8 @@ export default function TenantDashboard({ user, navigate }) {
                     <div className="flex items-center gap-2 mb-3 border-b border-border pb-2 flex-shrink-0">
                         <Wallet className="w-4 h-4 text-emerald-500" />
                         <div>
-                            <h2 className="text-xs font-black text-foreground tracking-tight">Payment Schedule & Reminders</h2>
-                            <p className="text-[9px] text-muted-foreground/60 leading-none">Your due, overdue & upcoming invoices</p>
+                            <h2 className="text-xs font-black text-foreground tracking-tight">{t('dashboard.paymentScheduleReminders', 'Payment Schedule & Reminders')}</h2>
+                            <p className="text-[9px] text-muted-foreground/60 leading-none">{t('dashboard.invoicesSubtitle', 'Your due, overdue & upcoming invoices')}</p>
                         </div>
                     </div>
 
@@ -1172,15 +1172,15 @@ export default function TenantDashboard({ user, navigate }) {
                                                                 ? "bg-blue-500/10 border-blue-500/20 text-blue-500"
                                                                 : "bg-amber-500/10 border-amber-500/20 text-amber-500"
                                                     )}>
-                                                        {isOverdue ? 'Overdue' : isPartial ? 'Partial' : 'Due'}
+                                                        {isOverdue ? t('dashboard.overdue', 'Overdue') : isPartial ? t('payment.partial', 'Partial') : t('dashboard.due', 'Due')}
                                                     </span>
                                                     <span className="text-[8px] font-bold text-muted-foreground/60 uppercase">{p.type}</span>
                                                 </div>
                                                 <p className="text-xs font-black text-foreground mt-1">
-                                                    ₹{(p.amountDue !== undefined ? (p.amountDue - p.amountPaid) : p.amount).toLocaleString('en-IN')} pending
+                                                    ₹{(p.amountDue !== undefined ? (p.amountDue - p.amountPaid) : p.amount).toLocaleString('en-IN')} {t('dashboard.pendingLower', 'pending')}
                                                 </p>
                                                 <p className="text-[9px] text-muted-foreground mt-0.5">
-                                                    Due: {new Date(p.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                    {t('dashboard.due', 'Due')}: {new Date(p.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                 </p>
                                             </div>
                                             <button
@@ -1194,7 +1194,7 @@ export default function TenantDashboard({ user, navigate }) {
                                                             : "bg-emerald-600 hover:bg-emerald-500"
                                                 )}
                                             >
-                                                Pay
+                                                {t('dashboard.pay', 'Pay')}
                                             </button>
                                         </div>
                                     </div>
@@ -1205,8 +1205,8 @@ export default function TenantDashboard({ user, navigate }) {
                             <div className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/10 bg-emerald-500/5 text-emerald-900 dark:text-emerald-100">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                                 <div className="min-w-0">
-                                    <p className="text-xs font-black text-foreground">All Caught Up! 🎉</p>
-                                    <p className="text-[10px] text-muted-foreground/60">No pending payments.</p>
+                                    <p className="text-xs font-black text-foreground">{t('dashboard.allCaughtUp', 'All Caught Up! 🎉')}</p>
+                                    <p className="text-[10px] text-muted-foreground/60">{t('dashboard.noPendingPayments', 'No pending payments at this time')}</p>
                                 </div>
                             </div>
                         )}
@@ -1216,7 +1216,7 @@ export default function TenantDashboard({ user, navigate }) {
                             <div key={est.id} className="p-2.5 rounded-xl border border-dashed border-border bg-muted/40 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground/60">
-                                        Upcoming
+                                        {t('dashboard.upcoming', 'Upcoming')}
                                     </span>
                                     <span className="text-[8px] text-muted-foreground/45 font-bold uppercase truncate max-w-[120px]" title={est.propertyName}>
                                         {est.propertyName}
@@ -1228,11 +1228,11 @@ export default function TenantDashboard({ user, navigate }) {
                                             ₹{(est.amount || 0).toLocaleString('en-IN')}
                                         </p>
                                         <p className="text-[9px] text-muted-foreground mt-0.5">
-                                            Est: {est.dueDate ? new Date(est.dueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
+                                            {t('dashboard.est', 'Est')}: {est.dueDate ? new Date(est.dueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
                                         </p>
                                     </div>
                                     <span className="text-[8px] font-black text-muted-foreground/30 uppercase tracking-widest select-none">
-                                        Scheduled
+                                        {t('dashboard.scheduled', 'Scheduled')}
                                     </span>
                                 </div>
                             </div>
@@ -1301,7 +1301,7 @@ export default function TenantDashboard({ user, navigate }) {
                     className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-black text-foreground flex items-center gap-2">
-                            Recent Notifications
+                            {t('dashboard.recentNotifications', 'Recent Notifications')}
                             {unread > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">{unread}</span>
                             )}
@@ -1311,7 +1311,7 @@ export default function TenantDashboard({ user, navigate }) {
                                 onClick={() => navigate('/notifications')}
                                 className="p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-1 text-[10px] font-black cursor-pointer"
                             >
-                                View All
+                                {t('dashboard.viewAll', 'View All')}
                                 <ArrowRight className="w-3 h-3" />
                             </button>
                             <button
@@ -1325,7 +1325,7 @@ export default function TenantDashboard({ user, navigate }) {
                                 title="Filter by Date"
                             >
                                 <Calendar className="w-3.5 h-3.5" />
-                                <span>Calendar</span>
+                                <span>{t('dashboard.calendar', 'Calendar')}</span>
                             </button>
                         </div>
                     </div>
@@ -1398,13 +1398,13 @@ export default function TenantDashboard({ user, navigate }) {
                                 {selectedDate && (
                                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/40 text-[9px]">
                                         <span className="text-muted-foreground">
-                                            Filtered: <strong className="text-foreground">{new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                                            {t('dashboard.filtered', 'Filtered')}: <strong className="text-foreground">{new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
                                         </span>
                                         <button 
                                             onClick={() => setSelectedDate(null)}
                                             className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline"
                                         >
-                                            Show All
+                                            {t('dashboard.showAll', 'Show All')}
                                         </button>
                                     </div>
                                 )}
@@ -1416,7 +1416,7 @@ export default function TenantDashboard({ user, navigate }) {
                     {displayedNotifications.length === 0 ? (
                         <div className="text-center py-10 text-muted-foreground/30 text-xs">
                             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                            {selectedDate ? "No records found for this date." : "No messages or events yet."}
+                            {selectedDate ? t('dashboard.noRecordsForDate', 'No records found for this date.') : t('dashboard.noMessagesYet', 'No messages or events yet.')}
                         </div>
                     ) : (
                         <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
@@ -1520,9 +1520,9 @@ export default function TenantDashboard({ user, navigate }) {
                                                             className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 flex items-center gap-0.5 uppercase tracking-wider transition-colors"
                                                         >
                                                             {expandedNotifs[n._id] ? (
-                                                                <>Collapse <ChevronUp className="w-2.5 h-2.5" /></>
+                                                                <>{t('dashboard.collapse', 'Collapse')} <ChevronUp className="w-2.5 h-2.5" /></>
                                                             ) : (
-                                                                <>Read More <ChevronDown className="w-2.5 h-2.5" /></>
+                                                                <>{t('dashboard.readMore', 'Read More')} <ChevronDown className="w-2.5 h-2.5" /></>
                                                             )}
                                                         </button>
                                                     )}

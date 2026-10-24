@@ -42,9 +42,9 @@ export default function NextPaymentCard({
         <div className="w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3 border border-border/80">
           <Building2 className="w-6 h-6" />
         </div>
-        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">No Active Lease</h3>
+        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">{t('dashboard.noActiveLease', 'No Active Lease')}</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-          No active lease agreements or upcoming payments scheduled.
+          {t('dashboard.noActiveLeaseDesc', 'No active lease agreements or upcoming payments scheduled.')}
         </p>
       </div>
     );
@@ -56,9 +56,9 @@ export default function NextPaymentCard({
         <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-3 border border-amber-500/20">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Payment Schedule Unavailable</h3>
+        <h3 className="text-sm font-black uppercase tracking-wider text-foreground">{t('dashboard.paymentScheduleUnavailable', 'Payment Schedule Unavailable')}</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-          The payment cycle schedule for this lease could not be determined.
+          {t('dashboard.paymentCycleUnavailable', 'The payment cycle schedule for this lease could not be determined.')}
         </p>
       </div>
     );
@@ -106,8 +106,8 @@ export default function NextPaymentCard({
   // Status Styling Variants
   const statusConfig = isOverdue
     ? {
-        headerTitle: 'OVERDUE PAYMENT',
-        badge: 'OVERDUE',
+        headerTitle: t('dashboard.overduePaymentUpper', 'OVERDUE PAYMENT'),
+        badge: t('dashboard.overdue', 'OVERDUE'),
         badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-500 dark:text-rose-400',
         ringColor: 'stroke-rose-500',
         glowColor: 'from-rose-500/20 to-rose-600/5',
@@ -121,8 +121,8 @@ export default function NextPaymentCard({
       }
     : isDueToday
     ? {
-        headerTitle: 'PAYMENT DUE TODAY',
-        badge: 'DUE TODAY',
+        headerTitle: t('dashboard.paymentDueTodayUpper', 'PAYMENT DUE TODAY'),
+        badge: t('dashboard.dueTodayUpper', 'DUE TODAY'),
         badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-500 dark:text-amber-400',
         ringColor: 'stroke-amber-500',
         glowColor: 'from-amber-500/20 to-amber-600/5',
@@ -136,7 +136,7 @@ export default function NextPaymentCard({
       }
     : {
         headerTitle: t('dashboard.nextPayment', 'Next Payment'),
-        badge: isEstimate ? 'ESTIMATED' : 'CONFIRMED',
+        badge: isEstimate ? t('dashboard.estimatedUpper', 'ESTIMATED') : t('dashboard.confirmedUpper', 'CONFIRMED'),
         badgeBg: isEstimate
           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 dark:text-emerald-400'
           : 'bg-teal-500/15 border-teal-500/35 text-teal-400 dark:text-teal-300',
@@ -202,11 +202,11 @@ export default function NextPaymentCard({
           {isAutoPayActive ? (
             <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1">
               <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-              Auto-Pay Active
+              {t('dashboard.autoPayActive', 'Auto-Pay Active')}
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider bg-muted/40 border border-border text-muted-foreground/50">
-              Auto-Pay Off
+              {t('dashboard.autoPayOff', 'Auto-Pay Off')}
             </span>
           )}
         </div>
@@ -293,7 +293,7 @@ export default function NextPaymentCard({
                   !
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 mt-1">
-                  OVERDUE
+                  {t('dashboard.overdue', 'OVERDUE')}
                 </span>
               </>
             ) : isDueToday ? (
@@ -302,7 +302,7 @@ export default function NextPaymentCard({
                   0
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 mt-1">
-                  DUE TODAY
+                  {t('dashboard.dueTodayUpper', 'DUE TODAY')}
                 </span>
               </>
             ) : (
@@ -311,7 +311,7 @@ export default function NextPaymentCard({
                   {days}
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 group-hover/ring:text-foreground/90 transition-colors duration-300 mt-1">
-                  {days === 1 ? 'DAY LEFT' : 'DAYS LEFT'}
+                  {days === 1 ? t('dashboard.dayLeftUpper', 'DAY LEFT') : t('dashboard.daysLeftUpper', 'DAYS LEFT')}
                 </span>
               </>
             )}
@@ -345,14 +345,14 @@ export default function NextPaymentCard({
         {isOverdue && (
           <div className="mt-3 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-500 dark:text-rose-400 font-black text-[10px] tracking-wider uppercase flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-            <span>{calculatedDaysLate === 1 ? '1 DAY OVERDUE' : `${calculatedDaysLate} DAYS OVERDUE`}</span>
+            <span>{calculatedDaysLate === 1 ? t('dashboard.dayOverdueUpper', '1 DAY OVERDUE') : t('dashboard.daysOverdueUpper', '{{count}} DAYS OVERDUE', { count: calculatedDaysLate })}</span>
           </div>
         )}
 
         {isDueToday && (
           <div className="mt-3 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-400 font-black text-[10px] tracking-wider uppercase flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>PAYMENT DUE TODAY</span>
+            <span>{t('dashboard.paymentDueTodayUpper', 'PAYMENT DUE TODAY')}</span>
           </div>
         )}
       </div>
@@ -363,7 +363,7 @@ export default function NextPaymentCard({
           <div className="grid grid-cols-2 gap-2 text-center">
             <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-                Monthly Rent
+                {t('dashboard.monthlyRent', 'Monthly Rent')}
               </p>
               <p className="text-xs font-black text-foreground truncate">
                 ₹{baseRent.toLocaleString('en-IN')}
@@ -371,7 +371,7 @@ export default function NextPaymentCard({
             </div>
             <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 backdrop-blur-sm">
               <p className="text-[9px] font-black uppercase tracking-widest text-rose-500/80 mb-0.5">
-                Late Fee ({calculatedDaysLate}d)
+                {t('dashboard.lateFee', 'Late Fee')} ({calculatedDaysLate}d)
               </p>
               <p className="text-xs font-black text-rose-500 dark:text-rose-400 truncate">
                 +₹{calculatedLateFee.toLocaleString('en-IN')}
@@ -381,7 +381,7 @@ export default function NextPaymentCard({
 
           <div className="p-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-center flex items-center justify-between px-4">
             <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-300">
-              Total Due:
+              {t('dashboard.totalDueLabel', 'Total Due:')}
             </span>
             <span className="text-sm font-black text-rose-600 dark:text-rose-300">
               ₹{finalTotalDue.toLocaleString('en-IN')}
@@ -392,15 +392,15 @@ export default function NextPaymentCard({
         <div className="relative z-10 my-3 grid grid-cols-2 gap-2 text-center">
           <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-              {isEstimate ? 'Estimated Due' : t('dashboard.due', 'Due Date')}
+              {isEstimate ? t('dashboard.estimatedDue', 'Estimated Due') : t('dashboard.due', 'Due Date')}
             </p>
             <p className="text-xs font-black text-foreground truncate">
-              {isDueToday ? 'Today' : formattedDueDate}
+              {isDueToday ? t('notification.today', 'Today') : formattedDueDate}
             </p>
           </div>
           <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-sm">
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">
-              {isEstimate ? 'Upcoming Rent' : t('dashboard.amountDue', 'Amount')}
+              {isEstimate ? t('dashboard.upcomingRent', 'Upcoming Rent') : t('dashboard.amountDue', 'Amount')}
             </p>
             <p className="text-xs font-black text-emerald-500 dark:text-emerald-400 truncate">
               ₹{baseRent.toLocaleString('en-IN')}
@@ -423,7 +423,7 @@ export default function NextPaymentCard({
           <CreditCard className="w-4 h-4 text-white group-hover/btn:rotate-12 transition-transform duration-300" />
           <span>
             {isOverdue 
-              ? `Pay Rent Now (₹${finalTotalDue.toLocaleString('en-IN')})` 
+              ? `${t('dashboard.payRent', 'Pay Rent Now')} (₹${finalTotalDue.toLocaleString('en-IN')})` 
               : t('dashboard.payRentNow', 'Pay Rent Now')}
           </span>
           <ArrowRight className="w-4 h-4 text-white group-hover/btn:translate-x-1 transition-transform duration-300" />
