@@ -10,6 +10,7 @@ import {
 import { cn } from '../../utils/cn';
 import { resolveMediaUrl } from '../../utils/propertyHelper';
 import { leaseService } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 const STATUS_BADGE_STYLES = {
     expired: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
@@ -65,6 +66,7 @@ function ArchitecturalPlaceholder({ propertyType = 'Residence', className = '' }
 }
 
 export default function RentalHistoryDrawer({ open, onClose }) {
+    const { t, formatCurrency: fmtCurr, formatDate: fmtDate } = useLanguage();
     const [leases, setLeases] = useState([]);
     const [propertiesCount, setPropertiesCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -178,14 +180,14 @@ export default function RentalHistoryDrawer({ open, onClose }) {
                             <div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
-                                        Resident Portfolio
+                                        {t('lease.residentPortfolioBadge', 'Resident Portfolio')}
                                     </span>
                                 </div>
                                 <h2 id="rental-journey-title" className="text-lg font-black text-foreground tracking-tight flex items-center gap-2">
-                                    Rental Journey
+                                    {t('lease.journeyTitle', 'Rental Journey')}
                                 </h2>
                                 <p className="text-xs text-muted-foreground font-medium">
-                                    Your previous homes, stays &amp; rental agreements
+                                    {t('lease.journeySubtitle', 'Your previous homes, stays & rental agreements')}
                                 </p>
                             </div>
                         </div>
@@ -193,7 +195,7 @@ export default function RentalHistoryDrawer({ open, onClose }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            aria-label="Close rental journey"
+                            aria-label={t('lease.journeyTitle', 'Close rental journey')}
                             className="p-2.5 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-transparent hover:border-border transition-all cursor-pointer"
                         >
                             <X className="w-5 h-5" />
@@ -237,7 +239,7 @@ export default function RentalHistoryDrawer({ open, onClose }) {
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="text-base font-black text-rose-600 dark:text-rose-400">
-                                        Unable to load your rental journey
+                                        {t('lease.loadHistoryError', 'Unable to load your rental journey')}
                                     </h3>
                                     <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                                         Something went wrong while retrieving your historical records. Please try again.
@@ -248,7 +250,7 @@ export default function RentalHistoryDrawer({ open, onClose }) {
                                     className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider transition-all inline-flex items-center gap-2 shadow-lg shadow-rose-600/20 cursor-pointer"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
-                                    <span>Try Again</span>
+                                    <span>{t('lease.tryAgain', 'Try Again')}</span>
                                 </button>
                             </div>
                         )}
@@ -261,11 +263,11 @@ export default function RentalHistoryDrawer({ open, onClose }) {
                                 </div>
                                 <div className="space-y-2">
                                     <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
-                                        Your Journey Starts Here
+                                        {t('lease.journeyStartsHere', 'Your Journey Starts Here')}
                                     </span>
-                                    <h3 className="text-lg font-black text-foreground">No Completed Stays Yet</h3>
+                                    <h3 className="text-lg font-black text-foreground">{t('lease.noPastStaysTitle', 'No Completed Stays Yet')}</h3>
                                     <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                                        Your previous homes and tenancy records will appear here as chapters in your rental journey once you conclude a lease.
+                                        {t('lease.noPastStaysDesc', 'Your previous homes and tenancy records will appear here as chapters in your rental journey once you conclude a lease.')}
                                     </p>
                                 </div>
                             </div>

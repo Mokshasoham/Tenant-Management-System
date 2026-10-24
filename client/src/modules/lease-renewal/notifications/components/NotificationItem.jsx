@@ -148,7 +148,26 @@ export function NotificationItem({
                     <div className="flex items-center justify-between gap-2 mb-1">
                         <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                                {CATEGORY_LABELS[notification.category] || notification.category}
+                                {(() => {
+                                    const catKeyMap = {
+                                        renewal: 'catRenewal',
+                                        lease: 'catLease',
+                                        booking: 'catBooking',
+                                        billing: 'catBilling',
+                                        payments: 'catPayments',
+                                        maintenance: 'catMaintenance',
+                                        'move-out': 'catMoveOut',
+                                        inspection: 'catInspection',
+                                        deposit_settlement: 'catDepositSettlement',
+                                        documents: 'catDocuments',
+                                        messages: 'catMessages',
+                                        announcements: 'catAnnouncements',
+                                        security: 'catSecurity',
+                                        system: 'catSystem'
+                                    };
+                                    const mappedKey = catKeyMap[notification.category];
+                                    return mappedKey ? t(`notification.${mappedKey}`, CATEGORY_LABELS[notification.category] || notification.category) : (CATEGORY_LABELS[notification.category] || notification.category);
+                                })()}
                             </span>
                             {getPriorityBadge(notification.priority, t)}
                             {!notification.isRead && (
@@ -180,7 +199,7 @@ export function NotificationItem({
                             onClick={handleCardClick}
                             className="inline-flex items-center text-xs font-medium text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors cursor-pointer"
                         >
-                            <span>View details</span>
+                            <span>{t('notification.viewDetails', 'View details')}</span>
                             <ExternalLink className="ml-1 w-3 h-3" />
                         </div>
                     )}
@@ -191,7 +210,7 @@ export function NotificationItem({
                     {!notification.isRead && (
                         <button
                             onClick={() => onMarkAsRead && onMarkAsRead(notification.id)}
-                            title="Mark as read"
+                            title={t('notification.markAsRead', 'Mark as read')}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors"
                         >
                             <Check className="w-4 h-4" />
@@ -199,7 +218,7 @@ export function NotificationItem({
                     )}
                     <button
                         onClick={() => onDelete && onDelete(notification.id)}
-                        title="Delete notification"
+                        title={t('notification.delete', 'Delete notification')}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
                     >
                         <Trash2 className="w-4 h-4" />

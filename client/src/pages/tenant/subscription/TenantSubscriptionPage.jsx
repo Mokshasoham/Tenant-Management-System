@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { subscriptionService, leaseService } from '../../../services/api';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { cn } from '../../../utils/cn';
 
 // Authoritative fallback plans (Resident Free: 2 leases, Resident Plus: 4 leases, Resident Pro: Unlimited)
@@ -86,6 +87,7 @@ const FALLBACK_TENANT_PLANS = [
 
 export default function TenantSubscriptionPage() {
   const { theme } = useTheme();
+  const { t, formatCurrency } = useLanguage();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
 
@@ -372,19 +374,19 @@ export default function TenantSubscriptionPage() {
                 isDark ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-800"
               )}>
                 <Sparkles className="w-3 h-3 text-emerald-500" />
-                <span>RESIDENT MEMBERSHIP</span>
+                <span>{t('subscription.residentMembership', 'RESIDENT MEMBERSHIP')}</span>
               </div>
               <h1 className={cn(
                 "text-2xl sm:text-4xl font-black tracking-tight",
                 isDark ? "text-white" : "text-slate-900"
               )}>
-                Upgrade Your Resident Experience
+                {t('subscription.upgradeTitle', 'Upgrade Your Resident Experience')}
               </h1>
               <p className={cn(
                 "text-xs sm:text-sm max-w-xl font-medium leading-relaxed",
                 isDark ? "text-slate-300" : "text-slate-600"
               )}>
-                Choose the plan that fits the way you live, manage, and grow your rental portfolio.
+                {t('subscription.upgradeSubtitle', 'Choose the plan that fits the way you live, manage, and grow your rental portfolio.')}
               </p>
             </div>
 
@@ -404,7 +406,7 @@ export default function TenantSubscriptionPage() {
                   "text-[10px] font-bold uppercase tracking-wider block",
                   isDark ? "text-slate-400" : "text-slate-500"
                 )}>
-                  CURRENT PLAN
+                  {t('subscription.currentPlan', 'CURRENT PLAN')}
                 </span>
                 <span className={cn(
                   "text-base font-black tracking-tight block",
@@ -423,7 +425,7 @@ export default function TenantSubscriptionPage() {
                     "inline-flex items-center px-2 py-0.2 rounded-full text-[9px] font-black tracking-wide border",
                     isDark ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-emerald-100 text-emerald-800 border-emerald-300"
                   )}>
-                    ACTIVE
+                    {t('subscription.active', 'ACTIVE')}
                   </span>
                 </div>
               </div>
@@ -453,7 +455,7 @@ export default function TenantSubscriptionPage() {
                     "text-xs font-black uppercase tracking-wider",
                     isDark ? "text-slate-200" : "text-slate-800"
                   )}>
-                    ACTIVE LEASE CAPACITY
+                    {t('subscription.activeLeaseCapacity', 'ACTIVE LEASE CAPACITY')}
                   </span>
                   <span className={cn(
                     "text-xs font-mono font-bold",
@@ -573,7 +575,7 @@ export default function TenantSubscriptionPage() {
                         : "bg-gradient-to-r from-cyan-500 to-teal-500 text-white border-cyan-300 shadow-cyan-500/30"
                     )}
                   >
-                    {isCurrent ? 'CURRENT PLAN' : (isPlanPlus ? 'MOST POPULAR' : 'BEST VALUE')}
+                    {isCurrent ? t("subscription.currentPlan", "CURRENT PLAN") : (isPlanPlus ? t("subscription.mostPopular", "MOST POPULAR") : t("subscription.bestValue", "BEST VALUE"))}
                   </span>
                 </div>
 
@@ -604,13 +606,13 @@ export default function TenantSubscriptionPage() {
                         "text-xl font-black tracking-tight uppercase",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        {plan.planName}
+                        {isPlanFree ? t("subscription.freePlanName", plan.planName) : isPlanPlus ? t("subscription.plusPlanName", plan.planName) : isPlanPro ? t("subscription.proPlanName", plan.planName) : plan.planName}
                       </h3>
                       <p className={cn(
                         "text-xs font-medium mt-1",
                         isDark ? "text-slate-400" : "text-slate-500"
                       )}>
-                        {plan.description || (isPlanPlus ? 'For residents managing multiple homes' : isPlanPro ? 'For comprehensive multi-property residents' : 'For individual renters & single residences')}
+                        {isPlanPlus ? t("subscription.plusPlanDesc", "For residents managing multiple homes") : isPlanPro ? t("subscription.proPlanDesc", "For comprehensive multi-property residents") : t("subscription.freePlanDesc", "For individual renters & single residences")}
                       </p>
                     </div>
                   </div>
@@ -640,9 +642,9 @@ export default function TenantSubscriptionPage() {
                       "flex items-center justify-between text-[10px] font-black uppercase tracking-wider",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      <span>LEASE CAPACITY</span>
+                      <span>{t("subscription.activeLeaseCapacity", "LEASE CAPACITY")}</span>
                       <span className={isPlanPlus ? (isDark ? 'text-emerald-400' : 'text-emerald-600 font-bold') : isPlanPro ? (isDark ? 'text-cyan-400' : 'text-cyan-600 font-bold') : (isDark ? 'text-slate-300' : 'text-slate-700')}>
-                        {plan.maxLeases >= 999999 ? 'Unlimited (5+)' : `${plan.maxLeases} Leases`}
+                        {plan.maxLeases >= 999999 ? t("subscription.unlimitedLeases", "Unlimited") : t("subscription.leaseCapacity", { count: plan.maxLeases })}
                       </span>
                     </div>
 
@@ -652,7 +654,7 @@ export default function TenantSubscriptionPage() {
                         "text-xs font-bold",
                         isDark ? "text-slate-200" : "text-slate-800"
                       )}>
-                        {plan.maxLeases >= 999999 ? 'Unlimited active leases (5+)' : `Up to ${plan.maxLeases} active leases`}
+                        {plan.maxLeases >= 999999 ? t("subscription.unlimitedLeases", "Unlimited active leases") : t("subscription.leaseCapacity", { count: plan.maxLeases })}
                       </span>
                     </div>
 
@@ -726,7 +728,7 @@ export default function TenantSubscriptionPage() {
                       )}
                     >
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Current Plan</span>
+                      <span>{t("subscription.currentPlan", "Current Plan")}</span>
                     </button>
                   ) : isPlanFree ? (
                     <button
@@ -739,7 +741,7 @@ export default function TenantSubscriptionPage() {
                       )}
                     >
                       <Check className="w-4 h-4 text-slate-400" />
-                      <span>Included Base Tier</span>
+                      <span>{t("subscription.currentPlan", "Included Base Tier")}</span>
                     </button>
                   ) : (
                     <button
@@ -760,7 +762,7 @@ export default function TenantSubscriptionPage() {
                         </>
                       ) : (
                         <>
-                          <span>Upgrade to {isPlanPlus ? 'Plus' : 'Pro'}</span>
+                          <span>{t("subscription.upgradeTo", { plan: isPlanPlus ? "Plus" : "Pro" })}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
@@ -783,7 +785,7 @@ export default function TenantSubscriptionPage() {
               isDark ? "text-white" : "text-slate-900"
             )}>
               <Sparkles className="w-4 h-4 text-emerald-500" />
-              <span>Why Upgrade?</span>
+              <span>{t("subscription.upgradeTitle", "Why Upgrade?")}</span>
             </h3>
             <p className={cn("text-xs font-medium", isDark ? "text-slate-400" : "text-slate-500")}>
               Maximize your rental flexibility with enterprise-grade resident tools.
@@ -878,13 +880,13 @@ export default function TenantSubscriptionPage() {
                 isDark ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-emerald-100 border-emerald-300 text-emerald-800"
               )}>
                 <Layers className="w-3.5 h-3.5 text-emerald-500" />
-                <span>✦ PLAN COMPARISON</span>
+                <span>✦ {t("subscription.featuresComparison", "PLAN COMPARISON")}</span>
               </div>
               <h2 className={cn(
                 "text-2xl sm:text-3xl font-black tracking-tight",
                 isDark ? "text-white" : "text-slate-900"
               )}>
-                Compare Plan Features
+                {t("subscription.featuresComparison", "Compare Plan Features")}
               </h2>
               <p className={cn(
                 "text-xs sm:text-sm font-medium",
@@ -905,7 +907,7 @@ export default function TenantSubscriptionPage() {
                     "text-[10px] font-black uppercase tracking-widest pb-3",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
-                    FEATURE BREAKDOWN
+                    {t("subscription.featuresComparison", "FEATURE BREAKDOWN")}
                   </div>
 
                   {/* Col 2: FREE Header Card */}

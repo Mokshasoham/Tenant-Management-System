@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, CheckCircle2, Trash2, X, RefreshCw } from 'lucide-react';
 import { CATEGORY_LABELS } from '../constants/notificationConstants';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export function NotificationFilterBar({
     category,
@@ -22,6 +23,7 @@ export function NotificationFilterBar({
     isRefreshing = false,
     onRefresh
 }) {
+    const { t } = useLanguage();
     return (
         <div className="space-y-4 bg-white dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm dark:shadow-none backdrop-blur-md">
             {/* Top Row: Search & Filters */}
@@ -33,7 +35,7 @@ export function NotificationFilterBar({
                         type="text"
                         value={search}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        placeholder="Search notifications by title, message, reference..."
+                        placeholder={t('notification.searchPlaceholder', 'Search notifications by title, message, reference...')}
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 dark:focus:border-indigo-500 transition-all"
                     />
                     {search && (
@@ -55,11 +57,11 @@ export function NotificationFilterBar({
                             onChange={(e) => onPriorityChange(e.target.value)}
                             className="bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
                         >
-                            <option value="all">All Priorities</option>
-                            <option value="critical">Critical Only</option>
-                            <option value="high">High Only</option>
-                            <option value="medium">Medium Only</option>
-                            <option value="low">Low Only</option>
+                            <option value="all">{t('notification.allPriorities', 'All Priorities')}</option>
+                            <option value="critical">{t('notification.criticalOnly', 'Critical Only')}</option>
+                            <option value="high">{t('notification.highOnly', 'High Only')}</option>
+                            <option value="medium">{t('notification.mediumOnly', 'Medium Only')}</option>
+                            <option value="low">{t('notification.lowOnly', 'Low Only')}</option>
                         </select>
                     </div>
 
@@ -72,14 +74,14 @@ export function NotificationFilterBar({
                             className="sr-only peer"
                         />
                         <div className="w-8 h-4 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600 relative"></div>
-                        <span>Unread Only</span>
+                        <span>{t('notification.unreadOnly', 'Unread Only')}</span>
                     </label>
 
                     {/* Refresh Button */}
                     <button
                         onClick={onRefresh}
                         disabled={isRefreshing}
-                        title="Refresh list"
+                        title={t('notification.refreshList', 'Refresh list')}
                         className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:border-slate-300 dark:hover:border-slate-700 transition-colors disabled:opacity-50"
                     >
                         <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-500' : ''}`} />
@@ -91,6 +93,24 @@ export function NotificationFilterBar({
             <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
                 {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
                     const isActive = category === catKey;
+                    const catKeyMap = {
+                        all: 'catAll',
+                        renewal: 'catRenewal',
+                        lease: 'catLease',
+                        booking: 'catBooking',
+                        billing: 'catBilling',
+                        payments: 'catPayments',
+                        maintenance: 'catMaintenance',
+                        'move-out': 'catMoveOut',
+                        inspection: 'catInspection',
+                        deposit_settlement: 'catDepositSettlement',
+                        documents: 'catDocuments',
+                        messages: 'catMessages',
+                        announcements: 'catAnnouncements',
+                        security: 'catSecurity',
+                        system: 'catSystem'
+                    };
+                    const displayLabel = catKeyMap[catKey] ? t(`notification.${catKeyMap[catKey]}`, catLabel) : catLabel;
                     return (
                         <button
                             key={catKey}
@@ -101,7 +121,7 @@ export function NotificationFilterBar({
                                     : 'bg-slate-100 dark:bg-slate-950/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
                             }`}
                         >
-                            {catLabel}
+                            {displayLabel}
                         </button>
                     );
                 })}
@@ -117,11 +137,11 @@ export function NotificationFilterBar({
                             onChange={onSelectAll}
                             className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-white dark:focus:ring-offset-slate-900 cursor-pointer"
                         />
-                        <span className="font-medium text-slate-700 dark:text-slate-300">Select All Page</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{t('notification.selectAll', 'Select All Page')}</span>
                     </label>
                     {selectedCount > 0 && (
                         <span className="font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-500/20">
-                            {selectedCount} selected
+                            {t('notification.countSelected', { count: selectedCount })}
                         </span>
                     )}
                 </div>
@@ -134,20 +154,20 @@ export function NotificationFilterBar({
                                 className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors font-medium"
                             >
                                 <CheckCircle2 className="mr-1.5 w-3.5 h-3.5" />
-                                Mark Selected Read
+                                {t('notification.markSelectedRead', 'Mark Selected Read')}
                             </button>
                             <button
                                 onClick={onBulkDelete}
                                 className="inline-flex items-center px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 hover:bg-rose-100 dark:hover:bg-rose-500/25 transition-colors font-medium"
                             >
                                 <Trash2 className="mr-1.5 w-3.5 h-3.5" />
-                                Delete Selected
+                                {t('notification.deleteSelected', 'Delete Selected')}
                             </button>
                             <button
                                 onClick={onClearSelection}
                                 className="px-2.5 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                             >
-                                Clear Selection
+                                {t('notification.clearSelection', 'Clear Selection')}
                             </button>
                         </>
                     ) : (
@@ -156,7 +176,7 @@ export function NotificationFilterBar({
                             className="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 hover:text-slate-800 dark:hover:text-white transition-colors font-medium"
                         >
                             <Trash2 className="mr-1.5 w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
-                            Clear All Read Notifications
+                            {t('notification.clearAllRead', 'Clear All Read Notifications')}
                         </button>
                     )}
                 </div>

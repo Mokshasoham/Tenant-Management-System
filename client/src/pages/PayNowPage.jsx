@@ -891,7 +891,7 @@ export default function PayNowPage() {
                             
                             <div className="flex items-center justify-between gap-2 mb-3">
                                 <p className="text-[10px] font-black text-emerald-100/40 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                                    {isBooking ? 'Total Payable' : billDetails ? `Invoice / Bill #${billDetails.billNumber}` : (isOverdue ? '⚠️ Overdue Rent Payment' : 'Monthly Rent')}
+                                    {isBooking ? t('payment.totalPayable', 'Total Payable') : billDetails ? `${t('bills.newInvoice', 'Invoice / Bill')} #${billDetails.billNumber}` : (isOverdue ? t('payment.overdueRent', '⚠️ Overdue Rent Payment') : t('payment.monthlyRent', 'Monthly Rent'))}
                                 </p>
 
                                 {!isBooking && !billIdParam && leases.length > 0 && (
@@ -925,8 +925,8 @@ export default function PayNowPage() {
                             ) : leaseNotFound ? (
                                 <div className="py-6 text-center text-white space-y-2">
                                     <AlertTriangle className="w-8 h-8 mx-auto text-amber-300" />
-                                    <h4 className="text-lg font-bold">Lease Not Found</h4>
-                                    <p className="text-xs text-white/70">The specified lease ID could not be loaded.</p>
+                                    <h4 className="text-lg font-bold">{t('payment.leaseNotFound', 'Lease Not Found')}</h4>
+                                    <p className="text-xs text-white/70">{t('payment.leaseNotFoundDesc', 'The specified lease ID could not be loaded.')}</p>
                                 </div>
                             ) : (
                                 <>
@@ -938,24 +938,24 @@ export default function PayNowPage() {
                                     {/* Breakdown items */}
                                     <div className="bg-black/20 rounded-2xl p-3 mb-4 space-y-1.5 text-xs text-emerald-100/80">
                                         <div className="flex justify-between">
-                                            <span>{billDetails ? `${billDetails.type ? billDetails.type.toUpperCase() : 'Bill'} Amount Due` : 'Monthly Rent'}</span>
+                                            <span>{billDetails ? `${billDetails.type ? billDetails.type.toUpperCase() : 'Bill'} Amount Due` : t('payment.monthlyRent', 'Monthly Rent')}</span>
                                             <span className="font-bold text-white">₹{(useCustom ? parsedCustom : (billDetails ? Math.max(0, (billDetails.amountDue || 0) - (billDetails.amountPaid || 0)) : monthlyRent)).toLocaleString('en-IN')}</span>
                                         </div>
                                         {!useCustom && lateFee > 0 && (
                                             <div className="flex justify-between text-rose-300">
-                                                <span>Late Fee ({daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue)</span>
+                                                <span>{t('payment.lateFee', 'Late Payment Surcharge')} ({daysOverdue} {daysOverdue !== 1 ? 'days' : 'day'} overdue)</span>
                                                 <span className="font-bold text-rose-200">+₹{lateFee.toLocaleString('en-IN')}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between">
-                                            <span>TMS Platform Fee ({platformFeePercentage}%)</span>
+                                            <span>{t('payment.platformFee', 'TMS Platform Fee')} ({platformFeePercentage}%)</span>
                                             <span className="font-bold text-emerald-300">
                                                 ₹{(useCustom ? customPlatformFee : platformFee).toLocaleString('en-IN')}
                                             </span>
                                         </div>
                                         {(taxAmount > 0) && (
                                             <div className="flex justify-between">
-                                                <span>Applicable Tax</span>
+                                                <span>{t('payment.gstTax', 'Applicable Tax')}</span>
                                                 <span className="font-bold text-white">₹{taxAmount.toLocaleString('en-IN')}</span>
                                             </div>
                                         )}

@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Helper to determine human-readable lease status (e.g. ACTIVE vs UPCOMING)
@@ -58,6 +59,7 @@ function loadRazorpayScript() {
 }
 
 export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPayUpdated }) {
+  const { t, formatCurrency, formatDate } = useLanguage();
   const [internalLeases, setInternalLeases] = useState(
     Array.isArray(propsActiveLeases) && propsActiveLeases.length > 0 ? propsActiveLeases : []
   );
@@ -351,10 +353,10 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
             </div>
             <div>
               <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
-                Auto-Pay
+                {t('payment.autoPayCardTitle', 'Auto-Pay')}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                No active or upcoming lease agreements found for automatic rent payments.
+                {t('payment.autoPayEmptyDesc', 'No active or upcoming lease agreements found for automatic rent payments.')}
               </p>
             </div>
           </div>
@@ -363,7 +365,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
             className="px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Retry</span>
+            <span>{t('payment.autoPayRetry', 'Retry')}</span>
           </button>
         </div>
       </div>
@@ -432,7 +434,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
-                    Auto-Pay
+                    {t('payment.autoPayCardTitle', 'Auto-Pay')}
                   </h3>
                   <span
                     className={cn(
@@ -448,13 +450,11 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                         isAutoPayActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50'
                       )}
                     />
-                    {isAutoPayActive ? 'ACTIVE' : 'OFF'}
+                    {isAutoPayActive ? t('common.active', 'ACTIVE') : t('common.inactive', 'OFF')}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isAutoPayActive
-                    ? 'Your monthly rent will be automatically paid on the scheduled lease due date.'
-                    : 'Automatically pay your monthly rent on the scheduled lease due date.'}
+                  {isAutoPayActive ? t('payment.autoPayActiveDesc', 'Your monthly rent will be automatically paid on the scheduled lease due date.') : t('payment.autoPayInactiveDesc', 'Automatically pay your monthly rent on the scheduled lease due date.')}
                 </p>
               </div>
             </div>
@@ -463,7 +463,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
             {internalLeases.length > 1 && (
               <div className="flex flex-wrap items-center gap-2 pt-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60">
-                  Select Lease:
+                  {t('payment.autoPaySelectLease', 'Select Lease:')}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {internalLeases.map((l) => {
@@ -513,7 +513,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                   onClick={fetchStatus}
                   className="underline hover:text-amber-400 font-bold ml-1 cursor-pointer"
                 >
-                  Retry
+                  {t('payment.autoPayRetry', 'Retry')}
                 </button>
               </div>
             )}
@@ -525,7 +525,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
             <div className="grid grid-cols-3 gap-3 p-3 rounded-2xl bg-muted/40 border border-border/80 text-left min-w-[280px] w-full sm:w-auto">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
-                  Monthly Rent
+                  {t('payment.autoPayMonthlyRent', 'Monthly Rent')}
                 </p>
                 <p className="text-xs font-black text-foreground truncate">
                   ₹{monthlyAmount.toLocaleString('en-IN')}
@@ -533,7 +533,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
               </div>
               <div>
                 <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
-                  Lease Status
+                  {t('payment.autoPayLeaseStatus', 'Lease Status')}
                 </p>
                 <p
                   className={cn(
@@ -546,7 +546,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
               </div>
               <div>
                 <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">
-                  {isAutoPayActive ? 'Next Auto-Pay' : 'Next Due'}
+                  {isAutoPayActive ? t('payment.autoPayNextAutoPay', 'Next Auto-Pay') : t('payment.autoPayNextDue', 'Next Due')}
                 </p>
                 <p className="text-xs font-black text-emerald-500 truncate">
                   {loadingStatus ? '...' : nextDueDate}
@@ -560,7 +560,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 onClick={handleOpenEnableModal}
                 className="px-5 py-3 rounded-2xl border border-border/80 bg-muted/60 hover:bg-muted text-foreground text-xs font-black uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto"
               >
-                <span>Manage Auto-Pay</span>
+                <span>{t('payment.autoPayManageBtn', 'Manage Auto-Pay')}</span>
               </button>
             ) : (
               <button
@@ -569,7 +569,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-2 w-full sm:w-auto border border-white/20"
               >
                 <Zap className="w-4 h-4" />
-                <span>Enable Auto-Pay</span>
+                <span>{t('payment.autoPayEnableBtn', 'Enable Auto-Pay')}</span>
               </button>
             )}
           </div>
@@ -607,7 +607,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                   </div>
                   <div>
                     <h3 className="text-base font-black uppercase tracking-wider text-foreground">
-                      {isAutoPayActive ? 'Manage Auto-Pay' : 'Enable Rent Auto-Pay'}
+                      {isAutoPayActive ? t('payment.autoPayManageBtn', 'Manage Auto-Pay') : t('payment.autoPayModalTitle', 'Enable Rent Auto-Pay')}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       {selectedLease?.property?.name || 'Your Residence'}
@@ -628,7 +628,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 dark:text-amber-400 text-xs font-semibold flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold">Notice</p>
+                    <p className="font-bold">{t('common.notice', 'Notice')}</p>
                     <p className="mt-0.5">{errorMsg}</p>
                   </div>
                 </div>
@@ -646,13 +646,13 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
               <div className="space-y-4">
                 <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-2.5">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-bold">Property</span>
+                    <span className="text-muted-foreground font-bold">{t('property.title', 'Property')}</span>
                     <span className="font-black text-foreground">
                       {selectedLease?.property?.name || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-bold">Lease Status</span>
+                    <span className="text-muted-foreground font-bold">{t('payment.autoPayLeaseStatus', 'Lease Status')}</span>
                     <span
                       className={cn(
                         'font-black',
@@ -663,19 +663,19 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-bold">Monthly Rent</span>
+                    <span className="text-muted-foreground font-bold">{t('payment.autoPayMonthlyRent', 'Monthly Rent')}</span>
                     <span className="font-black text-emerald-500 dark:text-emerald-400">
                       ₹{monthlyAmount.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-bold">Next Scheduled Due</span>
+                    <span className="text-muted-foreground font-bold">{t('payment.autoPayNextDue', 'Next Scheduled Due')}</span>
                     <span className="font-black text-foreground">{nextDueDate}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-bold">Billing Cycle</span>
+                    <span className="text-muted-foreground font-bold">{t('payment.billingCycle', 'Billing Cycle')}</span>
                     <span className="font-semibold text-foreground">
-                      Monthly on Lease Anchor Date
+                      {t('payment.monthlyAnchor', 'Monthly on Lease Anchor Date')}
                     </span>
                   </div>
                 </div>
@@ -683,10 +683,10 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-muted-foreground space-y-1.5">
                   <div className="flex items-center gap-2 font-bold text-foreground">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>Bank-Grade Recurring Mandate</span>
+                    <span>{t('payment.autoPayMandateTitle', 'Bank-Grade Recurring Mandate')}</span>
                   </div>
                   <p className="text-[11px] leading-relaxed">
-                    Auto-Pay sets up a verified Razorpay authorization mandate (UPI AutoPay / e-Mandate). Your bank will only be charged when rent is officially due. You can disable Auto-Pay at any time with 1 click.
+                    {t('payment.autoPayMandateDesc', 'Auto-Pay sets up a verified Razorpay authorization mandate (UPI AutoPay / e-Mandate). Your bank will only be charged when rent is officially due. You can disable Auto-Pay at any time with 1 click.')}
                   </p>
                 </div>
 
@@ -700,7 +700,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                         onClick={() => setDisableConfirmOpen(true)}
                         className="w-full py-3.5 px-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer"
                       >
-                        Disable Auto-Pay
+                        {t('payment.autoPayDisableBtn', 'Disable Auto-Pay')}
                       </button>
                       <button
                         type="button"
@@ -708,7 +708,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                         onClick={() => setModalOpen(false)}
                         className="w-full py-3.5 px-4 rounded-2xl bg-muted/60 hover:bg-muted text-foreground font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer border border-border"
                       >
-                        Keep Active
+                        {t('payment.autoPayKeepActive', 'Keep Active')}
                       </button>
                     </>
                   ) : (
@@ -724,12 +724,12 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Opening Secure Authorization...</span>
+                          <span>{t('payment.openingAuthorization', 'Opening Secure Authorization...')}</span>
                         </>
                       ) : (
                         <>
                           <Zap className="w-4 h-4" />
-                          <span>Authorize & Enable Auto-Pay</span>
+                          <span>{t('payment.autoPayAuthorizeBtn', 'Authorize & Enable Auto-Pay')}</span>
                         </>
                       )}
                     </button>
@@ -761,9 +761,9 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="text-center space-y-1.5">
-                <h4 className="text-lg font-black text-foreground">Disable Auto-Pay?</h4>
+                <h4 className="text-lg font-black text-foreground">{t('payment.autoPayDisableConfirmTitle', 'Disable Auto-Pay?')}</h4>
                 <p className="text-xs text-muted-foreground">
-                  Your future automatic rent payments will be stopped. Existing payments and lease records will not be affected.
+                  {t('payment.autoPayDisableConfirmDesc', 'Your future automatic rent payments will be stopped. Existing payments and lease records will not be affected.')}
                 </p>
               </div>
 
@@ -774,7 +774,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                   onClick={() => setDisableConfirmOpen(false)}
                   className="py-3 px-4 rounded-2xl bg-muted/60 hover:bg-muted text-foreground text-xs font-black uppercase tracking-wider transition-colors border border-border cursor-pointer"
                 >
-                  Keep Auto-Pay
+                  {t('payment.autoPayKeepAutoPay', 'Keep Auto-Pay')}
                 </button>
                 <button
                   type="button"
@@ -785,7 +785,7 @@ export default function AutoPayCard({ activeLeases: propsActiveLeases, onAutoPay
                   {submitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span>Disable Auto-Pay</span>
+                    <span>{t('payment.autoPayDisableBtn', 'Disable Auto-Pay')}</span>
                   )}
                 </button>
               </div>

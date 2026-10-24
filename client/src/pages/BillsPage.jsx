@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { billService, leaseService, paymentService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Receipt, Download, Search, Filter, Calendar,
   IndianRupee, CheckCircle2, AlertCircle, FileText,
@@ -38,6 +39,7 @@ const BILL_TYPES = [
 
 export default function BillsPage() {
   const user = useAuthStore((state) => state.user);
+  const { t, formatCurrency, formatDate } = useLanguage();
   const location = useLocation();
   const { id: urlBillId } = useParams();
   const isManagerOrAdmin = ['manager', 'admin'].includes(user?.role);
@@ -409,16 +411,14 @@ export default function BillsPage() {
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-emerald-500" />
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
-              Accounts & Ledger
+              {t('bills.accountsLedgerBadge', 'Accounts & Ledger')}
             </p>
           </div>
           <h1 className="text-3xl font-black text-foreground tracking-tight">
-            {isManagerOrAdmin ? 'Invoices & Billing Hub 🧾' : 'My Invoices & Bills 🧾'}
+            {isManagerOrAdmin ? t('bills.titleManager', 'Invoices & Billing Hub 🧾') : t('bills.titleTenant', 'My Invoices & Bills 🧾')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isManagerOrAdmin
-              ? 'Issue bills, record manual ledger payments, export financials, and manage collections.'
-              : 'View outstanding ledger items, process secure online card/UPI payments, and download bills.'}
+            {isManagerOrAdmin ? t('bills.descManager', 'Issue bills, record manual ledger payments, export financials, and manage collections.') : t('bills.descTenant', 'View outstanding ledger items, process secure online card/UPI payments, and download bills.')}
           </p>
         </div>
 
@@ -430,14 +430,14 @@ export default function BillsPage() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card text-xs font-black hover:bg-muted transition-all"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                Export CSV
+                {t('bills.exportCsv', 'Export CSV')}
               </button>
               <button
                 onClick={() => { resetGenForm(); setShowGenerateModal(true); }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-lg shadow-emerald-500/20 transition-all"
               >
                 <Plus className="w-4 h-4" />
-                New Invoice
+                {t('bills.newInvoice', 'New Invoice')}
               </button>
             </>
           )}
@@ -448,21 +448,21 @@ export default function BillsPage() {
       {isManagerOrAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-2xl p-5 shadow-sm">
-            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase">Total Invoiced</span>
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase">{t('bills.totalInvoiced', 'Total Invoiced')}</span>
             <h2 className="text-3xl font-black text-foreground mt-1">₹{analytics.totalInvoiced.toLocaleString('en-IN')}</h2>
-            <p className="text-xs text-muted-foreground mt-1">Sum of all finalized platform ledger items</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('bills.totalInvoicedDesc', 'Sum of all finalized platform ledger items')}</p>
           </div>
 
           <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl p-5 shadow-sm">
-            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 tracking-widest uppercase">Collected Ledger</span>
+            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 tracking-widest uppercase">{t('bills.collectedLedger', 'Collected Ledger')}</span>
             <h2 className="text-3xl font-black text-foreground mt-1">₹{analytics.totalCollected.toLocaleString('en-IN')}</h2>
-            <p className="text-xs text-muted-foreground mt-1">Amount received and fully settled</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('bills.collectedLedgerDesc', 'Amount received and fully settled')}</p>
           </div>
 
           <div className="bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-2xl p-5 shadow-sm">
-            <span className="text-[10px] font-black text-red-600 dark:text-red-400 tracking-widest uppercase">Outstanding Arrears</span>
+            <span className="text-[10px] font-black text-red-600 dark:text-red-400 tracking-widest uppercase">{t('bills.outstandingArrears', 'Outstanding Arrears')}</span>
             <h2 className="text-3xl font-black text-foreground mt-1">₹{analytics.outstandingAmount.toLocaleString('en-IN')}</h2>
-            <p className="text-xs text-muted-foreground mt-1">Uncollected pending/overdue balance</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('bills.outstandingArrearsDesc', 'Uncollected pending/overdue balance')}</p>
           </div>
         </div>
       )}
@@ -473,7 +473,7 @@ export default function BillsPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30 group-focus-within:text-emerald-500 transition-colors" />
           <input
             type="text"
-            placeholder="Search by invoice number, tenant, or property..."
+            placeholder={t('bills.searchPlaceholder', 'Search by invoice number, tenant, or property...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all shadow-sm"
@@ -487,12 +487,12 @@ export default function BillsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all cursor-pointer"
           >
-            <option value="all">All Statuses</option>
-            <option value="generated">Generated</option>
-            <option value="partially_paid">Partially Paid</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-            <option value="voided">Voided</option>
+            <option value="all">{t('bills.allStatuses', 'All Statuses')}</option>
+            <option value="generated">{t('bills.statusGenerated', 'Generated')}</option>
+            <option value="partially_paid">{t('bills.statusPartiallyPaid', 'Partially Paid')}</option>
+            <option value="paid">{t('bills.statusPaid', 'Paid')}</option>
+            <option value="overdue">{t('bills.statusOverdue', 'Overdue')}</option>
+            <option value="voided">{t('bills.statusVoided', 'Voided')}</option>
           </select>
 
           {/* Type filter dropdown */}
@@ -501,7 +501,7 @@ export default function BillsPage() {
             onChange={(e) => setTypeFilter(e.target.value)}
             className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all cursor-pointer"
           >
-            <option value="all">All Types</option>
+            <option value="all">{t('bills.allTypes', 'All Types')}</option>
             {BILL_TYPES.map(t => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
@@ -521,9 +521,9 @@ export default function BillsPage() {
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Receipt className="w-8 h-8 text-muted-foreground/30" />
           </div>
-          <h3 className="text-lg font-black text-foreground">No invoices matching criteria</h3>
+          <h3 className="text-lg font-black text-foreground">{t('bills.noInvoicesTitle', 'No invoices matching criteria')}</h3>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
-            No bills or settled ledger payments were found in the selected period.
+            {t('bills.noInvoicesDesc', 'No bills or settled ledger payments were found in the selected period.')}
           </p>
         </div>
       ) : (

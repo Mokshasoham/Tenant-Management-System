@@ -2,6 +2,7 @@ import React from 'react';
 import { Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import NotificationItem from './NotificationItem';
 import NotificationListSkeleton from './skeletons/NotificationListSkeleton';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export function NotificationListSection({
     notifications,
@@ -16,6 +17,7 @@ export function NotificationListSection({
     hasMore,
     onPageChange
 }) {
+    const { t } = useLanguage();
     if (loading) {
         return <NotificationListSkeleton count={5} />;
     }
@@ -26,9 +28,9 @@ export function NotificationListSection({
                 <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4">
                     <Inbox className="w-8 h-8" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">No notifications found</h3>
+                <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">{t('notification.noNotifications', 'No notifications found')}</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
-                    You're all caught up! There are no matching notifications or alerts in this view.
+                    {t('notification.allCaughtUp', "You're all caught up! There are no matching notifications or alerts in this view.")}
                 </p>
             </div>
         );

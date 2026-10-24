@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Wrench, Clock, AlertTriangle, FileText, UserCheck, CheckCircle2, ArrowRight, Activity } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const STAGE_CONFIG = [
   { num: 1, key: 'submitted', label: 'Submitted', icon: FileText },
@@ -28,6 +29,7 @@ function getStageProgress(status) {
 }
 
 export default function TenantMaintenanceRequests({ requests = [], onSelectTicket, theme }) {
+  const { t } = useLanguage();
   // Active requests (not resolved or closed)
   const activeRequests = requests.filter(r => !['resolved', 'completed', 'closed', 'cancelled'].includes(r.status));
 
@@ -39,18 +41,18 @@ export default function TenantMaintenanceRequests({ requests = [], onSelectTicke
       <div className="flex items-center justify-between pb-2 border-b border-border/40">
         <div className="flex items-center gap-2">
           <Activity className="w-5 h-5 text-amber-500 animate-spin" />
-          <h3 className="text-base font-black tracking-tight">My Active Maintenance Requests</h3>
+          <h3 className="text-base font-black tracking-tight">{t('maintenance.myActiveRequests', 'My Active Maintenance Requests')}</h3>
         </div>
         <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-          {activeRequests.length} Active
+          {activeRequests.length} {t('common.active', 'Active')}
         </span>
       </div>
 
       {activeRequests.length === 0 ? (
         <div className="p-8 border border-dashed rounded-3xl text-center space-y-1 text-muted-foreground">
           <CheckCircle2 className="w-6 h-6 mx-auto text-emerald-500/50 mb-2" />
-          <p className="text-xs font-bold">No active maintenance tickets</p>
-          <p className="text-[10px]">All your submitted requests have been resolved.</p>
+          <p className="text-xs font-bold">{t('maintenance.noActiveTickets', 'No active maintenance tickets')}</p>
+          <p className="text-[10px]">{t('maintenance.allResolved', 'All your submitted requests have been resolved.')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

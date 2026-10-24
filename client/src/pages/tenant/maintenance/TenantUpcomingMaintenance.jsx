@@ -1,8 +1,10 @@
 import React from 'react';
 import { Calendar as CalendarIcon, Clock, UserCheck, ArrowRight, Wrench } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function TenantUpcomingMaintenance({ requests = [], onSelectTicket, theme }) {
+  const { t } = useLanguage();
   // Filter scheduled visits
   const upcomingVisits = requests.filter((r) =>
     ['visit_scheduled', 'scheduled', 'technician_assigned', 'in_progress'].includes(r.status) || r.requestedVisitDate
@@ -16,18 +18,18 @@ export default function TenantUpcomingMaintenance({ requests = [], onSelectTicke
       <div className="flex items-center justify-between pb-2 border-b border-border/40">
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-5 h-5 text-sky-400" />
-          <h3 className="text-base font-black tracking-tight">Upcoming Visits & Repairs</h3>
+          <h3 className="text-base font-black tracking-tight">{t("maintenance.upcomingVisits", "Upcoming Visits & Repairs")}</h3>
         </div>
         <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-          {upcomingVisits.length} Scheduled
+          {upcomingVisits.length} {t("maintenance.scheduled", "Scheduled")}
         </span>
       </div>
 
       {upcomingVisits.length === 0 ? (
         <div className="p-8 border border-dashed rounded-3xl text-center space-y-1 text-muted-foreground">
           <Wrench className="w-6 h-6 mx-auto text-muted-foreground/50 mb-2" />
-          <p className="text-xs font-bold">No upcoming visits scheduled</p>
-          <p className="text-[10px]">Submitted requests will appear here once scheduled.</p>
+          <p className="text-xs font-bold">{t("maintenance.noUpcomingVisits", "No upcoming visits scheduled")}</p>
+          <p className="text-[10px]">{t("maintenance.noUpcomingVisitsDesc", "Submitted requests will appear here once scheduled.")}</p>
         </div>
       ) : (
         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 scrollbar-none">

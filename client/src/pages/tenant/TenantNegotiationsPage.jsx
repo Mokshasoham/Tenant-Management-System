@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
 import { offerService } from '../../services/api';
 import {
   Handshake, Clock, CheckCircle2, XCircle, ArrowRight,
@@ -13,6 +14,7 @@ import { calculateLeaseDuration, formatDateRange, formatDateSingle } from '../..
 
 export default function TenantNegotiationsPage() {
   const navigate = useNavigate();
+  const { t, formatCurrency, formatDate } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [offers, setOffers] = useState([]);
   const [selectedOffer, setSelectedOffer] = useState(null);
@@ -124,11 +126,11 @@ export default function TenantNegotiationsPage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-500 mb-1">
             <Handshake className="w-4 h-4" />
-            <span>Private Negotiations</span>
+            <span>{t('negotiations.badge', 'Private Negotiations')}</span>
           </div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">My Rent Offers & Deals</h1>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">{t('negotiations.title', 'My Rent Offers & Deals')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track your 1-on-1 private rent proposals, manager counter-offers, and locked lease rates.
+            {t('negotiations.subtitle', 'Track your 1-on-1 private rent proposals, manager counter-offers, and locked lease rates.')}
           </p>
         </div>
 
@@ -138,7 +140,7 @@ export default function TenantNegotiationsPage() {
           className="self-start sm:self-auto px-4 py-2.5 rounded-2xl bg-muted/80 hover:bg-muted border border-border text-xs font-bold text-foreground flex items-center gap-2 transition-all active:scale-95"
         >
           <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-          Refresh
+          {t('negotiations.refresh', 'Refresh')}
         </button>
       </div>
 
@@ -146,7 +148,7 @@ export default function TenantNegotiationsPage() {
       {loading ? (
         <div className="py-20 flex flex-col items-center justify-center text-muted-foreground space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <p className="text-xs font-bold">Loading your offers...</p>
+          <p className="text-xs font-bold">{t('negotiations.loadingOffers', 'Loading your offers...')}</p>
         </div>
       ) : offers.length === 0 ? (
         <div className="py-16 p-8 rounded-3xl bg-muted/20 border border-border border-dashed text-center space-y-4 max-w-lg mx-auto">
@@ -154,16 +156,16 @@ export default function TenantNegotiationsPage() {
             <Handshake className="w-7 h-7" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-black text-foreground">No active rent negotiations</h3>
+            <h3 className="text-base font-black text-foreground">{t('negotiations.noOffersTitle', 'No active rent negotiations')}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              When you find an eligible property, you can propose a private 1-on-1 rent offer directly to the landlord.
+              {t('negotiations.noOffersDesc', 'When you find an eligible property, you can propose a private 1-on-1 rent offer directly to the landlord.')}
             </p>
           </div>
           <button
             onClick={() => navigate('/browse')}
             className="px-5 py-2.5 rounded-2xl bg-foreground text-background font-bold text-xs hover:opacity-90 transition-all shadow"
           >
-            Browse Properties
+            {t('negotiations.browseProperties', 'Browse Properties')}
           </button>
         </div>
       ) : (
@@ -215,15 +217,15 @@ export default function TenantNegotiationsPage() {
                         : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                     )}>
                       {isAccepted
-                        ? '🎉 Deal Locked!'
+                        ? t('negotiations.dealLocked', '🎉 Deal Locked!')
                         : canRespond
-                        ? 'Your Turn to Respond'
+                        ? t('negotiations.yourTurn', 'Your Turn to Respond')
                         : isExpired
-                        ? 'Deal Expired'
+                        ? t('negotiations.dealExpired', 'Deal Expired')
                         : offer.status === 'pending'
-                        ? 'Awaiting Review'
+                        ? t('negotiations.awaitingReview', 'Awaiting Review')
                         : offer.status === 'countered'
-                        ? 'Awaiting Manager'
+                        ? t('negotiations.awaitingManager', 'Awaiting Manager')
                         : offer.status}
                     </span>
                   </div>

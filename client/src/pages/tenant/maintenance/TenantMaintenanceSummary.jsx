@@ -1,18 +1,20 @@
 import React from 'react';
 import { AlertTriangle, Clock, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function TenantMaintenanceSummary({ requests = [], theme }) {
+  const { t } = useLanguage();
   const openCount = requests.filter(r => ['open', 'submitted', 'manager_review'].includes(r.status)).length;
   const inProgressCount = requests.filter(r => ['in_progress', 'technician_assigned', 'technician_en_route', 'work_started', 'waiting_parts'].includes(r.status)).length;
   const scheduledCount = requests.filter(r => ['visit_scheduled', 'scheduled'].includes(r.status) || r.requestedVisitDate || r.scheduledDate).length;
   const resolvedCount = requests.filter(r => ['resolved', 'completed', 'closed'].includes(r.status)).length;
 
   const kpis = [
-    { label: 'Open Requests', count: openCount, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20', icon: AlertTriangle },
-    { label: 'In Progress', count: inProgressCount, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', icon: Clock },
-    { label: 'Scheduled Visits', count: scheduledCount, color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20', icon: CalendarIcon },
-    { label: 'Resolved', count: resolvedCount, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2 },
+    { label: t('maintenance.openRequests', 'Open Requests'), count: openCount, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20', icon: AlertTriangle },
+    { label: t('maintenance.inProgress', 'In Progress'), count: inProgressCount, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', icon: Clock },
+    { label: t('maintenance.scheduledVisits', 'Scheduled Visits'), count: scheduledCount, color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20', icon: CalendarIcon },
+    { label: t('maintenance.resolved', 'Resolved'), count: resolvedCount, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: CheckCircle2 },
   ];
 
   return (

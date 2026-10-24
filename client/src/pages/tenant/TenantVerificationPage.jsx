@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
 import FeatureFlagService from '../../services/FeatureFlagService';
+import { useLanguage } from '../../context/LanguageContext';
 import useAuthStore from '../../context/authStore';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import {
@@ -52,6 +53,7 @@ import { Button } from '../../components/PremiumUI';
 
 export default function TenantVerificationPage() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const user = useAuthStore((state) => state.user);
   const { activeVerification, widgetData, loading, error, loadTenantVerification } = useVerificationContext();
 
@@ -129,14 +131,14 @@ export default function TenantVerificationPage() {
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Tenant Rental Verification & Trust Hub"
-        subtitle="Build rental credibility, manage identity documents, track trust score, and view rental reputation"
+        title={t('verification.headerTitle', 'Tenant Rental Verification & Trust Hub')}
+        subtitle={t('verification.headerSubtitle', 'Build rental credibility, manage identity documents, track trust score, and view rental reputation')}
         icon={ShieldCheck}
-        breadcrumbs={[{ label: 'Tenant Portal', href: '/dashboard' }, { label: 'Verification Home' }]}
+        breadcrumbs={[{ label: t('verification.tenantPortal', 'Tenant Portal'), href: '/dashboard' }, { label: t('verification.verificationHome', 'Verification Home') }]}
         actionSlot={
           <Button variant="outline" type="button" onClick={loadTenantData} disabled={refreshing} className="text-xs">
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh Data
+            {t('verification.refreshData', 'Refresh Data')}
           </Button>
         }
       />
@@ -158,12 +160,12 @@ export default function TenantVerificationPage() {
         <div className="flex items-center gap-2.5">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>
-            {status === 'UNVERIFIED' && 'Start your rental verification to build credibility and speed up lease approvals.'}
-            {status === 'DRAFT' && 'You have an incomplete verification draft. Complete all steps to submit.'}
-            {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && 'Your verification application is under active review.'}
-            {status === 'REJECTED' && 'Your verification application requires attention. Review rejection remarks and resubmit.'}
-            {status === 'APPROVED' && 'Your tenant profile is fully verified and certified.'}
-            {status === 'EXPIRED' && 'Your verification credential has expired. Please initiate renewal.'}
+            {status === 'UNVERIFIED' && t('verification.unverifiedBanner', 'Start your rental verification to build credibility and speed up lease approvals.')}
+            {status === 'DRAFT' && t('verification.draftBanner', 'You have an incomplete verification draft. Complete all steps to submit.')}
+            {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && t('verification.reviewBanner', 'Your verification application is under active review.')}
+            {status === 'REJECTED' && t('verification.rejectedBanner', 'Your verification application requires attention. Review rejection remarks and resubmit.')}
+            {status === 'APPROVED' && t('verification.approvedBanner', 'Your tenant profile is fully verified and certified.')}
+            {status === 'EXPIRED' && t('verification.expiredBanner', 'Your verification credential has expired. Please initiate renewal.')}
           </span>
         </div>
         {status === 'UNVERIFIED' && (
@@ -175,7 +177,7 @@ export default function TenantVerificationPage() {
               navigate('/tenant/verification/wizard');
             }}
           >
-            Start Now
+            {t('verification.startNow', 'Start Now')}
           </Button>
         )}
       </div>
@@ -183,18 +185,18 @@ export default function TenantVerificationPage() {
       {/* Hero Overview Grid (3 columns) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Status Card */}
-        <VerificationSectionCard title="Current Status" subtitle={`VRF Sequence: ${vrfNumber}`} icon={ShieldCheck}>
+        <VerificationSectionCard title={t('verification.currentStatus', 'Current Status')} subtitle={`VRF Sequence: ${vrfNumber}`} icon={ShieldCheck}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Verification State</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.verificationState', 'Verification State')}</span>
               <VerificationStatusBadge status={status} />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Trust Badge</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.trustBadge', 'Trust Badge')}</span>
               <VerificationBadge badge={badge} />
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-xs font-semibold text-muted-foreground">Verification Level</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.verificationLevel', 'Verification Level')}</span>
               <span className="text-xs font-black text-primary px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20">
                 {tenantLevel}
               </span>
@@ -211,7 +213,7 @@ export default function TenantVerificationPage() {
                     navigate('/tenant/verification/wizard');
                   }}
                 >
-                  <span>Start Verification</span>
+                  <span>{t('verification.startVerification', 'Start Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -225,7 +227,7 @@ export default function TenantVerificationPage() {
                     navigate('/tenant/verification/wizard');
                   }}
                 >
-                  <span>Continue Draft</span>
+                  <span>{t('verification.continueDraft', 'Continue Draft')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -239,7 +241,7 @@ export default function TenantVerificationPage() {
                     navigate('/tenant/verification/wizard');
                   }}
                 >
-                  <span>Resubmit Verification</span>
+                  <span>{t('verification.resubmitVerification', 'Resubmit Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -247,14 +249,14 @@ export default function TenantVerificationPage() {
               {status === 'APPROVED' && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Verified & Lease Ready</span>
+                  <span>{t('verification.verifiedReady', 'Verified & Lease Ready')}</span>
                 </div>
               )}
 
               {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold flex items-center gap-2">
                   <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>Submission Under Active Review</span>
+                  <span>{t('verification.underReview', 'Submission Under Active Review')}</span>
                 </div>
               )}
             </div>
@@ -262,7 +264,7 @@ export default function TenantVerificationPage() {
         </VerificationSectionCard>
 
         {/* Enhanced Trust Score Hero */}
-        <VerificationSectionCard title="Rental Trust Score" subtitle={trustData.statusTitle} icon={Award}>
+        <VerificationSectionCard title={t('verification.rentalTrustScore', 'Rental Trust Score')} subtitle={trustData.statusTitle} icon={Award}>
           <div className="flex flex-col items-center justify-center space-y-3 pt-1 text-center">
             <CircularProgress value={trustScore} max={100} size={110} strokeWidth={9} color="#10b981">
               <div className="text-center">
@@ -286,17 +288,17 @@ export default function TenantVerificationPage() {
                 navigate('/tenant/trust-score');
               }}
             >
-              <span>View Score Breakdown</span>
+              <span>{t('verification.viewScoreBreakdown', 'View Score Breakdown')}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
         </VerificationSectionCard>
 
         {/* Rental Reputation Card */}
-        <VerificationSectionCard title="Rental Reputation" subtitle="Track record & completed leases" icon={Home}>
+        <VerificationSectionCard title={t('verification.rentalReputation', 'Rental Reputation')} subtitle={t('verification.reputationSubtitle', 'Track record & completed leases')} icon={Home}>
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Current Residence</span>
+              <span className="text-muted-foreground font-medium">{t('verification.currentResidence', 'Current Residence')}</span>
               <span className="font-bold text-foreground truncate max-w-[170px]">{rentalHistory.currentResidence}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">

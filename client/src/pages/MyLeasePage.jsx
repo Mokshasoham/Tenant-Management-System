@@ -638,10 +638,10 @@ export default function MyLeasePage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-emerald-500" />
-                        <p className="text-[10px] font-black uppercase tracking-[.25em] text-emerald-600 dark:text-emerald-400">My Tenancy</p>
+                        <p className="text-[10px] font-black uppercase tracking-[.25em] text-emerald-600 dark:text-emerald-400">{t('lease.myTenancyBadge', 'My Tenancy')}</p>
                     </div>
-                    <h1 className="text-3xl font-black text-foreground tracking-tight">Lease &amp; Rent 🏠</h1>
-                    <p className="text-muted-foreground/40 text-sm mt-0.5">All your tenancy details in one place</p>
+                    <h1 className="text-3xl font-black text-foreground tracking-tight">{t('lease.leaseRentTitle', 'Lease & Rent 🏠')}</h1>
+                    <p className="text-muted-foreground/40 text-sm mt-0.5">{t('lease.leaseRentSubtitle', 'All your tenancy details in one place')}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                     <motion.button
@@ -649,11 +649,11 @@ export default function MyLeasePage() {
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setIsHistoryDrawerOpen(true)}
                         className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-border bg-card/90 hover:bg-card hover:border-emerald-500/40 text-foreground text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md cursor-pointer select-none"
-                        title="View your personal rental journey and past stays"
+                        title={t('lease.journeyTooltip', 'View your personal rental journey and past stays')}
                     >
                         <History className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span className="hidden sm:inline">Rental Journey</span>
-                        <span className="inline sm:hidden">Journey</span>
+                        <span className="hidden sm:inline">{t('lease.rentalJourneyBtn', 'Rental Journey')}</span>
+                        <span className="inline sm:hidden">{t('lease.journeyShort', 'Journey')}</span>
                         {pastLeases.length > 0 && (
                             <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black border border-emerald-500/20">
                                 {pastLeases.length}
@@ -665,7 +665,7 @@ export default function MyLeasePage() {
                         <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                             onClick={() => navigate(currentLease?._id ? `/pay-now?leaseId=${currentLease._id}` : '/pay-now', { state: { leaseId: currentLease?._id } })}
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 cursor-pointer">
-                            <Wallet className="w-4 h-4" /> Pay Rent Now
+                            <Wallet className="w-4 h-4" /> {t('lease.payRentNowBtn', 'Pay Rent Now')}
                         </motion.button>
                     )}
                 </div>
@@ -744,22 +744,22 @@ export default function MyLeasePage() {
                     <div className="space-y-2">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
                             <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Rental Agreement</span>
+                            <span>{t('lease.rentalAgreementBadge', 'Rental Agreement')}</span>
                         </div>
-                        <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No active lease yet</h2>
+                        <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">{t('lease.noActiveLeaseTitle', 'No active lease yet')}</h2>
                         <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                            You don't have a rental agreement linked to your account. Find a property, book your preferred home, and once your rental is confirmed, your lease and rent details will appear here.
+                            {t('lease.noActiveLeaseDesc', "You don't have a rental agreement linked to your account. Find a property, book your preferred home, and once your rental is confirmed, your lease and rent details will appear here.")}
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto pt-2">
                         <button onClick={() => navigate('/browse')}
                             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer">
-                            <span>EXPLORE PROPERTIES</span>
+                            <span>{t('lease.explorePropertiesBtn', 'EXPLORE PROPERTIES')}</span>
                             <ArrowRight className="w-4 h-4" />
                         </button>
                         <button onClick={() => navigate('/saved')}
                             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-foreground bg-muted border border-border hover:bg-muted/80 transition-all cursor-pointer">
-                            <span>SAVED PROPERTIES</span>
+                            <span>{t('lease.savedPropertiesBtn', 'SAVED PROPERTIES')}</span>
                         </button>
                     </div>
                 </motion.div>
