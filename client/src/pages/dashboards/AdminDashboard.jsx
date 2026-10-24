@@ -6,6 +6,7 @@ import {
     CheckCircle2, AlertCircle, Clock, MoreHorizontal, Wrench
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useLanguage } from '../../context/LanguageContext';
 import AdminPayouts from './AdminPayouts';
 import OperationsObservabilityTab from '../../components/dashboard/OperationsObservabilityTab';
 import PlatformRevenueTab from '../../components/dashboard/PlatformRevenueTab';
@@ -117,15 +118,16 @@ function Sparkline({ data, color }) {
 }
 
 export default function AdminDashboard({ stats, loading }) {
+    const { t } = useLanguage();
     const [view, setView] = useState('overview');
     const revenueData = [42, 58, 51, 73, 65, 89, 94, 78, 102, 88, 115, 98];
     const userGrowth = [12, 18, 15, 24, 20, 31, 28, 36, 33, 42, 38, 47];
 
     const statCards = [
-        { title: 'Total Users', value: stats?.totalUsers || 248, icon: Users, trend: '+12%', color: 'bg-violet-500', delay: 0 },
-        { title: 'Properties', value: stats?.totalProperties || 84, icon: Building2, trend: '+4%', color: 'bg-purple-500', delay: 0.1 },
-        { title: 'Revenue', value: stats?.totalRevenue || 94280, icon: CreditCard, trend: '+18%', color: 'bg-indigo-500', delay: 0.2, prefix: '₹' },
-        { title: 'Active Leases', value: stats?.totalLeases || 156, icon: FileText, trend: '+7%', color: 'bg-fuchsia-500', delay: 0.3 },
+        { title: t('dashboard.totalUsers', 'Total Users'), value: stats?.totalUsers || 248, icon: Users, trend: '+12%', color: 'bg-violet-500', delay: 0 },
+        { title: t('nav.properties', 'Properties'), value: stats?.totalProperties || 84, icon: Building2, trend: '+4%', color: 'bg-purple-500', delay: 0.1 },
+        { title: t('dashboard.totalRevenue', 'Revenue'), value: stats?.totalRevenue || 94280, icon: CreditCard, trend: '+18%', color: 'bg-indigo-500', delay: 0.2, prefix: '₹' },
+        { title: t('dashboard.activeLease', 'Active Leases'), value: stats?.totalLeases || 156, icon: FileText, trend: '+7%', color: 'bg-fuchsia-500', delay: 0.3 },
     ];
 
     const systemHealth = [
@@ -144,10 +146,10 @@ export default function AdminDashboard({ stats, loading }) {
     ];
 
     const donutData = [
-        { value: 65, color: '#7c3aed', label: 'Paid' },
-        { value: 20, color: '#a855f7', label: 'Pending' },
-        { value: 10, color: '#ec4899', label: 'Overdue' },
-        { value: 5, color: '#6366f1', label: 'Cancelled' },
+        { value: 65, color: '#7c3aed', label: t('payment.paid', 'Paid') },
+        { value: 20, color: '#a855f7', label: t('payment.pending', 'Pending') },
+        { value: 10, color: '#ec4899', label: t('payment.overdue', 'Overdue') },
+        { value: 5, color: '#6366f1', label: t('common.cancel', 'Cancelled') },
     ];
 
     const getTypeIcon = (type) => {
@@ -169,15 +171,23 @@ export default function AdminDashboard({ stats, loading }) {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-violet-400 to-purple-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-500/80 dark:text-violet-400">System Administration</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-500/80 dark:text-violet-400">
+                            {t('dashboard.systemAdministration', 'System Administration')}
+                        </p>
                     </div>
-                    <h1 className="text-4xl font-black text-foreground tracking-tight">Command Center <span className="text-violet-500/80 dark:text-violet-400">⚡</span></h1>
-                    <p className="text-muted-foreground mt-1 font-medium">Full system overview & controls</p>
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">
+                        {t('dashboard.commandCenter', 'Command Center')} <span className="text-violet-500/80 dark:text-violet-400">⚡</span>
+                    </h1>
+                    <p className="text-muted-foreground mt-1 font-medium">
+                        {t('dashboard.systemOverviewControls', 'Full system overview & controls')}
+                    </p>
                 </div>
                 <div className="hidden md:flex items-center gap-2">
                     <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10 dark:bg-emerald-500/10 dark:border-emerald-500/20">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">All Systems Operational</span>
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            {t('dashboard.allSystemsOperational', 'All Systems Operational')}
+                        </span>
                     </div>
                 </div>
             </motion.div>
@@ -191,7 +201,7 @@ export default function AdminDashboard({ stats, loading }) {
                         view === 'overview' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    OVERVIEW
+                    {t('dashboard.overview', 'OVERVIEW')}
                 </button>
                 <button
                     onClick={() => setView('payouts')}
@@ -200,7 +210,7 @@ export default function AdminDashboard({ stats, loading }) {
                         view === 'payouts' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    PAYOUT REQUESTS
+                    {t('dashboard.payoutRequests', 'PAYOUT REQUESTS')}
                 </button>
                 <button
                     onClick={() => setView('revenue')}
@@ -209,7 +219,7 @@ export default function AdminDashboard({ stats, loading }) {
                         view === 'revenue' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    PLATFORM REVENUE & FEES
+                    {t('dashboard.platformRevenue', 'PLATFORM REVENUE & FEES')}
                 </button>
                 <button
                     onClick={() => setView('operations')}
@@ -218,7 +228,7 @@ export default function AdminDashboard({ stats, loading }) {
                         view === 'operations' ? "bg-white text-violet-600 shadow-sm dark:bg-card dark:text-violet-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    OPERATIONS & OBSERVABILITY
+                    {t('dashboard.operationsObservability', 'OPERATIONS OBSERVABILITY')}
                 </button>
             </div>
 

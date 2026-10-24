@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Settings, CheckCircle2, Trash2, RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import useNotifications from './hooks/useNotifications';
 import NotificationFilterBar from './components/NotificationFilterBar';
 import NotificationListSection from './components/NotificationListSection';
@@ -7,6 +8,7 @@ import NotificationSettingsTab from './components/NotificationSettingsTab';
 import NotificationCalendarTab from './components/NotificationCalendarTab';
 
 export function NotificationCenter() {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('all');
 
     const {
@@ -55,10 +57,12 @@ export function NotificationCenter() {
                         <div className="p-2.5 rounded-2xl bg-indigo-100 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
                             <Bell className="w-6 h-6" />
                         </div>
-                        <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Notification Center</h1>
+                        <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                            {t('notification.centerTitle', 'Notification Center')}
+                        </h1>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Stay informed on lease renewals, tenant communications, automated payouts, and system alerts.
+                        {t('notification.centerSubtitle', 'Stay informed on lease renewals, tenant communications, automated payouts, and system alerts.')}
                     </p>
                 </div>
 
@@ -66,10 +70,10 @@ export function NotificationCenter() {
                     {unreadCount > 0 && (
                         <button
                             onClick={markAllAsRead}
-                            className="inline-flex items-center px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold shadow-lg shadow-indigo-200 dark:shadow-indigo-950/50 transition-all"
+                            className="inline-flex items-center px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-semibold shadow-lg shadow-indigo-200 dark:shadow-indigo-950/50 transition-all cursor-pointer"
                         >
                             <CheckCircle2 className="mr-1.5 w-4 h-4" />
-                            Mark All Read ({unreadCount})
+                            {t('notification.markAllRead', 'Mark All Read')} ({unreadCount})
                         </button>
                     )}
                 </div>
@@ -80,14 +84,14 @@ export function NotificationCenter() {
                 <button
                     type="button"
                     onClick={() => setActiveTab('all')}
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border cursor-pointer ${
                         activeTab === 'all'
                             ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-indigo-300 dark:border-indigo-500/50 shadow-md'
                             : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                 >
                     <Bell className="w-4 h-4" />
-                    <span>All Activity</span>
+                    <span>{t('notification.tabAll', 'All Activity')}</span>
                     {unreadCount > 0 && (
                         <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-indigo-600 text-white">
                             {unreadCount}
@@ -98,27 +102,27 @@ export function NotificationCenter() {
                 <button
                     type="button"
                     onClick={() => setActiveTab('calendar')}
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border cursor-pointer ${
                         activeTab === 'calendar'
                             ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-indigo-300 dark:border-indigo-500/50 shadow-md'
                             : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                 >
                     <CalendarIcon className="w-4 h-4" />
-                    <span>Calendar</span>
+                    <span>{t('notification.tabCalendar', 'Calendar')}</span>
                 </button>
 
                 <button
                     type="button"
                     onClick={() => setActiveTab('settings')}
-                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border ${
+                    className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all border cursor-pointer ${
                         activeTab === 'settings'
                             ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-indigo-300 dark:border-indigo-500/50 shadow-md'
                             : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                 >
                     <Settings className="w-4 h-4" />
-                    <span>Preferences &amp; Delivery</span>
+                    <span>{t('notification.tabPreferences', 'Preferences & Delivery')}</span>
                 </button>
             </div>
 

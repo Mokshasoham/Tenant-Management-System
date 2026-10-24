@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import { Mail, Lock, Building2, ArrowRight, ShieldCheck, Sparkles, Check } from 'lucide-react';
 import { Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
@@ -14,6 +15,7 @@ const LOGIN_BG_IMAGE = "https://images.unsplash.com/photo-1600585154340-be6161a5
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { t, translateApiError } = useLanguage();
   const { register, handleSubmit, formState: { errors }, setValue } = useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -96,10 +98,10 @@ export default function LoginPage() {
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Welcome back.
+                  {t('auth.loginTitle', 'Welcome back.')}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
-                  Continue managing your home with confidence.
+                  {t('auth.loginSubtitle', 'Continue managing your home with confidence.')}
                 </p>
               </div>
 
@@ -110,7 +112,7 @@ export default function LoginPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className="bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold"
                 >
-                  {error}
+                  {translateApiError(error)}
                 </motion.div>
               )}
 
@@ -119,10 +121,10 @@ export default function LoginPage() {
                 {requires2FA ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
                     <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
-                      Please enter the 6-digit authentication code from your authenticator app.
+                      {t('auth.twoFactorDesc', 'Please enter the 6-digit authentication code from your authenticator app.')}
                     </p>
                     <Input
-                      label="6-Digit Token"
+                      label={t('auth.twoFactorTitle', '6-Digit Token')}
                       type="text"
                       placeholder="123456"
                       value={twoFactorToken}
@@ -134,30 +136,30 @@ export default function LoginPage() {
                 ) : (
                   <>
                     <Input
-                      label="Email Address"
+                      label={t('auth.email', 'Email Address')}
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder={t('auth.emailPlaceholder', 'you@example.com')}
                       error={errors.email?.message}
                       {...register('email', {
-                        required: 'Email is required',
+                        required: t('errors.requiredField', 'Email is required'),
                         pattern: {
                           value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address',
+                          message: t('errors.invalidEmail', 'Invalid email address'),
                         },
                       })}
                     />
 
                     <div className="space-y-1">
                       <Input
-                        label="Password"
+                        label={t('auth.password', 'Password')}
                         type="password"
                         placeholder="••••••••"
                         error={errors.password?.message}
                         {...register('password', {
-                          required: 'Password is required',
+                          required: t('errors.requiredField', 'Password is required'),
                           minLength: {
                             value: 8,
-                            message: 'Password must be at least 8 characters',
+                            message: t('errors.passwordMinLength', 'Password must be at least 8 characters'),
                           },
                         })}
                       />
@@ -167,7 +169,7 @@ export default function LoginPage() {
                           onClick={() => setIsForgotModalOpen(true)}
                           className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                         >
-                          Forgot password?
+                          {t('auth.forgotPassword', 'Forgot password?')}
                         </button>
                       </div>
                     </div>
@@ -179,7 +181,7 @@ export default function LoginPage() {
                   disabled={isLoading}
                   className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isLoading ? 'Verifying...' : (requires2FA ? 'Verify Code' : 'Sign In')}
+                  {isLoading ? t('auth.signingIn', 'Verifying...') : (requires2FA ? t('auth.verifyCode', 'Verify Code') : t('auth.signInBtn', 'Sign In'))}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
@@ -192,7 +194,7 @@ export default function LoginPage() {
                       <div className="w-full border-t border-slate-200 dark:border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      <span className="px-3 bg-white dark:bg-[#0B1424]">Or continue with</span>
+                      <span className="px-3 bg-white dark:bg-[#0B1424]">{t('auth.orContinueWith', 'Or continue with')}</span>
                     </div>
                   </div>
 
@@ -200,7 +202,7 @@ export default function LoginPage() {
                     onError={setError}
                     setIsLoading={setIsLoading}
                     navigate={navigate}
-                    text="Continue with Google"
+                    text={t('auth.googleSignIn', 'Continue with Google')}
                   />
                 </div>
               )}
@@ -208,9 +210,9 @@ export default function LoginPage() {
               {/* Sign up Link */}
               <div className="pt-4 border-t border-slate-200 dark:border-white/10 text-center">
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  New to the platform?{' '}
+                  {t('auth.noAccount', 'New to the platform?')}{' '}
                   <Link to="/register" className="text-emerald-600 dark:text-emerald-400 font-black hover:underline underline-offset-4">
-                    Create Account
+                    {t('auth.signUpLink', 'Create Account')}
                   </Link>
                 </p>
               </div>

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import { Building2, ArrowRight, Sparkles, ShieldCheck, Check, ArrowLeft, Home } from 'lucide-react';
 import { Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
@@ -14,6 +15,7 @@ const REGISTER_BG_IMAGE = "https://images.unsplash.com/photo-1600607687939-ce8a6
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { t, translateApiError } = useLanguage();
   const { register, handleSubmit, watch, formState: { errors } } = useForm();
   const [step, setStep] = useState('details'); // 'details' | 'role'
   const [formData, setFormData] = useState(null);
@@ -84,20 +86,20 @@ export default function RegisterPage() {
                 {step === 'details' ? (
                   <>
                     <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                      Create your account.
+                      {t('auth.registerTitle', 'Create your account.')}
                     </h1>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
-                      Step 1 of 2: Enter your personal credentials.
+                      {t('auth.registerSubtitle', 'Enter your personal credentials to get started.')}
                     </p>
                   </>
                 ) : (
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-                        Select your role.
+                        {t('auth.role', 'Select your role.')}
                       </h1>
                       <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1.5">
-                        Step 2 of 2: Choose how you want to use TMS.
+                        {t('common.details', 'Choose how you want to use TMS.')}
                       </p>
                     </div>
                     <button
@@ -105,7 +107,7 @@ export default function RegisterPage() {
                       onClick={() => setStep('details')}
                       className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-1.5 cursor-pointer"
                     >
-                      <ArrowLeft className="w-3.5 h-3.5" /> Back
+                      <ArrowLeft className="w-3.5 h-3.5" /> {t('common.back', 'Back')}
                     </button>
                   </div>
                 )}
@@ -114,7 +116,7 @@ export default function RegisterPage() {
               {/* Error Banner */}
               {error && (
                 <div className="bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 px-4 py-3 rounded-2xl text-xs font-bold">
-                  {error}
+                  {translateApiError(error)}
                 </div>
               )}
 
@@ -132,20 +134,20 @@ export default function RegisterPage() {
                     <form onSubmit={handleSubmit(onDetailsSubmit)} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
-                          label="First Name"
+                          label={t('auth.firstName', 'First Name')}
                           placeholder="John"
                           error={errors.firstName?.message}
                           {...register('firstName', {
-                            required: 'First name is required',
+                            required: t('errors.requiredField', 'First name is required'),
                             minLength: { value: 2, message: 'At least 2 characters' },
                           })}
                         />
                         <Input
-                          label="Last Name"
+                          label={t('auth.lastName', 'Last Name')}
                           placeholder="Doe"
                           error={errors.lastName?.message}
                           {...register('lastName', {
-                            required: 'Last name is required',
+                            required: t('errors.requiredField', 'Last name is required'),
                             minLength: { value: 2, message: 'At least 2 characters' },
                           })}
                         />
@@ -153,38 +155,38 @@ export default function RegisterPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
-                          label="Email Address"
+                          label={t('auth.email', 'Email Address')}
                           type="email"
-                          placeholder="you@example.com"
+                          placeholder={t('auth.emailPlaceholder', 'you@example.com')}
                           error={errors.email?.message}
                           {...register('email', {
-                            required: 'Email is required',
+                            required: t('errors.requiredField', 'Email is required'),
                             pattern: {
                               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                              message: 'Invalid email address',
+                              message: t('errors.invalidEmail', 'Invalid email address'),
                             },
                           })}
                         />
                         <Input
-                          label="Phone Number"
+                          label={t('auth.phone', 'Phone Number')}
                           type="tel"
-                          placeholder="+91 98765 43210"
+                          placeholder={t('auth.phonePlaceholder', '+91 98765 43210')}
                           error={errors.phone?.message}
                           {...register('phone', {
-                            required: 'Phone is required',
+                            required: t('errors.requiredField', 'Phone is required'),
                           })}
                         />
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
-                          label="Password"
+                          label={t('auth.password', 'Password')}
                           type="password"
                           placeholder="••••••••"
                           error={errors.password?.message}
                           {...register('password', {
-                            required: 'Password is required',
-                            minLength: { value: 8, message: 'At least 8 characters' },
+                            required: t('errors.requiredField', 'Password is required'),
+                            minLength: { value: 8, message: t('errors.passwordMinLength', 'At least 8 characters') },
                             pattern: {
                               value: /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
                               message: 'Need uppercase, lowercase, number & symbol',
@@ -192,12 +194,12 @@ export default function RegisterPage() {
                           })}
                         />
                         <Input
-                          label="Confirm Password"
+                          label={t('auth.confirmPassword', 'Confirm Password')}
                           type="password"
                           placeholder="••••••••"
                           error={errors.confirmPassword?.message}
                           {...register('confirmPassword', {
-                            validate: (value) => value === password || 'Passwords do not match',
+                            validate: (value) => value === password || t('errors.passwordMismatch', 'Passwords do not match'),
                           })}
                         />
                       </div>
@@ -206,7 +208,7 @@ export default function RegisterPage() {
                         type="submit"
                         className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
                       >
-                        <span>Continue to Role Selection</span>
+                        <span>{t('common.next', 'Continue')}</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </form>
@@ -218,7 +220,7 @@ export default function RegisterPage() {
                           <div className="w-full border-t border-slate-200 dark:border-white/10" />
                         </div>
                         <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                          <span className="px-3 bg-white dark:bg-[#0B1424]">Or sign up with Google</span>
+                          <span className="px-3 bg-white dark:bg-[#0B1424]">{t('auth.orContinueWith', 'Or continue with')}</span>
                         </div>
                       </div>
 
@@ -226,7 +228,7 @@ export default function RegisterPage() {
                         onError={setError}
                         setIsLoading={setIsLoading}
                         navigate={navigate}
-                        text="Sign up with Google"
+                        text={t('auth.googleSignIn', 'Sign up with Google')}
                       />
                     </div>
                   </motion.div>
@@ -252,9 +254,9 @@ export default function RegisterPage() {
               {/* Log In Link */}
               <div className="pt-4 border-t border-slate-200 dark:border-white/10 text-center">
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  Already have an account?{' '}
+                  {t('auth.haveAccount', 'Already have an account?')}{' '}
                   <Link to="/login" className="text-emerald-600 dark:text-emerald-400 font-black hover:underline underline-offset-4">
-                    Log In
+                    {t('auth.signInLink', 'Log In')}
                   </Link>
                 </p>
               </div>

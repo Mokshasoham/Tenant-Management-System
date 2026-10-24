@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../context/authStore';
+import { useLanguage } from '../../../../context/LanguageContext';
 import { resolveNotificationDestination } from '../utils/notificationNavigation';
 import {
     CheckCircle2,
@@ -46,31 +47,31 @@ function getCategoryIcon(category) {
     }
 }
 
-function getPriorityBadge(priority) {
+function getPriorityBadge(priority, t = (k, f) => f) {
     switch (priority) {
         case 'critical':
             return (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30">
-                    <AlertTriangle className="mr-1 w-3 h-3" /> Critical
+                    <AlertTriangle className="mr-1 w-3 h-3" /> {t('notification.priorityCritical', 'Critical')}
                 </span>
             );
         case 'high':
             return (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
-                    High
+                    {t('notification.priorityHigh', 'High')}
                 </span>
             );
         case 'medium':
             return (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
-                    Medium
+                    {t('notification.priorityMedium', 'Medium')}
                 </span>
             );
         case 'low':
         default:
             return (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-normal bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50">
-                    Low
+                    {t('notification.priorityLow', 'Low')}
                 </span>
             );
     }
@@ -86,6 +87,7 @@ export function NotificationItem({
 }) {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
+    const { t, formatRelativeTime } = useLanguage();
     const isNavigatingRef = useRef(false);
 
     const destination = resolveNotificationDestination(notification, user?.role);
@@ -148,10 +150,10 @@ export function NotificationItem({
                             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                                 {CATEGORY_LABELS[notification.category] || notification.category}
                             </span>
-                            {getPriorityBadge(notification.priority)}
+                            {getPriorityBadge(notification.priority, t)}
                             {!notification.isRead && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500 text-white tracking-wide uppercase">
-                                    New
+                                    {t('notification.badgeNew', 'New')}
                                 </span>
                             )}
                         </div>

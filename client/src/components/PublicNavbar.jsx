@@ -4,6 +4,7 @@ import { Building2, Menu, X, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import ThemeSwitch from './ThemeSwitch';
 import DraggableNavPill from './DraggableNavPill';
 
@@ -11,6 +12,7 @@ export default function PublicNavbar() {
     const navigate = useNavigate();
     const location = useLocation();
     const { theme } = useTheme();
+    const { t } = useLanguage();
     const isDark = theme === 'dark';
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -29,12 +31,12 @@ export default function PublicNavbar() {
     }, [location.pathname]);
 
     const navItems = [
-        { label: 'Home', path: '/' },
-        { label: 'Properties', path: '/properties' },
-        { label: 'How It Works', path: '/how-it-works' },
-        { label: 'Features', path: '/features' },
-        { label: 'For Tenants', path: '/for-tenants' },
-        { label: 'For Managers', path: '/for-managers' },
+        { label: t('nav.home'), path: '/' },
+        { label: t('nav.properties'), path: '/properties' },
+        { label: t('nav.howItWorks'), path: '/how-it-works' },
+        { label: t('nav.features'), path: '/features' },
+        { label: t('nav.forTenants'), path: '/for-tenants' },
+        { label: t('nav.forManagers'), path: '/for-managers' },
     ];
 
     const isActive = (path) => {
@@ -123,14 +125,14 @@ export default function PublicNavbar() {
                             onClick={() => navigate('/login')}
                             className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-700 dark:text-white/90 hover:text-slate-900 dark:hover:text-white bg-white/40 dark:bg-white/[0.07] hover:bg-white/70 dark:hover:bg-white/[0.14] transition-all duration-300 border border-slate-200/60 dark:border-white/[0.12] backdrop-blur-md shadow-sm cursor-pointer"
                         >
-                            Sign In
+                            {t('nav.signIn')}
                         </button>
                         <button
                             type="button"
                             onClick={() => navigate('/register')}
                             className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 flex items-center gap-1.5 cursor-pointer border border-emerald-400/30"
                         >
-                            <span>Get Started</span>
+                            <span>{t('nav.signUp')}</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                     </div>

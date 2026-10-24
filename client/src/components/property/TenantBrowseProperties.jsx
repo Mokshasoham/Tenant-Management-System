@@ -11,6 +11,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 import handleViewPropertyNavigation from '../../utils/propertyNavigationHelper';
 
@@ -119,6 +120,7 @@ function matchesSearch(property, query) {
 // ══════════════════════════════════════════
 export function TenantBrowseProperties() {
     const navigate = useNavigate();
+    const { t, formatCurrency, formatNumber } = useLanguage();
     const [searchParams, setSearchParams] = useSearchParams();
     const user = useAuthStore((state) => state.user);
 
@@ -368,14 +370,14 @@ export function TenantBrowseProperties() {
                     {/* Title & Dynamic Count */}
                     <div className="flex-[2] min-w-[200px]">
                         <h1 className="text-2xl font-black text-foreground mb-0.5 flex items-center gap-2">
-                            🏠 Find a Home
+                            🏠 {t('nav.browse', 'Find a Home')}
                         </h1>
                         <p className="text-xs text-muted-foreground/70 font-bold">
                             {loading
-                                ? 'Searching…'
-                                : `${filteredProperties.length} ${
-                                      filteredProperties.length === 1 ? 'property' : 'properties'
-                                  } available`}
+                                ? t('common.loading', 'Searching…')
+                                : `${formatNumber(filteredProperties.length)} ${
+                                      filteredProperties.length === 1 ? t('property.property', 'property') : t('property.properties', 'properties')
+                                  } ${t('property.available', 'available')}`}
                         </p>
                     </div>
 
@@ -385,14 +387,14 @@ export function TenantBrowseProperties() {
                         <input
                             value={search}
                             onChange={(e) => handleSearchChange(e.target.value)}
-                            placeholder="Search name, city, locality…"
+                            placeholder={t('common.searchPlaceholder', 'Search name, city, locality…')}
                             className={cn(inputClass, "pl-11")}
                         />
                         {search && (
                             <button
                                 type="button"
                                 onClick={() => handleSearchChange('')}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground cursor-pointer"
                             >
                                 <X className="w-3.5 h-3.5" />
                             </button>
@@ -428,7 +430,7 @@ export function TenantBrowseProperties() {
                         )}
                     >
                         <SlidersHorizontal className="w-4 h-4" />
-                        <span>Filters</span>
+                        <span>{t('common.filter', 'Filters')}</span>
                         {activeDrawerCount > 0 && (
                             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black">
                                 {activeDrawerCount}
@@ -439,8 +441,8 @@ export function TenantBrowseProperties() {
                     {/* Grid / Map View Mode Toggle */}
                     <div className="flex bg-muted p-1.5 rounded-2xl border border-border shadow-inner">
                         {[
-                            { mode: 'grid', icon: LayoutGrid, label: 'Grid' },
-                            { mode: 'map', icon: Map, label: 'Map' },
+                            { mode: 'grid', icon: LayoutGrid, label: t('property.gridView', 'Grid') },
+                            { mode: 'map', icon: Map, label: t('property.mapView', 'Map') },
                         ].map(({ mode, icon: Icon, label }) => (
                             <button
                                 key={mode}

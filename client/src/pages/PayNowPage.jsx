@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { paymentService, leaseService, bookingService, billService, platformService, autoPayService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import {
     CreditCard, Smartphone, CheckCircle2, AlertTriangle,
     ChevronRight, Lock, RefreshCw, ArrowLeft, IndianRupee,
@@ -623,6 +624,7 @@ export default function PayNowPage() {
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const user = useAuthStore(s => s.user);
+    const { t, formatCurrency, formatDate, formatNumber } = useLanguage();
 
     const leaseIdParam = searchParams.get('leaseId') || location.state?.leaseId;
     const billIdParam = searchParams.get('billId');
@@ -832,14 +834,16 @@ export default function PayNowPage() {
         <div className="max-w-lg mx-auto space-y-5 pb-10">
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
                 <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-muted-foreground/50 hover:text-foreground mb-6 transition-colors group cursor-pointer">
-                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> {t('common.back', 'Back')}
                 </button>
                 <div className="flex items-center gap-2 mb-1">
                     <div className="w-1.5 h-6 rounded-full bg-emerald-500" />
-                    <p className="text-[10px] font-black uppercase tracking-[.25em] text-emerald-600 dark:text-emerald-400">Secure Payment</p>
+                    <p className="text-[10px] font-black uppercase tracking-[.25em] text-emerald-600 dark:text-emerald-400">
+                        {t('payment.securePayment', 'Secure Payment')}
+                    </p>
                 </div>
                 <h1 className="text-3xl font-black text-foreground tracking-tight">
-                    {isBooking ? 'Confirm Booking' : 'Pay Rent'} 💳
+                    {isBooking ? t('payment.confirmBooking', 'Confirm Booking') : t('payment.payRent', 'Pay Rent')} 💳
                 </h1>
             </motion.div>
 
@@ -858,22 +862,24 @@ export default function PayNowPage() {
                         <div className="space-y-2">
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
                                 <Shield className="w-3.5 h-3.5 text-emerald-500" />
-                                <span>Rent Payments</span>
+                                <span>{t('payment.rentPayment', 'Rent Payments')}</span>
                             </div>
-                            <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">No Active Lease</h2>
+                            <h2 className="font-black text-foreground text-2xl sm:text-3xl tracking-tight">
+                                {t('payment.noActiveLease', 'No Active Lease')}
+                            </h2>
                             <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                                {nonPayableReason || "You currently don't have an active tenancy requiring rent payment."}
+                                {nonPayableReason || t('payment.noActiveLeaseDesc', "You currently don't have an active tenancy requiring rent payment.")}
                             </p>
                         </div>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto pt-2">
                             <button onClick={() => navigate('/browse')}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all cursor-pointer">
-                                <span>EXPLORE PROPERTIES</span>
+                                <span>{t('nav.browse', 'EXPLORE PROPERTIES')}</span>
                                 <ArrowRight className="w-4 h-4" />
                             </button>
                             <button onClick={() => navigate('/my-lease')}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-foreground bg-muted border border-border hover:bg-muted/80 transition-all cursor-pointer">
-                                <span>VIEW PAST LEASES</span>
+                                <span>{t('lease.viewPastLeases', 'VIEW PAST LEASES')}</span>
                             </button>
                         </div>
                     </motion.div>

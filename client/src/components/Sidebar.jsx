@@ -378,7 +378,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           >
             <span className="text-base flex-shrink-0">{theme.roleIcon}</span>
             <div className={cn("flex-1 min-w-0 transition-opacity duration-200", isOpen ? "opacity-100 block" : "opacity-0 hidden")}>
-              <p className={cn('text-xs font-black uppercase tracking-wider', theme.activeText)}>{theme.label}</p>
+              <p className={cn('text-xs font-black uppercase tracking-wider', theme.activeText)}>{t(`auth.role${theme.label}`, theme.label)}</p>
               <p className="text-[10px] text-muted-foreground truncate">{user?.firstName} {user?.lastName}</p>
             </div>
             {/* Live indicator */}
@@ -394,7 +394,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* ───── NAV (flex-1 + min-h-0 = fills middle, scrolls if needed) ───── */}
         <nav className="relative flex-1 min-h-0 overflow-y-auto px-3 pb-2">
           <p className={cn("text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-3 mb-3 mt-1 transition-opacity", !isOpen && "opacity-0 hidden")}>
-            Navigation
+            {t('nav.navigation', 'Navigation')}
           </p>
           <div className="space-y-0.5">
             {navItems.map((item, index) => {
@@ -461,10 +461,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 color: colorTheme === 'dark' ? '#60a5fa' : '#2563eb',
                 border: colorTheme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.05)',
               }}
-              title={colorTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              title={colorTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
             >
               {colorTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              {isOpen && (colorTheme === 'dark' ? 'Light' : 'Dark')}
+              {isOpen && (colorTheme === 'dark' ? t('common.light', 'Light') : t('common.dark', 'Dark'))}
             </motion.button>
 
             {/* Language picker */}
@@ -477,7 +477,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all group", !isOpen && "justify-center px-1.5")}
           >
             <LogOut className="w-[18px] h-[18px] group-hover:translate-x-0.5 transition-transform" />
-            <span className={cn("font-semibold text-sm transition-opacity duration-200", !isOpen && "w-0 opacity-0 hidden")}>{t('nav.logout') || 'Sign Out'}</span>
+            <span className={cn("font-semibold text-sm transition-opacity duration-200", !isOpen && "w-0 opacity-0 hidden")}>{t('nav.logout', 'Sign Out')}</span>
           </button>
           <p className={cn("text-[9px] text-muted-foreground/30 font-bold uppercase tracking-widest px-3 mt-2", !isOpen && "hidden")}>
             TMS Platform v2.0

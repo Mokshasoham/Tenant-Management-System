@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Send, CheckCircle2 } from 'lucide-react';
 import { Button, Input, Card } from './PremiumUI';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ForgotPasswordModal({ isOpen, onClose }) {
+    const { t, translateApiError } = useLanguage();
     const { register, handleSubmit, formState: { errors }, reset } = useForm();
     const [isSubmitted, setIsSubmitted] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -65,28 +67,30 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                                         <Mail className="w-6 h-6" />
                                     </div>
 
-                                    <h2 className="text-2xl font-black mb-2 text-slate-900 dark:text-white">Forgot Password?</h2>
+                                    <h2 className="text-2xl font-black mb-2 text-slate-900 dark:text-white">
+                                        {t('auth.resetPasswordTitle', 'Forgot Password?')}
+                                    </h2>
                                     <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium text-xs">
-                                        Enter your email address and we'll send you a link to reset your password.
+                                        {t('auth.resetPasswordDesc', "Enter your email address and we'll send you a link to reset your password.")}
                                     </p>
 
                                     {error && (
                                         <div className="bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-300 px-4 py-3 rounded-2xl mb-6 text-xs font-bold">
-                                            {error}
+                                            {translateApiError(error)}
                                         </div>
                                     )}
 
                                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                                         <Input
-                                            label="Email Address"
+                                            label={t('auth.email', 'Email Address')}
                                             type="email"
-                                            placeholder="you@example.com"
+                                            placeholder={t('auth.emailPlaceholder', 'you@example.com')}
                                             error={errors.email?.message}
                                             {...register('email', {
-                                                required: 'Email is required',
+                                                required: t('errors.requiredField', 'Email is required'),
                                                 pattern: {
                                                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                                    message: 'Invalid email address',
+                                                    message: t('errors.invalidEmail', 'Invalid email address'),
                                                 },
                                             })}
                                         />
@@ -96,7 +100,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                                             disabled={isLoading}
                                             className="w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                                         >
-                                            {isLoading ? 'Sending Link...' : 'Send Reset Link'}
+                                            {isLoading ? t('common.loading', 'Sending Link...') : t('auth.sendResetLink', 'Send Reset Link')}
                                             <Send className="w-4 h-4" />
                                         </button>
                                     </form>
@@ -106,15 +110,17 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
                                     <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-6">
                                         <CheckCircle2 className="w-10 h-10" />
                                     </div>
-                                    <h2 className="text-2xl font-black mb-3 text-slate-900 dark:text-white">Check Your Email</h2>
+                                    <h2 className="text-2xl font-black mb-3 text-slate-900 dark:text-white">
+                                        {t('common.success', 'Check Your Email')}
+                                    </h2>
                                     <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium text-xs leading-relaxed">
-                                        We've sent a password reset link to your email. Please check your inbox and follow the instructions.
+                                        {t('auth.resetPasswordDesc', "We've sent a password reset link to your email. Please check your inbox and follow the instructions.")}
                                     </p>
                                     <button
                                         onClick={handleClose}
                                         className="w-full py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 cursor-pointer"
                                     >
-                                        Back to Login
+                                        {t('auth.backToLogin', 'Back to Login')}
                                     </button>
                                 </div>
                             )}

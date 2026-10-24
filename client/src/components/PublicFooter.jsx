@@ -6,10 +6,12 @@ import {
     LogIn, UserPlus, Home, Activity, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function PublicFooter({ showCta = true }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useLanguage();
 
     const isLinkActive = (path) => {
         if (path === '/') {
@@ -31,42 +33,42 @@ export default function PublicFooter({ showCta = true }) {
 
     const navGroups = [
         {
-            title: 'Platform',
+            title: t('nav.features') || 'Platform',
             links: [
-                { label: 'Home', path: '/', icon: Home },
-                { label: 'Properties', path: '/properties', icon: Building2 },
-                { label: 'How It Works', path: '/how-it-works', icon: Compass },
-                { label: 'Features', path: '/features', icon: Sparkles },
+                { label: t('nav.home'), path: '/', icon: Home },
+                { label: t('nav.properties'), path: '/properties', icon: Building2 },
+                { label: t('nav.howItWorks'), path: '/how-it-works', icon: Compass },
+                { label: t('nav.features'), path: '/features', icon: Sparkles },
             ]
         },
         {
-            title: 'Solutions',
+            title: t('nav.dashboard') || 'Solutions',
             links: [
-                { label: 'For Tenants', path: '/for-tenants', icon: Heart },
-                { label: 'For Managers', path: '/for-managers', icon: Layers },
+                { label: t('nav.forTenants'), path: '/for-tenants', icon: Heart },
+                { label: t('nav.forManagers'), path: '/for-managers', icon: Layers },
             ]
         },
         {
-            title: 'Tenant',
+            title: t('nav.tenants'),
             links: [
-                { label: 'Find a Property', path: '/properties', icon: Building2 },
-                { label: 'Tenant Experience', path: '/for-tenants', icon: Heart },
-                { label: 'How Renting Works', path: '/how-it-works', icon: Compass },
+                { label: t('nav.browse'), path: '/properties', icon: Building2 },
+                { label: t('nav.forTenants'), path: '/for-tenants', icon: Heart },
+                { label: t('nav.howItWorks'), path: '/how-it-works', icon: Compass },
             ]
         },
         {
-            title: 'Manager',
+            title: t('auth.roleManager'),
             links: [
-                { label: 'Manage Properties', path: '/for-managers', icon: Building2 },
-                { label: 'Property Operations', path: '/for-managers', icon: Activity },
-                { label: 'Manager Experience', path: '/for-managers', icon: Layers },
+                { label: t('nav.properties'), path: '/for-managers', icon: Building2 },
+                { label: t('dashboard.managerPortal'), path: '/for-managers', icon: Activity },
+                { label: t('nav.forManagers'), path: '/for-managers', icon: Layers },
             ]
         },
         {
-            title: 'Access',
+            title: t('auth.loginTitle') || 'Access',
             links: [
-                { label: 'Sign In', path: '/login', icon: LogIn },
-                { label: 'Get Started', path: '/register', icon: UserPlus },
+                { label: t('nav.signIn'), path: '/login', icon: LogIn },
+                { label: t('nav.signUp'), path: '/register', icon: UserPlus },
             ]
         }
     ];

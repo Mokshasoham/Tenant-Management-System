@@ -73,27 +73,27 @@ const SettingsPage = () => {
                         <Settings className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black text-foreground">{t('settings.title')}</h1>
-                        <p className="text-muted-foreground">Customize your experience</p>
+                        <h1 className="text-2xl font-black text-foreground">{t('settings.title', 'Settings')}</h1>
+                        <p className="text-muted-foreground">{t('settings.subtitle', 'Customize your experience')}</p>
                     </div>
                 </div>
 
                 {/* Appearance */}
-                <SettingsSection icon={Palette} title="Appearance" gradient="linear-gradient(135deg, #8b5cf6, #6366f1)">
+                <SettingsSection icon={Palette} title={t('settings.appearance', 'Appearance')} gradient="linear-gradient(135deg, #8b5cf6, #6366f1)">
                     <div className="flex gap-4 mb-4">
                         {/* Dark Mode Card */}
                         <motion.button
                             whileTap={{ scale: 0.97 }}
                             onClick={() => (setTheme ? setTheme('dark') : toggleTheme())}
                             className={cn(
-                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
+                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2 cursor-pointer",
                                 theme === 'dark' ? "bg-primary/10 border-primary" : "bg-muted border-border"
                             )}
                         >
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#0a0a14' }}>
                                 <Moon className="w-6 h-6 text-indigo-400" />
                             </div>
-                            <span className="text-sm font-bold text-foreground">Dark Mode</span>
+                            <span className="text-sm font-bold text-foreground">{t('settings.dark', 'Dark Mode')}</span>
                             {theme === 'dark' && (
                                 <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#6366f1' }}>
                                     <Check className="w-3 h-3 text-white" />
@@ -106,14 +106,14 @@ const SettingsPage = () => {
                             whileTap={{ scale: 0.97 }}
                             onClick={() => (setTheme ? setTheme('light') : toggleTheme())}
                             className={cn(
-                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2",
+                                "flex-1 p-4 rounded-xl flex flex-col items-center gap-3 transition-all border-2 cursor-pointer",
                                 theme === 'light' ? "bg-amber-500/10 border-amber-500" : "bg-muted border-border"
                             )}
                         >
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: '#fef9c3' }}>
                                 <Sun className="w-6 h-6 text-yellow-500" />
                             </div>
-                            <span className="text-sm font-bold text-foreground">Light Mode</span>
+                            <span className="text-sm font-bold text-foreground">{t('settings.light', 'Light Mode')}</span>
                             {theme === 'light' && (
                                 <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#f59e0b' }}>
                                     <Check className="w-3 h-3 text-white" />
@@ -124,14 +124,14 @@ const SettingsPage = () => {
                 </SettingsSection>
 
                 {/* Language */}
-                <SettingsSection icon={Globe} title="Language" gradient="linear-gradient(135deg, #10b981, #059669)">
+                <SettingsSection icon={Globe} title={t('settings.language', 'Language')} gradient="linear-gradient(135deg, #10b981, #059669)">
                     <p className="text-sm mb-4 text-muted-foreground">
-                        Choose your preferred language for the interface
+                        {t('settings.languageDesc', 'Choose your preferred language for the interface')}
                     </p>
                     <div className="relative">
                         <button
                             onClick={() => setShowLangDropdown(!showLangDropdown)}
-                            className="w-full px-4 py-3 rounded-xl flex items-center justify-between bg-muted border border-border"
+                            className="w-full px-4 py-3 rounded-xl flex items-center justify-between bg-muted border border-border cursor-pointer"
                         >
                             <span className="flex items-center gap-3 font-semibold text-foreground">
                                 <span className="text-xl">{selectedLang.flag}</span>
@@ -154,7 +154,7 @@ const SettingsPage = () => {
                                         key={lang.code}
                                         onClick={() => { setLanguage(lang.code); setShowLangDropdown(false); }}
                                         className={cn(
-                                            "w-full px-4 py-3 flex items-center justify-between hover:bg-muted transition-colors border-b border-border last:border-0",
+                                            "w-full px-4 py-3 flex items-center justify-between hover:bg-muted transition-colors border-b border-border last:border-0 cursor-pointer",
                                             lang.code === language && "bg-emerald-500/10"
                                         )}
                                     >
@@ -172,52 +172,52 @@ const SettingsPage = () => {
                 </SettingsSection>
 
                 {/* Notifications */}
-                <SettingsSection icon={Bell} title="Notifications" gradient="linear-gradient(135deg, #f59e0b, #f97316)">
+                <SettingsSection icon={Bell} title={t('settings.notifications', 'Notifications')} gradient="linear-gradient(135deg, #f59e0b, #f97316)">
                     <Toggle
                         value={notifications.email}
                         onChange={updateNotif('email')}
-                        label="Email Notifications"
-                        sublabel="Receive updates via email"
+                        label={t('settings.emailNotif', 'Email Notifications')}
+                        sublabel={t('settings.emailNotifDesc', 'Receive updates via email')}
                     />
                     <Toggle
                         value={notifications.push}
                         onChange={updateNotif('push')}
-                        label="Push Notifications"
-                        sublabel="Browser push notifications"
+                        label={t('settings.pushNotif', 'Push Notifications')}
+                        sublabel={t('settings.pushNotifDesc', 'Browser push notifications')}
                     />
                     <Toggle
                         value={notifications.bookingUpdates}
                         onChange={updateNotif('bookingUpdates')}
-                        label="Booking Updates"
-                        sublabel="Approval, rejection, and status changes"
+                        label={t('settings.bookingAlerts', 'Booking Updates')}
+                        sublabel={t('settings.bookingAlertsDesc', 'Approval, rejection, and status changes')}
                     />
                     <Toggle
                         value={notifications.paymentAlerts}
                         onChange={updateNotif('paymentAlerts')}
-                        label="Payment Alerts"
-                        sublabel="Rent reminders and payment confirmations"
+                        label={t('settings.paymentAlerts', 'Payment Alerts')}
+                        sublabel={t('settings.paymentAlertsDesc', 'Rent reminders and payment confirmations')}
                     />
                     <Toggle
                         value={notifications.maintenanceAlerts}
                         onChange={updateNotif('maintenanceAlerts')}
-                        label="Maintenance Alerts"
-                        sublabel="Updates on maintenance requests"
+                        label={t('settings.maintenanceAlerts', 'Maintenance Alerts')}
+                        sublabel={t('settings.maintenanceAlertsDesc', 'Updates on maintenance requests')}
                     />
                     <Toggle
                         value={notifications.marketingEmails}
                         onChange={updateNotif('marketingEmails')}
-                        label="Marketing Emails"
-                        sublabel="New property suggestions and offers"
+                        label={t('settings.marketingEmails', 'Marketing Emails')}
+                        sublabel={t('settings.marketingEmailsDesc', 'New property suggestions and offers')}
                     />
                 </SettingsSection>
 
                 {/* Account Info */}
-                <SettingsSection icon={User} title="Account" gradient="linear-gradient(135deg, #3b82f6, #1d4ed8)">
+                <SettingsSection icon={User} title={t('settings.account', 'Account')} gradient="linear-gradient(135deg, #3b82f6, #1d4ed8)">
                     <div className="space-y-3">
                         {[
-                            ['Email', user?.email],
-                            ['Role', user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—'],
-                            ['Name', `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '—'],
+                            [t('auth.email', 'Email'), user?.email],
+                            [t('auth.role', 'Role'), user?.role ? t(`auth.role${user.role.charAt(0).toUpperCase() + user.role.slice(1)}`, user.role) : '—'],
+                            [t('common.name', 'Name'), `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || '—'],
                         ].map(([label, val]) => (
                             <div key={label} className="flex justify-between py-2 border-b border-border last:border-0">
                                 <span className="text-sm font-medium text-muted-foreground">{label}</span>
@@ -229,7 +229,7 @@ const SettingsPage = () => {
 
                 {/* Save notice */}
                 <div className="text-center text-sm text-muted-foreground/40 mt-8">
-                    ✓ Settings are automatically saved to your device
+                    {t('settings.autoSaved', '✓ Settings are automatically saved to your device')}
                 </div>
             </motion.div>
         </div>

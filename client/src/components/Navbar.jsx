@@ -65,7 +65,7 @@ export default function Navbar({ toggleSidebar }) {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const { t } = useLanguage();
+  const { t, formatRelativeTime } = useLanguage();
 
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -159,21 +159,21 @@ export default function Navbar({ toggleSidebar }) {
 
   // Filtering calculations
   const rawLinks = role === 'technician' ? [
-    { label: 'My Jobs', path: '/technician/jobs', icon: '🔧' },
-    { label: "Today's Schedule", path: '/technician/schedule', icon: '📅' },
-    { label: 'Nearby Jobs', path: '/technician/jobs?filter=nearby', icon: '📍' },
-    { label: 'QR Scanner', path: '/technician/qr', icon: '▣' },
-    { label: 'Completed Jobs', path: '/technician/jobs?status=completed', icon: '✓' },
-    { label: 'Messages', path: '/messages', icon: '💬' },
+    { label: t('technician.myJobs', 'My Jobs'), path: '/technician/jobs', icon: '🔧' },
+    { label: t('technician.todaysSchedule', "Today's Schedule"), path: '/technician/schedule', icon: '📅' },
+    { label: t('technician.nearbyJobs', 'Nearby Jobs'), path: '/technician/jobs?filter=nearby', icon: '📍' },
+    { label: t('technician.qrScanner', 'QR Scanner'), path: '/technician/qr', icon: '▣' },
+    { label: t('technician.completedJobs', 'Completed Jobs'), path: '/technician/jobs?status=completed', icon: '✓' },
+    { label: t('nav.messages', 'Messages'), path: '/messages', icon: '💬' },
   ] : [
-    { label: t('nav.dashboard') || 'Dashboard', path: '/dashboard', icon: '📊' },
-    { label: t('nav.properties') || 'Properties', path: '/properties', icon: '🏠' },
-    { label: t('nav.tenants') || 'Tenants', path: '/tenants', icon: '👥', role: ['manager', 'admin'] },
-    { label: t('nav.leases') || 'Leases', path: '/leases', icon: '📄', role: ['manager', 'admin'] },
-    { label: t('nav.payments') || 'Payments', path: '/payments', icon: '💳' },
-    { label: t('nav.maintenance') || 'Maintenance', path: '/maintenance', icon: '🔧' },
-    { label: t('nav.messages') || 'Messages', path: '/messages', icon: '💬' },
-    { label: t('nav.profile') || 'Profile', path: '/profile', icon: '👤' },
+    { label: t('nav.dashboard', 'Dashboard'), path: '/dashboard', icon: '📊' },
+    { label: t('nav.properties', 'Properties'), path: '/properties', icon: '🏠' },
+    { label: t('nav.tenants', 'Tenants'), path: '/tenants', icon: '👥', role: ['manager', 'admin'] },
+    { label: t('nav.leases', 'Leases'), path: '/leases', icon: '📄', role: ['manager', 'admin'] },
+    { label: t('nav.payments', 'Payments'), path: '/payments', icon: '💳' },
+    { label: t('nav.maintenance', 'Maintenance'), path: '/maintenance', icon: '🔧' },
+    { label: t('nav.messages', 'Messages'), path: '/messages', icon: '💬' },
+    { label: t('nav.profile', 'Profile'), path: '/profile', icon: '👤' },
   ];
 
   const filteredLinks = rawLinks.filter(l => {
@@ -343,7 +343,7 @@ export default function Navbar({ toggleSidebar }) {
             "p-2 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer shrink-0",
             isExpanded ? "rounded-xl" : "rounded-full"
           )}
-          title="Toggle Navigation Menu"
+          title={t('nav.toggleMenu', 'Toggle Navigation Menu')}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -361,7 +361,7 @@ export default function Navbar({ toggleSidebar }) {
           <div className="flex items-center gap-2 min-w-0 overflow-hidden">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground truncate whitespace-nowrap overflow-hidden text-ellipsis">
-              {role === 'technician' ? 'Search jobs...' : (t('common.search') || 'Search') + '...'}
+              {role === 'technician' ? t('technician.searchJobs', 'Search jobs...') : (t('common.search', 'Search') + '...')}
             </span>
           </div>
           {isExpanded && (
@@ -381,7 +381,7 @@ export default function Navbar({ toggleSidebar }) {
           isExpanded ? 'flex opacity-100 max-w-[140px]' : 'hidden sm:flex opacity-90 max-w-[120px] text-[11px] py-1 px-2.5'
         )}>
           <span>{theme.emoji}</span>
-          <span className="capitalize">{theme.label}</span>
+          <span className="capitalize">{t(`auth.role${role.charAt(0).toUpperCase() + role.slice(1)}`, theme.label)}</span>
           <span className={cn('w-1.5 h-1.5 rounded-full ml-0.5', theme.pillDot)} />
         </div>
 
@@ -460,7 +460,7 @@ export default function Navbar({ toggleSidebar }) {
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder={role === 'technician' ? 'Search jobs, requests, properties, units...' : 'Search properties, bills, settings...'}
+                  placeholder={role === 'technician' ? t('technician.searchJobs', 'Search jobs, requests, properties, units...') : t('common.searchPlaceholder', 'Search properties, bills, settings...')}
                   className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder-muted-foreground/50"
                 />
                 <button
@@ -476,7 +476,7 @@ export default function Navbar({ toggleSidebar }) {
                 {searchLoading ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-xs font-bold uppercase tracking-wider">Syncing Database...</p>
+                    <p className="text-xs font-bold uppercase tracking-wider">{t('common.loading', 'Syncing Database...')}</p>
                   </div>
                 ) : (
                   <>
@@ -488,15 +488,15 @@ export default function Navbar({ toggleSidebar }) {
                      filteredTenants.length === 0 ? (
                       <div className="py-12 text-center space-y-2">
                         <Sparkles className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                        <p className="text-sm font-bold text-foreground">No matches found</p>
-                        <p className="text-xs text-muted-foreground/60">Try searching for navigation links, property names, or invoice descriptions.</p>
+                        <p className="text-sm font-bold text-foreground">{t('common.noData', 'No matches found')}</p>
+                        <p className="text-xs text-muted-foreground/60">{t('common.searchHelp', 'Try searching for navigation links, property names, or invoice descriptions.')}</p>
                       </div>
                     ) : (
                       <>
                         {/* Quick Links Section */}
                         {filteredLinks.length > 0 && (
                           <div className="space-y-1.5">
-                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">Quick Navigation</h3>
+                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">{t('nav.quickNavigation', 'Quick Navigation')}</h3>
                             <div className="grid grid-cols-2 gap-1.5">
                               {filteredLinks.map((link) => (
                                 <button

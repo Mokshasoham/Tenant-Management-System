@@ -12,6 +12,7 @@ import { CalendarWidget, WorldClockWidget } from '../../components/dashboard/Wid
 import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
 import useAuthStore from '../../context/authStore';
+import { useLanguage } from '../../context/LanguageContext';
 
 function useCounter(end, duration = 2000) {
     const [count, setCount] = useState(0);
@@ -451,6 +452,7 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
 }
 
 export default function ManagerDashboard({ stats, loading, navigate, onRefresh, error }) {
+    const { t, formatDate, formatNumber, formatCurrency } = useLanguage();
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.userId || user?._id || user?.id;
 
@@ -646,10 +648,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
     const completedVisits = visits.filter(v => v.status === 'completed' || v.status === 'rejected' || (v.status === 'approved' && v.isExpired));
 
     const statCards = [
-        { title: 'Managed Units', value: stats?.totalProperties || 0, icon: Building2, trend: stats?.totalProperties > 0 ? `+${stats.totalProperties}` : '', color: 'bg-blue-500', delay: 0 },
-        { title: 'Active Tenants', value: stats?.totalTenants || 0, icon: Users, trend: stats?.totalTenants > 0 ? `+${stats.totalTenants}` : '', color: 'bg-cyan-500', delay: 0.1 },
-        { title: 'Booking Requests', value: pendingBookings.length, icon: CalendarDays, trend: pendingBookings.length > 0 ? '↑ New' : '', color: 'bg-indigo-500', delay: 0.2 },
-        { title: 'Pending Payments', value: stats?.pendingPayments || 0, icon: CreditCard, color: 'bg-rose-500', delay: 0.3 },
+        { title: t('dashboard.managedUnits', 'Managed Units'), value: stats?.totalProperties || 0, icon: Building2, trend: stats?.totalProperties > 0 ? `+${stats.totalProperties}` : '', color: 'bg-blue-500', delay: 0 },
+        { title: t('dashboard.activeTenants', 'Active Tenants'), value: stats?.totalTenants || 0, icon: Users, trend: stats?.totalTenants > 0 ? `+${stats.totalTenants}` : '', color: 'bg-cyan-500', delay: 0.1 },
+        { title: t('dashboard.bookingRequests', 'Booking Requests'), value: pendingBookings.length, icon: CalendarDays, trend: pendingBookings.length > 0 ? '↑ New' : '', color: 'bg-indigo-500', delay: 0.2 },
+        { title: t('dashboard.pendingPayments', 'Pending Payments'), value: stats?.pendingPayments || 0, icon: CreditCard, color: 'bg-rose-500', delay: 0.3 },
     ];
 
     const getPriorityStyle = (priority) => ({
@@ -666,9 +668,9 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
     }[status] || '');
 
     const getStatusLabel = (status) => ({
-        open: 'Open',
-        in_progress: 'In Progress',
-        resolved: 'Resolved',
+        open: t('maintenance.statusOpen', 'Open'),
+        in_progress: t('maintenance.statusInProgress', 'In Progress'),
+        resolved: t('maintenance.statusResolved', 'Resolved'),
     }[status] || status);
 
     return (
@@ -683,23 +685,29 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500/80 dark:text-blue-400">Property Operations</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500/80 dark:text-blue-400">
+                            {t('dashboard.propertyOperations', 'Property Operations')}
+                        </p>
                     </div>
-                    <h1 className="text-4xl font-black text-foreground tracking-tight">Operations Hub <span className="text-blue-500/80 dark:text-blue-400">🏢</span></h1>
-                    <p className="text-muted-foreground mt-1 font-medium">Manage properties, tenants &amp; maintenance</p>
+                    <h1 className="text-4xl font-black text-foreground tracking-tight">
+                        {t('dashboard.operationsHub', 'Operations Hub')} <span className="text-blue-500/80 dark:text-blue-400">🏢</span>
+                    </h1>
+                    <p className="text-muted-foreground mt-1 font-medium">
+                        {t('dashboard.operationsHubSubtitle', 'Manage properties, tenants & maintenance')}
+                    </p>
                 </div>
                 <div className="hidden md:flex gap-2">
                     <button
                         onClick={() => navigate('/tenants')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-600 dark:text-blue-300 text-sm font-bold hover:bg-blue-500/10 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-600 dark:text-blue-300 text-sm font-bold hover:bg-blue-500/10 transition-all cursor-pointer"
                     >
-                        <Users className="w-4 h-4" /> Tenants
+                        <Users className="w-4 h-4" /> {t('nav.tenants', 'Tenants')}
                     </button>
                     <button
                         onClick={() => navigate('/properties')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold hover:opacity-90 transition-all shadow-lg"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold hover:opacity-90 transition-all shadow-lg cursor-pointer"
                     >
-                        <Plus className="w-4 h-4" /> Add Property
+                        <Plus className="w-4 h-4" /> {t('property.addProperty', 'Add Property')}
                     </button>
                 </div>
             </motion.div>
@@ -713,7 +721,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         view === 'overview' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    OVERVIEW
+                    {t('dashboard.overview', 'OVERVIEW')}
                 </button>
                 <button
                     onClick={() => setView('maintenance')}
@@ -722,7 +730,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         view === 'maintenance' ? "bg-white text-amber-600 shadow-sm dark:bg-card dark:text-amber-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    <Wrench className="w-3.5 h-3.5" /> MAINTENANCE QUEUE &amp; DASHBOARD
+                    <Wrench className="w-3.5 h-3.5" /> {t('dashboard.maintenanceQueue', 'MAINTENANCE QUEUE')}
                 </button>
                 <button
                     onClick={() => setView('financials')}
@@ -731,7 +739,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         view === 'financials' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    FINANCIALS &amp; PAYOUTS
+                    {t('dashboard.financials', 'FINANCIALS & PAYOUTS')}
                 </button>
                 <button
                     onClick={() => setView('reporting')}
@@ -740,7 +748,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         view === 'reporting' ? "bg-white text-blue-600 shadow-sm dark:bg-card dark:text-blue-400" : "text-muted-foreground hover:text-foreground"
                     )}
                 >
-                    REPORTING HUB
+                    {t('dashboard.reportingHub', 'REPORTING HUB')}
                 </button>
             </div>
 

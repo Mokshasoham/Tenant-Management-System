@@ -23,6 +23,7 @@ import {
 import RentalHistoryDrawer from '../components/lease/RentalHistoryDrawer';
 import LeaseFeedbackCard from '../components/feedback/LeaseFeedbackCard';
 import TenantFeedbackModal from '../components/feedback/TenantFeedbackModal';
+import { useLanguage } from '../context/LanguageContext';
 
 const AMENITY_ICON = {
     wifi: Wifi, parking: Car, water: Droplets,
@@ -89,6 +90,7 @@ function LeaseProgressBar({ startDate, endDate }) {
 export default function MyLeasePage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t, formatCurrency, formatDate } = useLanguage();
     const [lease, setLease] = useState(null);
     const [activeLeases, setActiveLeases] = useState([]);
     const [pastLeases, setPastLeases] = useState([]);

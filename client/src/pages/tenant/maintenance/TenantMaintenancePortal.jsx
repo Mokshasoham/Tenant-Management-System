@@ -17,6 +17,7 @@ import {
   Home
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { maintenanceService, leaseService, platformService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
@@ -36,6 +37,7 @@ import TenantPropertyQrModal from './TenantPropertyQrModal';
 
 export default function TenantMaintenancePortal() {
   const { theme } = useTheme();
+  const { t, formatCurrency, formatDate } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();

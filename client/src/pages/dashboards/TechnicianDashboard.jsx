@@ -4,6 +4,7 @@ import { useTechnicianJobs } from '../../hooks/useTechnicianJobs';
 import { STATUS_LABELS } from '../../services/technicianJobService';
 import useAuthStore from '../../context/authStore';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   Wrench,
   CheckCircle2,
@@ -23,34 +24,35 @@ export default function TechnicianDashboard() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const { theme } = useTheme();
+  const { t, formatRelativeTime } = useLanguage();
 
   const { jobs, activeJobs, completedJobs, scheduledJobs, loading, error, refetch } = useTechnicianJobs();
 
   const stats = [
     {
-      label: 'ACTIVE JOBS',
+      label: t('dashboard.activeJobs', 'ACTIVE JOBS'),
       value: loading ? '...' : activeJobs.length,
       icon: Wrench,
       color: 'text-cyan-500 dark:text-cyan-400',
       bg: 'bg-cyan-500/10 border-cyan-500/20',
     },
     {
-      label: 'TODAY COMPLETED',
+      label: t('dashboard.completedJobs', 'TODAY COMPLETED'),
       value: loading ? '...' : completedJobs.length,
       icon: CheckCircle2,
       color: 'text-emerald-500 dark:text-emerald-400',
       bg: 'bg-emerald-500/10 border-emerald-500/20',
     },
     {
-      label: 'SCHEDULED',
+      label: t('dashboard.todaysSchedule', 'SCHEDULED'),
       value: loading ? '...' : scheduledJobs.length,
       icon: Zap,
       color: 'text-amber-500 dark:text-amber-400',
       bg: 'bg-amber-500/10 border-amber-500/20',
     },
     {
-      label: 'AVG RESOLUTION',
-      value: 'Not available',
+      label: t('technician.avgResolution', 'AVG RESOLUTION'),
+      value: t('common.na', 'Not available'),
       icon: Star,
       color: 'text-purple-500 dark:text-purple-400',
       bg: 'bg-purple-500/10 border-purple-500/20',
@@ -75,20 +77,20 @@ export default function TechnicianDashboard() {
                 : "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
             )}>
               <ShieldCheck className="w-3.5 h-3.5" />
-              Verified Technician Mobile Hub
+              {t('technician.mobileHub', 'Verified Technician Mobile Hub')}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Welcome back, {user?.firstName || 'Technician'}!
+              {t('dashboard.welcomeBack')}, {user?.firstName || 'Technician'}!
             </h1>
             <p className={cn("text-xs sm:text-sm font-medium mt-1 max-w-xl", theme === 'light' ? "text-slate-600" : "text-slate-300")}>
-              You are signed in as Employee ID <span className="font-mono font-black text-cyan-600 dark:text-cyan-400">{user?.technicianProfile?.employeeId || 'TECH-7846'}</span>. Here is your operational dispatch summary for today.
+              {t('technician.dispatchSummary', { employeeId: user?.technicianProfile?.employeeId || 'TECH-7846' })}
             </p>
           </div>
           <button
             onClick={() => navigate('/technician/jobs?status=active')}
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs shadow-lg shadow-cyan-600/30 transition-all cursor-pointer shrink-0"
           >
-            View Active Jobs ({activeJobs.length})
+            {t('technician.activeJobsCount', { count: activeJobs.length })}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -146,10 +148,10 @@ export default function TechnicianDashboard() {
         <div className="flex items-center justify-between pb-2 border-b border-border/40">
           <h2 className="text-base font-black text-foreground flex items-center gap-2">
             <Clock className="w-4 h-4 text-cyan-500" />
-            Assigned Dispatch Queue
+            {t('technician.dispatchQueue', 'Assigned Dispatch Queue')}
           </h2>
           <button onClick={() => navigate('/technician/jobs')} className="text-xs font-bold text-cyan-500 hover:underline cursor-pointer">
-            See All ({jobs.length})
+            {t('dashboard.viewAll')} ({jobs.length})
           </button>
         </div>
 
@@ -161,7 +163,7 @@ export default function TechnicianDashboard() {
           </div>
         ) : jobs.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-xs font-bold rounded-2xl border border-dashed border-border/60">
-            No maintenance jobs currently assigned to you.
+            {t('technician.noJobsAssigned', 'No maintenance jobs currently assigned to you.')}
           </div>
         ) : (
           <div className="space-y-3">
