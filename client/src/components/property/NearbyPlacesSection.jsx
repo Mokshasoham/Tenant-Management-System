@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { nearbyService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 import NearbyRouteModal from './NearbyRouteModal';
 import CityPlacesExplorerModal from './CityPlacesExplorerModal';
@@ -184,25 +185,25 @@ const EXPLORE_MORE_BTN_STYLES = {
   },
 };
 
-const getExploreMoreLabel = (catKey) => {
+const getExploreMoreLabel = (catKey, t) => {
   switch (catKey) {
     case 'transit':
-      return 'Explore More Transit';
+      return t ? t('properties.exploreMoreTransit', 'Explore More Transit') : 'Explore More Transit';
     case 'health':
-      return 'Explore More Health';
+      return t ? t('properties.exploreMoreHealth', 'Explore More Health') : 'Explore More Health';
     case 'food':
-      return 'Explore More Food';
+      return t ? t('properties.exploreMoreFood', 'Explore More Food') : 'Explore More Food';
     case 'shopping':
-      return 'Explore More Shopping';
+      return t ? t('properties.exploreMoreShopping', 'Explore More Shopping') : 'Explore More Shopping';
     case 'education':
-      return 'Explore More Education';
+      return t ? t('properties.exploreMoreEducation', 'Explore More Education') : 'Explore More Education';
     case 'finance':
-      return 'Explore More Finance';
+      return t ? t('properties.exploreMoreFinance', 'Explore More Finance') : 'Explore More Finance';
     case 'services':
-      return 'Explore More Essentials';
+      return t ? t('properties.exploreMoreEssentials', 'Explore More Essentials') : 'Explore More Essentials';
     case 'all':
     default:
-      return 'Explore More Around the City';
+      return t ? t('properties.exploreMoreCity', 'Explore More Around the City') : 'Explore More Around the City';
   }
 };
 
@@ -229,6 +230,7 @@ const getCategoryIcon = (category) => {
 
 export default function NearbyPlacesSection({ property }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === 'dark';
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -362,16 +364,16 @@ export default function NearbyPlacesSection({ property }) {
                   isDark ? "text-emerald-400" : "text-emerald-700"
                 )}
               >
-                ✦ EXPLORE THE NEIGHBORHOOD
+                {t('properties.exploreNeighborhood', '✦ EXPLORE THE NEIGHBORHOOD')}
               </span>
             </div>
 
             <h3 className={cn("text-xl sm:text-2xl font-black tracking-tight", isDark ? "text-slate-100" : "text-slate-900")}>
-              Explore Nearby Places
+              {t('properties.exploreNearbyPlaces', 'Explore Nearby Places')}
             </h3>
 
             <p className={cn("text-xs sm:text-sm max-w-xl font-normal leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-              Discover transit stations, hospitals, markets, dining, and essential amenities around this property.
+              {t('properties.exploreNearbyPlacesDesc', 'Discover transit stations, hospitals, markets, dining, and essential amenities around this property.')}
             </p>
           </div>
 
@@ -392,12 +394,12 @@ export default function NearbyPlacesSection({ property }) {
           >
             {isExpanded ? (
               <>
-                <span>Hide Neighborhood</span>
+                <span>{t('properties.hideNeighborhood', 'Hide Neighborhood')}</span>
                 <ChevronUp className="w-3.5 h-3.5" />
               </>
             ) : (
               <>
-                <span>Explore Nearby Places</span>
+                <span>{t('properties.exploreNearbyPlacesBtn', 'Explore Nearby Places')}</span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
               </>
             )}
@@ -459,7 +461,7 @@ export default function NearbyPlacesSection({ property }) {
                         <CatIcon className="w-3 h-3 stroke-[2.2]" />
                       </div>
 
-                      <span>{cat.label}</span>
+                      <span>{t(`properties.category_${cat.id}`, cat.label)}</span>
 
                       {/* Category Count Pill Badge */}
                       {places.length > 0 && count > 0 && (
@@ -490,8 +492,8 @@ export default function NearbyPlacesSection({ property }) {
                 <div className="flex items-center gap-2">
                   <span className={cn("text-xs font-semibold tracking-wide", isDark ? "text-slate-400" : "text-slate-500")}>
                     {selectedCategory === 'all'
-                      ? 'Wider city discovery:'
-                      : `Want to see more ${selectedCategory} options in ${property?.city || 'the city'}?`}
+                      ? t('properties.widerCityDiscovery', 'Wider city discovery:')
+                      : t('properties.wantMoreCategory', `Want to see more ${selectedCategory} options in ${property?.city || 'the city'}?`, { category: selectedCategory, city: property?.city || '' })}
                   </span>
                 </div>
 
@@ -508,7 +510,7 @@ export default function NearbyPlacesSection({ property }) {
                   )}
                 >
                   <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform duration-200" />
-                  <span>{getExploreMoreLabel(selectedCategory)}</span>
+                  <span>{getExploreMoreLabel(selectedCategory, t)}</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
                 </motion.button>
               </div>
@@ -526,10 +528,10 @@ export default function NearbyPlacesSection({ property }) {
                   <MapPinOff className="w-5 h-5" />
                 </div>
                 <h4 className={cn("text-sm font-semibold", isDark ? "text-slate-200" : "text-slate-900")}>
-                  Nearby places aren't available for this property yet
+                  {t('properties.nearbyNotAvailableYet', "Nearby places aren't available for this property yet")}
                 </h4>
                 <p className="text-xs max-w-md mx-auto text-slate-400">
-                  Property location coordinates are not configured or pending verification.
+                  {t('properties.coordsPendingDesc', 'Property location coordinates are not configured or pending verification.')}
                 </p>
               </div>
             )}
@@ -560,7 +562,7 @@ export default function NearbyPlacesSection({ property }) {
                   )}
                 >
                   {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                  <span>Retry</span>
+                  <span>{t('common.retry', 'Retry')}</span>
                 </button>
               </div>
             )}
@@ -602,13 +604,13 @@ export default function NearbyPlacesSection({ property }) {
                 </div>
                 <h4 className={cn("text-sm font-semibold", isDark ? "text-slate-200" : "text-slate-900")}>
                   {selectedCategory === 'all'
-                    ? 'No nearby places found in this area'
-                    : `No ${selectedCategory} places found in this area`}
+                    ? t('properties.noNearbyPlacesFound', 'No nearby places found in this area')
+                    : t('properties.noCategoryPlacesFound', `No ${selectedCategory} places found in this area`, { category: selectedCategory })}
                 </h4>
                 <p className="text-xs max-w-md mx-auto text-slate-400">
                   {selectedCategory === 'all'
-                    ? 'No registered amenities were detected within the search radius for this location.'
-                    : 'Try selecting another category or viewing all places.'}
+                    ? t('properties.noAmenitiesDetectedDesc', 'No registered amenities were detected within the search radius for this location.')
+                    : t('properties.trySelectingAnotherCategory', 'Try selecting another category or viewing all places.')}
                 </p>
                 {selectedCategory !== 'all' && (
                   <button
@@ -621,7 +623,7 @@ export default function NearbyPlacesSection({ property }) {
                         : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs"
                     )}
                   >
-                    <span>View All Categories</span>
+                    <span>{t('properties.viewAllCategories', 'View All Categories')}</span>
                   </button>
                 )}
               </div>
@@ -706,7 +708,7 @@ export default function NearbyPlacesSection({ property }) {
                                 </span>
                               </div>
                               <span className={cn("font-normal text-[11px]", isDark ? "text-slate-400" : "text-slate-500")}>
-                                from property
+                                {t('properties.fromProperty', 'from property')}
                               </span>
                             </div>
                           </div>
@@ -727,7 +729,7 @@ export default function NearbyPlacesSection({ property }) {
                           >
                             <div className="flex items-center gap-2">
                               <Navigation className="w-3.5 h-3.5 fill-current group-hover/btn:rotate-12 transition-transform" />
-                              <span className="font-semibold tracking-wide">Navigate</span>
+                              <span className="font-semibold tracking-wide">{t('properties.navigate', 'Navigate')}</span>
                             </div>
                             <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover/btn:text-white group-hover/btn:translate-x-1 transition-all" />
                           </button>
@@ -752,8 +754,8 @@ export default function NearbyPlacesSection({ property }) {
                     >
                       <span>
                         {showAll
-                          ? 'Show Fewer Nearby Places'
-                          : `View All ${filteredPlaces.length} Nearby Places`}
+                          ? t('properties.showFewerNearby', 'Show Fewer Nearby Places')
+                          : t('properties.viewAllNearbyPlaces', `View All ${filteredPlaces.length} Nearby Places`, { count: filteredPlaces.length })}
                       </span>
                       {showAll ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>

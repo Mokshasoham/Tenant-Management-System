@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ShieldCheck
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 export default function TenantLeaseLimitModal({
@@ -21,6 +22,7 @@ export default function TenantLeaseLimitModal({
   onUpgradeClick,
 }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const handleGoToSubscription = () => {
@@ -50,10 +52,10 @@ export default function TenantLeaseLimitModal({
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-400 block">
-                  CAPACITY LIMIT REACHED
+                  {t('subscription.capacityLimitReached', 'CAPACITY LIMIT REACHED')}
                 </span>
                 <h3 className="text-sm font-black text-white">
-                  Lease Limit Reached
+                  {t('subscription.leaseLimitReached', 'Lease Limit Reached')}
                 </h3>
               </div>
             </div>
@@ -69,39 +71,38 @@ export default function TenantLeaseLimitModal({
           {/* Modal Content */}
           <div className="p-6 sm:p-7 space-y-5">
             <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              You’ve reached the <span className="text-amber-400 font-bold">{maxLimit}-lease limit</span> of your{' '}
-              <span className="text-white font-bold">{planName}</span>. Upgrade to manage more rental properties seamlessly.
+              {t('subscription.reachedLeaseLimitMsg', `You’ve reached the ${maxLimit}-lease limit of your ${planName}. Upgrade to manage more rental properties seamlessly.`, { limit: maxLimit, plan: planName })}
             </p>
 
             {/* Visual Capacity Comparison */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Current Usage
+                  {t('subscription.currentUsage', 'Current Usage')}
                 </span>
                 <span className="text-sm font-black text-amber-400 font-mono block">
-                  {currentCount} / {maxLimit} Leases
+                  {currentCount} / {maxLimit} {t('subscription.leases', 'Leases')}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">At full capacity</span>
+                <span className="text-[10px] text-slate-500 font-medium">{t('subscription.atFullCapacity', 'At full capacity')}</span>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-1">
                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
-                  Resident Plus
+                  {t('subscription.plusPlanName', 'Resident Plus')}
                 </span>
                 <span className="text-sm font-black text-emerald-300 font-mono block">
-                  Up to 4 Leases
+                  {t('subscription.upTo4Leases', 'Up to 4 Leases')}
                 </span>
-                <span className="text-[10px] text-emerald-400/80 font-medium">+2 more lease slots</span>
+                <span className="text-[10px] text-emerald-400/80 font-medium">{t('subscription.moreLeaseSlots', '+2 more lease slots')}</span>
               </div>
             </div>
 
             {/* Key Upgrade Benefits */}
             <div className="space-y-2 pt-1">
               {[
-                'Manage up to 4 active & upcoming leases',
-                'Priority resident support desk',
-                'Consolidated payment records & analytics',
+                t('subscription.benefitManage4', 'Manage up to 4 active & upcoming leases'),
+                t('subscription.benefitPrioritySupport', 'Priority resident support desk'),
+                t('subscription.benefitConsolidatedRecords', 'Consolidated payment records & analytics'),
               ].map((b, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-xs text-slate-300">
                   <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
@@ -120,7 +121,7 @@ export default function TenantLeaseLimitModal({
               onClick={onClose}
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-all cursor-pointer"
             >
-              Not Now
+              {t('common.notNow', 'Not Now')}
             </button>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -130,7 +131,7 @@ export default function TenantLeaseLimitModal({
                 className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Upgrade Plan</span>
+                <span>{t('subscription.upgradePlan', 'Upgrade Plan')}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

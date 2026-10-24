@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldCheck, FileText, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee = 500, version = '1.0' }) {
+  const { t } = useLanguage();
   const [agreed, setAgreed] = useState(false);
 
   if (!isOpen) return null;
@@ -32,12 +34,12 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 tracking-tight">
-                  Maintenance &amp; Repairs Terms
+                  {t('properties.maintenanceTermsTitle', 'Maintenance & Repairs Terms')}
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-amber-400/90 font-mono font-medium">
                     v{version}
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">Optional Property Add-On Agreement</p>
+                <p className="text-xs text-slate-400">{t('properties.optionalAddonAgreement', 'Optional Property Add-On Agreement')}</p>
               </div>
             </div>
             <button
@@ -54,50 +56,50 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/25 flex items-start gap-2.5 text-amber-200/90">
               <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs">
-                By including the <strong>Maintenance &amp; Repairs Add-On</strong> for ₹{fee}/month, your lease receives complete repair management, priority certified technician dispatch, and digital QR tracking.
+                {t('properties.maintenanceAddonNotice', `By including the Maintenance & Repairs Add-On for ₹${fee}/month, your lease receives complete repair management, priority certified technician dispatch, and digital QR tracking.`, { fee })}
               </p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <h4 className="font-bold text-white text-xs mb-1">1. Scope of Covered Services</h4>
+                <h4 className="font-bold text-white text-xs mb-1">{t('properties.maintenanceSection1Title', '1. Scope of Covered Services')}</h4>
                 <p className="text-slate-400">
-                  Includes comprehensive diagnostic visits and corrective repairs for normal wear-and-tear issues across:
+                  {t('properties.maintenanceSection1Desc', 'Includes comprehensive diagnostic visits and corrective repairs for normal wear-and-tear issues across:')}
                 </p>
                 <ul className="list-disc pl-5 mt-1 space-y-0.5 text-slate-400">
-                  <li>Plumbing fixtures, pipe leaks, drainage, and water supply valves.</li>
-                  <li>Electrical systems, circuit breakers, switches, and core lighting fixtures.</li>
-                  <li>HVAC servicing, air conditioning diagnostics, and filter replacements.</li>
-                  <li>Built-in kitchen/laundry appliances provided by the landlord.</li>
-                  <li>Door locks, hinges, and essential structural hardware.</li>
+                  <li>{t('properties.maintenanceItemPlumbing', 'Plumbing fixtures, pipe leaks, drainage, and water supply valves.')}</li>
+                  <li>{t('properties.maintenanceItemElectrical', 'Electrical systems, circuit breakers, switches, and core lighting fixtures.')}</li>
+                  <li>{t('properties.maintenanceItemHvac', 'HVAC servicing, air conditioning diagnostics, and filter replacements.')}</li>
+                  <li>{t('properties.maintenanceItemAppliances', 'Built-in kitchen/laundry appliances provided by the landlord.')}</li>
+                  <li>{t('properties.maintenanceItemHardware', 'Door locks, hinges, and essential structural hardware.')}</li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-bold text-white text-xs mb-1">2. Service Level &amp; Technician Dispatch</h4>
+                <h4 className="font-bold text-white text-xs mb-1">{t('properties.maintenanceSection2Title', '2. Service Level & Technician Dispatch')}</h4>
                 <p className="text-slate-400">
-                  Maintenance tickets are assigned to certified property technicians. Emergency requests receive high-priority dispatch within 4 hours. Standard repair requests are scheduled in coordination with the tenant.
+                  {t('properties.maintenanceSection2Desc', 'Maintenance tickets are assigned to certified property technicians. Emergency requests receive high-priority dispatch within 4 hours. Standard repair requests are scheduled in coordination with the tenant.')}
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold text-white text-xs mb-1">3. QR-Based Resolution &amp; Verification</h4>
+                <h4 className="font-bold text-white text-xs mb-1">{t('properties.maintenanceSection3Title', '3. QR-Based Resolution & Verification')}</h4>
                 <p className="text-slate-400">
-                  Each ticket generates a unique secure Ticket QR code. Technicians scan the QR upon work completion, and tenants confirm resolution via their portal.
+                  {t('properties.maintenanceSection3Desc', 'Each ticket generates a unique secure Ticket QR code. Technicians scan the QR upon work completion, and tenants confirm resolution via their portal.')}
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold text-white text-xs mb-1">4. Exclusions &amp; Misuse</h4>
+                <h4 className="font-bold text-white text-xs mb-1">{t('properties.maintenanceSection4Title', '4. Exclusions & Misuse')}</h4>
                 <p className="text-slate-400">
-                  Damage caused by intentional tenant negligence, unauthorized alterations, or personal tenant belongings are not covered under the standard plan and may be billed separately.
+                  {t('properties.maintenanceSection4Desc', 'Damage caused by intentional tenant negligence, unauthorized alterations, or personal tenant belongings are not covered under the standard plan and may be billed separately.')}
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold text-white text-xs mb-1">5. Billing &amp; Frequency</h4>
+                <h4 className="font-bold text-white text-xs mb-1">{t('properties.maintenanceSection5Title', '5. Billing & Frequency')}</h4>
                 <p className="text-slate-400">
-                  The maintenance fee of ₹{fee} is billed monthly in addition to property rent. The coverage is tied exclusively to this specific lease and property.
+                  {t('properties.maintenanceSection5Desc', `The maintenance fee of ₹${fee} is billed monthly in addition to property rent. The coverage is tied exclusively to this specific lease and property.`, { fee })}
                 </p>
               </div>
             </div>
@@ -114,7 +116,7 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
                   className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500/30 focus:ring-offset-0 accent-amber-500 cursor-pointer shrink-0"
                 />
                 <span className="text-xs text-slate-300 leading-relaxed">
-                  I have read and agree to the <strong>Maintenance &amp; Repairs Terms &amp; Conditions</strong> and authorize the additional ₹{fee}/month coverage.
+                  {t('properties.maintenanceAgreementText', `I have read and agree to the Maintenance & Repairs Terms & Conditions and authorize the additional ₹${fee}/month coverage.`, { fee })}
                 </span>
               </label>
             </div>
@@ -125,7 +127,7 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
                 onClick={onClose}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent hover:border-slate-700/50 transition-all cursor-pointer"
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 type="button"
@@ -134,7 +136,7 @@ export default function MaintenanceTermsModal({ isOpen, onClose, onAccept, fee =
                 className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:from-amber-400 hover:via-amber-500 hover:to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 transition-all duration-200 disabled:opacity-40 disabled:grayscale disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Agree &amp; Continue
+                {t('properties.agreeAndContinue', 'Agree & Continue')}
               </button>
             </div>
           </div>

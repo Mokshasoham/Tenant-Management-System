@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Folder, CheckCircle, Clock, XCircle, AlertTriangle, FileQuestion, RefreshCw } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import { mapDocuments } from '../../mappers/tenantVerificationMapper';
 import { DOCUMENT_CATEGORIES, REQUIRED_DOC_TYPES } from '../../constants/verification/documentTypes';
@@ -14,6 +15,7 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function TenantVerificationDocuments() {
+  const { t } = useLanguage();
   const { activeVerification } = useVerificationContext();
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
@@ -40,13 +42,13 @@ export default function TenantVerificationDocuments() {
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Tenant Document Workspace"
-        subtitle="Manage identity proofs, address documents, employment letters, and financial records"
+        title={t('verification.documentWorkspace', 'Tenant Document Workspace')}
+        subtitle={t('verification.documentWorkspaceSubtitle', 'Manage identity proofs, address documents, employment letters, and financial records')}
         icon={FileText}
         breadcrumbs={[
-          { label: 'Tenant Portal', href: '/dashboard' },
-          { label: 'Verification Home', href: '/tenant/verification' },
-          { label: 'Documents' },
+          { label: t('verification.tenantPortal', 'Tenant Portal'), href: '/dashboard' },
+          { label: t('verification.verificationHome', 'Verification Home'), href: '/tenant/verification' },
+          { label: t('verification.documents', 'Documents') },
         ]}
       />
 
@@ -57,7 +59,7 @@ export default function TenantVerificationDocuments() {
             <CheckCircle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Uploaded</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">{t('verification.uploaded', 'Uploaded')}</p>
             <p className="text-base font-black text-foreground">{uploadedCount}</p>
           </div>
         </div>
@@ -67,7 +69,7 @@ export default function TenantVerificationDocuments() {
             <Clock className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Pending</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">{t('verification.pending', 'Pending')}</p>
             <p className="text-base font-black text-foreground">{pendingCount}</p>
           </div>
         </div>
@@ -77,7 +79,7 @@ export default function TenantVerificationDocuments() {
             <XCircle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Rejected</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">{t('verification.rejected', 'Rejected')}</p>
             <p className="text-base font-black text-foreground">{rejectedCount}</p>
           </div>
         </div>
@@ -87,7 +89,7 @@ export default function TenantVerificationDocuments() {
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Expired</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">{t('verification.expired', 'Expired')}</p>
             <p className="text-base font-black text-foreground">{expiredCount}</p>
           </div>
         </div>
@@ -97,7 +99,7 @@ export default function TenantVerificationDocuments() {
             <FileQuestion className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Missing</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">{t('verification.missing', 'Missing')}</p>
             <p className="text-base font-black text-foreground">{missingCount}</p>
           </div>
         </div>
@@ -116,7 +118,7 @@ export default function TenantVerificationDocuments() {
                 : 'bg-muted/40 text-muted-foreground hover:bg-muted'
             }`}
           >
-            {cat.label}
+            {t(`verification.cat_${cat.key.toLowerCase()}`, cat.label)}
           </button>
         ))}
       </div>

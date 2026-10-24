@@ -1,10 +1,12 @@
 import React from 'react';
 import { Compass, ArrowRight, MapPin } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 export default function TopNearbyPlacesCTA({ onExploreClick }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const isDark = theme === 'dark';
 
   const handleClick = (e) => {
@@ -50,7 +52,7 @@ export default function TopNearbyPlacesCTA({ onExploreClick }) {
                   isDark ? "text-emerald-400" : "text-emerald-700"
                 )}
               >
-                ✦ EXPLORE THE NEIGHBORHOOD
+                {t('properties.exploreNeighborhood', '✦ EXPLORE THE NEIGHBORHOOD')}
               </span>
             </div>
 
@@ -60,7 +62,7 @@ export default function TopNearbyPlacesCTA({ onExploreClick }) {
                 isDark ? "text-slate-100" : "text-slate-900"
               )}
             >
-              What's around this property?
+              {t('properties.whatsAround', "What's around this property?")}
             </h4>
 
             <p
@@ -69,7 +71,7 @@ export default function TopNearbyPlacesCTA({ onExploreClick }) {
                 isDark ? "text-slate-400" : "text-slate-500"
               )}
             >
-              Discover nearby transit, hospitals, shopping, restaurants and everyday essentials.
+              {t('properties.discoverTransitDesc', 'Discover nearby transit, hospitals, shopping, restaurants and everyday essentials.')}
             </p>
           </div>
         </div>
@@ -78,7 +80,7 @@ export default function TopNearbyPlacesCTA({ onExploreClick }) {
         <button
           type="button"
           onClick={handleClick}
-          aria-label="Explore nearby places around this property"
+          aria-label={t('properties.exploreNearbyAria', 'Explore nearby places around this property')}
           className={cn(
             "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer shrink-0 group shadow-xs",
             isDark
@@ -86,7 +88,7 @@ export default function TopNearbyPlacesCTA({ onExploreClick }) {
               : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
           )}
         >
-          <span>Explore Nearby</span>
+          <span>{t('properties.exploreNearby', 'Explore Nearby')}</span>
           <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
         </button>
       </div>

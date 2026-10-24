@@ -12,6 +12,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { verificationService } from '../../services/api';
 import useAuthStore from '../../context/authStore';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
@@ -36,6 +37,7 @@ const WIZARD_STEPS = [
 ];
 
 export default function TenantVerificationWizard() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const { activeVerification, loadTenantVerification } = useVerificationContext();
@@ -300,37 +302,42 @@ export default function TenantVerificationWizard() {
 
   const progressPercent = Math.round((currentStep / WIZARD_STEPS.length) * 100);
 
+  const localizedWizardSteps = WIZARD_STEPS.map((s) => ({
+    ...s,
+    title: t(`verification.wizardStep${s.stepNumber}`, s.title),
+  }));
+
   return (
     <div className="p-6 sm:p-10 space-y-8 pb-24 sm:pb-10">
       <VerificationPageHeader
-        title="Tenant Rental Verification Wizard"
-        subtitle="Complete your profile, attach proofs, and add references to build rental trust"
+        title={t('verification.wizardTitle', 'Tenant Rental Verification Wizard')}
+        subtitle={t('verification.wizardSubtitle', 'Complete your profile, attach proofs, and add references to build rental trust')}
         icon={ShieldCheck}
         breadcrumbs={[
-          { label: 'Tenant Portal', href: '/dashboard' },
-          { label: 'Verification Home', href: '/tenant/verification' },
-          { label: 'Wizard' },
+          { label: t('verification.tenantPortal', 'Tenant Portal'), href: '/dashboard' },
+          { label: t('verification.verificationHome', 'Verification Home'), href: '/tenant/verification' },
+          { label: t('verification.wizard', 'Wizard') },
         ]}
         actionSlot={
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-muted-foreground">
-              {saveStatus === 'saving' && 'Saving...'}
-              {saveStatus === 'saved' && 'Saved ✓'}
-              {saveStatus === 'idle' && lastAutoSave && `Last saved: ${lastAutoSave}`}
+              {saveStatus === 'saving' && t('common.saving', 'Saving...')}
+              {saveStatus === 'saved' && t('common.saved', 'Saved ✓')}
+              {saveStatus === 'idle' && lastAutoSave && `${t('common.lastSaved', 'Last saved')}: ${lastAutoSave}`}
             </span>
             <Button variant="outline" onClick={saveDraft} disabled={saveStatus === 'saving'} className="text-xs">
               <Save className="w-3.5 h-3.5 mr-1.5" />
-              Save Draft
+              {t('verification.saveDraft', 'Save Draft')}
             </Button>
           </div>
         }
       />
 
       <div className="space-y-2">
-        <VerificationProgressStepper steps={WIZARD_STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
+        <VerificationProgressStepper steps={localizedWizardSteps} currentStep={currentStep} onStepClick={setCurrentStep} />
         <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-1">
-          <span>Step {currentStep} of {WIZARD_STEPS.length}</span>
-          <span className="text-primary">{progressPercent}% Complete</span>
+          <span>{t('verification.stepCounter', `Step ${currentStep} of ${WIZARD_STEPS.length}`, { current: currentStep, total: WIZARD_STEPS.length })}</span>
+          <span className="text-primary">{progressPercent}% {t('common.complete', 'Complete')}</span>
         </div>
       </div>
 
@@ -338,11 +345,11 @@ export default function TenantVerificationWizard() {
 
       {/* Step 1: Personal Info */}
       {currentStep === 1 && (
-        <VerificationSectionCard title="Step 1: Personal Information" subtitle="Read-only tenant profile data">
+        <VerificationSectionCard title={t('verification.step1CardTitle', 'Step 1: Personal Information')} subtitle={t('verification.step1CardSubtitle', 'Read-only tenant profile data')}>
           <div className="space-y-4">
-            <Input label="Full Name" value={`${user?.firstName || ''} ${user?.lastName || ''}`} disabled />
-            <Input label="Email Address" value={user?.email || ''} disabled />
-            <Input label="Phone Number" value={user?.phone || 'Not Provided'} disabled />
+            <Input label={t('verification.fullName', 'Full Name')} value={`${user?.firstName || ''} ${user?.lastName || ''}`} disabled />
+            <Input label={t('verification.emailAddress', 'Email Address')} value={user?.email || ''} disabled />
+            <Input label={t('verification.phoneNumber', 'Phone Number')} value={user?.phone || t('verification.notProvided', 'Not Provided')} disabled />
           </div>
         </VerificationSectionCard>
       )}

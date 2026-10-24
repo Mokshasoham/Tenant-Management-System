@@ -4,6 +4,7 @@ import {
     Building2, CheckCircle2, Sparkles, AlertCircle
 } from 'lucide-react';
 import { feedbackService } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 /**
@@ -62,6 +63,7 @@ function StarDisplay({ rating = 0, size = 'md', className = '' }) {
  * 7 category breakdowns, and anonymized published resident reviews.
  */
 export default function TenantRatingsAndReviews({ property, propertyId }) {
+    const { t } = useLanguage();
     const activePropertyId = propertyId || property?._id;
 
     const [feedbackData, setFeedbackData] = useState(null);
@@ -92,7 +94,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
             .catch((err) => {
                 if (isMounted) {
                     console.error('[TenantRatingsAndReviews] Error fetching feedback:', err);
-                    setError('Unable to load reviews at this time.');
+                    setError(t('properties.unableToLoadReviews', 'Unable to load reviews at this time.'));
                     setLoading(false);
                 }
             });
@@ -100,7 +102,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
         return () => {
             isMounted = false;
         };
-    }, [activePropertyId]);
+    }, [activePropertyId, t]);
 
     // Authoritative rating and review counts from backend data
     const rating = Number(feedbackData?.propertyRating ?? property?.rating ?? 0);
@@ -112,10 +114,31 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
 
     const hasReviews = verifiedReviewCount > 0 && rating > 0;
 
+    const getCategoryLabel = (key, fallback) => {
+        switch (key) {
+            case 'propertyCondition':
+                return t('properties.categoryPropertyCondition', 'Property Condition');
+            case 'cleanliness':
+                return t('properties.categoryCleanliness', 'Cleanliness');
+            case 'maintenance':
+                return t('properties.categoryMaintenance', 'Maintenance & Repairs');
+            case 'location':
+                return t('properties.categoryLocation', 'Location & Accessibility');
+            case 'valueForMoney':
+                return t('properties.categoryValueForMoney', 'Value for Money');
+            case 'safety':
+                return t('properties.categorySafety', 'Safety & Security');
+            case 'management':
+                return t('properties.categoryManagement', 'Property Management');
+            default:
+                return fallback;
+        }
+    };
+
     return (
         <section
             id="tenant-ratings-and-reviews"
-            aria-label="Tenant Ratings & Verified Reviews"
+            aria-label={t('properties.tenantRatingsAndReviews', 'Tenant Ratings & Verified Reviews')}
             className="p-8 rounded-[2.5rem] bg-card border border-border shadow-sm space-y-8 transition-colors"
         >
             {/* Header Title */}
@@ -124,18 +147,18 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                     <div className="flex items-center gap-2">
                         <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 flex items-center gap-1.5">
                             <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-                            Verified Resident Feedback
+                            {t('properties.verifiedResidentFeedback', 'Verified Resident Feedback')}
                         </span>
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                        Tenant Ratings & Verified Reviews
+                        {t('properties.tenantRatingsAndReviews', 'Tenant Ratings & Verified Reviews')}
                     </h2>
                 </div>
 
                 {hasReviews && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span>100% Verified Tenant Submissions</span>
+                        <span>{t('properties.verifiedTenantSubmissions', '100% Verified Tenant Submissions')}</span>
                     </div>
                 )}
             </div>
@@ -143,7 +166,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
             {loading ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-3 text-muted-foreground/60">
                     <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                    <p className="text-xs font-semibold">Loading verified reviews...</p>
+                    <p className="text-xs font-semibold">{t('properties.loadingVerifiedReviews', 'Loading verified reviews...')}</p>
                 </div>
             ) : !hasReviews ? (
                 /* Empty State: Property has no reviews yet */
@@ -153,10 +176,10 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                     </div>
                     <div className="space-y-1 max-w-md mx-auto">
                         <h3 className="text-base font-bold text-foreground">
-                            No verified tenant reviews yet
+                            {t('properties.noVerifiedReviewsYet', 'No verified tenant reviews yet')}
                         </h3>
                         <p className="text-xs text-muted-foreground/75 leading-relaxed">
-                            Reviews and ratings for this property will appear here once verified residents submit feedback during their active lease periods.
+                            {t('properties.noVerifiedReviewsDesc', 'Reviews and ratings for this property will appear here once verified residents submit feedback during their active lease periods.')}
                         </p>
                     </div>
                 </div>
@@ -167,7 +190,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-amber-500/5 via-muted/40 to-primary/5 border border-amber-500/20 shadow-sm">
                         <div className="md:col-span-5 flex flex-col justify-center items-center md:items-start text-center md:text-left space-y-2 md:border-r md:border-border/60 md:pr-6">
                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                                Overall Property Score
+                                {t('properties.overallPropertyScore', 'Overall Property Score')}
                             </span>
                             <div className="flex items-baseline gap-2">
                                 <span className="text-5xl sm:text-6xl font-black text-foreground tracking-tight">
@@ -177,7 +200,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                             </div>
                             <StarDisplay rating={rating} size="lg" />
                             <p className="text-xs font-bold text-muted-foreground pt-1">
-                                Based on <span className="text-foreground font-black">{verifiedReviewCount}</span> verified {verifiedReviewCount === 1 ? 'review' : 'reviews'}
+                                {t('properties.basedOnVerifiedReviews', `Based on ${verifiedReviewCount} verified ${verifiedReviewCount === 1 ? 'review' : 'reviews'}`, { count: verifiedReviewCount })}
                             </p>
                         </div>
 
@@ -185,10 +208,10 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                         <div className="md:col-span-7 flex flex-col justify-center space-y-3 text-xs text-muted-foreground">
                             <div className="flex items-center gap-2 text-foreground font-bold text-sm">
                                 <ShieldCheck className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                                <span>Authentic Resident Transparency</span>
+                                <span>{t('properties.authenticResidentTransparency', 'Authentic Resident Transparency')}</span>
                             </div>
                             <p className="leading-relaxed text-muted-foreground/80">
-                                All ratings and reviews are collected exclusively from tenants with authorized, active leases. Every review is mathematically calculated into the property's overall score to provide reliable living condition insights.
+                                {t('properties.residentTransparencyDesc', "All ratings and reviews are collected exclusively from tenants with authorized, active leases. Every review is mathematically calculated into the property's overall score to provide reliable living condition insights.")}
                             </p>
                         </div>
                     </div>
@@ -197,10 +220,10 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-base font-black text-foreground uppercase tracking-wider text-xs">
-                                Category Breakdown
+                                {t('properties.categoryBreakdown', 'Category Breakdown')}
                             </h3>
                             <span className="text-[11px] text-muted-foreground/60">
-                                Rated by verified occupants
+                                {t('properties.ratedByVerifiedOccupants', 'Rated by verified occupants')}
                             </span>
                         </div>
 
@@ -217,7 +240,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                     >
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-xs font-bold text-foreground truncate">
-                                                {cat.label}
+                                                {getCategoryLabel(cat.key, cat.label)}
                                             </span>
                                             {hasCatRating ? (
                                                 <span className="text-xs font-black text-foreground flex items-center gap-1">
@@ -240,7 +263,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                             </div>
                                         ) : (
                                             <div className="text-[10px] text-muted-foreground/45">
-                                                No ratings recorded yet
+                                                {t('properties.noRatingsRecordedYet', 'No ratings recorded yet')}
                                             </div>
                                         )}
                                     </div>
@@ -254,10 +277,10 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                         <div className="space-y-4 pt-4 border-t border-border/60">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-black text-foreground">
-                                    Verified Resident Reviews ({reviews.length})
+                                    {t('properties.verifiedResidentReviewsCount', `Verified Resident Reviews (${reviews.length})`, { count: reviews.length })}
                                 </h3>
                                 <span className="text-xs text-muted-foreground/60">
-                                    Identity protected
+                                    {t('properties.identityProtected', 'Identity protected')}
                                 </span>
                             </div>
 
@@ -270,7 +293,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                             day: 'numeric',
                                             year: 'numeric'
                                         })
-                                        : 'Recent';
+                                        : t('properties.recentReview', 'Recent');
 
                                     return (
                                         <div
@@ -285,10 +308,10 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                                     <div>
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="text-sm font-black text-foreground">
-                                                                {rev.author || 'Verified Tenant'}
+                                                                {rev.author || t('properties.verifiedTenant', 'Verified Tenant')}
                                                             </span>
                                                             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-wider border border-emerald-500/20">
-                                                                <CheckCircle2 className="w-2.5 h-2.5" /> Verified
+                                                                <CheckCircle2 className="w-2.5 h-2.5" /> {t('properties.verified', 'Verified')}
                                                             </span>
                                                         </div>
                                                         <span className="text-[11px] text-muted-foreground/60">
@@ -319,7 +342,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                                         <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-xs space-y-1">
                                                             <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                                                                 <ThumbsUp className="w-3 h-3" />
-                                                                <span>Liked</span>
+                                                                <span>{t('properties.liked', 'Liked')}</span>
                                                             </div>
                                                             <p className="text-muted-foreground/80 leading-snug">
                                                                 {rev.liked}
@@ -330,7 +353,7 @@ export default function TenantRatingsAndReviews({ property, propertyId }) {
                                                         <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-xs space-y-1">
                                                             <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
                                                                 <Wrench className="w-3 h-3" />
-                                                                <span>Could be improved</span>
+                                                                <span>{t('properties.couldBeImproved', 'Could be improved')}</span>
                                                             </div>
                                                             <p className="text-muted-foreground/80 leading-snug">
                                                                 {rev.improvements}

@@ -11,6 +11,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { propertyService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 
@@ -37,6 +38,7 @@ const createMarkerIcon = (isCurrent = false) => {
 };
 
 function MiniNearbyMap({ target, properties, onSelectProperty }) {
+    const { t } = useLanguage();
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
 
@@ -148,7 +150,7 @@ function MiniNearbyMap({ target, properties, onSelectProperty }) {
         return (
             <div className="h-full min-h-[300px] flex flex-col items-center justify-center p-6 bg-muted/40 rounded-3xl border border-dashed border-border text-center">
                 <MapPin className="w-8 h-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs font-bold text-muted-foreground">Map coordinates unavailable for this location</p>
+                <p className="text-xs font-bold text-muted-foreground">{t('properties.mapCoordsUnavailable', 'Map coordinates unavailable for this location')}</p>
             </div>
         );
     }
@@ -186,6 +188,7 @@ export default function NearbyPropertiesSection({
 }) {
     const navigate = useNavigate();
     const { theme } = useTheme();
+    const { t } = useLanguage();
 
     const [nearbyList, setNearbyList] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -203,10 +206,10 @@ export default function NearbyPropertiesSection({
             const data = res?.data?.data || res?.data || [];
             const list = Array.isArray(data) ? data : [];
             setNearbyList(list);
-            setScopeLabel(res?.data?.scopeLabel || `Nearby in ${property.city || 'this area'}`);
+            setScopeLabel(res?.data?.scopeLabel || t('properties.nearbyInArea', `Nearby in ${property.city || 'this area'}`, { city: property.city || 'this area' }));
         } catch (err) {
             console.error('[NearbyPropertiesSection] Error fetching nearby properties:', err);
-            setError('Unable to load nearby properties. Please try again.');
+            setError(t('properties.unableToLoadNearbyDesc', 'Unable to load nearby properties. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -234,7 +237,7 @@ export default function NearbyPropertiesSection({
                 <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                         <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] uppercase tracking-widest border border-emerald-500/20 flex items-center gap-1">
-                            <Compass className="w-3 h-3 text-emerald-500" /> Location Discovery
+                            <Compass className="w-3 h-3 text-emerald-500" /> {t('properties.locationDiscovery', 'Location Discovery')}
                         </span>
                         {scopeLabel && (
                             <span className="text-[11px] font-bold text-muted-foreground/75">
@@ -243,10 +246,10 @@ export default function NearbyPropertiesSection({
                         )}
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                        What's Around This Property?
+                        {t('properties.whatsAroundThisProperty', "What's Around This Property?")}
                     </h2>
                     <p className="text-xs text-muted-foreground font-medium max-w-xl">
-                        Explore verified homes near this location in {property?.city || 'the area'}.
+                        {t('properties.exploreVerifiedHomesNear', 'Explore verified homes near this location in {city}.', { city: property?.city || t('properties.theArea', 'the area') })}
                     </p>
                 </div>
 
@@ -264,7 +267,7 @@ export default function NearbyPropertiesSection({
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                <LayoutGrid className="w-3.5 h-3.5" /> Cards
+                                <LayoutGrid className="w-3.5 h-3.5" /> {t('properties.cards', 'Cards')}
                             </button>
                             <button
                                 type="button"
@@ -276,7 +279,7 @@ export default function NearbyPropertiesSection({
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                <Map className="w-3.5 h-3.5" /> Map View
+                                <Map className="w-3.5 h-3.5" /> {t('properties.mapView', 'Map View')}
                             </button>
                         </div>
                     )}
@@ -286,7 +289,7 @@ export default function NearbyPropertiesSection({
                         onClick={handleExploreWiderCity}
                         className="px-4 py-2 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-500/20 shadow-sm"
                     >
-                        <span>Explore {property?.city || 'Area'}</span>
+                        <span>{t('properties.exploreCity', 'Explore {city}', { city: property?.city || t('properties.area', 'Area') })}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
@@ -298,7 +301,7 @@ export default function NearbyPropertiesSection({
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
                         <div>
-                            <p className="text-xs font-black text-destructive uppercase tracking-wider">Unable to load nearby properties</p>
+                            <p className="text-xs font-black text-destructive uppercase tracking-wider">{t('properties.unableToLoadNearbyHeader', 'Unable to load nearby properties')}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
                         </div>
                     </div>
@@ -307,7 +310,7 @@ export default function NearbyPropertiesSection({
                         onClick={fetchNearby}
                         className="px-4 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm transition-all"
                     >
-                        <RefreshCw className="w-3.5 h-3.5" /> Try again
+                        <RefreshCw className="w-3.5 h-3.5" /> {t('common.tryAgain', 'Try again')}
                     </button>
                 </div>
             )}
@@ -328,9 +331,9 @@ export default function NearbyPropertiesSection({
                         📍
                     </div>
                     <div className="space-y-0.5">
-                        <h3 className="text-sm font-black text-foreground">No verified homes nearby</h3>
+                        <h3 className="text-sm font-black text-foreground">{t('properties.noVerifiedHomesNearby', 'No verified homes nearby')}</h3>
                         <p className="text-xs text-muted-foreground font-medium">
-                            There aren't other verified properties close to this location yet.
+                            {t('properties.noVerifiedHomesNearbyDesc', "There aren't other verified properties close to this location yet.")}
                         </p>
                     </div>
                 </div>
@@ -371,7 +374,7 @@ export default function NearbyPropertiesSection({
                                                     {p.distanceText && (
                                                         <span className="px-2.5 py-1 rounded-xl bg-slate-950/85 backdrop-blur-md text-emerald-400 font-black text-[10px] tracking-wide shadow-lg border border-emerald-500/30 flex items-center gap-1">
                                                             <Navigation className="w-3 h-3 text-emerald-400" />
-                                                            {p.distanceText} away
+                                                            {p.distanceText} {t('properties.away', 'away')}
                                                         </span>
                                                     )}
                                                     {(p.verificationStatus === 'verified' || p.verifiedBadge) && (
@@ -384,7 +387,7 @@ export default function NearbyPropertiesSection({
                                                 {/* Price Badge */}
                                                 <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-white font-black text-xs shadow-lg">
                                                     ₹{p.rentAmount?.toLocaleString('en-IN') || '0'}
-                                                    <span className="text-[9px] font-bold text-slate-400">/mo</span>
+                                                    <span className="text-[9px] font-bold text-slate-400">{t('properties.perMonthShort', '/mo')}</span>
                                                 </div>
 
                                                 {/* Quick Action Overlay (Save & Compare) */}
@@ -392,7 +395,7 @@ export default function NearbyPropertiesSection({
                                                     {onSaveProperty && (
                                                         <button
                                                             type="button"
-                                                            aria-label="Save property"
+                                                            aria-label={t('properties.savePropertyAria', 'Save property')}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 e.preventDefault();
@@ -411,7 +414,7 @@ export default function NearbyPropertiesSection({
                                                     {onToggleCompare && (
                                                         <button
                                                             type="button"
-                                                            aria-label="Compare property"
+                                                            aria-label={t('properties.comparePropertyAria', 'Compare property')}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 e.preventDefault();
@@ -449,14 +452,14 @@ export default function NearbyPropertiesSection({
                                                 {/* Specs */}
                                                 <div className="flex items-center gap-3 pt-2 text-[11px] font-bold text-muted-foreground border-t border-border/50">
                                                     <span className="flex items-center gap-1">
-                                                        <Bed className="w-3.5 h-3.5 text-emerald-500" /> {p.bedrooms || 0} Bed
+                                                        <Bed className="w-3.5 h-3.5 text-emerald-500" /> {p.bedrooms || 0} {t('properties.bed', 'Bed')}
                                                     </span>
                                                     <span className="flex items-center gap-1">
-                                                        <Bath className="w-3.5 h-3.5 text-teal-500" /> {p.bathrooms || 0} Bath
+                                                        <Bath className="w-3.5 h-3.5 text-teal-500" /> {p.bathrooms || 0} {t('properties.bath', 'Bath')}
                                                     </span>
                                                     {p.squareFeet && (
                                                         <span className="flex items-center gap-1">
-                                                            <Square className="w-3.5 h-3.5 text-amber-500" /> {p.squareFeet} sqft
+                                                            <Square className="w-3.5 h-3.5 text-amber-500" /> {p.squareFeet} {t('properties.sqft', 'sqft')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -466,10 +469,10 @@ export default function NearbyPropertiesSection({
                                         {/* Card Footer Action */}
                                         <div className="px-4 py-2.5 bg-muted/30 border-t border-border/50 flex items-center justify-between text-xs font-bold text-foreground">
                                             <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60">
-                                                {p.proximityBadge || 'Nearby'}
+                                                {p.proximityBadge || t('properties.nearby', 'Nearby')}
                                             </span>
                                             <span className="text-emerald-500 dark:text-emerald-400 font-black flex items-center gap-1 text-[11px] uppercase tracking-wider group-hover:translate-x-1 transition-transform">
-                                                View Property <ChevronRight className="w-3.5 h-3.5" />
+                                                {t('properties.viewProperty', 'View Property')} <ChevronRight className="w-3.5 h-3.5" />
                                             </span>
                                         </div>
                                     </motion.div>
@@ -490,7 +493,7 @@ export default function NearbyPropertiesSection({
                             <div className="lg:col-span-5 flex flex-col gap-3 max-h-[460px] overflow-y-auto pr-1">
                                 <div className="sticky top-0 bg-background/90 backdrop-blur-md py-1 z-10">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                        {nearbyList.length} properties around this location
+                                        {t('properties.propertiesAroundLocation', `${nearbyList.length} properties around this location`, { count: nearbyList.length })}
                                     </p>
                                 </div>
                                 {nearbyList.map(p => {
@@ -533,7 +536,7 @@ export default function NearbyPropertiesSection({
                                                         ₹{p.rentAmount?.toLocaleString('en-IN')}<small className="text-[9px] text-muted-foreground font-normal">/mo</small>
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground font-bold">
-                                                        {p.bedrooms || 0} Bed • {p.bathrooms || 0} Bath
+                                                        {p.bedrooms || 0} {t('properties.bed', 'Bed')} • {p.bathrooms || 0} {t('properties.bath', 'Bath')}
                                                     </span>
                                                 </div>
                                             </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Award, TrendingUp, Sparkles, CheckCircle2, AlertCircle, HelpCircle, ShieldCheck } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import useAuthStore from '../../context/authStore';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import { mapTrustScore } from '../../mappers/tenantVerificationMapper';
@@ -17,6 +18,7 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function TenantTrustScorePage() {
+  const { t } = useLanguage();
   const user = useAuthStore((state) => state.user);
   const { activeVerification } = useVerificationContext();
 
@@ -29,13 +31,13 @@ export default function TenantTrustScorePage() {
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Tenant Rental Trust Analytics"
-        subtitle="Detailed 0-100 score breakdown, percentile standing, score evolution, and actionable improvement tips"
+        title={t('verification.trustAnalyticsTitle', 'Tenant Rental Trust Analytics')}
+        subtitle={t('verification.trustAnalyticsSubtitle', 'Detailed 0-100 score breakdown, percentile standing, score evolution, and actionable improvement tips')}
         icon={Award}
         breadcrumbs={[
-          { label: 'Tenant Portal', href: '/dashboard' },
-          { label: 'Verification Home', href: '/tenant/verification' },
-          { label: 'Trust Analytics' },
+          { label: t('verification.tenantPortal', 'Tenant Portal'), href: '/dashboard' },
+          { label: t('verification.verificationHome', 'Verification Home'), href: '/tenant/verification' },
+          { label: t('verification.trustAnalytics', 'Trust Analytics') },
         ]}
       />
 

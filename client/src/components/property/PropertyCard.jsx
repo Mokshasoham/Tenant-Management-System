@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../../utils/propertyHelper';
 
 export const TYPE_COLORS = {
@@ -68,11 +69,13 @@ export function SkeletonCard({ compact = false }) {
 // ── Compact card for map side-panel ──
 export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick }) {
     const { theme } = useTheme();
+    const { t } = useLanguage();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
     const reviewCount = p.verifiedReviewCount !== undefined ? p.verifiedReviewCount : (p.reviewCount || 0);
     const rating = Number(p.rating || 0);
     const hasReviews = reviewCount > 0 && rating > 0;
+    const coverUrl = resolveMediaUrl(p.images?.[0] || p.media?.find(m => m.mediaType === 'image')?.url);
 
     return (
         <motion.div whileHover={{ y: -1 }} onClick={onClick}
@@ -89,7 +92,7 @@ export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick 
                         }}
                     />
                     : <div className="w-full h-full flex items-center justify-center"><Building2 className="w-6 h-6 opacity-20 text-foreground" /></div>}
-                <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{p.type}</span>
+                <span className="absolute top-1 left-1 bg-opacity-90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter" style={{ background: color }}>{t(`properties.type_${p.type?.toLowerCase()}`, p.type)}</span>
                 {displayStatus && (
                     <span className={cn(
                         "absolute bottom-1 right-1 text-[7px] font-black px-1 rounded shadow-sm border uppercase tracking-tighter",
@@ -98,7 +101,7 @@ export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick 
                         displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
                         "bg-rose-500/90 border-rose-400/20 text-white"
                     )}>
-                        {displayStatus === 'Available' ? 'AVBL' : displayStatus === 'Under Maintenance' ? 'MAINT' : displayStatus === 'Sold Out' ? 'SOLD' : 'SOON'}
+                        {displayStatus === 'Available' ? t('properties.avbl', 'AVBL') : displayStatus === 'Under Maintenance' ? t('properties.maint', 'MAINT') : displayStatus === 'Sold Out' ? t('properties.sold', 'SOLD') : t('properties.soon', 'SOON')}
                     </span>
                 )}
             </div>
@@ -112,17 +115,17 @@ export function CompactCard({ p, isSaved, inCompare, onSave, onCompare, onClick 
                             {rating.toFixed(1)}
                         </span>
                     ) : (
-                        <span className="text-[9px] text-muted-foreground/45 shrink-0">No reviews yet</span>
+                        <span className="text-[9px] text-muted-foreground/45 shrink-0">{t('properties.noReviewsYet', 'No reviews yet')}</span>
                     )}
                 </div>
-                <p className="text-base font-black text-foreground" style={{ color: theme === 'light' ? color : 'inherit' }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span className="text-[9px] font-bold text-muted-foreground/40">/mo</span></p>
+                <p className="text-base font-black text-foreground" style={{ color: theme === 'light' ? color : 'inherit' }}>₹{p.rentAmount?.toLocaleString('en-IN')}<span className="text-[9px] font-bold text-muted-foreground/40">{t('properties.perMonthShort', '/mo')}</span></p>
                 <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-muted-foreground/60">🛏 {p.bedrooms || 0}</span>
                     <span className="text-[10px] text-muted-foreground/60">🚿 {p.bathrooms || 0}</span>
-                    <button onClick={e => { e.stopPropagation(); onSave?.(); }} className={cn("ml-auto p-1 rounded-lg transition-colors", isSaved ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground/30 hover:bg-muted")}>
+                    <button aria-label={t('properties.savePropertyAria', 'Save property')} onClick={e => { e.stopPropagation(); onSave?.(); }} className={cn("ml-auto p-1 rounded-lg transition-colors", isSaved ? "text-rose-500 bg-rose-500/10" : "text-muted-foreground/30 hover:bg-muted")}>
                         <Heart className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
                     </button>
-                    <button onClick={e => { e.stopPropagation(); onCompare?.(); }} className={cn("p-1 rounded-lg transition-colors", inCompare ? "text-primary bg-primary/10" : "text-muted-foreground/30 hover:bg-muted")}>
+                    <button aria-label={t('properties.comparePropertyAria', 'Compare property')} onClick={e => { e.stopPropagation(); onCompare?.(); }} className={cn("p-1 rounded-lg transition-colors", inCompare ? "text-primary bg-primary/10" : "text-muted-foreground/30 hover:bg-muted")}>
                         <Scale className="w-3.5 h-3.5" />
                     </button>
                 </div>
@@ -144,11 +147,27 @@ export function PropertyCard({
     matchReasons = []
 }) {
     const { theme } = useTheme();
+    const { t } = useLanguage();
     const color = TYPE_COLORS[p.type] || '#6366f1';
     const displayStatus = getDisplayStatus(p);
     const reviewCount = p.verifiedReviewCount !== undefined ? p.verifiedReviewCount : (p.reviewCount || 0);
     const rating = Number(p.rating || 0);
     const hasReviews = reviewCount > 0 && rating > 0;
+
+    const getLocalizedStatus = (status) => {
+        if (!status) return null;
+        if (status === 'Available') return t('properties.statusAvailable', 'Available');
+        if (status.startsWith('Available from')) return t('properties.statusAvailableFrom', status);
+        if (status === 'Under Maintenance') return t('properties.statusUnderMaintenance', 'Under Maintenance');
+        if (status === 'Sold Out') return t('properties.statusSoldOut', 'Sold Out');
+        return status;
+    };
+    const localizedDisplayStatus = getLocalizedStatus(displayStatus);
+
+    const viewDetailsText = t('properties.viewDetails', 'View details');
+    const viewDetailsChars = Array.from(viewDetailsText);
+    const revealedWidth = Math.max(82, viewDetailsChars.length * 8 + 14);
+    const totalBtnWidth = revealedWidth + 44;
 
     // Extract real images
     const allMedia = p.media || [];
@@ -285,9 +304,9 @@ export function PropertyCard({
                 <div className="absolute top-4 left-4 flex flex-col items-start gap-2 z-20 pointer-events-none">
                     <div className="flex gap-1.5 flex-wrap">
                         <span className="px-3 py-1 bg-opacity-90 text-white text-[10px] font-black rounded-full shadow-lg backdrop-blur-sm uppercase tracking-wider" style={{ background: color }}>
-                            {p.type}
+                            {t(`properties.type_${p.type?.toLowerCase()}`, p.type)}
                         </span>
-                        {displayStatus && (
+                        {localizedDisplayStatus && (
                             <span className={cn(
                                 "px-3 py-1 text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border uppercase tracking-wider",
                                 displayStatus === 'Available' ? "bg-emerald-500/90 border-emerald-400/20 text-white" :
@@ -295,7 +314,7 @@ export function PropertyCard({
                                 displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/20 text-white" :
                                 "bg-rose-500/90 border-rose-400/20 text-white"
                             )}>
-                                {displayStatus}
+                                {localizedDisplayStatus}
                             </span>
                         )}
                         {matchTag && (
@@ -314,15 +333,15 @@ export function PropertyCard({
                             </span>
                         )}
                     </div>
-                    {p.bookingType === 'free' && <span className="px-3 py-1 bg-primary/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">🛡️ Demo Available</span>}
-                    {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">⚡ Best Value</span>}
+                    {p.bookingType === 'free' && <span className="px-3 py-1 bg-primary/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">{t('properties.demoAvailable', '🛡️ Demo Available')}</span>}
+                    {p.rentAmount < 20000 && <span className="px-3 py-1 bg-emerald-500/90 text-white text-[9px] font-black rounded-full shadow-lg backdrop-blur-sm border border-white/20">{t('properties.bestValue', '⚡ Best Value')}</span>}
                 </div>
 
                 {/* Top-right actions (Save & Compare) */}
                 <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
                     <button
                         type="button"
-                        aria-label="Save property"
+                        aria-label={t('properties.savePropertyAria', 'Save property')}
                         onClick={e => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -337,7 +356,7 @@ export function PropertyCard({
                     </button>
                     <button
                         type="button"
-                        aria-label="Compare property"
+                        aria-label={t('properties.comparePropertyAria', 'Compare property')}
                         onClick={e => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -355,7 +374,7 @@ export function PropertyCard({
                 {/* Price & Rating */}
                 <div className="absolute bottom-3.5 left-4 text-white z-10 pointer-events-none">
                     <p className="text-2xl font-black mb-0 tracking-tight">₹{p.rentAmount?.toLocaleString('en-IN')}</p>
-                    <p className="text-[10px] font-black opacity-70 uppercase tracking-widest leading-none mt-0.5">per month</p>
+                    <p className="text-[10px] font-black opacity-70 uppercase tracking-widest leading-none mt-0.5">{t('properties.perMonth', 'per month')}</p>
                 </div>
                 {hasReviews && (
                     <div className="absolute bottom-3.5 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 shadow-lg z-10 pointer-events-none">
@@ -403,12 +422,12 @@ export function PropertyCard({
                                 </div>
                                 <span className="font-bold text-foreground text-xs">{rating.toFixed(1)}</span>
                                 <span className="text-[11px] font-medium text-muted-foreground/60">
-                                    · {reviewCount} verified {reviewCount === 1 ? 'review' : 'reviews'}
+                                    · {reviewCount} {t('properties.verifiedReviews', reviewCount === 1 ? 'verified review' : 'verified reviews', { count: reviewCount })}
                                 </span>
                             </div>
                         ) : (
                             <span className="text-[11px] font-medium text-muted-foreground/50">
-                                No reviews yet
+                                {t('properties.noReviewsYet', 'No reviews yet')}
                             </span>
                         )}
                     </div>
@@ -417,25 +436,25 @@ export function PropertyCard({
                 <div className="flex items-center gap-4 sm:gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground flex-wrap">
                     {p.type === 'commercial' || p.type === 'shop' ? (
                         <>
-                            <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.commercialArea || p.squareFeet || 0} sqft</span>
-                            <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-blue-500" />{p.frontage || (p.floor !== undefined ? `Floor ${p.floor}` : 'Commercial')}</span>
+                            <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.commercialArea || p.squareFeet || 0} {t('properties.sqft', 'sqft')}</span>
+                            <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-blue-500" />{p.frontage || (p.floor !== undefined ? t('properties.floorN', `Floor ${p.floor}`, { floor: p.floor }) : t('properties.commercial', 'Commercial'))}</span>
                         </>
                     ) : p.type === 'hostel' ? (
                         <>
-                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4 text-purple-500" />{p.totalBeds ? `${p.totalBeds} Beds` : `${p.bedrooms || 0} Rooms`}</span>
-                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-indigo-500" />{p.roomType || 'Hostel'}</span>
+                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4 text-purple-500" />{p.totalBeds ? `${p.totalBeds} ${t('properties.beds', 'Beds')}` : `${p.bedrooms || 0} ${t('properties.rooms', 'Rooms')}`}</span>
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-indigo-500" />{p.roomType || t('properties.hostel', 'Hostel')}</span>
                         </>
                     ) : p.type === 'pg' ? (
                         <>
-                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-rose-500" />{p.sharingCapacity ? `${p.sharingCapacity} Sharing` : (p.roomType || 'PG')}</span>
-                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathroomType || `${p.bathrooms || 0} Bath`}</span>
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-rose-500" />{p.sharingCapacity ? `${p.sharingCapacity} ${t('properties.sharing', 'Sharing')}` : (p.roomType || t('properties.pg', 'PG'))}</span>
+                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathroomType || `${p.bathrooms || 0} ${t('properties.bath', 'Bath')}`}</span>
                         </>
                     ) : (
                         <>
-                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bhk || `${p.bedrooms || 0} Bed`}</span>
-                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} Bath</span>
+                            <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bhk || `${p.bedrooms || 0} ${t('properties.bed', 'Bed')}`}</span>
+                            <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} {t('properties.bath', 'Bath')}</span>
                             {Boolean(p.squareFeet || p.builtUpArea) && (
-                                <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet || p.builtUpArea} sqft</span>
+                                <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet || p.builtUpArea} {t('properties.sqft', 'sqft')}</span>
                             )}
                         </>
                     )}
@@ -444,16 +463,16 @@ export function PropertyCard({
                 <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2.5 min-w-0 pr-2">
                         {mgr?.avatar ? (
-                            <img src={mgr.avatar} alt="Manager" className="w-8 h-8 rounded-xl object-cover border border-border shadow-sm flex-shrink-0" />
+                            <img src={mgr.avatar} alt={t('properties.manager', 'Manager')} className="w-8 h-8 rounded-xl object-cover border border-border shadow-sm flex-shrink-0" />
                         ) : (
                             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-md flex-shrink-0" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
                                 {mgrInitial}
                             </div>
                         )}
                         <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">Manager</span>
+                            <span className="text-[9px] font-extrabold text-muted-foreground/50 uppercase tracking-wider leading-none">{t('properties.manager', 'Manager')}</span>
                             <span className="text-xs font-bold text-foreground truncate max-w-[110px] sm:max-w-[130px]">
-                                {mgrName}
+                                {mgrName === 'Manager not assigned' ? t('properties.managerNotAssigned', 'Manager not assigned') : mgrName}
                             </span>
                         </div>
                     </div>
@@ -462,7 +481,7 @@ export function PropertyCard({
                     <div className="flex justify-end flex-shrink-0">
                         <button
                             type="button"
-                            aria-label={`View details for ${p.name}`}
+                            aria-label={t('properties.viewDetailsFor', `View details for ${p.name}`, { name: p.name })}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -474,7 +493,7 @@ export function PropertyCard({
                             onBlur={() => setBtnHovered(false)}
                             className="relative h-9 rounded-full flex items-center justify-end overflow-hidden cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
                             style={{
-                                width: btnHovered ? '126px' : '36px',
+                                width: btnHovered ? `${totalBtnWidth}px` : '36px',
                                 backgroundColor: btnHovered
                                     ? theme === 'light' ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.12)'
                                     : theme === 'light' ? 'rgba(0, 0, 0, 0.045)' : 'rgba(255, 255, 255, 0.06)',
@@ -494,7 +513,7 @@ export function PropertyCard({
                             <div
                                 className="overflow-hidden flex items-center whitespace-nowrap pointer-events-none"
                                 style={{
-                                    width: btnHovered ? '82px' : '0px',
+                                    width: btnHovered ? `${revealedWidth}px` : '0px',
                                     paddingLeft: btnHovered ? '12px' : '0px',
                                     opacity: btnHovered ? 1 : 0,
                                     transition: 'width 380ms cubic-bezier(0.22, 1, 0.36, 1), padding-left 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease'
@@ -506,7 +525,7 @@ export function PropertyCard({
                                         color: theme === 'light' ? '#0f172a' : '#F5F7FA'
                                     }}
                                 >
-                                    {VIEW_DETAILS_LETTERS.map((char, i) => (
+                                    {viewDetailsChars.map((char, i) => (
                                         <span
                                             key={i}
                                             className="inline-block select-none"
@@ -514,10 +533,10 @@ export function PropertyCard({
                                                 transform: btnHovered ? 'translateX(0px)' : 'translateX(-8px)',
                                                 opacity: btnHovered ? 1 : 0,
                                                 transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease',
-                                                transitionDelay: btnHovered ? `${i * 16}ms` : `${(VIEW_DETAILS_LETTERS.length - 1 - i) * 8}ms`
+                                                transitionDelay: btnHovered ? `${i * 16}ms` : `${(viewDetailsChars.length - 1 - i) * 8}ms`
                                             }}
                                         >
-                                            {char}
+                                            {char === ' ' ? '\u00A0' : char}
                                         </span>
                                     ))}
                                 </span>

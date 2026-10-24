@@ -88,6 +88,24 @@ const FALLBACK_TENANT_PLANS = [
 export default function TenantSubscriptionPage() {
   const { theme } = useTheme();
   const { t, formatCurrency } = useLanguage();
+
+  const getLocalizedFeature = (feat) => {
+    if (!feat) return '';
+    const map = {
+      'Manage up to 2 active leases': t('subscription.featManage2Leases', 'Manage up to 2 active leases'),
+      'Manage up to 4 active leases': t('subscription.featManage4Leases', 'Manage up to 4 active leases'),
+      'Unlimited active leases (5+)': t('subscription.featUnlimitedLeases', 'Unlimited active leases (5+)'),
+      'Rent payments & receipts': t('subscription.featRentPayments', 'Rent payments & receipts'),
+      'Utility invoices & bills': t('subscription.featUtilityInvoices', 'Utility invoices & bills'),
+      'Direct landlord messaging': t('subscription.featDirectMessaging', 'Direct landlord messaging'),
+      'Basic resident dashboard': t('subscription.featBasicDashboard', 'Basic resident dashboard'),
+      'Advanced tax & expense reports': t('subscription.featTaxReports', 'Advanced tax & expense reports'),
+      'Priority resident support': t('subscription.featPrioritySupport', 'Priority resident support'),
+      'Lifetime document vault': t('subscription.featLifetimeVault', 'Lifetime document vault'),
+      'Early access to premium features': t('subscription.featEarlyAccess', 'Early access to premium features'),
+    };
+    return map[feat] || feat;
+  };
   const isDark = theme === 'dark';
   const navigate = useNavigate();
 
@@ -549,7 +567,7 @@ export default function TenantSubscriptionPage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.25 }}
                 className={cn(
-                  "relative rounded-[30px] border p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
+                  "relative rounded-[30px] border pt-9 sm:pt-10 pb-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
                   isDark
                     ? (isPlanPlus
                         ? "bg-gradient-to-b from-[#072421] via-[#041618] to-[#020A0D] border-emerald-400/60 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/40 md:-translate-y-2 text-white"
@@ -564,10 +582,10 @@ export default function TenantSubscriptionPage() {
                 )}
               >
                 {/* Plan Badge */}
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-full max-w-[85%] flex justify-center z-20 pointer-events-none">
                   <span
                     className={cn(
-                      "px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border",
+                      "px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border text-center whitespace-normal leading-tight",
                       isCurrent
                         ? (isDark ? "bg-emerald-950 text-emerald-300 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300")
                         : isPlanPlus
@@ -681,7 +699,7 @@ export default function TenantSubscriptionPage() {
                       "text-[10px] font-black uppercase tracking-wider block",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      INCLUDED FEATURES
+                      {t("subscription.includedFeatures", "INCLUDED FEATURES")}
                     </span>
 
                     <div className="space-y-2.5">
@@ -708,7 +726,7 @@ export default function TenantSubscriptionPage() {
                           >
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </div>
-                          <span className={cn("font-medium leading-tight", isDark ? "text-slate-300" : "text-slate-700")}>{feat}</span>
+                          <span className={cn("font-medium leading-tight", isDark ? "text-slate-300" : "text-slate-700")}>{getLocalizedFeature(feat)}</span>
                         </div>
                       ))}
                     </div>
@@ -989,10 +1007,10 @@ export default function TenantSubscriptionPage() {
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹999 <span className={cn("text-[10px] font-normal", isDark ? "text-cyan-400/70" : "text-cyan-600")}>/mo</span>
+                        ₹999 <span className={cn("text-[10px] font-normal", isDark ? "text-cyan-400/70" : "text-cyan-600")}>{t("subscription.perMonth", "/mo")}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-cyan-300" : "text-cyan-800")}>
-                        Unlimited (5+)
+                        {t("subscription.unlimited5Plus", "Unlimited (5+)")}
                       </span>
                     </div>
                   </div>
@@ -1017,7 +1035,7 @@ export default function TenantSubscriptionPage() {
                         <Building2 className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-bold tracking-tight", isDark ? "text-white" : "text-slate-900")}>
-                        Active Leases
+                        {t("subscription.rowActiveLeases", "Active Leases")}
                       </span>
                     </div>
 
@@ -1044,7 +1062,7 @@ export default function TenantSubscriptionPage() {
                         "px-3.5 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300" : "bg-cyan-100 border-cyan-300 text-cyan-800"
                       )}>
-                        Unlimited (5+)
+                        {t("subscription.unlimited5Plus", "Unlimited (5+)")}
                       </span>
                     </div>
                   </div>
@@ -1063,7 +1081,7 @@ export default function TenantSubscriptionPage() {
                         <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Rent Payments &amp; Receipts
+                        {t("subscription.rowRentPayments", "Rent Payments & Receipts")}
                       </span>
                     </div>
 
@@ -1109,7 +1127,7 @@ export default function TenantSubscriptionPage() {
                         <FileText className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Utility Invoices &amp; Bills
+                        {t("subscription.rowUtilityInvoices", "Utility Invoices & Bills")}
                       </span>
                     </div>
 
@@ -1155,7 +1173,7 @@ export default function TenantSubscriptionPage() {
                         <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Direct Landlord Messaging
+                        {t("subscription.rowDirectMessaging", "Direct Landlord Messaging")}
                       </span>
                     </div>
 
@@ -1201,7 +1219,7 @@ export default function TenantSubscriptionPage() {
                         <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Advanced Tax &amp; Expense Reports
+                        {t("subscription.rowTaxReports", "Advanced Tax & Expense Reports")}
                       </span>
                     </div>
 
@@ -1242,7 +1260,7 @@ export default function TenantSubscriptionPage() {
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Priority Resident Support
+                        {t("subscription.rowPrioritySupport", "Priority Resident Support")}
                       </span>
                     </div>
 
@@ -1283,7 +1301,7 @@ export default function TenantSubscriptionPage() {
                         <FolderLock className="w-3.5 h-3.5 text-cyan-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Lifetime Document Vault &amp; Early Access
+                        {t("subscription.rowLifetimeVault", "Lifetime Document Vault & Early Access")}
                       </span>
                     </div>
 
@@ -1312,8 +1330,8 @@ export default function TenantSubscriptionPage() {
                   "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2 px-3 sm:px-4",
                   isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600"
                 )}>
-                  <span className="font-medium">Choose the plan that fits your rental portfolio.</span>
-                  <span className={cn("text-[11px]", isDark ? "text-slate-500" : "text-slate-400")}>Plans can be upgraded as your leasing needs grow.</span>
+                  <span className="font-medium">{t("subscription.footerChoosePlan", "Choose the plan that fits your rental portfolio.")}</span>
+                  <span className={cn("text-[11px]", isDark ? "text-slate-500" : "text-slate-400")}>{t("subscription.footerUpgradeNote", "Plans can be upgraded as your leasing needs grow.")}</span>
                 </div>
               </div>
             </div>

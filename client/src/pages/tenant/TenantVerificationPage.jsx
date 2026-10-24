@@ -303,16 +303,16 @@ export default function TenantVerificationPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-center">
-                <p className="text-[10px] text-muted-foreground font-semibold">Years Renting</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">{t('verification.yearsRenting', 'Years Renting')}</p>
                 <p className="text-sm font-black text-foreground">{rentalHistory.yearsRenting}</p>
               </div>
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-center">
-                <p className="text-[10px] text-muted-foreground font-semibold">Completed Leases</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">{t('verification.completedLeases', 'Completed Leases')}</p>
                 <p className="text-sm font-black text-foreground">{rentalHistory.completedLeases}</p>
               </div>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">On-Time Payment Rate</span>
+              <span className="text-muted-foreground font-medium">{t('verification.onTimeRate', 'On-Time Payment Rate')}</span>
               <span className="font-black text-emerald-500">{rentalHistory.onTimeRate}</span>
             </div>
           </div>
@@ -320,23 +320,23 @@ export default function TenantVerificationPage() {
       </div>
 
       {/* Account Verification Widget */}
-      <VerificationSectionCard title="Account Verification Widget" subtitle="Security & trust readiness indicator" icon={Zap}>
+      <VerificationSectionCard title={t('verification.accountWidget', 'Account Verification Widget')} subtitle={t('verification.securityIndicator', 'Security & trust readiness indicator')} icon={Zap}>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 rounded-2xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/20">
           <div className="space-y-2 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-bold text-foreground">Rental Credential Profile</span>
+              <span className="text-xs font-bold text-foreground">{t('verification.rentalCredentialProfile', 'Rental Credential Profile')}</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
                 {tenantLevel}
               </span>
             </div>
             <p className="text-xs text-muted-foreground max-w-lg">
-              Completing identity checks and uploading address proof unlocks faster lease approvals and elevates your trust score.
+              {t('verification.credentialProfileDesc', 'Completing identity checks and uploading address proof unlocks faster lease approvals and elevates your trust score.')}
             </p>
             <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium pt-1">
-              <span>Expiry Target: {renewal.expiresOn}</span>
+              <span>{t('verification.expiryTarget', 'Expiry Target')}: {renewal.expiresOn}</span>
               <span>•</span>
-              <span>Trust Score: {trustScore}/100</span>
+              <span>{t('verification.trustScore', 'Trust Score')}: {trustScore}/100</span>
             </div>
           </div>
           <Button
@@ -344,7 +344,7 @@ export default function TenantVerificationPage() {
             className="text-xs whitespace-nowrap shrink-0"
             onClick={() => navigate('/tenant/verification/wizard')}
           >
-            {status === 'UNVERIFIED' ? 'Start Verification' : 'Update Verification'}
+            {status === 'UNVERIFIED' ? t('verification.startVerification', 'Start Verification') : t('verification.updateVerification', 'Update Verification')}
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </div>
@@ -355,7 +355,7 @@ export default function TenantVerificationPage() {
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 space-y-2">
           <div className="flex items-center gap-2 font-bold text-sm">
             <AlertTriangle className="w-5 h-5" />
-            <span>Verification Rejection Remarks</span>
+            <span>{t('verification.rejectionRemarks', 'Verification Rejection Remarks')}</span>
           </div>
           <p className="text-xs leading-relaxed">{activeVerification.verificationRemarks}</p>
           <Button
@@ -363,7 +363,7 @@ export default function TenantVerificationPage() {
             className="text-xs bg-rose-500 text-white mt-2"
             onClick={() => navigate('/tenant/verification/wizard')}
           >
-            Fix & Resubmit Now
+            {t('verification.fixAndResubmit', 'Fix & Resubmit Now')}
           </Button>
         </div>
       )}
@@ -377,12 +377,12 @@ export default function TenantVerificationPage() {
         />
 
         {/* Timeline Preview */}
-        <VerificationSectionCard title="Recent Activity Timeline" subtitle="Audit trail events" icon={History}>
+        <VerificationSectionCard title={t('verification.recentActivity', 'Recent Activity Timeline')} subtitle={t('verification.auditTrailEvents', 'Audit trail events')} icon={History}>
           {timeline.length === 0 ? (
             <VerificationEmptyState
               icon={Clock}
-              title="No Timeline Activity"
-              description="Your verification audit history will appear here once you start."
+              title={t('verification.noTimelineActivity', 'No Timeline Activity')}
+              description={t('verification.noTimelineActivityDesc', 'Your verification audit history will appear here once you start.')}
             />
           ) : (
             <VerificationTimeline timeline={timeline.slice(0, 5)} />
@@ -393,52 +393,52 @@ export default function TenantVerificationPage() {
       {/* Content Grid Row 2: Renewal Status & Profile Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Renewal Status */}
-        <VerificationSectionCard title="Verification Renewal Lifecycle" subtitle="Credential validity & expiry countdown" icon={Clock}>
+        <VerificationSectionCard title={t('verification.renewalLifecycle', 'Verification Renewal Lifecycle')} subtitle={t('verification.credentialValidityCountdown', 'Credential validity & expiry countdown')} icon={Clock}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-              <span className="font-semibold text-muted-foreground">Current Credential Expiry</span>
+              <span className="font-semibold text-muted-foreground">{t('verification.currentCredentialExpiry', 'Current Credential Expiry')}</span>
               <span className="font-bold text-foreground">{renewal.expiresOn}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-              <span className="font-semibold text-muted-foreground">Days Remaining</span>
-              <span className="font-bold text-emerald-500">{renewal.daysRemaining} Days</span>
+              <span className="font-semibold text-muted-foreground">{t('verification.daysRemaining', 'Days Remaining')}</span>
+              <span className="font-bold text-emerald-500">{renewal.daysRemaining} {t('common.days', 'Days')}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-              <span className="font-semibold text-muted-foreground">Renewal Status</span>
+              <span className="font-semibold text-muted-foreground">{t('verification.renewalStatus', 'Renewal Status')}</span>
               <span className="font-bold text-emerald-500">{renewal.statusLabel}</span>
             </div>
             <Button variant="outline" disabled className="w-full text-xs opacity-75 cursor-not-allowed">
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Renew Credentials (Coming Soon in Production)
+              {t('verification.renewCredentialsSoon', 'Renew Credentials (Coming Soon in Production)')}
             </Button>
           </div>
         </VerificationSectionCard>
 
         {/* Profile Summary */}
-        <VerificationSectionCard title="Tenant Profile Summary" subtitle="Registered contact details" icon={User}>
+        <VerificationSectionCard title={t('verification.tenantProfileSummary', 'Tenant Profile Summary')} subtitle={t('verification.registeredContactDetails', 'Registered contact details')} icon={User}>
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Tenant Name</span>
+              <span className="text-muted-foreground font-medium">{t('verification.tenantName', 'Tenant Name')}</span>
               <span className="font-bold text-foreground">{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'N/A'}</span>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Email Address</span>
+              <span className="text-muted-foreground font-medium">{t('verification.emailAddress', 'Email Address')}</span>
               <span className="font-bold text-foreground">{user?.email || 'N/A'}</span>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Phone Number</span>
-              <span className="font-bold text-foreground">{user?.phone || 'Not Provided'}</span>
+              <span className="text-muted-foreground font-medium">{t('verification.phoneNumber', 'Phone Number')}</span>
+              <span className="font-bold text-foreground">{user?.phone || t('verification.notProvided', 'Not Provided')}</span>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Occupation</span>
-              <span className="font-bold text-foreground">{user?.occupation || user?.employmentProfile?.occupation || activeVerification?.formData?.occupation || 'Not Provided'}</span>
+              <span className="text-muted-foreground font-medium">{t('verification.occupation', 'Occupation')}</span>
+              <span className="font-bold text-foreground">{user?.occupation || user?.employmentProfile?.occupation || activeVerification?.formData?.occupation || t('verification.notProvided', 'Not Provided')}</span>
             </div>
           </div>
         </VerificationSectionCard>
       </div>
 
       {/* Quick Navigation 2x2 Grid */}
-      <VerificationSectionCard title="Quick Navigation" subtitle="Access sub-modules" icon={FileText}>
+      <VerificationSectionCard title={t('verification.quickNavigation', 'Quick Navigation')} subtitle={t('verification.accessSubModules', 'Access sub-modules')} icon={FileText}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
           <button
             type="button"
@@ -446,8 +446,8 @@ export default function TenantVerificationPage() {
             className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
           >
             <FileText className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold text-foreground">Documents</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Workspace repository</p>
+            <p className="text-xs font-bold text-foreground">{t('verification.documents', 'Documents')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.workspaceRepository', 'Workspace repository')}</p>
           </button>
 
           <button
@@ -456,8 +456,8 @@ export default function TenantVerificationPage() {
             className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
           >
             <Award className="w-5 h-5 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold text-foreground">Trust Analytics</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Score & tips</p>
+            <p className="text-xs font-bold text-foreground">{t('verification.trustAnalytics', 'Trust Analytics')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.scoreAndTips', 'Score & tips')}</p>
           </button>
 
           <button
@@ -469,8 +469,8 @@ export default function TenantVerificationPage() {
             className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
           >
             <History className="w-5 h-5 text-cyan-500 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold text-foreground">Audit Timeline</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Event history</p>
+            <p className="text-xs font-bold text-foreground">{t('verification.auditTimeline', 'Audit Timeline')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.eventHistory', 'Event history')}</p>
           </button>
 
           <button
@@ -479,39 +479,39 @@ export default function TenantVerificationPage() {
             className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
           >
             <ShieldCheck className="w-5 h-5 text-violet-500 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold text-foreground">Wizard</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Step-by-step form</p>
+            <p className="text-xs font-bold text-foreground">{t('verification.wizard', 'Wizard')}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.stepByStepForm', 'Step-by-step form')}</p>
           </button>
         </div>
       </VerificationSectionCard>
 
       {/* Future Production Hooks */}
-      <VerificationSectionCard title="Production Integration Hooks" subtitle="Feature-flagged enterprise capabilities" icon={Lock}>
+      <VerificationSectionCard title={t('verification.productionHooks', 'Production Integration Hooks')} subtitle={t('verification.featureFlaggedEnterprise', 'Feature-flagged enterprise capabilities')} icon={Lock}>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
             <Lock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
             <p className="text-xs font-bold text-foreground">DigiLocker</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming Soon</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('common.comingSoon', 'Coming Soon')}</span>
           </div>
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
             <Lock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xs font-bold text-foreground">Face Verification</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming Soon</span>
+            <p className="text-xs font-bold text-foreground">{t('verification.faceVerification', 'Face Verification')}</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('common.comingSoon', 'Coming Soon')}</span>
           </div>
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
             <Lock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xs font-bold text-foreground">Video KYC</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming Soon</span>
+            <p className="text-xs font-bold text-foreground">{t('verification.videoKyc', 'Video KYC')}</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('common.comingSoon', 'Coming Soon')}</span>
           </div>
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
             <Lock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xs font-bold text-foreground">Background Check</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming Soon</span>
+            <p className="text-xs font-bold text-foreground">{t('verification.backgroundCheck', 'Background Check')}</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('common.comingSoon', 'Coming Soon')}</span>
           </div>
           <div className="p-3 rounded-xl border border-border bg-muted/20 text-center opacity-60">
             <Lock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-            <p className="text-xs font-bold text-foreground">Employer Check</p>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming Soon</span>
+            <p className="text-xs font-bold text-foreground">{t('verification.employerCheck', 'Employer Check')}</p>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('common.comingSoon', 'Coming Soon')}</span>
           </div>
         </div>
       </VerificationSectionCard>
