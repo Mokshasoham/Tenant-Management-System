@@ -142,7 +142,7 @@ async function createPropertyUi(manager, name) {
     await p.goto(FRONTEND + '/properties', { waitUntil: 'domcontentloaded', timeout: 45000 }); await shot(p, 'manager-properties-before-create');
     await p.getByRole('button', { name: /add property/i }).first().click({ timeout: 20000 });
     await p.getByText('Apartment / Flat', { exact: true }).first().click();
-    await p.getByRole('button', { name: /^continue$/i }).last().click();
+    await p.getByRole('button', { name: /next/i }).last().click();
     await p.getByPlaceholder(/Skyline Luxury 2BHK Residency/i).fill(name);
     await p.getByPlaceholder('e.g. 25000').fill('14500');
     await p.getByPlaceholder('e.g. 50000').fill('29000');
@@ -194,24 +194,31 @@ async function main() {
     const propertyId = String(property._id || property.id);
     report.property = { id: propertyId, name: property.name || name, rentAmount: property.rentAmount, depositAmount: property.depositAmount, city: property.city || 'not returned', createdThroughUi: Boolean(uiResult.ok && await findProperty(manager.token, name).catch(() => null)) };
     await manager.page.goto(FRONTEND + '/properties', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+    await manager.page.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     const managerList = await manager.page.getByText(name, { exact: true }).first().isVisible().catch(() => false);
     check('manager.properties_list', managerList, 'Manager property list displays the test listing.'); await shot(manager.page, 'manager-properties-after-create');
     await manager.page.goto(FRONTEND + '/manager/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await manager.page.waitForTimeout(1000);
+    await manager.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     const managerDetail = await manager.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     check('manager.property_detail_route', managerDetail, 'Manager property detail route renders listing content.'); await shot(manager.page, 'manager-property-detail');
 
     const tenant = await ensureAccount(browser, tenantAcct);
     await tenant.page.goto(FRONTEND + '/browse', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await tenant.page.waitForTimeout(1200);
+    await tenant.page.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     const browseVisible = await tenant.page.getByText(name, { exact: true }).first().isVisible().catch(() => false);
     check('tenant.browse_listing', browseVisible, 'Tenant browse page shows the manager test property.'); await shot(tenant.page, 'tenant-browse');
     await tenant.page.goto(FRONTEND + '/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await tenant.page.waitForTimeout(1200);
+    await tenant.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     const tenantDetail = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     check('tenant.property_detail_route', tenantDetail, 'Tenant property details page renders the listing.'); await shot(tenant.page, 'tenant-property-detail-before-booking');
     const dateFields = tenant.page.locator('#booking-card input[type="date"]');
-    if (await dateFields.count() < 2) throw new Error('Booking date fields missing from tenant property details.');
+    await dateFields.first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    if (await dateFields.count() < 2 || !(await dateFields.nth(0).isVisible().catch(() => false))) {
+      await shot(tenant.page, 'tenant-booking-form-missing');
+      check('tenant.booking_form_visible', false, 'Booking date fields missing after property details finished loading.');
+      throw new Error('Booking date fields missing from tenant property details after waiting for page load.');
+    }
+    check('tenant.booking_form_visible', true, 'Booking card and date inputs are visible.');
     await dateFields.nth(0).fill(futureDate(14)); await dateFields.nth(1).fill(futureDate(45));
     await tenant.page.locator('#booking-card').getByRole('button', { name: /proceed to book|submit free booking/i }).last().click();
     await tenant.page.getByText(/Booking Request Submitted!/i).waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
