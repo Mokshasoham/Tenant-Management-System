@@ -146,7 +146,15 @@ async function createPropertyUi(manager, name) {
     await p.getByPlaceholder(/Skyline Luxury 2BHK Residency/i).fill(name);
     await p.getByPlaceholder('e.g. 25000').fill('14500');
     await p.getByPlaceholder('e.g. 50000').fill('29000');
-    await p.getByText(/3\.\s*Location\s*&\s*Map/i).click({ timeout: 15000 });
+    // Populate real apartment specifications; empty values were previously rendered as "0 Beds / 0 Baths".
+    await p.getByRole('button', { name: /2\.\s*Specifications\s*&\s*Amenities/i }).click({ timeout: 15000 });
+    const bedroomInput = p.getByText('Bedrooms', { exact: true }).last().locator('xpath=..').locator('input').first();
+    const bathroomInput = p.getByText('Bathrooms', { exact: true }).last().locator('xpath=..').locator('input').first();
+    const areaInput = p.getByText('Square Feet (Area)', { exact: true }).last().locator('xpath=..').locator('input').first();
+    await bedroomInput.fill('2');
+    await bathroomInput.fill('2');
+    await areaInput.fill('1100');
+    await p.getByRole('button', { name: /3\.\s*Location\s*&\s*Map/i }).click({ timeout: 15000 });
     const addressA = p.getByPlaceholder(/Search address or enter street/i);
     const addressB = p.getByPlaceholder(/123 Main Street/i);
     if (await addressA.count()) await addressA.fill('Unit 701, Staging E2E Residency, Gachibowli, Hyderabad, Telangana 500032');
@@ -236,22 +244,36 @@ async function main() {
     check('manager.booking_inbox_api', managerCanSee, 'Manager bookings endpoint includes tenant request.');
     if (!managerCanSee) throw new Error('Manager bookings API cannot see tenant booking.');
 
-    const approval = dataOf(await api('/bookings/' + report.booking.id + '/approve', { method: 'PUT', body: {} }, manager.token));
-    const afterApproval = approval && approval._id ? approval : approval?.data || approval;
-    check('manager.booking_approval', Boolean(afterApproval && afterApproval.status === 'approved'), 'Manager approval status=' + (afterApproval && afterApproval.status));
-    report.booking.statusAfterApproval = afterApproval && afterApproval.status;
-    report.booking.paymentStatusAfterApproval = afterApproval && afterApproval.paymentStatus;
+    // Exercise the actual manager dashboard action instead of bypassing it with the approval API.
+    await manager.page.goto(FRONTEND + '/dashboard', { waitUntil: 'domcontentloaded', timeout: 45000 });
+    const approveButton = manager.page.getByRole('button', { name: /APPROVE/i }).first();
+    await approveButton.waitFor({ state: 'visible', timeout: 20000 });
+    await shot(manager.page, 'manager-booking-request-pending');
+    await approveButton.click();
+    let afterApproval = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const latestBooking = dataOf(await api('/bookings/' + report.booking.id, {}, manager.token));
+      if (latestBooking?.status === 'approved') { afterApproval = latestBooking; break; }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    check('manager.booking_approval_ui', Boolean(afterApproval && afterApproval.status === 'approved'),
+      'Dashboard Approve action persisted status=' + (afterApproval && afterApproval.status));
+    if (!afterApproval || afterApproval.status !== 'approved') throw new Error('Manager dashboard approval did not persist.');
+    report.booking.statusAfterApproval = afterApproval.status;
+    report.booking.paymentStatusAfterApproval = afterApproval.paymentStatus;
     const detail = dataOf(await api('/bookings/' + report.booking.id, {}, manager.token));
     const lease = detail && (detail.linkedLease || detail.lease);
     report.lease = lease ? { id: String(lease._id || lease.id), status: lease.status } : null;
     check('booking.lease_created', Boolean(lease && lease._id && lease.status === 'pending'), lease ? 'Approval created lease status=' + lease.status : 'No linked lease returned after approval.');
     check('booking.no_payment_captured', Boolean(afterApproval && afterApproval.paymentStatus !== 'paid'), 'Stopped before any payment order or capture.');
     await manager.page.goto(FRONTEND + '/bookings/' + report.booking.id, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await manager.page.waitForTimeout(1000); await shot(manager.page, 'manager-booking-details-after-approval');
+    await manager.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    await shot(manager.page, 'manager-booking-details-after-approval');
     const mgrBookingUi = await manager.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
-    check('manager.booking_details_ui', mgrBookingUi, 'Manager booking details view rendered the property.');
+    check('manager.booking_details_ui', mgrBookingUi, 'Manager booking details view rendered the property after waiting up to 20 seconds.');
     await tenant.page.goto(FRONTEND + '/bookings/' + report.booking.id, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await tenant.page.waitForTimeout(1000); await shot(tenant.page, 'tenant-booking-status-after-approval');
+    await tenant.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    await shot(tenant.page, 'tenant-booking-status-after-approval');
     const tenantBookingUi = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     check('tenant.booking_status_ui', tenantBookingUi, 'Tenant booking status view rendered the property.');
     const amountDueLabelVisible = await tenant.page.getByText('Amount Due', { exact: true }).isVisible().catch(() => false);
@@ -260,8 +282,18 @@ async function main() {
       'Payment remains pending; Amount Due visible=' + amountDueLabelVisible + ', incorrect Amount Paid visible=' + amountPaidLabelVisible + '.');
     await tenant.page.setViewportSize({ width: 390, height: 844 });
     await tenant.page.goto(FRONTEND + '/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
-    await tenant.page.waitForTimeout(900); await shot(tenant.page, 'tenant-property-detail-mobile');
+    await tenant.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    // Close the mobile navigation drawer before asserting the page's usable content.
+    const mobileMenuToggle = tenant.page.locator('button:has(svg.lucide-menu)').first();
+    if (await mobileMenuToggle.isVisible().catch(() => false)) {
+      await mobileMenuToggle.click().catch(() => {});
+    }
+    await tenant.page.locator('#booking-card').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    await shot(tenant.page, 'tenant-property-detail-mobile');
     const sizes = await tenant.page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth })).catch(() => null);
+    const mobileTitleVisible = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
+    const mobileBookingVisible = await tenant.page.locator('#booking-card').isVisible().catch(() => false);
+    check('tenant.mobile_property_content_visible', mobileTitleVisible && mobileBookingVisible, JSON.stringify({ mobileTitleVisible, mobileBookingVisible }));
     check('tenant.mobile_no_horizontal_overflow', Boolean(sizes && sizes.document <= sizes.viewport + 2), JSON.stringify(sizes));
     check('browser.no_uncaught_page_errors', report.browserErrors.length === 0, report.browserErrors.length + ' uncaught page error(s) captured.');
   } finally { await browser.close().catch(() => {}); }
