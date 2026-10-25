@@ -347,12 +347,16 @@ function App() {
                 <Route path="/manager/renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/lease-renewals/dashboard" element={<ManagerRoute><DashboardLayout><ManagerCampaignDashboardPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification" element={<ManagerRoute><DashboardLayout><ManagerVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/manager/verification/" element={<ManagerRoute><DashboardLayout><ManagerVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/manager/verification/*" element={<ManagerRoute><DashboardLayout><ManagerVerificationPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification/wizard" element={<ManagerRoute><DashboardLayout><ManagerVerificationWizard /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification/documents" element={<ManagerRoute><DashboardLayout><ManagerVerificationDocuments /></DashboardLayout></ManagerRoute>} />
                 <Route path="/manager/verification/timeline" element={<ManagerRoute><DashboardLayout><ManagerVerificationTimeline /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/property/verification/*" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property-verification" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
+                <Route path="/property-verification/*" element={<ManagerRoute><DashboardLayout><PropertyVerificationPage /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/wizard" element={<ManagerRoute><DashboardLayout><PropertyVerificationWizard /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/documents" element={<ManagerRoute><DashboardLayout><PropertyVerificationDocuments /></DashboardLayout></ManagerRoute>} />
                 <Route path="/property/verification/timeline" element={<ManagerRoute><DashboardLayout><PropertyVerificationTimeline /></DashboardLayout></ManagerRoute>} />

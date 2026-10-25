@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { propertyService, leaseService } from '../services/api';
 import { Helmet } from 'react-helmet-async';
+import { useLanguage } from '../context/LanguageContext';
 import useAuthStore from '../context/authStore';
 import {
     MapPin, IndianRupee, Bed, Bath, Square,

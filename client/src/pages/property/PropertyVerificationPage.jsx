@@ -28,6 +28,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../../context/LanguageContext';
 import { useVerificationContext } from '../../context/VerificationContext';
 import FeatureFlagService from '../../services/FeatureFlagService';
 import useAuthStore from '../../context/authStore';

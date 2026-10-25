@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Award, FileText, History, Clock, ArrowRight, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import { useVerificationContext } from '../../context/VerificationContext';
 import FeatureFlagService from '../../services/FeatureFlagService';
 import { canEditDraft, canSubmit, canResubmit } from '../../utils/verificationPermissions';
