@@ -51,7 +51,7 @@ async function registerInUi(browser, account) {
     await page.locator('input[type="email"]').fill(account.email);
     await page.locator('input[type="tel"]').fill(account.phone);
     const pw = page.locator('input[type="password"]'); await pw.nth(0).fill(account.password); await pw.nth(1).fill(account.password);
-    await page.getByRole('button', { name: /continue/i }).first().click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     const roleBtn = page.getByRole('button', { name: account.role === 'manager' ? /continue as manager/i : /continue as tenant/i });
     await roleBtn.waitFor({ state: 'visible', timeout: 20000 }); await roleBtn.click();
     await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), { timeout: 30000 }).catch(() => {});
