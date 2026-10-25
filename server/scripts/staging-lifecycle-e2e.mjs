@@ -54,7 +54,7 @@ async function registerInUi(browser, account) {
     await page.getByRole('button', { name: /next/i }).first().click();
     const roleBtn = page.getByRole('button', { name: account.role === 'manager' ? /continue as manager/i : /continue as tenant/i });
     await roleBtn.waitFor({ state: 'visible', timeout: 20000 }); await roleBtn.click();
-    await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), null, { timeout: 30000 }).catch(() => {});
     const state = await page.evaluate(() => {
       let u = null; try { u = JSON.parse(localStorage.getItem('user') || 'null'); } catch {}
       return { token: Boolean(localStorage.getItem('authToken')), id: u && (u._id || u.id), role: u && u.role };
@@ -89,7 +89,7 @@ async function ensureAccount(browser, account) {
   await page.locator('input[type="email"]').fill(account.email);
   await page.locator('input[type="password"]').first().fill(account.password);
   await page.getByRole('button', { name: /sign in/i }).first().click();
-  await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), { timeout: 30000 });
+  await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), null, { timeout: 30000 });
   const user = await page.evaluate(() => {
     let u = null; try { u = JSON.parse(localStorage.getItem('user') || 'null'); } catch {}
     return { token: Boolean(localStorage.getItem('authToken')), id: u && (u._id || u.id), role: u && u.role };
