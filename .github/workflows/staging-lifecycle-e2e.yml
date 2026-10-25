@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/staging-lifecycle-e2e.yml"
       - "server/scripts/staging-lifecycle-e2e.mjs"
+      - "client/src/**"
   workflow_dispatch:
 
 permissions:
