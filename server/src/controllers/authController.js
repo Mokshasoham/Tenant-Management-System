@@ -47,10 +47,19 @@ const resolveUserUrls = (user, req) => {
 
 
 export const register = asyncHandler(async (req, res) => {
-  const { firstName, lastName, email, password, role } = req.body;
+  const { firstName, lastName, email, password, role, phone } = req.body;
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ email });
+  if (!normalizedEmail) {
+    throw new AppError('Please provide a valid email address', 400);
+  }
+  if (normalizedPhone && !/^\\+?[0-9().\\s-]{7,20}$/.test(normalizedPhone)) {
+    throw new AppError('Please provide a valid phone number', 400);
+  }
+
+  // Check if user already exists using a normalized email address.
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     throw new AppError('User with this email already exists', 400);
   }
@@ -72,9 +81,10 @@ export const register = asyncHandler(async (req, res) => {
 
   // Create user
   const user = await User.create({
-    firstName,
-    lastName,
-    email,
+    firstName: typeof firstName === 'string' ? firstName.trim() : firstName,
+    lastName: typeof lastName === 'string' ? lastName.trim() : lastName,
+    email: normalizedEmail,
+    phone: normalizedPhone || undefined,
     password: hashedPassword,
     role: chosenRole,
     isEmailVerified: false,
@@ -86,20 +96,26 @@ export const register = asyncHandler(async (req, res) => {
   user.password = undefined;
 
   // Send verification email
-  const verifyURL = `${req.get('origin')}/verify-email/${verificationToken}`;
+  const frontendBaseUrl = String(config.FRONTEND_BASE_URL || '').replace(/\\/$/, '');
+  const verifyURL = `${frontendBaseUrl}/verify-email/${verificationToken}`;
   const message = `Welcome to TMS!\n\nPlease verify your email address by clicking the link below:\n\n${verifyURL}\n\nThis link will expire in 24 hours.\n\nIf you did not create this account, please ignore this email.`;
 
-  console.log(`\n--- EMAIL VERIFICATION SIMULATION --- \nURL: ${verifyURL}\nTOKEN: ${verificationToken}\n---------------------------------\n`);
-
+  // Never write verification tokens, verification URLs, or email contents to application logs.
+  let emailDeliveryStatus = 'failed';
   try {
-    await sendEmail({
+    const emailResult = await sendEmail({
       email: user.email,
       subject: 'Verify your email address - TMS',
       message,
     });
-    logger.info(`Verification email sent to ${user.email}`);
+    emailDeliveryStatus = emailResult?.simulated ? 'simulated' : 'sent';
+    if (emailDeliveryStatus === 'simulated') {
+      logger.warn('Verification email delivery is simulated because the email provider is not configured.');
+    } else {
+      logger.info('Verification email accepted by the configured provider.');
+    }
   } catch (err) {
-    logger.error(`Real email delivery failed for verification: ${err.message}`);
+    logger.error('Verification email delivery failed. Check provider configuration and delivery logs.');
   }
 
   // Generate token so they can log in but be flagged as unverified
@@ -109,7 +125,11 @@ export const register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'User registered successfully. Please check your email to verify your account.',
+    message: emailDeliveryStatus === 'sent'
+      ? 'User registered successfully. Please check your email to verify your account.'
+      : emailDeliveryStatus === 'simulated'
+        ? 'User registered successfully, but email delivery is not configured in this environment.'
+        : 'User registered successfully, but the verification email could not be sent. Please contact support.',
     data: {
       user,
       token,

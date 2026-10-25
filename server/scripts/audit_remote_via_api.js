@@ -1,128 +1,92 @@
-import http from 'https'; // Use HTTPS since Render uses https
+/**
+ * Safe staging-only collection-count audit.
+ *
+ * Credentials must be supplied with AUDIT_EMAIL and AUDIT_PASSWORD environment
+ * variables. This script intentionally does not print tokens, record payloads,
+ * individual customer records, payment identifiers, or database contents.
+ */
+const DEFAULT_STAGING_API = 'https://tenant-management-backend-staging.onrender.com/api';
+const API_BASE_URL = (process.env.STAGING_API_BASE_URL || DEFAULT_STAGING_API).replace(/\\/+$/, '');
+const ALLOWED_HOST = 'tenant-management-backend-staging.onrender.com';
 
-const host = 'tenant-management-backend-ohr6.onrender.com';
-
-function postJson(urlPath, data) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify(data);
-    const options = {
-      hostname: host,
-      port: 443,
-      path: urlPath,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    };
-
-    const req = http.request(options, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (_) {
-          resolve(body);
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
-}
-
-function getJson(urlPath, token) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: host,
-      port: 443,
-      path: urlPath,
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    };
-
-    const req = http.request(options, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body));
-        } catch (_) {
-          resolve(body);
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.end();
-  });
-}
-
-async function runAudit() {
-  try {
-    console.log('Attempting to log in as Admin on remote Render backend...');
-    const loginRes = await postJson('/api/auth/login', {
-      email: 'admin@gmail.com',
-      password: 'Admin@1234'
-    });
-
-    if (!loginRes.success || !loginRes.data?.token) {
-      console.log('Login failed on remote server:', loginRes);
-      return;
-    }
-
-    const token = loginRes.data.token;
-    console.log('Logged in successfully. Querying remote collections...');
-
-    // 1. Users
-    const usersRes = await getJson('/api/users/admin/all', token);
-    const usersCount = usersRes.success ? (usersRes.data?.length || 0) : 'Error';
-
-    // 2. Properties
-    const propertiesRes = await getJson('/api/properties', token);
-    const propertiesCount = propertiesRes.success ? (propertiesRes.pagination?.total || propertiesRes.data?.length || 0) : 'Error';
-
-    // 3. Payments
-    const paymentsRes = await getJson('/api/payments', token);
-    const paymentsCount = paymentsRes.success ? (paymentsRes.pagination?.total || paymentsRes.data?.length || 0) : 'Error';
-
-    // 4. Leases
-    const leasesRes = await getJson('/api/leases', token);
-    const leasesCount = leasesRes.success ? (leasesRes.pagination?.total || leasesRes.data?.length || 0) : 'Error';
-
-    console.log('\n--- REMOTE RENDER BACKEND AUDIT COUNTS ---');
-    console.log('Users:', usersCount);
-    console.log('Properties:', propertiesCount);
-    console.log('Payments:', paymentsCount);
-    console.log('Leases:', leasesCount);
-
-    if (paymentsRes.success && paymentsRes.data) {
-      console.log('\nChecking for target Payment ID 6a68f4b4eeb90bfc897d4014 in remote payments list...');
-      const targetPayment = paymentsRes.data.find(p => p._id === '6a68f4b4eeb90bfc897d4014');
-      if (targetPayment) {
-        console.log('FOUND Target Payment on Remote:', targetPayment);
-      } else {
-        console.log('Target Payment NOT found in remote payments list.');
-        // Let's query by specific ID
-        const specificRes = await getJson('/api/payments/6a68f4b4eeb90bfc897d4014', token);
-        if (specificRes.success && specificRes.data) {
-          console.log('FOUND Target Payment by direct endpoint:', specificRes.data);
-        } else {
-          console.log('Target Payment NOT found by direct endpoint:', specificRes);
-        }
-      }
-    }
-
-  } catch (err) {
-    console.error('Remote audit execution failed:', err);
+function assertStagingOnly() {
+  const target = new URL(API_BASE_URL);
+  if (target.protocol !== 'https:' || target.hostname !== ALLOWED_HOST || target.pathname.replace(/\\/$/, '') !== '/api') {
+    throw new Error('Safety guard: this audit script can target only the staging backend API.');
   }
 }
 
-runAudit();
+async function requestJson(route, { method = 'GET', body, token } = {}) {
+  const headers = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE_URL}${route}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
+  });
+  const text = await response.text();
+  let payload;
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(`Staging request failed: ${method} ${route} returned HTTP ${response.status}.`);
+  }
+  return payload;
+}
+
+function countFrom(payload) {
+  if (Number.isFinite(payload?.pagination?.total)) return payload.pagination.total;
+  const rows = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.data?.items)
+      ? payload.data.items
+      : [];
+  return rows.length;
+}
+
+async function runAudit() {
+  assertStagingOnly();
+  const email = process.env.AUDIT_EMAIL?.trim();
+  const password = process.env.AUDIT_PASSWORD;
+  if (!email || !password) {
+    throw new Error('Set AUDIT_EMAIL and AUDIT_PASSWORD in your shell environment before running this audit. Credentials are never read from source code.');
+  }
+
+  const login = await requestJson('/auth/login', {
+    method: 'POST',
+    body: { email, password },
+  });
+  const token = login?.data?.token;
+  if (!login?.success || !token) {
+    throw new Error('Staging audit authentication failed. The account must have permission to view the requested aggregate counts.');
+  }
+
+  const endpoints = [
+    ['Users', '/users/admin/all'],
+    ['Properties', '/properties'],
+    ['Payments', '/payments'],
+    ['Leases', '/leases'],
+  ];
+
+  console.log('Staging collection count audit (no customer records are printed):');
+  for (const [label, route] of endpoints) {
+    const payload = await requestJson(route, { token });
+    if (!payload?.success) {
+      console.log(`${label}: unavailable to this account`);
+      continue;
+    }
+    console.log(`${label}: ${countFrom(payload)}`);
+  }
+}
+
+runAudit().catch((error) => {
+  console.error(error.message || 'Staging audit failed.');
+  process.exitCode = 1;
+});

@@ -50,15 +50,10 @@ export const sendEmailMessage = async ({ to, subject, html, text, attachments = 
 
   // Simulation mode when API key is missing or uninitialized
   if (!client) {
-    logger.warn(`RESEND_API_KEY is missing. Simulating email transmission to ${to}:`);
-    console.log(`\n--- EMAIL TRANSMISSION SIMULATION ---`);
-    console.log(`To      : ${to}`);
-    console.log(`From    : ${fromAddress}`);
-    console.log(`Subject : ${subject}`);
-    if (text) console.log(`Text    : ${text}`);
-    if (html) console.log(`HTML    : ${html}`);
-    console.log(`-------------------------------------\n`);
-    return { id: 'simulated-email-id' };
+    // Recipient addresses, verification links, and message bodies can contain sensitive data.
+    // In simulation mode, log only the absence of configuration and never log message content.
+    logger.warn('Email delivery skipped: RESEND_API_KEY is not configured; recipient and content omitted from logs.');
+    return { id: 'simulated-email-id', simulated: true };
   }
 
   try {

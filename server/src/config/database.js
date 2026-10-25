@@ -2,9 +2,12 @@ import mongoose from 'mongoose';
 import config from './config.js';
 import logger from '../utils/logger.js';
 
+const redactMongoError = (message) => String(message || 'Unknown MongoDB error')
+  .replace(/(mongodb(?:\\+srv)?:\\/\\/)[^@\\s]+@/gi, '$1[REDACTED]@');
+
 const connectDB = async () => {
   try {
-    logger.info(`Connecting to MongoDB at ${config.MONGODB_URI}...`);
+    logger.info('Connecting to the configured MongoDB database...');
 
     await mongoose.connect(config.MONGODB_URI, {
       useNewUrlParser: true,
@@ -32,12 +35,16 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('error', (err) => {
-      logger.error('MongoDB connection error:', err);
+      logger.error('MongoDB connection error:', {
+        name: err?.name || 'MongoDBError',
+        code: err?.code || null,
+        message: redactMongoError(err?.message),
+      });
     });
 
     return mongoose;
   } catch (err) {
-    logger.error('MongoDB connection failed:', err.message);
+    logger.error('MongoDB connection failed:', { name: err?.name || 'MongoDBError', code: err?.code || null, message: redactMongoError(err?.message) });
     process.exit(1);
   }
 };
