@@ -772,6 +772,8 @@ export const en = {
     "property": "Property",
     "leaseDuration": "Lease Duration",
     "amountPaid": "Amount Paid",
+    "amountDue": "Amount Due",
+    "bookingAmount": "Booking Amount",
     "paymentStatus": "Payment Status",
     "freeOrDemo": "FREE / DEMO",
     "exempt": "EXEMPT",

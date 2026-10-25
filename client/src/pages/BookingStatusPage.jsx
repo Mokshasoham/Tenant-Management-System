@@ -157,6 +157,14 @@ export default function BookingStatusPage() {
     const displayStatus = (booking?.status === 'active' || booking?.status === 'completed') ? 'approved' : (booking?.status || 'pending');
     const config = statusConfig[displayStatus] || statusConfig.pending;
     const Icon = config.icon || Clock;
+    // totalAmount is an amount summary, not proof that money was collected.
+    const isAmountSettled = booking?.paymentStatus === 'paid' || booking?.paymentStatus === 'held';
+    const isAmountRefunded = booking?.paymentStatus === 'refunded';
+    const amountLabel = isAmountSettled
+        ? t('booking.amountPaid', 'Amount Paid')
+        : isAmountRefunded
+            ? t('booking.bookingAmount', 'Booking Amount')
+            : t('booking.amountDue', 'Amount Due');
 
     const handleChat = () => {
         navigate('/messages', {
@@ -274,13 +282,13 @@ export default function BookingStatusPage() {
                 {/* Payment Detail */}
                 <div className="p-6 rounded-[2rem] bg-card border border-border space-y-5 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                            <IndianRupee className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", isAmountSettled ? "bg-emerald-500/10" : isAmountRefunded ? "bg-cyan-500/10" : "bg-amber-500/10")}>
+                            <IndianRupee className={cn("w-6 h-6", isAmountSettled ? "text-emerald-600 dark:text-emerald-400" : isAmountRefunded ? "text-cyan-600 dark:text-cyan-400" : "text-amber-600 dark:text-amber-400")} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{t('booking.amountPaid', 'Amount Paid')}</p>
+                            <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] mb-0.5">{amountLabel}</p>
                             <p className="text-foreground font-black tracking-tight text-xl">
-                                {booking.totalAmount === 0 ? t('booking.freeOrDemo', 'FREE / DEMO') : `₹${booking.totalAmount?.toLocaleString('en-IN')}`}
+                                {booking.totalAmount === 0 ? t('booking.freeOrDemo', 'FREE / DEMO') : formatCurrency(booking.totalAmount || 0)}
                             </p>
                         </div>
                     </div>

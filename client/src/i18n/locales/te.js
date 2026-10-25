@@ -772,6 +772,8 @@ export const te = {
     "property": "ఆస్తి",
     "leaseDuration": "లీజు వ్యవధి",
     "amountPaid": "చెల్లించిన మొత్తం",
+    "amountDue": "చెల్లించాల్సిన మొత్తం",
+    "bookingAmount": "బుకింగ్ మొత్తం",
     "paymentStatus": "చెల్లింపు స్థితి",
     "freeOrDemo": "ఉచితం / డెమో",
     "exempt": "మినహాయించబడింది",

@@ -772,6 +772,8 @@ export const kn = {
     "property": "ಆಸ್ತಿ",
     "leaseDuration": "ಗುತ್ತಿಗೆ ಅವಧಿ",
     "amountPaid": "ಪಾವತಿಸಿದ ಮೊತ್ತ",
+    "amountDue": "ಪಾವತಿಸಬೇಕಾದ ಮೊತ್ತ",
+    "bookingAmount": "ಬುಕಿಂಗ್ ಮೊತ್ತ",
     "paymentStatus": "ಪಾವತಿ ಸ್ಥಿತಿ",
     "freeOrDemo": "ಉಚಿತ / ಡೆಮೊ",
     "exempt": "ವಿನಾಯಿತಿ ನೀಡಲಾಗಿದೆ",

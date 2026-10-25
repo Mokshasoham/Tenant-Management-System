@@ -772,6 +772,8 @@ export const hi = {
     "property": "संपत्ति",
     "leaseDuration": "लीज अवधि",
     "amountPaid": "भुगतान की गई राशि",
+    "amountDue": "देय राशि",
+    "bookingAmount": "बुकिंग राशि",
     "paymentStatus": "भुगतान स्थिति",
     "freeOrDemo": "निःशुल्क / डेमो",
     "exempt": "छूट प्राप्त",

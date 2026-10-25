@@ -772,6 +772,8 @@ export const ta = {
     "property": "சொத்து",
     "leaseDuration": "வாடகை காலம்",
     "amountPaid": "செலுத்தப்பட்ட தொகை",
+    "amountDue": "செலுத்த வேண்டிய தொகை",
+    "bookingAmount": "முன்பதிவு தொகை",
     "paymentStatus": "செலுத்தல் நிலை",
     "freeOrDemo": "இலவசம் / டெமோ",
     "exempt": "விலக்கு அளிக்கப்பட்டது",

@@ -772,6 +772,8 @@ export const ml = {
     "property": "വസ്തു",
     "leaseDuration": "വാടക കാലാവധി",
     "amountPaid": "അടച്ച തുക",
+    "amountDue": "അടയ്ക്കാനുള്ള തുക",
+    "bookingAmount": "ബുക്കിംഗ് തുക",
     "paymentStatus": "പേയ്‌മെന്റ് നില",
     "freeOrDemo": "സൗജന്യം / ഡെമോ",
     "exempt": "ഒഴിവാക്കപ്പെട്ടു",

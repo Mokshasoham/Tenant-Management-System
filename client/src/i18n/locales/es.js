@@ -772,6 +772,8 @@ export const es = {
     "property": "Propiedad",
     "leaseDuration": "Duración del Contrato",
     "amountPaid": "Monto Pagado",
+    "amountDue": "Importe pendiente",
+    "bookingAmount": "Importe de la reserva",
     "paymentStatus": "Estado del Pago",
     "freeOrDemo": "GRATIS / DEMO",
     "exempt": "EXENTO",

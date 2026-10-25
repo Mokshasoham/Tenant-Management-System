@@ -254,6 +254,10 @@ async function main() {
     await tenant.page.waitForTimeout(1000); await shot(tenant.page, 'tenant-booking-status-after-approval');
     const tenantBookingUi = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     check('tenant.booking_status_ui', tenantBookingUi, 'Tenant booking status view rendered the property.');
+    const amountDueLabelVisible = await tenant.page.getByText('Amount Due', { exact: true }).isVisible().catch(() => false);
+    const amountPaidLabelVisible = await tenant.page.getByText('Amount Paid', { exact: true }).isVisible().catch(() => false);
+    check('tenant.booking_amount_label_matches_payment_state', amountDueLabelVisible && !amountPaidLabelVisible,
+      'Payment remains pending; Amount Due visible=' + amountDueLabelVisible + ', incorrect Amount Paid visible=' + amountPaidLabelVisible + '.');
     await tenant.page.setViewportSize({ width: 390, height: 844 });
     await tenant.page.goto(FRONTEND + '/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     await tenant.page.waitForTimeout(900); await shot(tenant.page, 'tenant-property-detail-mobile');

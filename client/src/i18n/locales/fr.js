@@ -772,6 +772,8 @@ export const fr = {
     "property": "Propriété",
     "leaseDuration": "Durée du bail",
     "amountPaid": "Montant payé",
+    "amountDue": "Montant dû",
+    "bookingAmount": "Montant de la réservation",
     "paymentStatus": "Statut du paiement",
     "freeOrDemo": "GRATUIT / DÉMO",
     "exempt": "EXEMPTÉ",
