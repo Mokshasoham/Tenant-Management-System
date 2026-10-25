@@ -963,7 +963,9 @@ export default function PropertyVerificationPage() {
                           : "bg-amber-500/60"
                       )}
                     />
-                    <span className="font-semibold text-foreground truncate">{doc.name}</span>
+                    <span className="font-semibold text-foreground truncate">
+                      {getLocalizedStatus(doc.type, t, 'documentType') || doc.name}
+                    </span>
                     {doc.required && (
                       <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">
                         {t('common.required', 'Required')}
@@ -981,7 +983,7 @@ export default function PropertyVerificationPage() {
                         : "bg-muted text-muted-foreground border border-border"
                     )}
                   >
-                    {docStatus}
+                    {getLocalizedStatus(docStatus, t, 'verification')}
                   </span>
                 </div>
               );

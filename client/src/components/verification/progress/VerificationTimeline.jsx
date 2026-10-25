@@ -1,10 +1,15 @@
 import React from 'react';
 import TimelineItem from '../history/TimelineItem';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export const VerificationTimeline = ({ timeline = [], className = '' }) => {
+  const { t } = useLanguage();
+
   if (timeline.length === 0) {
     return (
-      <div className="text-xs text-muted-foreground py-4 text-center">No timeline events recorded yet.</div>
+      <div className="text-xs text-muted-foreground py-4 text-center">
+        {t('verification.noTimelineEvents', 'No timeline events recorded yet.')}
+      </div>
     );
   }
 

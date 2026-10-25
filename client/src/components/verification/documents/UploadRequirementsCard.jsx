@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
 import VerificationSectionCard from '../common/VerificationSectionCard';
 import { useLanguage } from '../../../context/LanguageContext';
+import { getLocalizedStatus } from '../../../utils/statusLocalization';
 
 export const UploadRequirementsCard = ({
   requiredTypes = [],
@@ -23,7 +24,7 @@ export const UploadRequirementsCard = ({
       case 'INCOME_PROOF':
         return t('verification.docIncomeProof', 'Recent Pay Slip / Tax Returns');
       default:
-        return req.name || req;
+        return getLocalizedStatus(type, t, 'documentType') || req.name || type;
     }
   };
 

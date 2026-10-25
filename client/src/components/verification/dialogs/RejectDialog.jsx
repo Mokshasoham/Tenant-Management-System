@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import Modal from '../../Modal';
 import { Button, Input } from '../../PremiumUI';
 import { AlertTriangle } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export const RejectDialog = ({ isOpen, onClose, onConfirm, loading = false }) => {
+  const { t } = useLanguage();
   const [remarks, setRemarks] = useState('');
   const [error, setError] = useState(null);
 
   const handleConfirm = () => {
     if (!remarks.trim()) {
-      setError('Rejection remarks are required');
+      setError(t('verification.rejectionRemarksRequiredError', 'Rejection remarks are required'));
       return;
     }
     setError(null);
@@ -21,11 +23,11 @@ export const RejectDialog = ({ isOpen, onClose, onConfirm, loading = false }) =>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Reject Verification"
+      title={t('verification.rejectVerification', 'Reject Verification')}
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="ghost" onClick={onClose} disabled={loading}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
           <Button
             variant="secondary"
@@ -33,7 +35,9 @@ export const RejectDialog = ({ isOpen, onClose, onConfirm, loading = false }) =>
             disabled={loading}
             className="bg-rose-500 text-white hover:bg-rose-600"
           >
-            {loading ? 'Rejecting...' : 'Confirm Rejection'}
+            {loading
+              ? t('verification.rejecting', 'Rejecting...')
+              : t('verification.confirmRejection', 'Confirm Rejection')}
           </Button>
         </div>
       }
@@ -42,12 +46,15 @@ export const RejectDialog = ({ isOpen, onClose, onConfirm, loading = false }) =>
         <div className="flex items-center gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600">
           <AlertTriangle className="w-5 h-5 flex-shrink-0" />
           <p className="text-xs font-semibold">
-            Rejecting this verification will notify the submitter to resubmit corrected documents.
+            {t(
+              'verification.rejectionNotice',
+              'Rejecting this verification will notify the submitter to resubmit corrected documents.'
+            )}
           </p>
         </div>
         <Input
-          label="Rejection Reason / Remarks (Required)"
-          placeholder="e.g. Govt ID image is blurry or expired."
+          label={t('verification.rejectionRemarksRequired', 'Rejection Reason / Remarks (Required)')}
+          placeholder={t('verification.rejectionRemarksPlaceholder', 'e.g. Govt ID image is blurry or expired.')}
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           error={error}

@@ -49,13 +49,18 @@ export default function ManagerVerificationPage() {
   if (!isManagerVerificationEnabled) {
     return (
       <div className="p-6 sm:p-10">
-        <VerificationErrorState error="Manager Verification module is currently disabled by system feature flags." />
+        <VerificationErrorState
+          error={t(
+            'verification.managerVerificationDisabled',
+            'Manager Verification module is currently disabled by system feature flags.'
+          )}
+        />
       </div>
     );
   }
 
   const status = activeVerification?.status || 'UNVERIFIED';
-  const vrfNumber = activeVerification?.verificationNumber || 'Not Issued';
+  const vrfNumber = activeVerification?.verificationNumber || t('verification.notIssued', 'Not Issued');
   const trustScore = activeVerification?.trustScore || user?.currentTrustScore || 0;
   const badge = user?.verificationBadge || 'UNVERIFIED';
 

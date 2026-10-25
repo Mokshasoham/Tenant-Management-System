@@ -59,6 +59,68 @@ export const STATUS_KEY_MAP = {
     draft: 'verification.draft',
     rejected: 'verification.rejected',
     in_review: 'verification.inReview',
+    documents_uploaded: 'verification.status_documents_uploaded',
+    submitted: 'verification.submitted',
+    auto_review: 'verification.status_auto_review',
+    manager_review: 'verification.status_manager_review',
+    admin_review: 'verification.status_admin_review',
+    approved: 'verification.status_approved',
+    expired: 'verification.status_expired',
+    renewal_required: 'verification.status_renewal_required',
+    uploaded: 'verification.status_uploaded',
+  },
+  // Verification Badges
+  verificationBadge: {
+    unverified: 'verification.badge_unverified',
+    bronze: 'verification.badge_bronze',
+    bronze_trust: 'verification.badge_bronze',
+    silver: 'verification.badge_silver',
+    silver_verified: 'verification.badge_silver',
+    gold: 'verification.badge_gold',
+    gold_verified: 'verification.badge_gold',
+    gold_property: 'verification.badge_gold_property',
+    platinum: 'verification.badge_platinum',
+    platinum_elite: 'verification.badge_platinum',
+  },
+  // Document Types
+  documentType: {
+    sale_deed: 'verification.doc_sale_deed',
+    title_deed: 'verification.doc_sale_deed',
+    property_registration: 'verification.doc_property_registration',
+    tax_receipt: 'verification.doc_tax_receipt',
+    occupancy_cert: 'verification.doc_occupancy_cert',
+    building_approval: 'verification.doc_building_approval',
+    electricity_bill: 'verification.doc_electricity_bill',
+    water_bill: 'verification.doc_water_bill',
+    fire_noc: 'verification.doc_fire_noc',
+    lift_safety: 'verification.doc_lift_safety',
+    business_registration: 'verification.doc_business_registration',
+    govt_id: 'verification.doc_govt_id',
+    identity_proof: 'verification.doc_identity_proof',
+    utility_bill: 'verification.doc_utility_bill',
+    tax_pin: 'verification.doc_tax_pin',
+  },
+  // Ownership Types
+  ownershipType: {
+    individual_owner: 'verification.ownership_individual_owner',
+    company: 'verification.ownership_company',
+    builder: 'verification.ownership_builder',
+    housing_society: 'verification.ownership_housing_society',
+    property_management_company: 'verification.ownership_property_management_company',
+    government: 'verification.ownership_government',
+    trust: 'verification.ownership_trust',
+    inherited_property: 'verification.ownership_inherited_property',
+    joint_ownership: 'verification.ownershipJoint',
+    corporate_entity_company: 'verification.ownershipCorporate',
+    trust_society: 'verification.ownershipTrust',
+    inherited_estate: 'verification.ownershipInherited',
+  },
+  // Business Categories
+  businessCategory: {
+    real_estate_management: 'verification.biz_real_estate_mgmt',
+    residential_property_management: 'verification.biz_residential_mgmt',
+    commercial_leasing_operations: 'verification.biz_commercial_leasing',
+    individual_landlord_broker: 'verification.biz_individual_landlord',
   },
   // Priority levels
   priority: {
@@ -143,10 +205,11 @@ export function getLocalizedStatus(status, t, category) {
   if (typeof t !== 'function') return formatFallback(status);
 
   const normalized = String(status).trim().toLowerCase().replace(/\s+/g, '_');
+  const cleanNormalized = String(status).trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
   // If category is provided, look in that category first
   if (category && STATUS_KEY_MAP[category]) {
-    const key = STATUS_KEY_MAP[category][normalized];
+    const key = STATUS_KEY_MAP[category][normalized] || STATUS_KEY_MAP[category][cleanNormalized];
     if (key) {
       return t(key, formatFallback(status));
     }
@@ -154,7 +217,7 @@ export function getLocalizedStatus(status, t, category) {
 
   // Cross-category search if category omitted or not found in specified category
   for (const cat of Object.keys(STATUS_KEY_MAP)) {
-    const key = STATUS_KEY_MAP[cat][normalized];
+    const key = STATUS_KEY_MAP[cat][normalized] || STATUS_KEY_MAP[cat][cleanNormalized];
     if (key) {
       return t(key, formatFallback(status));
     }

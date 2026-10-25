@@ -4,6 +4,7 @@ import VerificationSectionCard from '../common/VerificationSectionCard';
 import VerificationStatusBadge from '../badges/VerificationStatusBadge';
 import CircularProgress from '../charts/CircularProgress';
 import { calculateStepProgress } from '../../../utils/verificationHelpers';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export const VerificationProgressCard = ({
   verification = {},
@@ -11,26 +12,44 @@ export const VerificationProgressCard = ({
   totalStepsCount = 4,
   className = '',
 }) => {
+  const { t, formatDate } = useLanguage();
   const pct = calculateStepProgress(completedStepsCount, totalStepsCount);
 
   return (
     <VerificationSectionCard
-      title="Verification Status"
-      subtitle={verification.verificationNumber ? `ID: ${verification.verificationNumber}` : 'Draft Submission'}
+      title={t('verification.verificationStatus', 'Verification Status')}
+      subtitle={
+        verification.verificationNumber
+          ? `${t('verification.vrfSequence', 'VRF Sequence')}: ${verification.verificationNumber}`
+          : t('verification.draftSubmission', 'Draft Submission')
+      }
       icon={ShieldCheck}
       badge={<VerificationStatusBadge status={verification.status || 'DRAFT'} />}
       className={className}
     >
       <div className="flex items-center justify-between gap-6 py-2">
         <div>
-          <p className="text-2xl font-black text-foreground">{pct}% Completed</p>
+          <p className="text-2xl font-black text-foreground">
+            {t('verification.percentCompleted', '{{pct}}% Completed', { pct })}
+          </p>
           <p className="text-xs text-muted-foreground font-medium mt-1">
-            {completedStepsCount} of {totalStepsCount} required verification steps completed
+            {t(
+              'verification.stepsCompletedCounter',
+              '{{completed}} of {{total}} required verification steps completed',
+              {
+                completed: completedStepsCount,
+                total: totalStepsCount,
+              }
+            )}
           </p>
           {verification.sla?.targetReviewAt && (
             <div className="flex items-center gap-1.5 text-xs text-amber-500 font-semibold mt-3">
               <Clock className="w-3.5 h-3.5" />
-              <span>Target Review: {new Date(verification.sla.targetReviewAt).toLocaleDateString()}</span>
+              <span>
+                {t('verification.targetReview', 'Target Review: {{date}}', {
+                  date: formatDate(verification.sla.targetReviewAt),
+                })}
+              </span>
             </div>
           )}
         </div>

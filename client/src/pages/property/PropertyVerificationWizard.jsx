@@ -29,6 +29,7 @@ import {
 import { Button, Input } from '../../components/PremiumUI';
 import compressImage from '../../utils/compressImage';
 import apiClient from '../../services/apiClient';
+import { getLocalizedStatus } from '../../utils/statusLocalization';
 
 export default function PropertyVerificationWizard() {
   const { t } = useLanguage();
@@ -631,15 +632,28 @@ export default function PropertyVerificationWizard() {
                 className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs font-semibold text-foreground focus:outline-none"
               >
                 <option value="Individual Owner">
-                  {t('verification.ownershipIndividual', 'Individual Owner')}
+                  {t('verification.ownership_individual_owner', 'Individual Owner')}
                 </option>
-                <option value="Joint Ownership">{t('verification.ownershipJoint', 'Joint Ownership')}</option>
-                <option value="Corporate Entity / Company">
-                  {t('verification.ownershipCorporate', 'Corporate Entity / Company')}
+                <option value="Company">
+                  {t('verification.ownership_company', 'Company')}
                 </option>
-                <option value="Trust / Society">{t('verification.ownershipTrust', 'Trust / Society')}</option>
-                <option value="Inherited Estate">
-                  {t('verification.ownershipInherited', 'Inherited Estate')}
+                <option value="Builder">
+                  {t('verification.ownership_builder', 'Builder')}
+                </option>
+                <option value="Housing Society">
+                  {t('verification.ownership_housing_society', 'Housing Society')}
+                </option>
+                <option value="Property Management Company">
+                  {t('verification.ownership_property_management_company', 'Property Management Company')}
+                </option>
+                <option value="Government">
+                  {t('verification.ownership_government', 'Government')}
+                </option>
+                <option value="Trust">
+                  {t('verification.ownership_trust', 'Trust')}
+                </option>
+                <option value="Inherited Property">
+                  {t('verification.ownership_inherited_property', 'Inherited Property')}
                 </option>
               </select>
             </div>
@@ -735,7 +749,7 @@ export default function PropertyVerificationWizard() {
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-foreground truncate">{doc.filename}</p>
-                          <p className="text-[10px] text-muted-foreground">{doc.documentType || doc.type}</p>
+                          <p className="text-[10px] text-muted-foreground">{getLocalizedStatus(doc.documentType || doc.type, t, 'documentType') || doc.documentType || doc.type}</p>
                         </div>
                       </div>
                       <button
@@ -840,7 +854,7 @@ export default function PropertyVerificationWizard() {
                   {t('verification.ownerReviewLabel', 'Owner:')}
                 </span>
                 <p className="font-bold text-foreground text-sm mt-0.5">
-                  {formData.ownerName || t('verification.notEntered', 'Not Entered')} ({formData.ownershipType})
+                  {formData.ownerName || t('verification.notEntered', 'Not Entered')} ({getLocalizedStatus(formData.ownershipType, t, 'ownershipType') || formData.ownershipType})
                 </p>
               </div>
               <div className="sm:col-span-2">

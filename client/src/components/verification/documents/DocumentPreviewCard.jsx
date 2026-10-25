@@ -3,6 +3,7 @@ import { CheckCircle2, AlertCircle, Eye, Trash2 } from 'lucide-react';
 import { getDocumentIcon } from '../../../utils/documentIcons';
 import StatusBadge from '../../profile/primitives/StatusBadge';
 import { useLanguage } from '../../../context/LanguageContext';
+import { getLocalizedStatus } from '../../../utils/statusLocalization';
 
 export const DocumentPreviewCard = ({
   document = {},
@@ -35,7 +36,7 @@ export const DocumentPreviewCard = ({
       </div>
 
       <div className="flex items-center gap-3">
-        <StatusBadge label={document.status || 'PENDING'} variant={statusVariant} />
+        <StatusBadge label={getLocalizedStatus(document.status || 'PENDING', t, 'verification')} variant={statusVariant} />
         {onView && (
           <button
             type="button"

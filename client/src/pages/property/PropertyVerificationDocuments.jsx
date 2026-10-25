@@ -44,6 +44,29 @@ export default function PropertyVerificationDocuments() {
   const requiredTypesCount = MOCK_REQUIRED_DOCUMENTS.length;
   const missingCount = Math.max(0, requiredTypesCount - uploadedCount);
 
+  const getCategoryLabel = (cat) => {
+    switch (cat?.key || cat) {
+      case 'ALL':
+        return t('verification.allDocuments', 'All Documents');
+      case 'OWNERSHIP':
+        return t('verification.ownershipCategory', 'Ownership');
+      case 'LEGAL':
+        return t('verification.legalCategory', 'Legal & Approvals');
+      case 'TAX':
+        return t('verification.taxCategory', 'Tax Compliance');
+      case 'UTILITY':
+        return t('verification.utilityCategory', 'Utilities');
+      case 'PHOTOS':
+        return t('verification.photosCategory', 'Property Photos');
+      case 'SAFETY':
+        return t('verification.safetyCategory', 'Safety & NOC');
+      case 'OTHER':
+        return t('verification.otherCategory', 'Other');
+      default:
+        return cat?.label || cat?.key || cat;
+    }
+  };
+
   const handleCategorySelect = (key) => {
     setSelectedCategory(key);
     trackEvent(VERIFICATION_EVENTS.PROPERTY_DOCUMENT, { category: key });
@@ -144,7 +167,7 @@ export default function PropertyVerificationDocuments() {
                 : 'bg-muted/40 text-muted-foreground hover:bg-muted'
             }`}
           >
-            {cat.label}
+            {getCategoryLabel(cat)}
           </button>
         ))}
       </div>
@@ -154,7 +177,7 @@ export default function PropertyVerificationDocuments() {
         template={{
           code: 'GENERIC_PROPERTY_DOC',
           name: t('verification.uploadGenericDoc', 'Upload {{category}} Document', {
-            category: selectedCategory === 'ALL' ? t('verification.documents', 'Document') : selectedCategory,
+            category: selectedCategory === 'ALL' ? t('verification.documents', 'Document') : getCategoryLabel(selectedCategory),
           }),
           description: t(
             'verification.step3PropSubtitle',

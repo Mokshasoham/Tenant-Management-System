@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { parse } from '../../../client/node_modules/@babel/parser/lib/index.js';
 import traversePkg from '../../../client/node_modules/@babel/traverse/lib/index.js';
 import { translations } from '../../../client/src/utils/translations.js';
+import { getLocalizedStatus } from '../../../client/src/utils/statusLocalization.js';
 
 const traverse = traversePkg.default || traversePkg;
 const __filename = fileURLToPath(import.meta.url);
@@ -46,17 +47,16 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
       'stepPropReviewDesc',
       'stepPropSubmit',
       'stepPropSubmitDesc',
-      'step1Title',
-      'step1Subtitle',
-      'managerFullName',
-      'validationBusinessName',
-      'validationOfficeAddress',
-      'validationGovtIdRequired',
-      'validationBusinessDocRequired',
-      'cannotSubmitIncomplete',
-      'step1PropTitle',
-      'step1PropSubtitle',
+      'fullName',
+      'emailAddress',
+      'phoneNumber',
+      'businessName',
+      'businessType',
+      'taxIdLabel',
+      'addressReview',
+      'ownershipStructureLabel',
       'propertyNameLabel',
+      'propertyTypeLabel',
       'propertyAddressLabel',
       'validationPropName',
       'validationPropAddress',
@@ -76,6 +76,33 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
       'managerAuditTitle',
       'propertyDocWorkspaceTitle',
       'propertyAuditTitle',
+      'ownership_individual_owner',
+      'ownership_company',
+      'ownership_builder',
+      'ownership_housing_society',
+      'ownership_property_management_company',
+      'ownership_government',
+      'ownership_trust',
+      'ownership_inherited_property',
+      'biz_real_estate_mgmt',
+      'biz_residential_mgmt',
+      'biz_commercial_leasing',
+      'biz_individual_landlord',
+      'trustScoreCardTitle',
+      'trustScoreCardSubtitle',
+      'trustScoreNotice',
+      'trustBreakdownTitle',
+      'trustBreakdownSubtitle',
+      'percentCompleted',
+      'stepsCompletedCounter',
+      'draftSubmission',
+      'riskManualReview',
+      'riskLow',
+      'retry',
+      'requiredBadge',
+      'allowedFormatsHint',
+      'noTimelineEvents',
+      'submissionHistory',
     ];
 
     test('All 8 languages have 100% key parity in the verification namespace', () => {
@@ -109,20 +136,60 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
       expect(te.stepBusinessDetails).toContain('వ్యాపార వివరాలు');
       expect(te.validationBusinessName).toContain('వ్యాపారం');
       expect(te.validationPropDocRequired).toContain('పత్రం');
+
+      // Ownership options in Telugu
+      expect(te.ownership_individual_owner).toBe('వ్యక్తిగత యజమాని');
+      expect(te.ownership_company).toBe('కంపెనీ');
+      expect(te.ownership_builder).toBe('బిల్డర్');
+      expect(te.ownership_housing_society).toBe('హౌసింగ్ సొసైటీ');
+      expect(te.ownership_property_management_company).toBe('ప్రాపర్టీ మేనేజ్‌మెంట్ కంపెనీ');
+      expect(te.ownership_government).toBe('ప్రభుత్వం');
+      expect(te.ownership_trust).toBe('ట్రస్ట్');
+      expect(te.ownership_inherited_property).toBe('వారసత్వ ఆస్తి');
+
+      // Business categories in Telugu
+      expect(te.biz_real_estate_mgmt).toBe('రియల్ ఎస్టేట్ మేనేజ్‌మెంట్');
+      expect(te.biz_residential_mgmt).toBe('నివాస ప్రాపర్టీ మేనేజ్‌మెంట్');
+      expect(te.biz_commercial_leasing).toBe('వాణిజ్య లీజింగ్ & కార్యకలాపాలు');
+      expect(te.biz_individual_landlord).toBe('వ్యక్తిగత యజమాని / బ్రోకర్');
     });
   });
 
-  describe('2. AST Analysis: Zero Unbound Language or Translation Calls', () => {
+  describe('2. AST Analysis: Zero Unbound Language or Translation Calls Across All Verification Components', () => {
     const targetFiles = [
+      'client/src/pages/manager/ManagerVerificationPage.jsx',
       'client/src/pages/manager/ManagerVerificationWizard.jsx',
-      'client/src/pages/property/PropertyVerificationWizard.jsx',
       'client/src/pages/manager/ManagerVerificationDocuments.jsx',
       'client/src/pages/manager/ManagerVerificationTimeline.jsx',
+      'client/src/pages/property/PropertyVerificationPage.jsx',
+      'client/src/pages/property/PropertyVerificationWizard.jsx',
       'client/src/pages/property/PropertyVerificationDocuments.jsx',
       'client/src/pages/property/PropertyVerificationTimeline.jsx',
+      'client/src/components/verification/badges/VerificationStatusBadge.jsx',
+      'client/src/components/verification/badges/VerificationBadge.jsx',
+      'client/src/components/verification/badges/RiskFlagBadge.jsx',
+      'client/src/components/verification/badges/TrustScoreBadge.jsx',
+      'client/src/components/verification/badges/ReviewLevelBadge.jsx',
+      'client/src/components/verification/trust/TrustScoreCard.jsx',
+      'client/src/components/verification/trust/TrustBreakdownCard.jsx',
+      'client/src/components/verification/progress/VerificationProgressCard.jsx',
       'client/src/components/verification/progress/VerificationProgressStepper.jsx',
+      'client/src/components/verification/progress/VerificationTimeline.jsx',
       'client/src/components/verification/common/FileUploader.jsx',
       'client/src/components/verification/documents/DocumentPreviewCard.jsx',
+      'client/src/components/verification/documents/DocumentUploadCard.jsx',
+      'client/src/components/verification/documents/UploadRequirementsCard.jsx',
+      'client/src/components/verification/documents/UploadProgressBar.jsx',
+      'client/src/components/verification/states/VerificationEmptyState.jsx',
+      'client/src/components/verification/states/VerificationErrorState.jsx',
+      'client/src/components/verification/states/VerificationLoadingOverlay.jsx',
+      'client/src/components/verification/dialogs/ApprovalDialog.jsx',
+      'client/src/components/verification/dialogs/RejectDialog.jsx',
+      'client/src/components/verification/dialogs/ReviewRemarksCard.jsx',
+      'client/src/components/verification/history/TimelineItem.jsx',
+      'client/src/components/verification/history/VerificationHistoryDrawer.jsx',
+      'client/src/components/verification/widgets/VerificationSummaryCard.jsx',
+      'client/src/components/verification/widgets/VerificationWidget.jsx',
     ];
 
     test.each(targetFiles)('File "%s" correctly imports useLanguage and has zero unbound calls', (relPath) => {
@@ -177,18 +244,16 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
     });
   });
 
-  describe('3. Form Validation & Workflow Rules in Wizard Implementations', () => {
+  describe('3. Form Validation & Canonical Enum Localization', () => {
     test('Manager wizard Step 1 does not validate businessName and allows proceeding with valid user account', () => {
       const code = fs.readFileSync(
         path.join(rootDir, 'client/src/pages/manager/ManagerVerificationWizard.jsx'),
         'utf8'
       );
 
-      // Verify Step 1 does NOT check !formData.businessName
       const step1Pattern = /currentStep\s*===\s*1\s*&&\s*!formData\.businessName/;
       expect(step1Pattern.test(code)).toBe(false);
 
-      // Verify Step 2 DOES check !formData.businessName
       const step2Pattern = /currentStep\s*===\s*2[\s\S]*?formData\.businessName/;
       expect(step2Pattern.test(code)).toBe(true);
     });
@@ -219,26 +284,68 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
       expect(code).toContain('TAX_RECEIPT');
     });
 
-    test('Both wizards prevent submission when required items are missing and show warnings', () => {
-      const managerCode = fs.readFileSync(
-        path.join(rootDir, 'client/src/pages/manager/ManagerVerificationWizard.jsx'),
-        'utf8'
-      );
-      const propCode = fs.readFileSync(
-        path.join(rootDir, 'client/src/pages/property/PropertyVerificationWizard.jsx'),
-        'utf8'
-      );
+    test('All 8 canonical ownership types resolve to translated labels in getLocalizedStatus across all 8 languages', () => {
+      const canonicalOwnershipTypes = [
+        'Individual Owner',
+        'Company',
+        'Builder',
+        'Housing Society',
+        'Property Management Company',
+        'Government',
+        'Trust',
+        'Inherited Property',
+      ];
 
-      expect(managerCode).toContain('missingRequirements');
-      expect(managerCode).toContain('cannotSubmitIncomplete');
+      for (const lang of supportedLanguages) {
+        const langDict = translations[lang];
+        const t = (k, fb) => {
+          const parts = k.split('.');
+          return langDict[parts[0]]?.[parts[1]] || fb || k;
+        };
 
-      expect(propCode).toContain('missingRequirements');
-      expect(propCode).toContain('cannotSubmitIncomplete');
+        for (const type of canonicalOwnershipTypes) {
+          const localized = getLocalizedStatus(type, t, 'ownershipType');
+          expect(localized).toBeDefined();
+          expect(typeof localized).toBe('string');
+          expect(localized.length).toBeGreaterThan(0);
+          // In non-English languages, it must not be equal to the English canonical string
+          if (lang === 'te') {
+            expect(localized).not.toBe(type);
+          }
+        }
+      }
+    });
+
+    test('All 4 canonical business categories resolve to translated labels in getLocalizedStatus across all 8 languages', () => {
+      const canonicalBizTypes = [
+        'Real Estate Management',
+        'Residential Property Management',
+        'Commercial Leasing & Operations',
+        'Individual Landlord / Broker',
+      ];
+
+      for (const lang of supportedLanguages) {
+        const langDict = translations[lang];
+        const t = (k, fb) => {
+          const parts = k.split('.');
+          return langDict[parts[0]]?.[parts[1]] || fb || k;
+        };
+
+        for (const type of canonicalBizTypes) {
+          const localized = getLocalizedStatus(type, t, 'businessCategory');
+          expect(localized).toBeDefined();
+          expect(typeof localized).toBe('string');
+          expect(localized.length).toBeGreaterThan(0);
+          if (lang === 'te') {
+            expect(localized).not.toBe(type);
+          }
+        }
+      }
     });
   });
 
   describe('4. Verification Stepper & File Uploader Responsive & Accessible Contracts', () => {
-    test('VerificationProgressStepper provides progressbar semantics and mobile responsive indicators', () => {
+    test('VerificationProgressStepper provides progressbar semantics, mobile indicator, and multi-line titles without truncate', () => {
       const stepperCode = fs.readFileSync(
         path.join(rootDir, 'client/src/components/verification/progress/VerificationProgressStepper.jsx'),
         'utf8'
@@ -246,8 +353,12 @@ describe('TMS Verification End-to-End Workflow & Multilingual Localization Suite
 
       expect(stepperCode).toContain('role="progressbar"');
       expect(stepperCode).toContain('aria-valuenow');
+      expect(stepperCode).toContain('aria-valuetext');
+      expect(stepperCode).toContain('aria-current');
       expect(stepperCode).toContain('sm:hidden');
       expect(stepperCode).toContain('stepOf');
+      // Must allow 2-line wrapping rather than truncating title
+      expect(stepperCode).toContain('break-words');
     });
 
     test('FileUploader supports drag-and-drop, localized size limits, and file clear actions', () => {

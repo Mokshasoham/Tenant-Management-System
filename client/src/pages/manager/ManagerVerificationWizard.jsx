@@ -26,6 +26,7 @@ import {
 } from '../../components/verification';
 import { Button, Input } from '../../components/PremiumUI';
 import compressImage from '../../utils/compressImage';
+import { getLocalizedStatus } from '../../utils/statusLocalization';
 
 export default function ManagerVerificationWizard() {
   const { t } = useLanguage();
@@ -481,10 +482,18 @@ export default function ManagerVerificationWizard() {
                 onChange={(e) => updateFormData({ businessType: e.target.value })}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs font-semibold text-foreground focus:outline-none"
               >
-                <option value="Real Estate Management">Real Estate Management</option>
-                <option value="Residential Property Management">Residential Property Management</option>
-                <option value="Commercial Leasing & Operations">Commercial Leasing & Operations</option>
-                <option value="Individual Landlord / Broker">Individual Landlord / Broker</option>
+                <option value="Real Estate Management">
+                  {t('verification.biz_real_estate_mgmt', 'Real Estate Management')}
+                </option>
+                <option value="Residential Property Management">
+                  {t('verification.biz_residential_mgmt', 'Residential Property Management')}
+                </option>
+                <option value="Commercial Leasing & Operations">
+                  {t('verification.biz_commercial_leasing', 'Commercial Leasing & Operations')}
+                </option>
+                <option value="Individual Landlord / Broker">
+                  {t('verification.biz_individual_landlord', 'Individual Landlord / Broker')}
+                </option>
               </select>
             </div>
 
@@ -582,6 +591,12 @@ export default function ManagerVerificationWizard() {
                 <span className="font-semibold text-muted-foreground">{t('verification.companyLabel', 'Company:')}</span>
                 <span className="font-bold text-foreground">
                   {formData.businessName || t('verification.notEntered', 'Not Entered')}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-muted-foreground">{t('verification.businessTypeReview', 'Business Type:')}</span>
+                <span className="font-bold text-foreground">
+                  {getLocalizedStatus(formData.businessType, t, 'businessCategory') || formData.businessType}
                 </span>
               </div>
               <div className="flex justify-between items-center">
