@@ -60,9 +60,9 @@ export default function ManagerVerificationPage() {
   const badge = user?.verificationBadge || 'UNVERIFIED';
 
   const requiredDocTypes = [
-    { type: 'BUSINESS_REGISTRATION', name: 'Business Registration Certificate' },
-    { type: 'TAX_PIN', name: 'GST / Tax Identification PIN' },
-    { type: 'GOVT_ID', name: 'Manager Govt Photo ID' },
+    { type: 'BUSINESS_REGISTRATION', name: t('verification.docBusinessReg', 'Business Registration Certificate') },
+    { type: 'TAX_PIN', name: t('verification.docTaxPin', 'GST / Tax Identification PIN') },
+    { type: 'GOVT_ID', name: t('verification.docGovtId', 'Manager Govt Photo ID') },
   ];
 
   const uploadedDocTypes = (activeVerification?.documents || [])
@@ -70,20 +70,20 @@ export default function ManagerVerificationPage() {
     .map((d) => d.documentType);
 
   const sampleTimeline = activeVerification?.timeline || [
-    { action: 'Profile Registered', timestamp: user?.createdAt || new Date(), remarks: 'Manager account active' },
+    { action: t('verification.profileRegistered', 'Profile Registered'), timestamp: user?.createdAt || new Date(), remarks: t('verification.managerAccountActive', 'Manager account active') },
   ];
 
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Manager Verification Home"
-        subtitle="Manage business credentials, identity proofs, trust score, and compliance badges"
+        title={t('verification.managerVerificationHome', 'Manager Verification Home')}
+        subtitle={t('verification.managerVerificationHomeSubtitle', 'Manage business credentials, identity proofs, trust score, and compliance badges')}
         icon={ShieldCheck}
-        breadcrumbs={[{ label: 'Manager Portal', href: '/dashboard' }, { label: 'Verification Home' }]}
+        breadcrumbs={[{ label: t('nav.managerPortal', 'Manager Portal'), href: '/dashboard' }, { label: t('verification.verificationHome', 'Verification Home') }]}
         actionSlot={
           <Button variant="outline" type="button" onClick={() => refresh(activeVerification?._id)} className="text-xs">
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Refresh Data
+            {t('verification.refreshData', 'Refresh Data')}
           </Button>
         }
       />
@@ -93,7 +93,7 @@ export default function ManagerVerificationPage() {
       {/* Hero Overview Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Status Card */}
-        <VerificationSectionCard title="Current Status" subtitle={`VRF Sequence: ${vrfNumber}`} icon={ShieldCheck}>
+        <VerificationSectionCard title={t('verification.currentStatus', 'Current Status')} subtitle={`${t('verification.vrfSequence', 'VRF Sequence')}: ${vrfNumber}`} icon={ShieldCheck}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground">{t('verification.verificationState', 'Verification State')}</span>
@@ -180,7 +180,7 @@ export default function ManagerVerificationPage() {
             className="text-xs bg-rose-500 text-white mt-2"
             onClick={() => navigate('/manager/verification/wizard')}
           >
-            Fix & Resubmit Now
+            {t('verification.fixAndResubmit', 'Fix & Resubmit Now')}
           </Button>
         </div>
       )}
@@ -190,11 +190,15 @@ export default function ManagerVerificationPage() {
         <UploadRequirementsCard requiredTypes={requiredDocTypes} uploadedTypes={uploadedDocTypes} />
 
         {/* Verification Renewal Lifecycle Placeholder */}
-        <VerificationSectionCard title="Verification Renewal Lifecycle" subtitle="Document validity & annual renewal schedule" icon={Clock}>
+        <VerificationSectionCard
+          title={t('verification.renewalLifecycle', 'Verification Renewal Lifecycle')}
+          subtitle={t('verification.renewalLifecycleSubtitle', 'Document validity & annual renewal schedule')}
+          icon={Clock}
+        >
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
               <span className="font-semibold text-muted-foreground">{t('verification.currentExpiry', 'Current Credential Expiry')}</span>
-              <span className="font-bold text-foreground">12 Dec 2027</span>
+              <span className="font-bold text-foreground">{t('verification.mockRenewalDate', '12 Dec 2027')}</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
               <span className="font-semibold text-muted-foreground">{t('verification.renewalStatus', 'Renewal Status')}</span>
@@ -202,12 +206,16 @@ export default function ManagerVerificationPage() {
             </div>
             <Button variant="outline" disabled className="w-full text-xs opacity-75 cursor-not-allowed">
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Renew Credentials (Coming Soon)
+              {t('verification.renewCredentialsComingSoon', 'Renew Credentials (Coming Soon)')}
             </Button>
           </div>
         </VerificationSectionCard>
 
-        <VerificationSectionCard title="Quick Navigation" subtitle="Access verification sub-modules" icon={FileText}>
+        <VerificationSectionCard
+          title={t('verification.quickNavigation', 'Quick Navigation')}
+          subtitle={t('verification.quickNavSubtitle', 'Access verification sub-modules')}
+          icon={FileText}
+        >
           <div className="grid grid-cols-2 gap-3 pt-1">
             <button
               type="button"
@@ -253,7 +261,11 @@ export default function ManagerVerificationPage() {
       </div>
 
       {/* Timeline Preview */}
-      <VerificationSectionCard title="Recent Activity Timeline" subtitle="Audit trail events" icon={History}>
+      <VerificationSectionCard
+        title={t('verification.recentActivityTimeline', 'Recent Activity Timeline')}
+        subtitle={t('verification.auditTrailEvents', 'Audit trail events')}
+        icon={History}
+      >
         <VerificationTimeline timeline={sampleTimeline} />
       </VerificationSectionCard>
     </div>

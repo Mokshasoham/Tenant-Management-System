@@ -132,10 +132,10 @@ export default function AnalyticsPage() {
             {/* Summary Stats */}
             {summary && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <StatCard icon={Building2} label="Properties" value={summary.totalProperties} color="blue" />
-                    <StatCard icon={CreditCard} label="Total Revenue" value={`₹${(summary.totalRevenue || 0).toLocaleString('en-IN')}`} color="emerald" />
-                    <StatCard icon={TrendingUp} label="Active Leases" value={summary.totalLeases} color="violet" />
-                    <StatCard icon={BarChart2} label="Open Issues" value={summary.openMaintenance} color="amber" />
+                    <StatCard icon={Building2} label={t('nav.properties', 'Properties')} value={summary.totalProperties} color="blue" />
+                    <StatCard icon={CreditCard} label={t('analytics.totalRevenue', 'Total Revenue')} value={`₹${(summary.totalRevenue || 0).toLocaleString('en-IN')}`} color="emerald" />
+                    <StatCard icon={TrendingUp} label={t('dashboard.activeLeases', 'Active Leases')} value={summary.totalLeases} color="violet" />
+                    <StatCard icon={BarChart2} label={t('analytics.openIssues', 'Open Issues')} value={summary.openMaintenance} color="amber" />
                 </div>
             )}
 
@@ -146,7 +146,7 @@ export default function AnalyticsPage() {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-black text-foreground">{t('dashboard.revenueOverTime', 'Revenue Over Time')}</h3>
                         <p className="text-xs text-emerald-500 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full">
-                            ₹{revenue.reduce((a, d) => a + d.value, 0).toLocaleString('en-IN')} total
+                            ₹{revenue.reduce((a, d) => a + d.value, 0).toLocaleString('en-IN')} {t('common.total', 'total')}
                         </p>
                     </div>
                     <div className="h-60 w-full">
@@ -207,16 +207,16 @@ export default function AnalyticsPage() {
                             {/* Legends */}
                             <div className="w-full space-y-2.5 mt-3 pt-3 border-t border-border">
                                 {[
-                                    { key: 'occupied', label: 'Occupied', color: OCCUPANCY_COLORS.occupied },
-                                    { key: 'available', label: 'Available', color: OCCUPANCY_COLORS.available },
-                                    { key: 'maintenance', label: 'Maintenance', color: OCCUPANCY_COLORS.maintenance },
+                                    { key: 'occupied', label: t('analytics.occupied', 'Occupied'), color: OCCUPANCY_COLORS.occupied },
+                                    { key: 'available', label: t('analytics.available', 'Available'), color: OCCUPANCY_COLORS.available },
+                                    { key: 'maintenance', label: t('analytics.maintenance', 'Maintenance'), color: OCCUPANCY_COLORS.maintenance },
                                 ].map(({ key, label, color }) => (
                                     <div key={key} className="flex items-center justify-between text-xs font-semibold">
                                         <span className="flex items-center gap-2">
                                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
                                             <span className="text-muted-foreground/70">{label}</span>
                                         </span>
-                                        <span className="font-bold text-foreground/80">{occupancy[key] || 0} unit{occupancy[key] !== 1 ? 's' : ''}</span>
+                                        <span className="font-bold text-foreground/80">{t('analytics.unitCount', '{{count}} units', { count: occupancy[key] || 0 })}</span>
                                     </div>
                                 ))}
                             </div>
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
             <div className="p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors">
                 <h3 className="font-black text-foreground mb-4">{t('dashboard.topRevenueProperties', 'Top Revenue Generating Properties')}</h3>
                 {topProps.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground/30 text-sm">No payments recorded yet</div>
+                    <div className="text-center py-8 text-muted-foreground/30 text-sm">{t('analytics.noPaymentsRecorded', 'No payments recorded yet')}</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         {topProps.map((p, i) => (
@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
                                         <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">{t('dashboard.totalEarned', 'Total Earned')}</p>
                                         <p className="text-base font-black text-foreground mt-0.5">₹{p.totalRevenue?.toLocaleString('en-IN')}</p>
                                     </div>
-                                    <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">{p.paymentCount} Paid</span>
+                                    <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">{p.paymentCount} {t('common.paid', 'Paid')}</span>
                                 </div>
                             </div>
                         ))}

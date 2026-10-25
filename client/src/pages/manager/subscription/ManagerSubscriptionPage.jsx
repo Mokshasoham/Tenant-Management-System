@@ -98,6 +98,22 @@ export default function ManagerSubscriptionPage() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [successToast, setSuccessToast] = useState(null);
 
+  const getLocalizedPlanName = (pId, fallback = '') => {
+    const id = (pId || '').toLowerCase();
+    if (id === 'starter') return t('subscription.managerStarter', 'Manager Starter');
+    if (id === 'plus') return t('subscription.managerPlus', 'Manager Plus');
+    if (id === 'pro') return t('subscription.managerPro', 'Manager Pro');
+    return fallback;
+  };
+
+  const getLocalizedPlanDesc = (pId, fallback = '') => {
+    const id = (pId || '').toLowerCase();
+    if (id === 'starter') return t('subscription.managerStarterDesc', 'For independent landlords & single property complexes');
+    if (id === 'plus') return t('subscription.managerPlusDesc', 'For growing property managers & mid-scale portfolios');
+    if (id === 'pro') return t('subscription.managerProDesc', 'For enterprise real estate & multi-property firms');
+    return fallback;
+  };
+
   const getLocalizedManagerFeature = (feat) => {
     if (!feat) return '';
     const map = {
@@ -224,7 +240,7 @@ export default function ManagerSubscriptionPage() {
               razorpaySignature: response.razorpay_signature,
             });
 
-            setSuccessToast(`🎉 Successfully upgraded to ${plan.planName}!`);
+            setSuccessToast(`🎉 Successfully upgraded to ${getLocalizedPlanName(plan.planId, plan.planName)}!`);
             setTimeout(() => setSuccessToast(null), 5000);
             fetchSubscriptionData();
           } catch (vErr) {
@@ -391,14 +407,14 @@ export default function ManagerSubscriptionPage() {
                   "text-base font-black tracking-tight block",
                   isDark ? "text-white" : "text-slate-900"
                 )}>
-                  {currentPlanName}
+                  {getLocalizedPlanName(currentPlanId, currentPlanName)}
                 </span>
                 <div className="flex items-center gap-2 pt-0.5">
                   <span className={cn(
                     "text-[11px] font-bold",
                     isDark ? "text-slate-400" : "text-slate-600"
                   )}>
-                    {usage.isUnlimited ? 'Unlimited properties' : `${maxLimit} property capacity`}
+                    {usage.isUnlimited ? t('subscription.unlimitedProps', 'Unlimited properties') : t('subscription.propsCapacityCount', '{{count}} property capacity', { count: maxLimit })}
                   </span>
                   <span className={cn(
                     "inline-flex items-center px-2 py-0.2 rounded-full text-[9px] font-black tracking-wide border",
@@ -412,7 +428,7 @@ export default function ManagerSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── 2. {t('subscription.propertyCapacity', 'PROPERTY PORTFOLIO CAPACITY')} CARD ── */}
+        {/* ── 2. {t('subscription.propertyCapacity', '{t('subscription.propertyCapacity', 'PROPERTY PORTFOLIO CAPACITY')}')} CARD ── */}
         <div className={cn(
           "p-6 rounded-[24px] border space-y-4 shadow-lg relative overflow-hidden transition-all duration-300",
           isDark ? "bg-[#050C1F]/90 border-slate-800/90" : "bg-white border-slate-200 shadow-slate-100"
@@ -434,13 +450,13 @@ export default function ManagerSubscriptionPage() {
                     "text-xs font-black uppercase tracking-wider",
                     isDark ? "text-slate-200" : "text-slate-800"
                   )}>
-                    PROPERTY PORTFOLIO CAPACITY
+                    {t('subscription.propertyCapacity', 'PROPERTY PORTFOLIO CAPACITY')}
                   </span>
                   <span className={cn(
                     "text-xs font-mono font-bold",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
-                    ({currentCount} / {usage.isUnlimited ? '∞ Unlimited' : `${maxLimit} properties used`})
+                    ({currentCount} / {usage.isUnlimited ? t('subscription.unlimited', '∞ Unlimited') : t('subscription.propsUsedCount', '{{count}} properties used', { count: maxLimit })})
                   </span>
                 </div>
 
@@ -504,8 +520,8 @@ export default function ManagerSubscriptionPage() {
                     "flex items-center justify-between text-[10px] font-mono font-bold px-1",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
-                    <span className={isDark ? "text-indigo-400" : "text-indigo-600"}>Allowed on Starter: {maxLimit}</span>
-                    <span className="text-rose-500">Overflow: +{overflowCount} properties</span>
+                    <span className={isDark ? "text-indigo-400" : "text-indigo-600"}>{t('subscription.allowedOnStarter', 'Allowed on Starter: {{count}}', { count: maxLimit })}</span>
+                    <span className="text-rose-500">{t('subscription.overflowProps', 'Overflow: +{{count}} properties', { count: overflowCount })}</span>
                   </div>
                 )}
               </div>
@@ -516,9 +532,7 @@ export default function ManagerSubscriptionPage() {
                   "p-3.5 rounded-xl border text-xs font-medium space-y-1",
                   isDark ? "bg-amber-500/10 border-amber-500/25 text-amber-200" : "bg-amber-50 border-amber-200 text-amber-900"
                 )}>
-                  <p>
-                    You currently have <strong className={isDark ? "text-white font-bold" : "text-slate-900 font-bold"}>{currentCount} properties</strong>. Your current plan allows <strong className={isDark ? "text-white font-bold" : "text-slate-900 font-bold"}>{maxLimit}</strong>. Existing records remain safe, but adding new ones is restricted.
-                  </p>
+                  <p>{t('subscription.currentPlanExceededNotice', 'You currently have {{current}} properties. Your current plan allows {{max}}. Existing records remain safe, but adding new ones is restricted.', { current: currentCount, max: maxLimit })}</p>
                 </div>
               )}
             </>
@@ -544,7 +558,7 @@ export default function ManagerSubscriptionPage() {
               )}
             >
               {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              <span>Retry</span>
+              <span>{t('common.retry', 'Retry')}</span>
             </button>
           </div>
         )}
@@ -590,7 +604,7 @@ export default function ManagerSubscriptionPage() {
                         : "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border-violet-300 shadow-violet-500/30"
                     )}
                   >
-                    {isCurrent ? 'CURRENT PLAN' : (isPlus ? 'MOST POPULAR' : 'FOR GROWING PORTFOLIOS')}
+                    {isCurrent ? t('subscription.currentPlanBadge', 'CURRENT PLAN') : (isPlus ? t('subscription.mostPopularBadge', 'MOST POPULAR') : t('subscription.growingPortfoliosBadge', 'FOR GROWING PORTFOLIOS'))}
                   </span>
                 </div>
 
@@ -627,7 +641,7 @@ export default function ManagerSubscriptionPage() {
                         "text-xs font-medium mt-1",
                         isDark ? "text-slate-400" : "text-slate-500"
                       )}>
-                        {plan.description || (isPlus ? 'For growing property managers & mid-scale portfolios' : isPro ? 'For enterprise real estate & multi-property firms' : 'For independent landlords & single property complexes')}
+                        {getLocalizedPlanDesc(plan.planId, plan.description)}
                       </p>
                     </div>
                   </div>
@@ -657,9 +671,9 @@ export default function ManagerSubscriptionPage() {
                       "flex items-center justify-between text-[10px] font-black uppercase tracking-wider",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      <span>PROPERTY CAPACITY</span>
+                      <span>{t('subscription.propertyCapacityTag', 'PROPERTY CAPACITY')}</span>
                       <span className={isPlus ? (isDark ? 'text-indigo-400' : 'text-indigo-600 font-bold') : isPro ? (isDark ? 'text-violet-400' : 'text-violet-600 font-bold') : (isDark ? 'text-slate-300' : 'text-slate-700')}>
-                        {plan.maxProperties >= 999999 ? 'Unlimited (6+)' : `${plan.maxProperties} Properties`}
+                        {plan.maxProperties >= 999999 ? t('subscription.unlimitedPlus', 'Unlimited (6+)') : t('subscription.propsCount', '{{count}} Properties', { count: plan.maxProperties })}
                       </span>
                     </div>
 
@@ -669,7 +683,7 @@ export default function ManagerSubscriptionPage() {
                         "text-xs font-bold",
                         isDark ? "text-slate-200" : "text-slate-800"
                       )}>
-                        {plan.maxProperties >= 999999 ? 'Unlimited property portfolio (6+)' : `Up to ${plan.maxProperties} properties`}
+                        {plan.maxProperties >= 999999 ? t('subscription.featUnlimitedProps', 'Unlimited property portfolio (6+)') : t('subscription.upToPropsCount', 'Up to {{count}} properties', { count: plan.maxProperties })}
                       </span>
                     </div>
 
@@ -895,7 +909,7 @@ export default function ManagerSubscriptionPage() {
                 isDark ? "bg-indigo-500/10 border-indigo-500/25 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-800"
               )}>
                 <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                <span>✦ PLAN COMPARISON</span>
+                <span>{t('subscription.planComparisonBadge', '✦ PLAN COMPARISON')}</span>
               </div>
               <h2 className={cn(
                 "text-2xl sm:text-3xl font-black tracking-tight",
@@ -936,16 +950,16 @@ export default function ManagerSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-slate-400" : "text-slate-500"
                       )}>
-                        STARTER
+                        {t('subscription.starter', 'STARTER')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
+                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/{t('subscription.mo', 'mo')}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-slate-400" : "text-slate-600")}>
-                        3 properties
+                        {t('subscription.propsCountLower', '{{count}} properties', { count: 3 })}
                       </span>
                     </div>
                   </div>
@@ -954,7 +968,7 @@ export default function ManagerSubscriptionPage() {
                   <div className="flex flex-col h-full justify-end">
                     <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-indigo-300/40">
-                        MOST POPULAR
+                        {t('subscription.mostPopularBadge', 'MOST POPULAR')}
                       </span>
                     </div>
                     <div className={cn(
@@ -967,16 +981,16 @@ export default function ManagerSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-indigo-400" : "text-indigo-700"
                       )}>
-                        ✦ PLUS
+                        ✦ {t('subscription.plus', 'PLUS')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹1,499 <span className={cn("text-[10px] font-normal", isDark ? "text-indigo-400/70" : "text-indigo-600")}>/mo</span>
+                        ₹1,499 <span className={cn("text-[10px] font-normal", isDark ? "text-indigo-400/70" : "text-indigo-600")}>/{t('subscription.mo', 'mo')}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-indigo-300" : "text-indigo-800")}>
-                        5 properties
+                        {t('subscription.propsCountLower', '{{count}} properties', { count: 5 })}
                       </span>
                     </div>
                   </div>
@@ -985,7 +999,7 @@ export default function ManagerSubscriptionPage() {
                   <div className="flex flex-col h-full justify-end">
                     <div className="h-6 mb-1 flex items-center justify-center">
                       <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-violet-300/40">
-                        GROWING PORTFOLIOS
+                        {t('subscription.growingPortfoliosBadge', 'GROWING PORTFOLIOS')}
                       </span>
                     </div>
                     <div className={cn(
@@ -998,16 +1012,16 @@ export default function ManagerSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-violet-400" : "text-violet-700"
                       )}>
-                        ♛ PRO
+                        ♛ {t('subscription.pro', 'PRO')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹2,999 <span className={cn("text-[10px] font-normal", isDark ? "text-violet-400/70" : "text-violet-600")}>/mo</span>
+                        ₹2,999 <span className={cn("text-[10px] font-normal", isDark ? "text-violet-400/70" : "text-violet-600")}>/{t('subscription.mo', 'mo')}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-violet-300" : "text-violet-800")}>
-                        Unlimited (6+)
+                        {t('subscription.unlimitedPlus', 'Unlimited (6+)')}
                       </span>
                     </div>
                   </div>
@@ -1059,7 +1073,7 @@ export default function ManagerSubscriptionPage() {
                         "px-3.5 py-1 rounded-full border font-mono font-bold text-xs shadow-sm",
                         isDark ? "bg-violet-500/15 border-violet-500/35 text-violet-300" : "bg-violet-100 border-violet-300 text-violet-800"
                       )}>
-                        Unlimited (6+)
+                        {t('subscription.unlimitedPlus', 'Unlimited (6+)')}
                       </span>
                     </div>
                   </div>
@@ -1311,7 +1325,7 @@ export default function ManagerSubscriptionPage() {
                         isDark ? "bg-violet-500/20 border-violet-400/40 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.25)]" : "bg-violet-100 border-violet-300 text-violet-800"
                       )}>
                         <Check className="w-3 h-3 stroke-[3]" />
-                        <span className="text-[10px] font-black tracking-wider uppercase">Enterprise</span>
+                        <span className="text-[10px] font-black tracking-wider uppercase">{t('subscription.enterprise', 'Enterprise')}</span>
                       </div>
                     </div>
                   </div>
@@ -1323,7 +1337,7 @@ export default function ManagerSubscriptionPage() {
                   isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600"
                 )}>
                   <span className="font-medium">{t('subscription.footerManagerChoose', 'Choose the plan that fits your property operations.')}</span>
-                  <span className={cn("text-[11px]", isDark ? "text-slate-500" : "text-slate-400")}>Plans can be upgraded as your portfolio expands.</span>
+                  <span className={cn("text-[11px]", isDark ? "text-slate-500" : "text-slate-400")}>{t('subscription.footerUpgradeNote', 'Plans can be upgraded as your portfolio expands.')}</span>
                 </div>
               </div>
             </div>

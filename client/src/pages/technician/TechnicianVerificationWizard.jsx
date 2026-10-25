@@ -18,18 +18,10 @@ import {
   VerificationSectionCard,
   FileUploader,
 } from '../../components/verification';
+import { useLanguage } from '../../context/LanguageContext';
 
 import useAuthStore from '../../context/authStore';
 import trackEvent, { VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
-
-const STEP_LABELS = [
-  'Personal Details',
-  'Professional Details',
-  'Professional Documents',
-  'Skills & Portfolio',
-  'Review Profile',
-  'Submit Application',
-];
 
 const FormField = ({ label, type = 'text', value, onChange, placeholder }) => (
   <div className="space-y-1.5">
@@ -45,9 +37,19 @@ const FormField = ({ label, type = 'text', value, onChange, placeholder }) => (
 );
 
 export default function TechnicianVerificationWizard() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const draftKey = `technician_verification_draft_${user?.id || 'guest'}`;
+
+  const stepLabels = [
+    t('technicianWizard.step1Label', 'Personal Details'),
+    t('technicianWizard.step2Label', 'Professional Details'),
+    t('technicianWizard.step3Label', 'Professional Documents'),
+    t('technicianWizard.step4Label', 'Skills & Portfolio'),
+    t('technicianWizard.step5Label', 'Review Profile'),
+    t('technicianWizard.step6Label', 'Submit Application'),
+  ];
 
   const [currentStep, setCurrentStep] = useState(1);
   const [saveStatus, setSaveStatus] = useState('Idle');
@@ -149,8 +151,8 @@ export default function TechnicianVerificationWizard() {
     <div className="p-6 sm:p-10 space-y-8">
       {/* Header */}
       <VerificationPageHeader
-        title="Technician Verification Wizard"
-        subtitle="Complete the 6-step trade verification process to unlock dispatch assignments"
+        title={t('technicianWizard.title', 'Technician Verification Wizard')}
+        subtitle={t('technicianWizard.subtitle', 'Complete the 6-step trade verification process to unlock dispatch assignments')}
         icon={Wrench}
       />
 
@@ -158,52 +160,52 @@ export default function TechnicianVerificationWizard() {
       <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-            Step {currentStep} of 6 — {STEP_LABELS[currentStep - 1]}
+            {t('technicianWizard.stepProgress', 'Step {{current}} of 6 — {{step}}', { current: currentStep, step: stepLabels[currentStep - 1] })}
           </span>
           <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
             <Save className="w-3.5 h-3.5 text-slate-500" />
             {saveStatus}
           </span>
         </div>
-        <VerificationProgressStepper steps={STEP_LABELS} currentStep={currentStep} />
+        <VerificationProgressStepper steps={stepLabels} currentStep={currentStep} />
       </div>
 
       {/* Wizard Form Body */}
       <div className="min-h-[400px]">
         {/* Step 1: Personal Details */}
         {currentStep === 1 && (
-          <VerificationSectionCard title="Step 1: Personal Identification" icon={User}>
+          <VerificationSectionCard title={t('technicianWizard.step1Title', 'Step 1: Personal Identification')} icon={User}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
-                label="Full Name"
+                label={t('technicianWizard.fullName', 'Full Name')}
                 value={formData.fullName}
                 onChange={(e) => handleChange('fullName', e.target.value)}
-                placeholder="Marcus Vance"
+                placeholder={t('technicianWizard.fullNamePlaceholder', 'Marcus Vance')}
               />
               <FormField
-                label="Email Address"
+                label={t('technicianWizard.emailAddress', 'Email Address')}
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="marcus.vance@workforce.com"
+                placeholder={t('technicianWizard.emailPlaceholder', 'marcus.vance@workforce.com')}
               />
               <FormField
-                label="Phone Number"
+                label={t('technicianWizard.phoneNumber', 'Phone Number')}
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="+1 (555) 234-5678"
               />
               <FormField
-                label="Date of Birth"
+                label={t('technicianWizard.dob', 'Date of Birth')}
                 type="date"
                 value={formData.dob}
                 onChange={(e) => handleChange('dob', e.target.value)}
               />
               <div className="md:col-span-2">
                 <FormField
-                  label="Residential Address"
+                  label={t('technicianWizard.address', 'Residential Address')}
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
-                  placeholder="450 Industrial Parkway, North Metro Zone"
+                  placeholder={t('technicianWizard.addressPlaceholder', '450 Industrial Parkway, North Metro Zone')}
                 />
               </div>
             </div>
@@ -212,44 +214,44 @@ export default function TechnicianVerificationWizard() {
 
         {/* Step 2: Professional Details */}
         {currentStep === 2 && (
-          <VerificationSectionCard title="Step 2: Professional Skills & Operating Hours" icon={Briefcase}>
+          <VerificationSectionCard title={t('technicianWizard.step2Title', 'Step 2: Professional Skills & Operating Hours')} icon={Briefcase}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
-                label="Primary Trade Skill"
+                label={t('technicianWizard.primarySkill', 'Primary Trade Skill')}
                 value={formData.primarySkill}
                 onChange={(e) => handleChange('primarySkill', e.target.value)}
-                placeholder="HVAC & Climate Control"
+                placeholder={t('technicianWizard.primarySkillPlaceholder', 'HVAC & Climate Control')}
               />
               <FormField
-                label="Secondary Skills (Comma Separated)"
+                label={t('technicianWizard.secondarySkills', 'Secondary Skills (Comma Separated)')}
                 value={formData.secondarySkills}
                 onChange={(e) => handleChange('secondarySkills', e.target.value)}
-                placeholder="Electrical, Plumbing, Appliance Repair"
+                placeholder={t('technicianWizard.secondarySkillsPlaceholder', 'Electrical, Plumbing, Appliance Repair')}
               />
               <FormField
-                label="Years of Experience"
+                label={t('technicianWizard.yearsExperience', 'Years of Experience')}
                 type="number"
                 value={formData.yearsExperience}
                 onChange={(e) => handleChange('yearsExperience', e.target.value)}
                 placeholder="8"
               />
               <FormField
-                label="Working Hours / Shifts"
+                label={t('technicianWizard.workingHours', 'Working Hours / Shifts')}
                 value={formData.workingHours}
                 onChange={(e) => handleChange('workingHours', e.target.value)}
-                placeholder="08:00 AM - 08:00 PM"
+                placeholder={t('technicianWizard.workingHoursPlaceholder', '08:00 AM - 08:00 PM')}
               />
               <FormField
-                label="Languages Spoken"
+                label={t('technicianWizard.languages', 'Languages Spoken')}
                 value={formData.languages}
                 onChange={(e) => handleChange('languages', e.target.value)}
-                placeholder="English, Spanish"
+                placeholder={t('technicianWizard.languagesPlaceholder', 'English, Spanish')}
               />
               <FormField
-                label="Service Coverage Zone"
+                label={t('technicianWizard.serviceArea', 'Service Coverage Zone')}
                 value={formData.serviceArea}
                 onChange={(e) => handleChange('serviceArea', e.target.value)}
-                placeholder="North & Central Metro Zone"
+                placeholder={t('technicianWizard.serviceAreaPlaceholder', 'North & Central Metro Zone')}
               />
             </div>
           </VerificationSectionCard>
@@ -257,11 +259,11 @@ export default function TechnicianVerificationWizard() {
 
         {/* Step 3: Professional Documents */}
         {currentStep === 3 && (
-          <VerificationSectionCard title="Step 3: Upload Professional Trade Licenses & Diplomas" icon={FileCheck}>
+          <VerificationSectionCard title={t('technicianWizard.step3Title', 'Step 3: Upload Professional Trade Licenses & Diplomas')} icon={FileCheck}>
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Government Photo ID (Passport / Drivers License)
+                  {t('technicianWizard.govtId', 'Government Photo ID (Passport / Drivers License)')}
                 </label>
                 <FileUploader
                   onFileUpload={(file) => handleChange('govtId', file.name)}
@@ -271,7 +273,7 @@ export default function TechnicianVerificationWizard() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Master Trade License (HVAC / Electrical / Plumbing)
+                  {t('technicianWizard.masterTradeLicense', 'Master Trade License (HVAC / Electrical / Plumbing)')}
                 </label>
                 <FileUploader
                   onFileUpload={(file) => handleChange('tradeLicense', file.name)}
@@ -281,7 +283,7 @@ export default function TechnicianVerificationWizard() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  ITI / NSDC Skill Certification Diploma
+                  {t('technicianWizard.itiCertificate', 'ITI / NSDC Skill Certification Diploma')}
                 </label>
                 <FileUploader
                   onFileUpload={(file) => handleChange('itiCertificate', file.name)}
@@ -294,11 +296,11 @@ export default function TechnicianVerificationWizard() {
 
         {/* Step 4: Skills & Portfolio */}
         {currentStep === 4 && (
-          <VerificationSectionCard title="Step 4: Completed Work Photos & Project Portfolio" icon={ImageIcon}>
+          <VerificationSectionCard title={t('technicianWizard.step4Title', 'Step 4: Completed Work Photos & Project Portfolio')} icon={ImageIcon}>
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">
-                  Upload Completed Job Photos (Compresses automatically)
+                  {t('technicianWizard.uploadJobPhotos', 'Upload Completed Job Photos (Compresses automatically)')}
                 </label>
                 <FileUploader
                   onFileUpload={(file) => {
@@ -328,7 +330,7 @@ export default function TechnicianVerificationWizard() {
                           portfolioImages: prev.portfolioImages.filter((p) => p.id !== img.id),
                         }))
                       }
-                      className="text-rose-400 hover:text-rose-300 text-xs p-1"
+                      className="text-rose-400 hover:text-rose-300 text-xs p-1 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -341,22 +343,22 @@ export default function TechnicianVerificationWizard() {
 
         {/* Step 5: Review Profile */}
         {currentStep === 5 && (
-          <VerificationSectionCard title="Step 5: Review Technician Verification Profile" icon={CheckCircle}>
+          <VerificationSectionCard title={t('technicianWizard.step5Title', 'Step 5: Review Technician Verification Profile')} icon={CheckCircle}>
             <div className="space-y-6 text-xs">
               <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
-                <h4 className="font-bold text-slate-200 text-sm">Personal & Trade Summary</h4>
+                <h4 className="font-bold text-slate-200 text-sm">{t('technicianWizard.summaryHeading', 'Personal & Trade Summary')}</h4>
                 <div className="grid grid-cols-2 gap-2 text-slate-400">
-                  <p>Name: <span className="text-slate-200 font-semibold">{formData.fullName}</span></p>
-                  <p>Primary Skill: <span className="text-slate-200 font-semibold">{formData.primarySkill}</span></p>
-                  <p>Experience: <span className="text-slate-200 font-semibold">{formData.yearsExperience} Years</span></p>
-                  <p>Coverage: <span className="text-slate-200 font-semibold">{formData.serviceArea}</span></p>
+                  <p>{t('common.name', 'Name')}: <span className="text-slate-200 font-semibold">{formData.fullName}</span></p>
+                  <p>{t('technicianWizard.primarySkillLabel', 'Primary Skill')}: <span className="text-slate-200 font-semibold">{formData.primarySkill}</span></p>
+                  <p>{t('technicianWizard.experienceLabel', 'Experience')}: <span className="text-slate-200 font-semibold">{formData.yearsExperience} {t('technicianWizard.years', 'Years')}</span></p>
+                  <p>{t('technicianWizard.coverageLabel', 'Coverage')}: <span className="text-slate-200 font-semibold">{formData.serviceArea}</span></p>
                 </div>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
-                <h4 className="font-bold text-slate-200 text-sm">Attached Documents & Portfolio</h4>
-                <p className="text-emerald-400 font-semibold">✓ 3 Trade Licenses & Diplomas Attached</p>
-                <p className="text-emerald-400 font-semibold">✓ {formData.portfolioImages.length} Portfolio Photos Uploaded</p>
+                <h4 className="font-bold text-slate-200 text-sm">{t('technicianWizard.attachedDocs', 'Attached Documents & Portfolio')}</h4>
+                <p className="text-emerald-400 font-semibold">{t('technicianWizard.tradeLicensesAttached', '✓ 3 Trade Licenses & Diplomas Attached')}</p>
+                <p className="text-emerald-400 font-semibold">{t('technicianWizard.portfolioPhotosUploaded', '✓ {{count}} Portfolio Photos Uploaded', { count: formData.portfolioImages.length })}</p>
               </div>
             </div>
           </VerificationSectionCard>
@@ -364,22 +366,22 @@ export default function TechnicianVerificationWizard() {
 
         {/* Step 6: Submit Application */}
         {currentStep === 6 && (
-          <VerificationSectionCard title="Step 6: Submit Verification Application" icon={Wrench}>
+          <VerificationSectionCard title={t('technicianWizard.step6Title', 'Step 6: Submit Verification Application')} icon={Wrench}>
             <div className="text-center py-8 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
                 <CheckCircle className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Ready for Dispatch Verification</h3>
+                <h3 className="text-lg font-bold text-white">{t('technicianWizard.readyTitle', 'Ready for Dispatch Verification')}</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                  Submitting will generate your VRF sequence code (VRF-2026-T00712) and send your trade license for supervisor audit.
+                  {t('technicianWizard.readyDesc', 'Submitting will generate your VRF sequence code (VRF-2026-T00712) and send your trade license for supervisor audit.')}
                 </p>
               </div>
               <button
                 onClick={handleSubmit}
-                className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 transition-all"
+                className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 transition-all cursor-pointer"
               >
-                Submit Technician Verification
+                {t('technicianWizard.submitVerification', 'Submit Technician Verification')}
               </button>
             </div>
           </VerificationSectionCard>
@@ -391,28 +393,28 @@ export default function TechnicianVerificationWizard() {
         <button
           onClick={handlePrev}
           disabled={currentStep === 1}
-          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 font-semibold text-xs transition-all flex items-center"
+          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 font-semibold text-xs transition-all flex items-center cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+          <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.previous', 'Previous')}
         </button>
 
         <span className="text-xs text-slate-400 font-medium">
-          Step {currentStep} of 6
+          {t('common.stepOf', 'Step {{current}} of {{total}}', { current: currentStep, total: 6 })}
         </span>
 
         {currentStep < 6 ? (
           <button
             onClick={handleNext}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center cursor-pointer"
           >
-            Next <ChevronRight className="w-4 h-4 ml-1" />
+            {t('common.next', 'Next')} <ChevronRight className="w-4 h-4 ml-1" />
           </button>
         ) : (
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center cursor-pointer"
           >
-            Submit Application
+            {t('technicianWizard.submitApplication', 'Submit Application')}
           </button>
         )}
       </div>

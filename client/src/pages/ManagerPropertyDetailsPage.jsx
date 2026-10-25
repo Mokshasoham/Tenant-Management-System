@@ -47,6 +47,7 @@ const AMENITY_ICONS = {
 };
 
 function PropertyDetailMap({ location, name, address, city }) {
+    const { t } = useLanguage();
     const mapRef = React.useRef(null);
     const mapInstanceRef = React.useRef(null);
 
@@ -103,7 +104,7 @@ function PropertyDetailMap({ location, name, address, city }) {
     if (!location || !location.lat || !location.lng) {
         return (
             <div className="p-8 rounded-3xl bg-muted/40 border border-dashed border-border text-center text-xs text-muted-foreground font-bold">
-                📍 Location Map Unavailable
+                📍 {t('propertyDetails.mapUnavailable', 'Location Map Unavailable')}
             </div>
         );
     }
@@ -228,19 +229,19 @@ export default function ManagerPropertyDetailsPage() {
     const getTypeDisplay = (typeVal) => {
         switch (typeVal) {
             case 'apartment':
-                return { label: 'Apartment / Flat', icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+                return { label: t('properties.typeApartment', 'Apartment / Flat'), icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
             case 'house':
             case 'villa':
-                return { label: 'House / Villa', icon: Home, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
+                return { label: t('properties.typeHouse', 'House / Villa'), icon: Home, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
             case 'commercial':
             case 'shop':
-                return { label: 'Shop / Commercial', icon: Store, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' };
+                return { label: t('properties.typeCommercial', 'Shop / Commercial'), icon: Store, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' };
             case 'hostel':
-                return { label: 'Hostel', icon: Building, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' };
+                return { label: t('properties.typeHostel', 'Hostel'), icon: Building, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' };
             case 'pg':
-                return { label: 'PG / Paying Guest', icon: KeyRound, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
+                return { label: t('properties.typePg', 'PG / Paying Guest'), icon: KeyRound, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
             default:
-                return { label: typeVal ? (typeVal.charAt(0).toUpperCase() + typeVal.slice(1)) : 'Residential', icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+                return { label: typeVal ? (typeVal.charAt(0).toUpperCase() + typeVal.slice(1)) : t('properties.typeResidential', 'Residential'), icon: Building2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
         }
     };
 
@@ -249,7 +250,7 @@ export default function ManagerPropertyDetailsPage() {
             <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
                 <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
                 <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                    Loading Manager Property Workspace...
+                    {t('propertyDetails.loadingWorkspace', 'Loading Manager Property Workspace...')}
                 </p>
             </div>
         );
@@ -267,7 +268,7 @@ export default function ManagerPropertyDetailsPage() {
                     onClick={() => navigate('/properties')}
                     className="px-6 py-3 rounded-2xl bg-foreground text-background font-black text-xs uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer"
                 >
-                    Return to Properties
+                    {t('propertyDetails.returnToProperties', 'Return to Properties')}
                 </button>
             </div>
         );
@@ -291,7 +292,7 @@ export default function ManagerPropertyDetailsPage() {
     return (
         <div className="space-y-8 pb-16">
             <Helmet>
-                <title>{property.name} | Property Operations | TMS Manager Portal</title>
+                <title>{property.name} | {t('property.managerOperations', 'Property Operations')} | TMS</title>
             </Helmet>
 
             {/* Top Action & Navigation Header */}
@@ -328,7 +329,7 @@ export default function ManagerPropertyDetailsPage() {
                     <button
                         onClick={handleDeleteProperty}
                         className="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 transition-all text-xs font-bold active:scale-95 cursor-pointer"
-                        title="Delete Property"
+                        title={t('properties.deleteProperty', 'Delete Property')}
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
@@ -399,7 +400,7 @@ export default function ManagerPropertyDetailsPage() {
                                     type="button"
                                     onClick={() => setIsFullscreen(true)}
                                     className="p-2 rounded-full bg-black/60 hover:bg-black text-white backdrop-blur-md transition-all cursor-pointer shadow-lg"
-                                    title="Fullscreen View"
+                                    title={t('propertyDetails.fullscreenView', 'Fullscreen View')}
                                 >
                                     <Maximize2 className="w-4 h-4" />
                                 </button>
@@ -447,7 +448,7 @@ export default function ManagerPropertyDetailsPage() {
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                                        Verified Property Unit
+                                        {t('propertyDetails.verifiedUnit', 'Verified Property Unit')}
                                     </span>
                                 </div>
                                 <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
@@ -465,7 +466,7 @@ export default function ManagerPropertyDetailsPage() {
                                     <span className="text-xs font-normal text-muted-foreground"> / {t('properties.monthly', 'month')}</span>
                                 </p>
                                 <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
-                                    Deposit: ₹{(property.depositAmount || 0).toLocaleString('en-IN')}
+                                    {t('propertyDetails.depositLabel', 'Deposit: ₹{{amount}}', { amount: (property.depositAmount || 0).toLocaleString('en-IN') })}
                                 </p>
                             </div>
                         </div>
@@ -474,7 +475,7 @@ export default function ManagerPropertyDetailsPage() {
                         <div className="space-y-3 pt-2">
                             <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                                 <Layers className="w-4 h-4 text-emerald-500" />
-                                Unit Specifications ({typeInfo.label})
+                                {t('propertyDetails.unitSpecifications', 'Unit Specifications')} ({typeInfo.label})
                             </h3>
 
                             {/* Commercial / Shop Layout */}
@@ -483,29 +484,29 @@ export default function ManagerPropertyDetailsPage() {
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Square className="w-4 h-4 text-amber-500" />
-                                            <p className="text-foreground font-black text-sm">{property.commercialArea || property.squareFeet || '—'} Sq Ft</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Commercial Area</p>
+                                            <p className="text-foreground font-black text-sm">{property.commercialArea || property.squareFeet || '—'} {t('properties.sqFt', 'Sq Ft')}</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.commercialArea', 'Commercial Area')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Building2 className="w-4 h-4 text-blue-500" />
-                                            <p className="text-foreground font-black text-sm">{property.floor !== undefined ? `Floor ${property.floor}` : 'Ground'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Floor Level</p>
+                                            <p className="text-foreground font-black text-sm">{property.floor !== undefined ? t('propertyDetails.floor', 'Floor {{floor}}', { floor: property.floor }) : t('propertyDetails.groundFloor', 'Ground')}</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.floorLevel', 'Floor Level')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Store className="w-4 h-4 text-emerald-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.frontage || 'Standard'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Frontage / Width</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.frontageWidth', 'Frontage / Width')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Zap className="w-4 h-4 text-rose-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.electricity || '3-Phase'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Power / Electricity</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.powerElectricity', 'Power / Electricity')}</p>
                                         </div>
                                     </div>
 
                                     {Array.isArray(property.suitableFor) && property.suitableFor.length > 0 && (
                                         <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Suitable Business Types</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('propertyDetails.suitableBusinesses', 'Suitable Business Types')}</p>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {property.suitableFor.map((biz, idx) => (
                                                     <span key={idx} className="px-3 py-1 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold">
@@ -524,29 +525,29 @@ export default function ManagerPropertyDetailsPage() {
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Bed className="w-4 h-4 text-purple-500" />
-                                            <p className="text-foreground font-black text-sm">{property.totalBeds ? `${property.totalBeds} Beds` : `${property.bedrooms || '—'} Beds`}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Total Bed Capacity</p>
+                                            <p className="text-foreground font-black text-sm">{property.totalBeds ? `${property.totalBeds} ${t('properties.beds', 'Beds')}` : `${property.bedrooms || '—'} ${t('properties.beds', 'Beds')}`}</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.totalBedCapacity', 'Total Bed Capacity')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Users className="w-4 h-4 text-indigo-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.roomType || 'Hostel Rooms'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Room Sharing Type</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.roomSharingType', 'Room Sharing Type')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <ShieldCheck className="w-4 h-4 text-emerald-500" />
                                             <p className="text-foreground font-black text-sm capitalize">{property.genderPreference || 'Any / Co-ed'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Gender Policy</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.genderPolicy', 'Gender Policy')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Utensils className="w-4 h-4 text-amber-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.foodAvailability || 'Available'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Food / Mess Plan</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.foodMessPlan', 'Food / Mess Plan')}</p>
                                         </div>
                                     </div>
 
                                     {Array.isArray(property.commonFacilities) && property.commonFacilities.length > 0 && (
                                         <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Hostel Facilities</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('propertyDetails.hostelFacilities', 'Hostel Facilities')}</p>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {property.commonFacilities.map((fac, idx) => (
                                                     <span key={idx} className="px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold">
@@ -565,29 +566,29 @@ export default function ManagerPropertyDetailsPage() {
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Users className="w-4 h-4 text-rose-500" />
-                                            <p className="text-foreground font-black text-sm">{property.sharingCapacity ? `${property.sharingCapacity} Persons/Room` : (property.roomType || 'PG')}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Sharing Basis</p>
+                                            <p className="text-foreground font-black text-sm">{property.sharingCapacity ? `${property.sharingCapacity} ${t('propertyDetails.personsPerRoom', 'Persons/Room')}` : (property.roomType || 'PG')}</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.sharingBasis', 'Sharing Basis')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Bath className="w-4 h-4 text-emerald-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.bathroomType || 'Attached Bathroom'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Bathroom Setup</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.bathroomSetup', 'Bathroom Setup')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <ShieldCheck className="w-4 h-4 text-blue-500" />
                                             <p className="text-foreground font-black text-sm capitalize">{property.genderPreference || 'Any / Open'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Gender Policy</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.genderPolicy', 'Gender Policy')}</p>
                                         </div>
                                         <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                             <Utensils className="w-4 h-4 text-amber-500" />
                                             <p className="text-foreground font-black text-sm truncate">{property.foodAvailability || 'Home Cooked Meals'}</p>
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Food & Dining</p>
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('propertyDetails.foodDining', 'Food & Dining')}</p>
                                         </div>
                                     </div>
 
                                     {Array.isArray(property.facilities) && property.facilities.length > 0 && (
                                         <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">In-Room & PG Facilities</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('propertyDetails.inRoomPgFacilities', 'In-Room & PG Facilities')}</p>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {property.facilities.map((fac, idx) => (
                                                     <span key={idx} className="px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold">
@@ -630,17 +631,17 @@ export default function ManagerPropertyDetailsPage() {
                         {/* Description */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest">
-                                Property Description
+                                {t('propertyDetails.description', 'Property Description')}
                             </h3>
                             <p className="text-sm text-foreground/80 leading-relaxed font-medium whitespace-pre-line">
-                                {property.description || 'No description provided for this property listing.'}
+                                {property.description || t('propertyDetails.noDescription', 'No description provided for this property listing.')}
                             </p>
                         </div>
 
                         {/* Amenities Grid */}
                         <div className="space-y-3 pt-3 border-t border-border/60">
                             <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest">
-                                Property Amenities ({property.amenities?.length || 0})
+                                {t('propertyDetails.amenities', 'Property Amenities')} ({property.amenities?.length || 0})
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {(Array.isArray(property.amenities) && property.amenities.length > 0 ? property.amenities : ['Parking', 'Wifi', 'Security', 'Maintenance']).map((am, i) => {
@@ -662,7 +663,7 @@ export default function ManagerPropertyDetailsPage() {
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                                     <MapPin className="w-4 h-4 text-rose-500" />
-                                    Property Location & Coordinates
+                                    {t('propertyDetails.locationCoordinates', 'Property Location & Coordinates')}
                                 </h3>
                                 {googleMapsUrl && (
                                     <a
@@ -692,7 +693,7 @@ export default function ManagerPropertyDetailsPage() {
                                     </div>
                                     <div>
                                         <p className="text-xs font-black text-foreground uppercase tracking-wide">{t('property.managerNavigation', 'Manager Direct Navigation')}</p>
-                                        <p className="text-[11px] text-muted-foreground">Coordinates: {property.location?.lat || '—'}, {property.location?.lng || '—'}</p>
+                                        <p className="text-[11px] text-muted-foreground">{t('propertyDetails.coordinates', 'Coordinates')}: {property.location?.lat || '—'}, {property.location?.lng || '—'}</p>
                                     </div>
                                 </div>
                                 {googleMapsUrl && (
@@ -719,7 +720,7 @@ export default function ManagerPropertyDetailsPage() {
                             <div className="space-y-1">
                                 <span className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-500 flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    Property Management
+                                    {t('propertyDetails.propertyManagement', 'Property Management')}
                                 </span>
                                 <h3 className="text-xl font-black text-foreground">{t('property.unitOperations', 'Unit Operations')}</h3>
                             </div>
@@ -738,7 +739,7 @@ export default function ManagerPropertyDetailsPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
                                 <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">{t('properties.rent', 'Monthly Rent')}</p>
-                                <p className="text-xl font-black text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}<span className="text-xs font-normal text-muted-foreground/50">/mo</span></p>
+                                <p className="text-xl font-black text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}<span className="text-xs font-normal text-muted-foreground/50">/{t('properties.monthShort', 'mo')}</span></p>
                             </div>
                             <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
                                 <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">{t('lease.depositHeld', 'Security Deposit')}</p>
@@ -754,7 +755,7 @@ export default function ManagerPropertyDetailsPage() {
                                     type="button"
                                     onClick={handleCopyId}
                                     className="font-mono text-foreground hover:text-emerald-500 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                    title="Click to copy ID"
+                                    title={t('common.clickToCopy', 'Click to copy ID')}
                                 >
                                     <span>{property._id?.substring(0, 10)}...</span>
                                     {copiedId ? <CheckCheck className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 opacity-60" />}
@@ -766,7 +767,7 @@ export default function ManagerPropertyDetailsPage() {
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">{t('property.assignedManager', 'Managed By')}</span>
-                                <span className="text-foreground">{property.manager?.firstName || property.owner?.firstName || user?.firstName || 'Assigned Manager'}</span>
+                                <span className="text-foreground">{property.manager?.firstName || property.owner?.firstName || user?.firstName || t('property.assignedManager', 'Assigned Manager')}</span>
                             </div>
                         </div>
 
@@ -777,28 +778,28 @@ export default function ManagerPropertyDetailsPage() {
                                 const isExpired = !activeLease && latestLease && (latestLease.status === 'expired' || (latestLease.endDate && new Date(latestLease.endDate) <= now));
                                 const daysRemaining = activeLease?.endDate ? Math.ceil((new Date(activeLease.endDate) - now) / (1000 * 60 * 60 * 24)) : null;
 
-                                let badgeText = 'Vacant / Ready';
+                                let badgeText = t('propertyDetails.vacantReady', 'Vacant / Ready');
                                 let badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
 
                                 if (activeLease) {
                                     if (activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none') {
-                                        badgeText = 'Move-Out Requested';
+                                        badgeText = t('propertyDetails.moveOutRequested', 'Move-Out Requested');
                                         badgeClass = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
                                     } else if (activeLease.leaseDecision === 'renewal_requested') {
-                                        badgeText = 'Renewal Requested';
+                                        badgeText = t('propertyDetails.renewalRequested', 'Renewal Requested');
                                         badgeClass = 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
                                     } else if (daysRemaining !== null && daysRemaining <= 7 && daysRemaining > 0) {
-                                        badgeText = `Expiring Soon (${daysRemaining}d)`;
+                                        badgeText = t('propertyDetails.expiringSoonDays', 'Expiring Soon ({{days}}d)', { days: daysRemaining });
                                         badgeClass = 'bg-orange-500/10 text-orange-500 border-orange-500/20';
                                     } else if (activeLease.renewedTo) {
-                                        badgeText = 'Renewed';
+                                        badgeText = t('propertyDetails.renewed', 'Renewed');
                                         badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
                                     } else {
-                                        badgeText = 'Occupied / Active Lease';
+                                        badgeText = t('propertyDetails.occupiedActive', 'Occupied / Active Lease');
                                         badgeClass = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
                                     }
                                 } else if (isExpired) {
-                                    badgeText = 'Lease Expired';
+                                    badgeText = t('propertyDetails.leaseExpired', 'Lease Expired');
                                     badgeClass = 'bg-rose-500/10 text-rose-500 border-rose-500/20';
                                 }
 
@@ -823,7 +824,7 @@ export default function ManagerPropertyDetailsPage() {
                                                 </div>
                                                 {activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none' && (
                                                     <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-bold flex items-center justify-between">
-                                                        <span>Move-Out Notice:</span>
+                                                        <span>{t('propertyDetails.moveOutNotice', 'Move-Out Notice')}:</span>
                                                         <span className="capitalize">{activeLease.moveOutStatus.replace('_', ' ')}</span>
                                                     </div>
                                                 )}
@@ -832,7 +833,7 @@ export default function ManagerPropertyDetailsPage() {
                                                     onClick={() => navigate('/leases')}
                                                     className="w-full mt-2 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                                                 >
-                                                    View Lease Agreement →
+                                                    {t('propertyDetails.viewLeaseAgreement', 'View Lease Agreement')} →
                                                 </button>
                                             </div>
                                         ) : isExpired && latestLease ? (
@@ -847,7 +848,7 @@ export default function ManagerPropertyDetailsPage() {
                                                 </div>
                                                 {latestLease.paymentSummary?.hasOutstandingDues && (
                                                     <p className="text-xs text-rose-400 font-bold">
-                                                        Unpaid Balance: ₹{latestLease.paymentSummary.unpaidTotal?.toLocaleString('en-IN')}
+                                                        {t('propertyDetails.unpaidBalance', 'Unpaid Balance')}: ₹{latestLease.paymentSummary.unpaidTotal?.toLocaleString('en-IN')}
                                                     </p>
                                                 )}
                                                 <button
@@ -855,20 +856,20 @@ export default function ManagerPropertyDetailsPage() {
                                                     onClick={() => navigate('/leases?status=expired')}
                                                     className="w-full mt-2 py-2 rounded-xl bg-card border border-border text-foreground hover:bg-muted text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
                                                 >
-                                                    View Expired Tenancy →
+                                                    {t('propertyDetails.viewExpiredTenancy', 'View Expired Tenancy')} →
                                                 </button>
                                             </div>
                                         ) : (
                                             <div className="p-4 rounded-2xl bg-muted/40 border border-dashed border-border/80 text-center space-y-2">
                                                 <p className="text-xs text-muted-foreground font-medium">
-                                                    No active lease on this unit. This property is available for discovery on the resident portal.
+                                                    {t('propertyDetails.noActiveLeaseMsg', 'No active lease on this unit. This property is available for discovery on the resident portal.')}
                                                 </p>
                                                 <button
                                                     type="button"
                                                     onClick={() => navigate('/leases')}
                                                     className="px-4 py-1.5 rounded-xl bg-muted border border-border hover:bg-muted/80 text-xs font-bold text-foreground transition-all cursor-pointer"
                                                 >
-                                                    View Prospective Leases
+                                                    {t('propertyDetails.viewProspectiveLeases', 'View Prospective Leases')}
                                                 </button>
                                             </div>
                                         )}
@@ -886,7 +887,7 @@ export default function ManagerPropertyDetailsPage() {
                                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <Edit2 className="w-4 h-4" />
-                                <span>{t('properties.editProperty', 'Edit Property')} Details</span>
+                                <span>{t('properties.editProperty', 'Edit Property')}</span>
                             </button>
                             <button
                                 type="button"
@@ -912,17 +913,17 @@ export default function ManagerPropertyDetailsPage() {
                         <div className="flex items-center justify-between">
                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
                                 <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />
-                                Financial Overview
+                                {t('propertyDetails.financialOverview', 'Financial Overview')}
                             </span>
                             <span className="text-[10px] font-black text-emerald-500 uppercase">{t('property.annualYield', 'Annual Yield')}</span>
                         </div>
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-semibold">{t('properties.rent', 'Monthly Rent')} Roll</span>
+                                <span className="text-muted-foreground font-semibold">{t('properties.rent', 'Monthly Rent')}</span>
                                 <span className="font-bold text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-semibold">{t('lease.depositHeld', 'Security Deposit')} Escrow</span>
+                                <span className="text-muted-foreground font-semibold">{t('lease.depositHeld', 'Security Deposit')}</span>
                                 <span className="font-bold text-foreground">₹{(property.depositAmount || 0).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs">

@@ -106,9 +106,9 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                     <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">{t('payments.amountDue', 'Amount Due')}</p>
                     <p className="text-4xl font-black text-foreground">₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</p>
                     <div className="flex gap-3 mt-3 text-xs text-muted-foreground/60">
-                      <span>Property: {payment.property?.name || 'N/A'}</span>
+                      <span>{t('properties.property', 'Property')}: {payment.property?.name || 'N/A'}</span>
                       <span>•</span>
-                      <span>Due: {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : 'N/A'}</span>
+                      <span>{t('payments.due', 'Due')}: {payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
 
@@ -137,10 +137,10 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                   {/* Card preview */}
                   <div className="relative p-5 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white overflow-hidden">
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
-                    <p className="text-xs font-bold opacity-60 mb-4">PAYMENT CARD</p>
+                    <p className="text-xs font-bold opacity-60 mb-4">{t('payments.paymentCard', 'PAYMENT CARD')}</p>
                     <p className="text-xl font-black tracking-widest mb-4">{cardNumber || '•••• •••• •••• ••••'}</p>
                     <div className="flex justify-between">
-                      <span className="text-xs opacity-60">VALID THRU {expiry || 'MM/YY'}</span>
+                      <span className="text-xs opacity-60">{t('payments.validThru', 'VALID THRU')} {expiry || 'MM/YY'}</span>
                       <span className="text-sm font-bold">{(user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')} ••••</span>
                     </div>
                   </div>
@@ -184,18 +184,18 @@ function PayModal({ payment, onSuccess, onClose, theme }) {
                   </div>
 
                   <div className="flex gap-3">
-                    <button onClick={() => setStep(1)} className="px-4 py-2.5 rounded-xl border border-border text-muted-foreground/60 text-sm font-bold hover:bg-muted transition-all">
-                      Back
+                    <button onClick={() => setStep(1)} className="px-4 py-2.5 rounded-xl border border-border text-muted-foreground/60 text-sm font-bold hover:bg-muted transition-all cursor-pointer">
+                      {t('common.back', 'Back')}
                     </button>
                     <button
                       onClick={handlePay}
                       disabled={loading || cardNumber.length < 19 || expiry.length < 5 || cvv.length < 3}
-                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {loading ? (
                         <><RefreshCw className="w-4 h-4 animate-spin" /> {t('payments.processing', 'Processing...')}</>
                       ) : (
-                        <><Check className="w-4 h-4" /> Pay ₹{(payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN')}</>
+                        <><Check className="w-4 h-4" /> {t('payments.payAmount', 'Pay ₹{{amount}}', { amount: (payment.amount - (payment.amountPaid || 0)).toLocaleString('en-IN') })}</>
                       )}
                     </button>
                   </div>
@@ -448,14 +448,14 @@ export default function PaymentsPage() {
             </div>
             <div>
               <p className="text-sm font-black text-amber-700 dark:text-amber-300">{t('payments.paymentDue', 'Payment Due')}</p>
-              <p className="text-xs text-amber-700/60 dark:text-amber-300/60">Your rent of <strong>₹{pendingPayments[0]?.amount?.toLocaleString('en-IN')}</strong> is due soon</p>
+              <p className="text-xs text-amber-700/60 dark:text-amber-300/60">{t('payments.rentDueNotice', 'Your rent of ₹{{amount}} is due soon', { amount: pendingPayments[0]?.amount?.toLocaleString('en-IN') })}</p>
             </div>
           </div>
           <button
             onClick={() => setSelectedPayment(pendingPayments[0])}
-            className="px-4 py-2 rounded-xl bg-amber-600 dark:bg-amber-500 text-white font-bold text-xs hover:opacity-90 transition-all"
+            className="px-4 py-2 rounded-xl bg-amber-600 dark:bg-amber-500 text-white font-bold text-xs hover:opacity-90 transition-all cursor-pointer"
           >
-            Pay Now
+            {t('payments.payNow', 'Pay Now')}
           </button>
         </motion.div>
       )}
@@ -562,7 +562,7 @@ export default function PaymentsPage() {
                     <div className="col-span-2">
                       <p className="text-sm font-black text-foreground">₹{payment.amount?.toLocaleString('en-IN')}</p>
                       {payment.amountPaid > 0 && (
-                        <p className="text-[10px] text-muted-foreground/50">Paid: ₹{payment.amountPaid?.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-muted-foreground/50">{t('payments.paidAmount', 'Paid: ₹{{amount}}', { amount: payment.amountPaid?.toLocaleString('en-IN') })}</p>
                       )}
                     </div>
 
@@ -603,9 +603,9 @@ export default function PaymentsPage() {
                       {isTenant && owed > 0 && payment.status !== 'paid' && (
                         <button
                           onClick={() => setSelectedPayment(payment)}
-                          className="opacity-0 group-hover:opacity-100 text-[10px] font-black px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                          className="opacity-0 group-hover:opacity-100 text-[10px] font-black px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all cursor-pointer"
                         >
-                          Pay
+                          {t('payments.pay', 'Pay')}
                         </button>
                       )}
 
@@ -615,17 +615,17 @@ export default function PaymentsPage() {
                           <button
                             onClick={() => handleStatusUpdate(payId, 'paid')}
                             disabled={updateStatusId === payId}
-                            className="text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all"
+                            className="text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
                           >
-                            ✓ Paid
+                            ✓ {t('payments.paid', 'Paid')}
                           </button>
                           {payment.status !== 'overdue' && (
                             <button
                               onClick={() => handleStatusUpdate(payId, 'overdue')}
                               disabled={updateStatusId === payId}
-                              className="text-[9px] font-black px-2 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all"
+                              className="text-[9px] font-black px-2 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
                             >
-                              Overdue
+                              {t('payments.overdue', 'Overdue')}
                             </button>
                           )}
                         </div>

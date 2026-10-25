@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../context/LanguageContext';
+import { getLocalizedStatus } from '../../utils/statusLocalization';
 import { useVerificationContext } from '../../context/VerificationContext';
 import FeatureFlagService from '../../services/FeatureFlagService';
 import useAuthStore from '../../context/authStore';
@@ -342,10 +343,10 @@ export default function PropertyVerificationPage() {
     return (
       <div className="p-6 sm:p-10 space-y-8">
         <VerificationPageHeader
-          title="Property Verification & Trust Portal"
-          subtitle="Verify real estate ownership, tax compliance, building safety, and physical inspection metrics"
+          title={t('verification.propertyPortalTitle', 'Property Verification & Trust Portal')}
+          subtitle={t('verification.propertyPortalSubtitle', 'Verify real estate ownership, tax compliance, building safety, and physical inspection metrics')}
           icon={Building2}
-          breadcrumbs={[{ label: 'Property Operations', href: '/properties' }, { label: 'Property Verification' }]}
+          breadcrumbs={[{ label: t('nav.properties', 'Property Operations'), href: '/properties' }, { label: t('nav.propertyVerification', 'Property Verification') }]}
         />
 
         <div className="p-12 text-center rounded-[2.5rem] border border-dashed border-border bg-card/40 backdrop-blur-sm max-w-2xl mx-auto my-12 space-y-5">
@@ -355,7 +356,7 @@ export default function PropertyVerificationPage() {
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-foreground">{t('properties.empty', 'No properties available for verification')}</h2>
             <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Add your first managed property to establish its real estate trust score, verify legal title deeds, and increase tenant inquiries.
+              {t('verification.noManagedPropsDesc', 'Add your first managed property to establish its real estate trust score, verify legal title deeds, and increase tenant inquiries.')}
             </p>
           </div>
           <div className="pt-2">
@@ -378,10 +379,10 @@ export default function PropertyVerificationPage() {
     return (
       <div className="p-6 sm:p-10 space-y-8">
         <VerificationPageHeader
-          title="Property Verification & Trust Portal"
-          subtitle="Verify real estate ownership, tax compliance, building safety, and physical inspection metrics"
+          title={t('verification.propertyPortalTitle', 'Property Verification & Trust Portal')}
+          subtitle={t('verification.propertyPortalSubtitle', 'Verify real estate ownership, tax compliance, building safety, and physical inspection metrics')}
           icon={Building2}
-          breadcrumbs={[{ label: 'Property Operations', href: '/properties' }, { label: 'Property Verification' }]}
+          breadcrumbs={[{ label: t('nav.properties', 'Property Operations'), href: '/properties' }, { label: t('nav.propertyVerification', 'Property Verification') }]}
         />
 
         <div className="p-10 text-center rounded-[2.5rem] border border-rose-500/20 bg-rose-500/5 max-w-xl mx-auto my-8 space-y-4">
@@ -396,7 +397,7 @@ export default function PropertyVerificationPage() {
               onClick={() => handleSelectProperty(properties[0]._id)}
               className="px-5 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-all cursor-pointer shadow-md"
             >
-              Switch to {properties[0].name}
+              {t('verification.switchTo', 'Switch to')} {properties[0].name}
             </button>
           )}
         </div>
@@ -441,10 +442,10 @@ export default function PropertyVerificationPage() {
     <div className="p-6 sm:p-10 space-y-6">
       {/* ══ HEADER ══ */}
       <VerificationPageHeader
-        title="Property Verification & Trust Portal"
-        subtitle="Verify real estate ownership, tax compliance, building safety, and physical inspection metrics"
+        title={t('verification.propertyPortalTitle', 'Property Verification & Trust Portal')}
+        subtitle={t('verification.propertyPortalSubtitle', 'Verify real estate ownership, tax compliance, building safety, and physical inspection metrics')}
         icon={Building2}
-        breadcrumbs={[{ label: 'Property Operations', href: '/properties' }, { label: 'Property Verification' }]}
+        breadcrumbs={[{ label: t('nav.properties', 'Property Operations'), href: '/properties' }, { label: t('nav.propertyVerification', 'Property Verification') }]}
         actionSlot={
           <Button
             variant="outline"
@@ -454,7 +455,7 @@ export default function PropertyVerificationPage() {
             disabled={loadingVerification}
           >
             <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5", loadingVerification && "animate-spin")} />
-            {loadingVerification ? 'Refreshing…' : 'Refresh Data'}
+            {loadingVerification ? t('common.refreshing', 'Refreshing…') : t('common.refreshData', 'Refresh Data')}
           </Button>
         }
       />
@@ -496,7 +497,7 @@ export default function PropertyVerificationPage() {
                   {activeProperty?.name}
                 </h2>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
-                  {activeProperty?.status || 'Available'}
+                  {getLocalizedStatus(activeProperty?.status || 'available', t, 'property')}
                 </span>
               </div>
 
@@ -510,15 +511,15 @@ export default function PropertyVerificationPage() {
               </p>
 
               <div className="flex items-center gap-3 text-xs font-bold text-foreground pt-0.5">
-                <span>₹{(activeProperty?.rentAmount || 0).toLocaleString('en-IN')}<span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
+                <span>₹{(activeProperty?.rentAmount || 0).toLocaleString('en-IN')}<span className="text-[10px] text-muted-foreground font-normal">/{t('properties.perMonth', 'mo')}</span></span>
                 {activeProperty?.bedrooms != null && (
-                  <span className="text-muted-foreground text-[11px] font-semibold">🛏 {activeProperty.bedrooms} Beds</span>
+                  <span className="text-muted-foreground text-[11px] font-semibold">🛏 {activeProperty.bedrooms} {t('property.beds', 'Beds')}</span>
                 )}
                 {activeProperty?.bathrooms != null && (
-                  <span className="text-muted-foreground text-[11px] font-semibold">🚿 {activeProperty.bathrooms} Baths</span>
+                  <span className="text-muted-foreground text-[11px] font-semibold">🚿 {activeProperty.bathrooms} {t('property.baths', 'Baths')}</span>
                 )}
                 {activeProperty?.areaSqFt != null && (
-                  <span className="text-muted-foreground text-[11px] font-semibold">📐 {activeProperty.areaSqFt} sqft</span>
+                  <span className="text-muted-foreground text-[11px] font-semibold">📐 {activeProperty.areaSqFt} {t('property.sqft', 'sqft')}</span>
                 )}
               </div>
             </div>
@@ -535,7 +536,7 @@ export default function PropertyVerificationPage() {
             >
               <div className="flex items-center gap-2 text-left">
                 <Building2 className="w-4 h-4 text-primary" />
-                <span>Switch Property ({properties.length} available)</span>
+                <span>{t('verification.switchPropertyWithCount', 'Switch Property ({{count}} available)', { count: properties.length })}</span>
               </div>
               <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", selectorOpen && "rotate-180")} />
             </button>
@@ -559,7 +560,7 @@ export default function PropertyVerificationPage() {
                         type="text"
                         value={propertySearch}
                         onChange={(e) => setPropertySearch(e.target.value)}
-                        placeholder="Search property name, address, or city…"
+                        placeholder={t('verification.searchPropertyPlaceholder', 'Search property name, address, or city…')}
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
                         autoFocus
                       />
@@ -608,10 +609,10 @@ export default function PropertyVerificationPage() {
                                 <span>{[p.address, p.city, p.state].filter(Boolean).join(', ') || 'India'}</span>
                               </p>
                               <p className="text-[10px] font-semibold text-foreground">
-                                ₹{(p.rentAmount || 0).toLocaleString('en-IN')}/mo
+                                ₹{(p.rentAmount || 0).toLocaleString('en-IN')}/{t('properties.perMonth', 'mo')}
                                 {p.status && (
                                   <span className="ml-2 text-[9px] uppercase tracking-wider text-emerald-500 font-bold">
-                                    • {p.status}
+                                    • {getLocalizedStatus(p.status, t, 'property')}
                                   </span>
                                 )}
                               </p>
@@ -636,7 +637,7 @@ export default function PropertyVerificationPage() {
         {properties.length > 1 && (
           <div className="flex items-center gap-2 pt-4 mt-4 border-t border-border/40 overflow-x-auto scrollbar-none">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 flex-shrink-0">
-              Quick Select:
+              {t('common.quickSelect', 'Quick Select:')}
             </span>
             {properties.map((p) => {
               const isSelected = String(p._id) === String(selectedPropertyId);
@@ -711,7 +712,7 @@ export default function PropertyVerificationPage() {
               navigate(`/property/verification/wizard?propertyId=${selectedPropertyId}`);
             }}
           >
-            Verify Property
+            {t('verification.verifyProperty', 'Verify Property')}
           </Button>
         )}
       </div>
@@ -720,7 +721,7 @@ export default function PropertyVerificationPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Column 1: Verification Status */}
         <VerificationSectionCard
-          title="Verification Status"
+          title={t('verification.verificationStatus', 'Verification Status')}
           subtitle={`VRF Sequence: ${vrfNumber}`}
           icon={ShieldCheck}
         >
@@ -738,13 +739,13 @@ export default function PropertyVerificationPage() {
             {/* Current Level & Progress */}
             <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">Current Level</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t('verification.currentLevel', 'Current Level')}</span>
                 <span className="text-xs font-black text-primary px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20">
                   {propertyLevel}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground font-medium">Next Level Goal</span>
+                <span className="text-muted-foreground font-medium">{t('verification.nextLevelGoal', 'Next Level Goal')}</span>
                 <span className="font-bold text-foreground">{levelProgress.nextLevel}</span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-snug">
@@ -799,7 +800,7 @@ export default function PropertyVerificationPage() {
               {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold flex items-center gap-2">
                   <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>Inspection & Legal Review Pending</span>
+                  <span>{t('verification.reviewPending', 'Inspection & Legal Review Pending')}</span>
                 </div>
               )}
             </div>
@@ -808,7 +809,7 @@ export default function PropertyVerificationPage() {
 
         {/* Column 2: Property Trust & Health */}
         <VerificationSectionCard
-          title="Property Trust & Health"
+          title={t('verification.propertyTrustHealth', 'Property Trust & Health')}
           subtitle={trustData.statusTitle || 'Unverified Property'}
           icon={Award}
         >
@@ -852,25 +853,25 @@ export default function PropertyVerificationPage() {
 
         {/* Column 3: Property Quality Metrics */}
         <VerificationSectionCard
-          title="Property Quality Metrics"
+          title={t('verification.propertyQualityMetrics', 'Property Quality Metrics')}
           subtitle={activeProperty?.name || 'Selected Property'}
           icon={Home}
         >
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Property Type</span>
+              <span className="text-muted-foreground font-medium">{t('properties.propertyType', 'Property Type')}</span>
               <span className="font-bold text-foreground capitalize">{activeProperty?.type || 'Property'}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-center">
-                <p className="text-[10px] text-muted-foreground font-semibold">Rent (Monthly)</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">{t('properties.rentMonthly', 'Rent (Monthly)')}</p>
                 <p className="text-sm font-black text-foreground">
                   ₹{(activeProperty?.rentAmount || 0).toLocaleString('en-IN')}
                 </p>
               </div>
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-center">
-                <p className="text-[10px] text-muted-foreground font-semibold">Total Area</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">{t('properties.totalArea', 'Total Area')}</p>
                 <p className="text-sm font-black text-foreground">
                   {activeProperty?.areaSqFt || activeProperty?.sqft ? `${activeProperty.areaSqFt || activeProperty.sqft} sqft` : 'N/A'}
                 </p>
@@ -889,8 +890,8 @@ export default function PropertyVerificationPage() {
 
       {/* ══ PROPERTY READINESS WIDGET ══ */}
       <VerificationSectionCard
-        title="Property Readiness Widget"
-        subtitle="Property listing readiness indicator"
+        title={t('verification.propertyReadinessWidget', 'Property Readiness Widget')}
+        subtitle={t('verification.propertyReadinessSubtitle', 'Property listing readiness indicator')}
         icon={Zap}
       >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-4 rounded-2xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/20">
@@ -903,12 +904,12 @@ export default function PropertyVerificationPage() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground max-w-lg leading-relaxed">
-              Verified properties receive high listing priority on Browse Map View, Gold property badges, and certified compliance reports for prospective tenants.
+              {t('verification.verifiedPropsNotice', 'Verified properties receive high listing priority on Browse Map View, Gold property badges, and certified compliance reports for prospective tenants.')}
             </p>
             <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium pt-1">
-              <span>Expiry Target: {renewal.expiresOn}</span>
+              <span>{t('verification.expiryTarget', 'Expiry Target: {{date}}', { date: renewal.expiresOn })}</span>
               <span>•</span>
-              <span>Health Completeness: {healthScore.healthScorePercent}%</span>
+              <span>{t('verification.healthCompleteness', 'Health Completeness: {{score}}%', { score: healthScore.healthScorePercent })}</span>
             </div>
           </div>
 
@@ -917,7 +918,7 @@ export default function PropertyVerificationPage() {
             className="text-xs whitespace-nowrap shrink-0 font-bold"
             onClick={() => navigate(`/property/verification/wizard?propertyId=${selectedPropertyId}`)}
           >
-            {status === 'UNVERIFIED' ? 'Start Property Verification' : 'Update Verification'}
+            {status === 'UNVERIFIED' ? t('verification.startVerification', 'Start Property Verification') : t('verification.updateVerification', 'Update Verification')}
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </div>
@@ -927,8 +928,8 @@ export default function PropertyVerificationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Required Documents Checklist */}
         <VerificationSectionCard
-          title="Required Documents Checklist"
-          subtitle={`Tailored compliance checklist for ${activeProperty?.type || 'property'}`}
+          title={t('verification.requiredDocsChecklist', 'Required Documents Checklist')}
+          subtitle={t('verification.tailoredComplianceDesc', 'Tailored compliance checklist for {{type}}', { type: activeProperty?.type || 'property' })}
           icon={FileText}
           actionSlot={
             <Button
@@ -937,7 +938,7 @@ export default function PropertyVerificationPage() {
               className="text-xs"
               onClick={() => navigate(`/property/verification/documents?propertyId=${selectedPropertyId}`)}
             >
-              Manage Documents →
+              {t('verification.manageDocuments', 'Manage Documents')} →
             </Button>
           }
         >
@@ -965,7 +966,7 @@ export default function PropertyVerificationPage() {
                     <span className="font-semibold text-foreground truncate">{doc.name}</span>
                     {doc.required && (
                       <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">
-                        Required
+                        {t('common.required', 'Required')}
                       </span>
                     )}
                   </div>
@@ -990,8 +991,8 @@ export default function PropertyVerificationPage() {
 
         {/* Right: Recent Audit Activity */}
         <VerificationSectionCard
-          title="Recent Audit Activity"
-          subtitle={`Audit log for ${activeProperty?.name}`}
+          title={t('verification.recentAuditActivity', 'Recent Audit Activity')}
+          subtitle={t('verification.auditLogFor', 'Audit log for {{name}}', { name: activeProperty?.name || '' })}
           icon={History}
           actionSlot={
             <Button
@@ -1000,7 +1001,7 @@ export default function PropertyVerificationPage() {
               className="text-xs"
               onClick={() => navigate(`/property/verification/timeline?propertyId=${selectedPropertyId}`)}
             >
-              View Full Log →
+              {t('verification.viewFullLog', 'View Full Log')} →
             </Button>
           }
         >
@@ -1008,9 +1009,9 @@ export default function PropertyVerificationPage() {
             {timeline.length === 0 ? (
               <div className="p-8 text-center bg-muted/20 border border-dashed border-border rounded-2xl space-y-2">
                 <Clock className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                <p className="font-bold text-foreground text-xs">No Timeline Activity</p>
+                <p className="font-bold text-foreground text-xs">{t('verification.noTimelineActivity', 'No Timeline Activity')}</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                  Property verification events and inspection logs will appear here once initiated.
+                  {t('verification.noTimelineActivityDesc', 'Property verification events and inspection logs will appear here once initiated.')}
                 </p>
               </div>
             ) : (
@@ -1042,19 +1043,19 @@ export default function PropertyVerificationPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Verification Renewal */}
         <VerificationSectionCard
-          title="Verification Renewal Lifecycle"
-          subtitle="Annual compliance & validity target"
+          title={t('verification.renewalLifecycle', 'Verification Renewal Lifecycle')}
+          subtitle={t('verification.renewalLifecycleDesc', 'Annual compliance & validity target')}
           icon={Calendar}
         >
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Current Certificate Expiry</span>
+              <span className="text-muted-foreground font-medium">{t('verification.currentExpiry', 'Current Certificate Expiry')}</span>
               <span className="font-bold text-foreground">{renewal.expiresOn || 'N/A'}</span>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
               <span className="text-muted-foreground font-medium">{t('verification.daysRemaining', 'Days Remaining')}</span>
-              <span className="font-black text-primary">{renewal.daysRemaining || 0} Days</span>
+              <span className="font-black text-primary">{renewal.daysRemaining || 0} {t('common.days', 'Days')}</span>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
@@ -1066,18 +1067,18 @@ export default function PropertyVerificationPage() {
 
         {/* Right: Property Specs Summary */}
         <VerificationSectionCard
-          title="Property Specs Summary"
-          subtitle="Registered property attributes"
+          title={t('verification.propertySpecsSummary', 'Property Specs Summary')}
+          subtitle={t('verification.registeredPropertyAttrs', 'Registered property attributes')}
           icon={Building2}
         >
           <div className="space-y-2.5 pt-1 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Property Name</span>
+              <span className="text-muted-foreground font-medium">{t('verification.propertyName', 'Property Name')}</span>
               <span className="font-bold text-foreground truncate max-w-[200px]">{activeProperty?.name}</span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Registered Address</span>
+              <span className="text-muted-foreground font-medium">{t('verification.registeredAddress', 'Registered Address')}</span>
               <span className="font-bold text-foreground truncate max-w-[200px]">
                 {[activeProperty?.address, activeProperty?.city, activeProperty?.state].filter(Boolean).join(', ') || 'Managed Property'}
               </span>
@@ -1091,7 +1092,7 @@ export default function PropertyVerificationPage() {
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Status</span>
+              <span className="text-muted-foreground font-medium">{t('common.status', 'Status')}</span>
               <span className="font-black text-emerald-500 uppercase">{activeProperty?.status || 'Available'}</span>
             </div>
           </div>
@@ -1100,33 +1101,33 @@ export default function PropertyVerificationPage() {
 
       {/* ══ QUICK NAVIGATION ══ */}
       <VerificationSectionCard
-        title="Quick Navigation"
-        subtitle="Access property verification sub-modules"
+        title={t('verification.quickNavigation', 'Quick Navigation')}
+        subtitle={t('verification.quickNavigationDesc', 'Access property verification sub-modules')}
         icon={ExternalLink}
       >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
           {[
             {
-              label: 'Documents',
-              desc: 'Title deeds & tax receipts',
+              label: t('verification.documents', 'Documents'),
+              desc: t('verification.documentsDesc', 'Title deeds & tax receipts'),
               icon: FileText,
               path: `/property/verification/documents?propertyId=${selectedPropertyId}`,
             },
             {
-              label: 'Trust & Health',
-              desc: 'Score & quality metrics',
+              label: t('verification.trustHealth', 'Trust & Health'),
+              desc: t('verification.trustHealthDesc', 'Score & quality metrics'),
               icon: Award,
               path: `/property/trust-score?propertyId=${selectedPropertyId}`,
             },
             {
-              label: 'Audit Log',
-              desc: 'Inspection timeline',
+              label: t('verification.auditLog', 'Audit Log'),
+              desc: t('verification.auditLogDesc', 'Inspection timeline'),
               icon: History,
               path: `/property/verification/timeline?propertyId=${selectedPropertyId}`,
             },
             {
-              label: 'Wizard',
-              desc: 'Multi-step verification form',
+              label: t('verification.wizard', 'Wizard'),
+              desc: t('verification.wizardDesc', 'Multi-step verification form'),
               icon: ShieldCheck,
               path: `/property/verification/wizard?propertyId=${selectedPropertyId}`,
             },

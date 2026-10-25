@@ -68,7 +68,7 @@ export default function TechnicianSchedulePage() {
                       <h3 className="text-sm font-black text-foreground">{job.title}</h3>
                       <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-cyan-500" />
-                        {job.property?.name || 'Property'} • Unit {job.unit || 'N/A'}
+                        {job.property?.name || t('properties.property', 'Property')} • {t('properties.unit', 'Unit')} {job.unit || 'N/A'}
                       </p>
                     </div>
                   </div>

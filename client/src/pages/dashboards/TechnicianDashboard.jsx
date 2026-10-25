@@ -104,7 +104,7 @@ export default function TechnicianDashboard() {
             <span>{error}</span>
           </div>
           <button onClick={refetch} className="px-3 py-1 rounded-xl bg-rose-600 text-white hover:bg-rose-500 flex items-center gap-1 cursor-pointer">
-            <RefreshCw className="w-3.5 h-3.5" /> Retry
+            <RefreshCw className="w-3.5 h-3.5" /> {t('common.retry', 'Retry')}
           </button>
         </div>
       )}
@@ -191,7 +191,7 @@ export default function TechnicianDashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-cyan-500" />
-                      📍 {job.property?.name || 'Assigned Property'} • Unit {job.unit || 'N/A'} • {job.category || 'General'}
+                      {job.property?.name || 'Assigned Property'} • {t('properties.unit', 'Unit')} {job.unit || 'N/A'} • {job.category || 'General'}
                     </p>
                   </div>
 
@@ -203,7 +203,7 @@ export default function TechnicianDashboard() {
                       onClick={() => navigate(`/technician/jobs/${job._id}`)}
                       className="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black shadow-md transition-all cursor-pointer"
                     >
-                      Details →
+                      {t('common.details', 'Details')} →
                     </button>
                   </div>
                 </div>

@@ -74,11 +74,11 @@ function CreateLeaseModal({ onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">{error}</div>}
-          <SelectField label="Tenant *" value={form.tenantId} onChange={v => set('tenantId', v)}>
+          <SelectField label={`${t('leases.tenant', 'Tenant')} *`} value={form.tenantId} onChange={v => set('tenantId', v)}>
             <option value="" className="bg-card">{t('leases.selectTenant', 'Select Tenant')}</option>
             {tenants.map(t => <option key={t._id} value={t._id} className="bg-card">{t.firstName} {t.lastName} — {t.email}</option>)}
           </SelectField>
-          <SelectField label="Property *" value={form.propertyId} onChange={v => {
+          <SelectField label={`${t('properties.property', 'Property')} *`} value={form.propertyId} onChange={v => {
             const p = properties.find(x => x._id === v);
             set('propertyId', v);
             if (p) { set('rentAmount', p.rentAmount); set('depositAmount', p.depositAmount || ''); }
@@ -171,7 +171,7 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
                 <span>{t('lease.outstandingDuesOnExpired', 'Outstanding Dues on Expired Lease')}</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                This lease has expired, but an unpaid balance of <strong className="text-rose-400 font-black">₹{unpaidAmount.toLocaleString('en-IN')}</strong> remains pending on record. Settle via payments flow.
+                {t('lease.expiredUnpaidNotice', 'This lease has expired, but an unpaid balance of ₹{{amount}} remains pending on record. Settle via payments flow.', { amount: unpaidAmount.toLocaleString('en-IN') })}
               </p>
             </div>
           )}
@@ -182,13 +182,13 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-emerald-400" />
                 <div>
-                  <p className="text-xs font-bold text-emerald-400">Renewed To Lease {lease.renewedLease.leaseNumber}</p>
+                  <p className="text-xs font-bold text-emerald-400">{t('lease.renewedToLease', 'Renewed To Lease {{number}}', { number: lease.renewedLease.leaseNumber })}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    Term: {new Date(lease.renewedLease.startDate).toLocaleDateString()} – {new Date(lease.renewedLease.endDate).toLocaleDateString()}
+                    {t('lease.termLabel', 'Term')}: {new Date(lease.renewedLease.startDate).toLocaleDateString()} – {new Date(lease.renewedLease.endDate).toLocaleDateString()}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-black text-emerald-400">₹{lease.renewedLease.rentAmount?.toLocaleString('en-IN')} / mo</span>
+              <span className="text-xs font-black text-emerald-400">₹{lease.renewedLease.rentAmount?.toLocaleString('en-IN')} /{t('properties.monthShort', 'mo')}</span>
             </div>
           )}
 
@@ -211,12 +211,12 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
               </div>
               {lease.expectedMoveOutDate && (
                 <p className="text-xs text-muted-foreground">
-                  Expected Departure: <strong className="text-foreground">{new Date(lease.expectedMoveOutDate).toLocaleDateString()}</strong>
+                  {t('lease.expectedDeparture', 'Expected Departure')}: <strong className="text-foreground">{new Date(lease.expectedMoveOutDate).toLocaleDateString()}</strong>
                 </p>
               )}
               {lease.moveOutReason && (
                 <p className="text-xs text-muted-foreground">
-                  Reason: <strong className="text-foreground">{lease.moveOutReason}</strong>
+                  {t('common.reason', 'Reason')}: <strong className="text-foreground">{lease.moveOutReason}</strong>
                 </p>
               )}
               {lease.moveOutComments && (
@@ -228,13 +228,13 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <InfoBlock icon={User} label="Tenant" value={`${lease.tenant?.firstName || ''} ${lease.tenant?.lastName || ''}`} sub={lease.tenant?.email} />
-            <InfoBlock icon={Building2} label="Property" value={lease.property?.name} sub={lease.property?.address} />
-            <InfoBlock icon={Calendar} label="Start Date" value={new Date(lease.startDate).toLocaleDateString()} />
-            <InfoBlock icon={Calendar} label="End Date" value={new Date(lease.endDate).toLocaleDateString()}
+            <InfoBlock icon={User} label={t('leases.tenant', 'Tenant')} value={`${lease.tenant?.firstName || ''} ${lease.tenant?.lastName || ''}`} sub={lease.tenant?.email} />
+            <InfoBlock icon={Building2} label={t('properties.property', 'Property')} value={lease.property?.name} sub={lease.property?.address} />
+            <InfoBlock icon={Calendar} label={t('leases.startDate', 'Start Date')} value={new Date(lease.startDate).toLocaleDateString()} />
+            <InfoBlock icon={Calendar} label={t('leases.endDate', 'End Date')} value={new Date(lease.endDate).toLocaleDateString()}
               sub={days !== null ? (days > 0 ? `${days} days remaining` : `${Math.abs(days)} days overdue`) : ''} />
-            <InfoBlock icon={IndianRupee} label="Monthly Rent" value={lease.rentAmount === 0 ? 'FREE' : `₹${lease.rentAmount?.toLocaleString('en-IN')}`} />
-            <InfoBlock icon={IndianRupee} label="Deposit" value={`₹${lease.depositAmount?.toLocaleString('en-IN') || '0'}`} />
+            <InfoBlock icon={IndianRupee} label={t('properties.rent', 'Monthly Rent')} value={lease.rentAmount === 0 ? 'FREE' : `₹${lease.rentAmount?.toLocaleString('en-IN')}`} />
+            <InfoBlock icon={IndianRupee} label={t('leases.deposit', 'Deposit')} value={`₹${lease.depositAmount?.toLocaleString('en-IN') || '0'}`} />
           </div>
 
           {lease.utilities && (
@@ -257,12 +257,12 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
               <div className="flex items-center gap-4 justify-between">
                 <div className="text-xs space-y-1">
                   <p><span className="text-muted-foreground">{t('lease.signedBy', 'Signed By:')}</span> <strong className="text-foreground">{lease.signedBy}</strong></p>
-                  <p><span className="text-muted-foreground">IP:</span> <strong className="text-foreground font-mono">{lease.tenantSignatureIp}</strong></p>
-                  <p><span className="text-muted-foreground">Date:</span> <strong className="text-foreground">{new Date(lease.signedAt).toLocaleString()}</strong></p>
+                  <p><span className="text-muted-foreground">{t('lease.ipAddress', 'IP')}:</span> <strong className="text-foreground font-mono">{lease.tenantSignatureIp}</strong></p>
+                  <p><span className="text-muted-foreground">{t('common.date', 'Date')}:</span> <strong className="text-foreground">{new Date(lease.signedAt).toLocaleString()}</strong></p>
                 </div>
                 {lease.signature && (
                   <div className="w-32 h-14 bg-card border border-border p-1 flex items-center justify-center rounded-lg overflow-hidden shadow-inner flex-shrink-0">
-                    <img src={lease.signature} alt="Signature stamp" className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
+                    <img src={lease.signature} alt={t('lease.signatureStamp', 'Signature stamp')} className="max-h-full max-w-full object-contain pointer-events-none filter dark:brightness-110" />
                   </div>
                 )}
               </div>
@@ -274,7 +274,7 @@ function ViewLeaseModal({ lease, onClose, onTerminate }) {
           <div className="px-6 pb-6">
             <button onClick={onTerminate}
               className="w-full py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-black hover:bg-rose-500/20 transition-all cursor-pointer">
-              Terminate Lease
+              {t('lease.terminateLease', 'Terminate Lease')}
             </button>
           </div>
         )}
@@ -321,12 +321,12 @@ function ScheduleInspectionModal({ lease, onClose, onSaved }) {
         </div>
         {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Inspection Date *" type="datetime-local" required value={date} onChange={setDate} />
-          <TextAreaField label="Inspector Notes / Instructions" value={notes} onChange={setNotes} />
+          <Field label={`${t('lease.inspectionDate', 'Inspection Date')} *`} type="datetime-local" required value={date} onChange={setDate} />
+          <TextAreaField label={t('lease.inspectorNotes', 'Inspector Notes / Instructions')} value={notes} onChange={setNotes} />
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg disabled:opacity-50">
-              {loading ? 'Scheduling...' : 'Confirm Schedule'}
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer">{t('common.cancel', 'Cancel')}</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg disabled:opacity-50 cursor-pointer">
+              {loading ? t('lease.scheduling', 'Scheduling...') : t('lease.confirmSchedule', 'Confirm Schedule')}
             </button>
           </div>
         </form>
@@ -375,17 +375,17 @@ function CompleteInspectionModal({ lease, onClose, onSaved }) {
         </div>
         {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <SelectField label="Inspection Result *" value={result} onChange={setResult}>
+          <SelectField label={`${t('lease.inspectionResult', 'Inspection Result')} *`} value={result} onChange={setResult}>
             <option value="passed" className="bg-card">{t('lease.passedCleanOrder', 'Passed — Unit in Clean Order')}</option>
             <option value="minor_damage" className="bg-card">{t('lease.minorDamage', 'Minor Damage / Maintenance Needed')}</option>
             <option value="major_damage" className="bg-card">{t('lease.majorDamage', 'Major Damage Recorded')}</option>
           </SelectField>
-          <Field label="Actual Repair Cost (₹)" type="number" value={repairCost} onChange={setRepairCost} />
-          <TextAreaField label="Inspector Assessment &amp; Notes" value={notes} onChange={setNotes} />
+          <Field label={t('lease.actualRepairCost', 'Actual Repair Cost (₹)')} type="number" value={repairCost} onChange={setRepairCost} />
+          <TextAreaField label={t('lease.inspectorAssessment', 'Inspector Assessment & Notes')} value={notes} onChange={setNotes} />
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg disabled:opacity-50">
-              {loading ? 'Recording...' : 'Complete Inspection'}
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer">{t('common.cancel', 'Cancel')}</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg disabled:opacity-50 cursor-pointer">
+              {loading ? t('lease.recording', 'Recording...') : t('lease.completeInspection', 'Complete Inspection')}
             </button>
           </div>
         </form>
@@ -428,13 +428,13 @@ function RejectRenewalModal({ renewal, onClose, onSaved }) {
         {error && <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            Tenant will be notified with your reasoning and the lease renewal request will be marked as rejected.
+            {t('lease.declineRenewalNotice', 'Tenant will be notified with your reasoning and the lease renewal request will be marked as rejected.')}
           </p>
-          <TextAreaField label="Reason for Decline *" value={reason} onChange={setReason} />
+          <TextAreaField label={`${t('lease.reasonForDecline', 'Reason for Decline')} *`} value={reason} onChange={setReason} />
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black shadow-lg disabled:opacity-50">
-              {loading ? 'Declining...' : 'Confirm Decline'}
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer">{t('common.cancel', 'Cancel')}</button>
+            <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black shadow-lg disabled:opacity-50 cursor-pointer">
+              {loading ? t('lease.declining', 'Declining...') : t('lease.confirmDecline', 'Confirm Decline')}
             </button>
           </div>
         </form>
@@ -555,7 +555,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h3 className="text-base font-black text-foreground">{t('lease.settleSecurityDeposit', 'Settle Security Deposit')}</h3>
-            <p className="text-xs text-muted-foreground">{lease.property?.name} • Lease: {lease.leaseNumber}</p>
+            <p className="text-xs text-muted-foreground">{lease.property?.name} • {t('leases.lease', 'Lease')}: {lease.leaseNumber}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"><X className="w-4 h-4" /></button>
         </div>
@@ -572,13 +572,13 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
             {/* Authoritative Ledger Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
               <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-0.5">
-                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">{t('lease.depositHeld', 'Deposit Held')}</span>
                 <p className="text-sm font-black text-foreground">₹{depositAmount.toLocaleString('en-IN')}</p>
                 <p className="text-[10px] text-muted-foreground">{t('lease.originalEscrow', 'Original escrow deposit')}</p>
               </div>
 
               <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-0.5">
-                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Unpaid Rent &amp; Fees</span>
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">{t('lease.unpaidRentFees', 'Unpaid Rent & Fees')}</span>
                 <p className={cn("text-sm font-black", unpaidRent > 0 ? "text-rose-400" : "text-foreground")}>
                   ₹{unpaidRent.toLocaleString('en-IN')}
                 </p>
@@ -591,7 +591,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                   ₹{inspectionRepairCost.toLocaleString('en-IN')}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  Status: {preview?.inspection?.inspectionResult || 'completed'}
+                  {t('common.status', 'Status')}: {preview?.inspection?.inspectionResult || 'completed'}
                 </p>
               </div>
             </div>
@@ -608,13 +608,13 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                   onClick={addDeduction}
                   className="px-2.5 py-1 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 text-[11px] font-black border border-blue-500/20 transition-all cursor-pointer flex items-center gap-1"
                 >
-                  <Plus className="w-3 h-3" /> Add Deduction
+                  <Plus className="w-3 h-3" /> {t('lease.addDeduction', 'Add Deduction')}
                 </button>
               </div>
 
               {discretionaryDeductions.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground/60 italic py-1">
-                  No additional deductions added. Click "Add Deduction" to include cleaning or utility fees.
+                  {t('lease.noAdditionalDeductions', 'No additional deductions added. Click "Add Deduction" to include cleaning or utility fees.')}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -625,14 +625,14 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                         onChange={(e) => updateDeduction(index, 'category', e.target.value)}
                         className="px-2 py-1.5 rounded-lg bg-muted border border-border text-xs font-medium text-foreground focus:outline-none"
                       >
-                        <option value="cleaning">Cleaning</option>
-                        <option value="utilities">Utilities</option>
-                        <option value="other">Other</option>
+                        <option value="cleaning">{t('lease.cleaning', 'Cleaning')}</option>
+                        <option value="utilities">{t('lease.utilities', 'Utilities')}</option>
+                        <option value="other">{t('lease.other', 'Other')}</option>
                       </select>
 
                       <input
                         type="text"
-                        placeholder="Reason (required)"
+                        placeholder={t('lease.reasonRequired', 'Reason (required)')}
                         value={d.reason}
                         onChange={(e) => updateDeduction(index, 'reason', e.target.value)}
                         className="flex-1 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-xs text-foreground placeholder-muted-foreground/40 focus:outline-none"
@@ -655,7 +655,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                         type="button"
                         onClick={() => removeDeduction(index)}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
-                        title="Remove deduction"
+                        title={t('lease.removeDeduction', 'Remove deduction')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -675,7 +675,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
               {refundDue > 0 ? (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-black text-emerald-400 block text-sm">{t('lease.refundDue', 'Refund Due')} to Tenant: ₹{refundDue.toLocaleString('en-IN')}</span>
+                    <span className="font-black text-emerald-400 block text-sm">{t('lease.refundDueToTenant', 'Refund Due to Tenant: ₹{{amount}}', { amount: refundDue.toLocaleString('en-IN') })}</span>
                     <span className="text-[10px] text-muted-foreground">{t('lease.settlementMarksPayable', 'Settlement marks payable record. Disbursement handled via payments.')}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -685,11 +685,11 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
               ) : outstandingBalance > 0 ? (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-black text-rose-400 block text-sm">Tenant Balance Due: ₹{outstandingBalance.toLocaleString('en-IN')}</span>
+                    <span className="font-black text-rose-400 block text-sm">{t('lease.tenantBalanceDue', 'Tenant Balance Due: ₹{{amount}}', { amount: outstandingBalance.toLocaleString('en-IN') })}</span>
                     <span className="text-[10px] text-muted-foreground">{t('lease.deductionsExceedDeposit', 'Deductions exceed deposit held. Tenant liability will be recorded.')}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    Balance Due
+                    {t('lease.balanceDue', 'Balance Due')}
                   </span>
                 </div>
               ) : (
@@ -699,14 +699,14 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                     <span className="text-[10px] text-muted-foreground">{t('lease.fullDepositOffset', 'Full deposit offset or zero deposit and dues.')}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-muted text-muted-foreground border border-border">
-                    Neutral
+                    {t('lease.neutral', 'Neutral')}
                   </span>
                 </div>
               )}
             </div>
 
             <TextAreaField
-              label="Manager Settlement Notes / Audit Statement"
+              label={t('lease.managerSettlementNotes', 'Manager Settlement Notes / Audit Statement')}
               value={notes}
               onChange={setNotes}
             />
@@ -717,7 +717,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                 onClick={onClose}
                 className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer"
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 type="submit"
@@ -725,7 +725,7 @@ function SettleDepositModal({ lease, onClose, onSaved }) {
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
-                {submitting ? 'Settling...' : 'Confirm & Complete Settlement'}
+                {submitting ? t('lease.settling', 'Settling...') : t('lease.confirmSettlement', 'Confirm & Complete Settlement')}
               </button>
             </div>
           </form>
@@ -766,7 +766,7 @@ function ViewDepositSettlementModal({ lease, onClose }) {
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h3 className="text-base font-black text-foreground">{t('lease.settlementRecord', 'Deposit Settlement Record')}</h3>
-            <p className="text-xs text-muted-foreground">{lease.property?.name} • Lease: {lease.leaseNumber}</p>
+            <p className="text-xs text-muted-foreground">{lease.property?.name} • {t('leases.lease', 'Lease')}: {lease.leaseNumber}</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"><X className="w-4 h-4" /></button>
         </div>
@@ -780,7 +780,7 @@ function ViewDepositSettlementModal({ lease, onClose }) {
             {/* Status & Highlights */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="p-3 rounded-xl bg-muted/40 border border-border">
-                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                <span className="text-[9px] font-black uppercase text-muted-foreground/60">{t('lease.depositHeld', 'Deposit Held')}</span>
                 <p className="text-sm font-black text-foreground">₹{settlement.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
               </div>
               <div className="p-3 rounded-xl bg-muted/40 border border-border">
@@ -869,7 +869,7 @@ function ViewDepositSettlementModal({ lease, onClose }) {
               onClick={onClose}
               className="w-full py-2.5 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-all cursor-pointer"
             >
-              Close
+              {t('common.close', 'Close')}
             </button>
           </div>
         ) : null}
@@ -1125,10 +1125,10 @@ export default function LeasesPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-600" />
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">Contracts &amp; Lifecycle</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500 dark:text-blue-400">{t('leases.contractsLifecycle', 'Contracts & Lifecycle')}</p>
           </div>
           <h1 className="text-3xl font-black text-foreground">{t('leases.management', 'Lease Management')}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Authoritative portal for tenancies, renewals, move-outs &amp; inspections</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('leases.portalSubtitle', 'Authoritative portal for tenancies, renewals, move-outs & inspections')}</p>
         </div>
         <button onClick={() => setModal('create')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black text-sm hover:opacity-90 transition-all shadow-lg active:scale-95 transition-transform cursor-pointer"
@@ -1210,13 +1210,13 @@ export default function LeasesPage() {
               }}
               className="px-4 py-2.5 rounded-xl bg-card border border-border text-foreground text-xs font-bold focus:outline-none cursor-pointer"
             >
-              <option value="" className="bg-card">All Statuses &amp; Lifecycles</option>
+              <option value="" className="bg-card">{t('lease.allStatusesLifecycles', 'All Statuses & Lifecycles')}</option>
               <option value="active" className="bg-card">{t('lease.activeOnly', 'Active Only')}</option>
               <option value="expiring_soon" className="bg-card">{t('lease.expiringWithin7Days', 'Expiring Within 7 Days')}</option>
               <option value="expired" className="bg-card">{t('lease.expiredLeases', 'Expired Leases')}</option>
               <option value="unpaid_expired" className="bg-card">{t('lease.expiredWithUnpaidDues', 'Expired with Unpaid Dues')}</option>
-              <option value="pending" className="bg-card">Pending</option>
-              <option value="terminated" className="bg-card">Terminated</option>
+              <option value="pending" className="bg-card">{t('lease.pending', 'Pending')}</option>
+              <option value="terminated" className="bg-card">{t('lease.terminated', 'Terminated')}</option>
             </select>
 
             {(queryFilter || statusFilter) && (
@@ -1224,7 +1224,7 @@ export default function LeasesPage() {
                 onClick={() => { setQueryFilter(''); setStatusFilter(''); setPage(1); }}
                 className="text-xs font-bold text-muted-foreground hover:text-foreground px-3 py-2 rounded-xl bg-muted/40 border border-border transition-colors cursor-pointer"
               >
-                Clear Filters
+                {t('common.clearFilters', 'Clear Filters')}
               </button>
             )}
           </div>
@@ -1272,7 +1272,7 @@ export default function LeasesPage() {
                           <p className="text-sm font-bold text-foreground/90">{l.leaseNumber}</p>
                           {l.renewedLease && (
                             <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-0.5 mt-0.5">
-                              <RefreshCw className="w-2.5 h-2.5" /> Renewed
+                              <RefreshCw className="w-2.5 h-2.5" /> {t('lease.renewed', 'Renewed')}
                             </span>
                           )}
                         </td>
@@ -1288,7 +1288,7 @@ export default function LeasesPage() {
                           <p className="text-xs text-muted-foreground font-medium">{new Date(l.startDate).toLocaleDateString()}</p>
                           <p className="text-xs text-muted-foreground/60">→ {new Date(l.endDate).toLocaleDateString()}</p>
                           {effectiveStatus === 'active' && days !== null && days <= 7 && days > 0 && (
-                            <span className="text-[10px] font-black text-orange-400">({days}d left)</span>
+                            <span className="text-[10px] font-black text-orange-400">{t('common.daysLeftFormat', '({{days}}d left)', { days })}</span>
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-sm font-bold text-foreground">
@@ -1304,10 +1304,10 @@ export default function LeasesPage() {
                           {hasDues ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">
                               <AlertCircle className="w-3 h-3" />
-                              <span>₹{duesAmount.toLocaleString('en-IN')} Unpaid</span>
+                              <span>₹{duesAmount.toLocaleString('en-IN')} {t('common.unpaid', 'Unpaid')}</span>
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground/40 font-medium">None</span>
+                            <span className="text-xs text-muted-foreground/40 font-medium">{t('common.none', 'None')}</span>
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-right">
@@ -1325,12 +1325,18 @@ export default function LeasesPage() {
 
             {total > LIMIT && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20">
-                <p className="text-xs text-muted-foreground/60">Showing {Math.min((page - 1) * LIMIT + 1, total)}–{Math.min(page * LIMIT, total)} of {total}</p>
+                <p className="text-xs text-muted-foreground/60">
+                  {t('common.showingPagination', 'Showing {{start}}–{{end}} of {{total}}', { start: Math.min((page - 1) * LIMIT + 1, total), end: Math.min(page * LIMIT, total), total })}
+                </p>
                 <div className="flex gap-2">
                   <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border cursor-pointer">← Prev</button>
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border cursor-pointer">
+                    ← {t('common.prev', 'Prev')}
+                  </button>
                   <button disabled={page * LIMIT >= total} onClick={() => setPage(p => p + 1)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border cursor-pointer">Next →</button>
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 transition-all border border-border cursor-pointer">
+                    {t('common.next', 'Next')} →
+                  </button>
                 </div>
               </div>
             )}
@@ -1393,16 +1399,16 @@ export default function LeasesPage() {
 
                         <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
                           <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60">{t('lease.currentTerms', 'Current Terms')}</p>
-                          <p className="text-muted-foreground">Lease: <strong className="text-foreground">{r.lease?.leaseNumber}</strong></p>
-                          <p className="text-muted-foreground">Rent: <strong className="text-foreground">₹{r.lease?.rentAmount?.toLocaleString('en-IN')}</strong></p>
-                          <p className="text-muted-foreground">Expiry: <strong className="text-foreground">{leaseEnd ? leaseEnd.toLocaleDateString() : '—'}</strong></p>
+                          <p className="text-muted-foreground">{t('leases.lease', 'Lease')}: <strong className="text-foreground">{r.lease?.leaseNumber}</strong></p>
+                          <p className="text-muted-foreground">{t('properties.rent', 'Rent')}: <strong className="text-foreground">₹{r.lease?.rentAmount?.toLocaleString('en-IN')}</strong></p>
+                          <p className="text-muted-foreground">{t('lease.expiry', 'Expiry')}: <strong className="text-foreground">{leaseEnd ? leaseEnd.toLocaleDateString() : '—'}</strong></p>
                         </div>
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-indigo-500/5 border border-indigo-500/15 space-y-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-black text-indigo-400 uppercase text-[10px]">{t('lease.proposedRenewalTerms', 'Proposed Renewal Terms')}</span>
-                          <span className="font-black text-foreground">₹{r.proposedRent?.toLocaleString('en-IN')} / mo</span>
+                          <span className="font-black text-foreground">₹{r.proposedRent?.toLocaleString('en-IN')} /{t('properties.monthShort', 'mo')}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
@@ -1433,7 +1439,7 @@ export default function LeasesPage() {
 
                       {r.status === 'rejected' && r.rejectionReason && (
                         <div className="p-2.5 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground">
-                          Rejection Reason: <strong className="text-foreground">{r.rejectionReason}</strong>
+                          {t('lease.rejectionReason', 'Rejection Reason')}: <strong className="text-foreground">{r.rejectionReason}</strong>
                         </div>
                       )}
                     </div>
@@ -1446,7 +1452,7 @@ export default function LeasesPage() {
                           onClick={() => { setSelectedRenewal(r); setModal('rejectRenewal'); }}
                           className="flex-1 py-2.5 rounded-xl border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-black text-xs transition-colors cursor-pointer"
                         >
-                          Reject
+                          {t('common.reject', 'Reject')}
                         </button>
                         <button
                           type="button"
@@ -1454,7 +1460,7 @@ export default function LeasesPage() {
                           onClick={() => handleApproveRenewal(r)}
                           className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg disabled:opacity-40 transition-all cursor-pointer"
                         >
-                          {actionLoading ? 'Approving...' : 'Approve Renewal'}
+                          {actionLoading ? t('lease.approving', 'Approving...') : t('lease.approveRenewal', 'Approve Renewal')}
                         </button>
                       </div>
                     )}
@@ -1506,7 +1512,7 @@ export default function LeasesPage() {
                         <p className="text-xs text-muted-foreground">{m.property?.address}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-muted-foreground">Tenant:</span>
+                        <span className="text-xs font-bold text-muted-foreground">{t('leases.tenant', 'Tenant')}:</span>
                         <span className="text-xs font-black text-foreground">{m.tenant?.firstName} {m.tenant?.lastName}</span>
                       </div>
                     </div>
@@ -1549,7 +1555,7 @@ export default function LeasesPage() {
 
                     {m.moveOutComments && (
                       <p className="text-xs text-muted-foreground italic px-1">
-                        Notes: "{m.moveOutComments}"
+                        {t('common.notes', 'Notes')}: "{m.moveOutComments}"
                       </p>
                     )}
 
@@ -1557,7 +1563,7 @@ export default function LeasesPage() {
                     {m.paymentSummary?.hasOutstandingDues && (
                       <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 flex items-center justify-between">
                         <span className="flex items-center gap-1.5 font-bold">
-                          <AlertCircle className="w-4 h-4" /> Unpaid dues on this lease: ₹{m.paymentSummary?.unpaidTotal?.toLocaleString('en-IN')}
+                          <AlertCircle className="w-4 h-4" /> {t('lease.unpaidDuesNotice', 'Unpaid dues on this lease: ₹{{amount}}', { amount: m.paymentSummary?.unpaidTotal?.toLocaleString('en-IN') })}
                         </span>
                         <span className="text-[10px] text-muted-foreground">{t('lease.moveOutDoesNotWaive', 'Move-out does not waive dues')}</span>
                       </div>
@@ -1578,7 +1584,7 @@ export default function LeasesPage() {
                                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                                 <span className="font-black text-emerald-400">{t('lease.securityDepositSettled', 'Security Deposit Settled')}</span>
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                                  Authoritative
+                                  {t('lease.authoritative', 'Authoritative')}
                                 </span>
                               </>
                             ) : (
@@ -1586,7 +1592,7 @@ export default function LeasesPage() {
                                 <AlertTriangle className="w-4 h-4 text-amber-400" />
                                 <span className="font-black text-amber-400">{t('lease.depositSettlementRequired', 'Deposit Settlement Required')}</span>
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                                  Action Needed
+                                  {t('lease.actionNeeded', 'Action Needed')}
                                 </span>
                               </>
                             )}
@@ -1598,7 +1604,7 @@ export default function LeasesPage() {
                               onClick={() => { setSelectedMoveOut(m); setModal('viewSettlement'); }}
                               className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 w-fit"
                             >
-                              <Eye className="w-3.5 h-3.5" /> View Settlement Details
+                              <Eye className="w-3.5 h-3.5" /> {t('lease.viewSettlementDetails', 'View Settlement Details')}
                             </button>
                           ) : (
                             <button
@@ -1615,7 +1621,7 @@ export default function LeasesPage() {
                           <>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-muted-foreground">
                               <div className="p-2 rounded-lg bg-card/60 border border-border/50">
-                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Deposit Held</span>
+                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">{t('lease.depositHeld', 'Deposit Held')}</span>
                                 <p className="font-bold text-foreground">₹{m.settlement?.depositAmount?.toLocaleString('en-IN') ?? m.depositAmount?.toLocaleString('en-IN') ?? 0}</p>
                               </div>
                               <div className="p-2 rounded-lg bg-card/60 border border-border/50">
@@ -1627,7 +1633,7 @@ export default function LeasesPage() {
                                 <p className="font-black text-emerald-400">₹{m.settlement?.refundAmount?.toLocaleString('en-IN') ?? 0}</p>
                               </div>
                               <div className="p-2 rounded-lg bg-card/60 border border-border/50">
-                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">Outstanding Balance</span>
+                                <span className="text-[9px] font-black uppercase text-muted-foreground/60">{t('lease.outstandingBalance', 'Outstanding Balance')}</span>
                                 <p className="font-bold text-foreground">₹{m.settlement?.outstandingBalance?.toLocaleString('en-IN') ?? 0}</p>
                               </div>
                             </div>
@@ -1667,15 +1673,15 @@ export default function LeasesPage() {
                                 >
                                   {processingRefundId === (m.settlement?._id || m._id) ? (
                                     <>
-                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processing...
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('common.processing', 'Processing...')}
                                     </>
                                   ) : m.settlement?.refundStatus === 'failed' ? (
                                     <>
-                                      <RefreshCw className="w-3.5 h-3.5" /> Retry Refund (₹{m.settlement?.refundAmount?.toLocaleString('en-IN')})
+                                      <RefreshCw className="w-3.5 h-3.5" /> {t('lease.retryRefundAmount', 'Retry Refund (₹{{amount}})', { amount: m.settlement?.refundAmount?.toLocaleString('en-IN') })}
                                     </>
                                   ) : (
                                     <>
-                                      <IndianRupee className="w-3.5 h-3.5" /> Process Refund (₹{m.settlement?.refundAmount?.toLocaleString('en-IN')})
+                                      <IndianRupee className="w-3.5 h-3.5" /> {t('lease.processRefundAmount', 'Process Refund (₹{{amount}})', { amount: m.settlement?.refundAmount?.toLocaleString('en-IN') })}
                                     </>
                                   )}
                                 </button>
@@ -1684,7 +1690,7 @@ export default function LeasesPage() {
                           </>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            Inspection has concluded. Settle deposit deductions (unpaid rent, inspection repairs, utilities) before move-out can be finalized.
+                            {t('lease.inspectionConcludedNotice', 'Inspection has concluded. Settle deposit deductions (unpaid rent, inspection repairs, utilities) before move-out can be finalized.')}
                           </p>
                         )}
                       </div>
@@ -1698,7 +1704,7 @@ export default function LeasesPage() {
                           onClick={() => { setSelectedMoveOut(m); setModal('scheduleInspection'); }}
                           className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                         >
-                          Schedule Inspection
+                          {t('lease.scheduleInspection', 'Schedule Inspection')}
                         </button>
                       )}
 
@@ -1708,7 +1714,7 @@ export default function LeasesPage() {
                           onClick={() => { setSelectedMoveOut(m); setModal('completeInspection'); }}
                           className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                         >
-                          Complete Inspection Report
+                          {t('lease.completeInspectionReport', 'Complete Inspection Report')}
                         </button>
                       )}
 
@@ -1729,7 +1735,7 @@ export default function LeasesPage() {
                               onClick={() => handleFinalizeMoveOut(m._id)}
                               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
                             >
-                              {actionLoading ? 'Finalizing...' : 'Finalize Move-Out & Release Unit'}
+                              {actionLoading ? t('lease.finalizing', 'Finalizing...') : t('lease.finalizeMoveOut', 'Finalize Move-Out & Release Unit')}
                             </button>
                           )}
                         </>
@@ -1737,7 +1743,7 @@ export default function LeasesPage() {
 
                       {moveStatus === 'completed' && (
                         <span className="text-xs font-bold text-emerald-400 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                          Move-Out Finalized — Unit Released
+                          {t('lease.moveOutFinalized', 'Move-Out Finalized — Unit Released')}
                         </span>
                       )}
                     </div>

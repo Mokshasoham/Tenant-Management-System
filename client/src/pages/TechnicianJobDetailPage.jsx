@@ -24,6 +24,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
+import { getLocalizedStatus } from '../utils/statusLocalization';
 
 import CheckInOutPanel from '../components/technician/CheckInOutPanel';
 import PhotoWorkflowCapture from '../components/technician/PhotoWorkflowCapture';
@@ -127,14 +128,14 @@ export default function TechnicianJobDetailPage() {
   };
 
   if (loading) {
-    return <div className="py-16 text-center text-muted-foreground text-xs font-bold">Loading job details...</div>;
+    return <div className="py-16 text-center text-muted-foreground text-xs font-bold">{t('technician.loadingJobDetails', 'Loading job details...')}</div>;
   }
 
   if (!job) {
     return (
       <div className="py-16 text-center text-muted-foreground text-xs font-bold space-y-2">
-        <p>Ticket not found or permission denied.</p>
-        <Link to="/technician/jobs" className="text-cyan-500 underline font-black">Return to jobs list</Link>
+        <p>{t('technician.ticketNotFound', 'Ticket not found or permission denied.')}</p>
+        <Link to="/technician/jobs" className="text-cyan-500 underline font-black">{t('technician.returnToJobsList', 'Return to jobs list')}</Link>
       </div>
     );
   }
@@ -162,10 +163,10 @@ export default function TechnicianJobDetailPage() {
             "text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider border",
             job.priority === 'emergency' ? "bg-rose-500/20 text-rose-500 border-rose-500/40" : "bg-cyan-500/20 text-cyan-500 border-cyan-500/30"
           )}>
-            {job.priority || 'Medium'} Priority
+            {job.priority ? t(`maintenance.priority.${job.priority}`, job.priority) : 'Medium'} {t('maintenance.priorityLabel', 'Priority')}
           </span>
           <span className="text-xs px-3 py-1 rounded-full font-mono font-bold bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 capitalize">
-            {job.status?.replace('_', ' ')}
+            {getLocalizedStatus('technician', job.status, t)}
           </span>
         </div>
       </div>
@@ -187,8 +188,8 @@ export default function TechnicianJobDetailPage() {
           <div>
             <h1 className="text-xl font-black text-foreground">{job.title}</h1>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Ticket ID: <span className="font-mono text-cyan-500 font-bold">{job.ticketNumber || job._id}</span>
-              {job.unit && <span className="ml-3 font-bold text-foreground">Unit: {job.unit}</span>}
+              {t('technician.ticketId', 'Ticket ID')}: <span className="font-mono text-cyan-500 font-bold">{job.ticketNumber || job._id}</span>
+              {job.unit && <span className="ml-3 font-bold text-foreground">{t('properties.unit', 'Unit')}: {job.unit}</span>}
             </p>
           </div>
           {job.tenant?.phone && (
@@ -197,7 +198,7 @@ export default function TechnicianJobDetailPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-xs font-black hover:bg-emerald-500/30 self-start sm:self-center transition-all cursor-pointer"
             >
               <PhoneCall className="w-3.5 h-3.5" />
-              Call Tenant
+              {t('technician.callTenant', 'Call Tenant')}
             </a>
           )}
         </div>
@@ -270,10 +271,10 @@ export default function TechnicianJobDetailPage() {
               <div className="flex items-center justify-between pb-3 border-b border-border/40">
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                  <h2 className="text-sm font-black uppercase tracking-wider text-foreground">TENANT FEEDBACK</h2>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-foreground">{t('technician.tenantFeedback', 'TENANT FEEDBACK')}</h2>
                 </div>
                 {feedbackDate && (
-                  <span className="text-[11px] font-mono font-bold text-muted-foreground">Reviewed {feedbackDate}</span>
+                  <span className="text-[11px] font-mono font-bold text-muted-foreground">{t('technician.reviewedDate', 'Reviewed {{date}}', { date: feedbackDate })}</span>
                 )}
               </div>
 
@@ -286,7 +287,7 @@ export default function TechnicianJobDetailPage() {
                     </span>
                     {job.rating?.wouldRecommend && (
                       <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30 flex items-center gap-1">
-                        <ThumbsUp className="w-3.5 h-3.5" /> Recommended
+                        <ThumbsUp className="w-3.5 h-3.5" /> {t('technician.recommended', 'Recommended')}
                       </span>
                     )}
                   </div>
@@ -299,7 +300,7 @@ export default function TechnicianJobDetailPage() {
 
                   {feedbackTags.length > 0 && (
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Highlight Tags</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">{t('technician.highlightTags', 'Highlight Tags')}</span>
                       <div className="flex flex-wrap gap-2">
                         {feedbackTags.map((tag, i) => (
                           <span key={i} className="px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5">
@@ -313,8 +314,8 @@ export default function TechnicianJobDetailPage() {
               ) : (
                 <div className="p-6 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
                   <Star className="w-6 h-6 mx-auto text-muted-foreground/40 mb-1" />
-                  <p className="text-xs font-bold text-foreground">Waiting for tenant feedback</p>
-                  <p className="text-[10px] text-muted-foreground">No tenant review has been submitted yet for this completed job.</p>
+                  <p className="text-xs font-bold text-foreground">{t('technician.waitingFeedback', 'Waiting for tenant feedback')}</p>
+                  <p className="text-[10px] text-muted-foreground">{t('technician.noFeedbackSubmitted', 'No tenant review has been submitted yet for this completed job.')}</p>
                 </div>
               )}
             </div>
@@ -329,11 +330,11 @@ export default function TechnicianJobDetailPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-black text-foreground flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-emerald-400" />
-                  <span>Submit Work Completion</span>
+                  <span>{t('technician.submitWorkCompletion', 'Submit Work Completion')}</span>
                 </h2>
                 {job.status === 'awaiting_tenant_confirmation' && (
                   <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    Awaiting Tenant Confirmation
+                    {t('technician.awaitingConfirmation', 'Awaiting Tenant Confirmation')}
                   </span>
                 )}
               </div>
@@ -348,11 +349,11 @@ export default function TechnicianJobDetailPage() {
               <form onSubmit={handleCompletionSubmit} className="space-y-3 text-xs">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
-                    Work Performed *
+                    {t('technician.workPerformed', 'Work Performed')} *
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="Describe the diagnosis and repairs completed..."
+                    placeholder={t('technician.describeRepairs', 'Describe the diagnosis and repairs completed...')}
                     value={completionForm.workPerformed}
                     onChange={(e) => setCompletionForm(prev => ({ ...prev, workPerformed: e.target.value }))}
                     className={cn(
@@ -365,11 +366,11 @@ export default function TechnicianJobDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
-                      Parts / Supplies Used
+                      {t('technician.partsSuppliesUsed', 'Parts / Supplies Used')}
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 1 PVC valve, seal tape"
+                      placeholder={t('technician.partsPlaceholder', 'e.g. 1 PVC valve, seal tape')}
                       value={completionForm.partsUsed}
                       onChange={(e) => setCompletionForm(prev => ({ ...prev, partsUsed: e.target.value }))}
                       className={cn(
@@ -380,11 +381,11 @@ export default function TechnicianJobDetailPage() {
                   </div>
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">
-                      Completion Notes
+                      {t('technician.completionNotes', 'Completion Notes')}
                     </label>
                     <input
                       type="text"
-                      placeholder="Optional remarks for tenant..."
+                      placeholder={t('technician.completionNotesPlaceholder', 'Optional remarks for tenant...')}
                       value={completionForm.completionNotes}
                       onChange={(e) => setCompletionForm(prev => ({ ...prev, completionNotes: e.target.value }))}
                       className={cn(
@@ -413,8 +414,8 @@ export default function TechnicianJobDetailPage() {
             theme === 'light' ? "bg-white border-slate-200 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
           )}>
             <h2 className="text-sm font-black text-foreground flex items-center justify-between">
-              <span>Job Status Controls</span>
-              <span className="text-xs font-mono text-cyan-500 font-bold capitalize">Current: {job.status?.replace('_', ' ')}</span>
+              <span>{t('technician.jobStatusControls', 'Job Status Controls')}</span>
+              <span className="text-xs font-mono text-cyan-500 font-bold capitalize">{t('technician.currentStatus', 'Current')}: {getLocalizedStatus('technician', job.status, t)}</span>
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               {['work_started', 'in_progress', 'waiting_parts', 'resolved'].map((st) => (
@@ -429,7 +430,7 @@ export default function TechnicianJobDetailPage() {
                       : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 border border-slate-200 dark:border-slate-700"
                   )}
                 >
-                  Set {st.replace('_', ' ')}
+                  {t('technician.setStatus', 'Set')} {getLocalizedStatus('technician', st, t)}
                 </button>
               ))}
             </div>
@@ -442,13 +443,13 @@ export default function TechnicianJobDetailPage() {
           )}>
             <h2 className="text-sm font-black text-foreground flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-cyan-500" />
-              Technician Field Notes
+              {t('technician.fieldNotes', 'Technician Field Notes')}
             </h2>
 
             <form onSubmit={handleAddNote} className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Add a field work update or note..."
+                placeholder={t('technician.addNotePlaceholder', 'Add a field work update or note...')}
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 className={cn(
@@ -461,7 +462,7 @@ export default function TechnicianJobDetailPage() {
                 className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-black text-xs hover:bg-cyan-500 flex items-center gap-1 cursor-pointer shadow-md"
               >
                 <Send className="w-3.5 h-3.5" />
-                Add Note
+                {t('technician.addNote', 'Add Note')}
               </button>
             </form>
 
@@ -480,7 +481,7 @@ export default function TechnicianJobDetailPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground py-2 italic font-medium">No field notes added yet.</div>
+              <div className="text-xs text-muted-foreground py-2 italic font-medium">{t('technician.noNotesYet', 'No field notes added yet.')}</div>
             )}
           </div>
         </div>

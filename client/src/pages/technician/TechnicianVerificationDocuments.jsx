@@ -18,12 +18,14 @@ import {
   VerificationStatusBadge,
   VerificationEmptyState,
 } from '../../components/verification';
+import { useLanguage } from '../../context/LanguageContext';
 
 import getVerificationMapper from '../../mappers/verificationMapperFactory';
 import { MOCK_DOCUMENT_CATEGORIES } from '../../mocks/technicianVerificationMock';
 import trackEvent, { VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 
 export default function TechnicianVerificationDocuments() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const mapper = getVerificationMapper('TECHNICIAN');
 
@@ -57,33 +59,33 @@ export default function TechnicianVerificationDocuments() {
     <div className="p-6 sm:p-10 space-y-8">
       {/* Page Header */}
       <VerificationPageHeader
-        title="Technician Trade Documents & Diplomas"
-        subtitle="Manage master trade licenses, ITI certifications, liability insurance, and portfolio photos"
+        title={t('technicianDocs.title', 'Technician Trade Documents & Diplomas')}
+        subtitle={t('technicianDocs.subtitle', 'Manage master trade licenses, ITI certifications, liability insurance, and portfolio photos')}
         icon={FileCheck}
-        actionText="Upload New Document"
+        actionText={t('technicianDocs.uploadNew', 'Upload New Document')}
         onAction={() => navigate('/technician/verification/wizard')}
       />
 
       {/* Top 5 KPI Summary Counters */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
-          <p className="text-[11px] text-slate-400 font-medium uppercase">Uploaded</p>
+          <p className="text-[11px] text-slate-400 font-medium uppercase">{t('technicianDocs.uploaded', 'Uploaded')}</p>
           <p className="text-xl font-extrabold text-indigo-400 mt-1">{kpis.uploaded}</p>
         </div>
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
-          <p className="text-[11px] text-slate-400 font-medium uppercase">Pending Audit</p>
+          <p className="text-[11px] text-slate-400 font-medium uppercase">{t('technicianDocs.pendingAudit', 'Pending Audit')}</p>
           <p className="text-xl font-extrabold text-amber-400 mt-1">{kpis.pending}</p>
         </div>
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
-          <p className="text-[11px] text-slate-400 font-medium uppercase">Rejected</p>
+          <p className="text-[11px] text-slate-400 font-medium uppercase">{t('technicianDocs.rejected', 'Rejected')}</p>
           <p className="text-xl font-extrabold text-rose-400 mt-1">{kpis.rejected}</p>
         </div>
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
-          <p className="text-[11px] text-slate-400 font-medium uppercase">Expired</p>
+          <p className="text-[11px] text-slate-400 font-medium uppercase">{t('technicianDocs.expired', 'Expired')}</p>
           <p className="text-xl font-extrabold text-slate-400 mt-1">{kpis.expired}</p>
         </div>
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center">
-          <p className="text-[11px] text-slate-400 font-medium uppercase">Missing</p>
+          <p className="text-[11px] text-slate-400 font-medium uppercase">{t('technicianDocs.missing', 'Missing')}</p>
           <p className="text-xl font-extrabold text-indigo-300 mt-1">{kpis.missing}</p>
         </div>
       </div>
@@ -94,7 +96,7 @@ export default function TechnicianVerificationDocuments() {
           <button
             key={cat.key}
             onClick={() => setActiveCategory(cat.key)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeCategory === cat.key
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                 : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
@@ -129,23 +131,23 @@ export default function TechnicianVerificationDocuments() {
                 </div>
 
                 <div className="text-[11px] text-slate-400 space-y-1 pt-2 border-t border-slate-800/80">
-                  <p>Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}</p>
-                  {doc.expiresAt && <p>Expires: {new Date(doc.expiresAt).toLocaleDateString()}</p>}
+                  <p>{t('technicianDocs.uploadedDate', 'Uploaded')}: {new Date(doc.uploadedAt).toLocaleDateString()}</p>
+                  {doc.expiresAt && <p>{t('technicianDocs.expiresDate', 'Expires')}: {new Date(doc.expiresAt).toLocaleDateString()}</p>}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
                 <button
                   onClick={() => alert(`Preview ${doc.filename}`)}
-                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-all flex items-center"
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-all flex items-center cursor-pointer"
                 >
-                  <Eye className="w-3.5 h-3.5 mr-1" /> View
+                  <Eye className="w-3.5 h-3.5 mr-1" /> {t('common.view', 'View')}
                 </button>
                 <button
                   onClick={() => handleReplace(doc.id)}
-                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-all flex items-center"
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-all flex items-center cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 mr-1" /> Replace File
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" /> {t('technicianDocs.replaceFile', 'Replace File')}
                 </button>
               </div>
             </div>
@@ -153,9 +155,9 @@ export default function TechnicianVerificationDocuments() {
         </div>
       ) : (
         <VerificationEmptyState
-          title="No Trade Documents Found"
-          message={`No trade documents under category ${activeCategory}.`}
-          actionText="Upload Document"
+          title={t('technicianDocs.noDocsFound', 'No Trade Documents Found')}
+          message={t('technicianDocs.noDocsCategory', 'No trade documents under category {{category}}.', { category: activeCategory })}
+          actionText={t('technicianDocs.uploadDoc', 'Upload Document')}
           onAction={() => navigate('/technician/verification/wizard')}
         />
       )}

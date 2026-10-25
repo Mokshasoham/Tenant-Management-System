@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, Star, TrendingUp, CheckCircle2, ShieldCheck, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   VerificationPageHeader,
   VerificationSectionCard,
@@ -12,6 +13,7 @@ import getVerificationMapper from '../../mappers/verificationMapperFactory';
 import trackEvent, { VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 
 export default function TechnicianTrustScorePage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const mapper = getVerificationMapper('TECHNICIAN');
 
@@ -24,15 +26,15 @@ export default function TechnicianTrustScorePage() {
   }, []);
 
   if (!trustScore) {
-    return <div className="p-8 text-center text-slate-400">Loading Trust Score...</div>;
+    return <div className="p-8 text-center text-slate-400">{t('trustScore.loading', 'Loading Trust Score...')}</div>;
   }
 
   return (
     <div className="p-6 sm:p-10 space-y-8">
       {/* Header */}
       <VerificationPageHeader
-        title="Technician Trust Score & Trade Analytics"
-        subtitle="Detailed scoring breakdown measuring trade competency, certifications, ratings, and dispatch reliability"
+        title={t('technicianTrust.title', 'Technician Trust Score & Trade Analytics')}
+        subtitle={t('technicianTrust.subtitle', 'Detailed scoring breakdown measuring trade competency, certifications, ratings, and dispatch reliability')}
         icon={Award}
       />
 
@@ -52,22 +54,22 @@ export default function TechnicianTrustScorePage() {
           <TrustScoreBadge score={trustScore.score} />
           <button
             onClick={() => navigate('/technician/verification/wizard')}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
           >
-            Improve Trust Score
+            {t('trustScore.improveScore', 'Improve Trust Score')}
           </button>
         </div>
       </div>
 
       {/* Score Category Breakdown */}
-      <VerificationSectionCard title="Score Category Breakdown" icon={TrendingUp}>
+      <VerificationSectionCard title={t('trustScore.scoreCategoryBreakdown', 'Score Category Breakdown')} icon={TrendingUp}>
         <div className="space-y-4">
           {trustScore.breakdown.map((item, idx) => (
             <div key={idx} className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-200">{item.label}</span>
                 <span className="font-bold text-emerald-400">
-                  {item.score} / {item.max} Points
+                  {item.score} / {item.max} {t('trustScore.points', 'Points')}
                 </span>
               </div>
               <div className="w-full h-2 rounded-full bg-slate-950 overflow-hidden">
@@ -82,14 +84,14 @@ export default function TechnicianTrustScorePage() {
       </VerificationSectionCard>
 
       {/* "Why is my score 91?" Itemized Breakdown Table */}
-      <VerificationSectionCard title="Why is my score 91? (Line-Item Audit)" icon={ShieldCheck}>
+      <VerificationSectionCard title={t('technicianTrust.whyScoreTitle', 'Why is my score 91? (Line-Item Audit)')} icon={ShieldCheck}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="text-[11px] text-slate-400 uppercase bg-slate-950/60 border-b border-slate-800">
               <tr>
-                <th className="py-3 px-4">Evaluation Criteria</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Points Added</th>
+                <th className="py-3 px-4">{t('trustScore.evaluationCriteria', 'Evaluation Criteria')}</th>
+                <th className="py-3 px-4">{t('common.status', 'Status')}</th>
+                <th className="py-3 px-4 text-right">{t('trustScore.pointsAdded', 'Points Added')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/80">
@@ -114,7 +116,7 @@ export default function TechnicianTrustScorePage() {
               ))}
               <tr className="bg-slate-950/80 font-bold">
                 <td className="py-3 px-4 text-slate-100" colSpan={2}>
-                  Net Verified Technician Trust Score
+                  {t('technicianTrust.netScore', 'Net Verified Technician Trust Score')}
                 </td>
                 <td className="py-3 px-4 text-right text-emerald-400 text-sm">91 / 100</td>
               </tr>
@@ -124,7 +126,7 @@ export default function TechnicianTrustScorePage() {
       </VerificationSectionCard>
 
       {/* Actionable Improvement Suggestions */}
-      <VerificationSectionCard title="Recommended Actions to Reach 100 Score" icon={CheckCircle2}>
+      <VerificationSectionCard title={t('trustScore.recommendedActions', 'Recommended Actions to Reach 100 Score')} icon={CheckCircle2}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {trustScore.tips.map((tip) => (
             <div
@@ -133,18 +135,18 @@ export default function TechnicianTrustScorePage() {
             >
               <div>
                 <p className="text-xs font-bold text-slate-200">{tip.text}</p>
-                <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">+{tip.points} Trust Points</p>
+                <p className="text-[11px] text-emerald-400 font-semibold mt-0.5">+{tip.points} {t('trustScore.trustPoints', 'Trust Points')}</p>
               </div>
               <button
                 disabled={tip.completed}
                 onClick={() => navigate('/technician/verification/wizard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   tip.completed
                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30'
                 }`}
               >
-                {tip.completed ? 'Completed ✓' : 'Action'}
+                {tip.completed ? t('common.completedMark', 'Completed ✓') : t('common.action', 'Action')}
               </button>
             </div>
           ))}

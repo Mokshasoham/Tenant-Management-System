@@ -29,10 +29,12 @@ import {
 } from '../../components/verification';
 
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import getVerificationMapper from '../../mappers/verificationMapperFactory';
 import FeatureFlagService from '../../services/FeatureFlagService';
 
 export default function TechnicianVerificationPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const mapper = getVerificationMapper('TECHNICIAN');
   const { activeVerification, loading: contextLoading } = useVerificationContext();
@@ -63,7 +65,7 @@ export default function TechnicianVerificationPage() {
   if (!verification || !trustScore || !summary) {
     return (
       <div className="p-8 text-center text-slate-400">
-        Loading Technician Verification Workspace...
+        {t('technicianVerification.loadingWorkspace', 'Loading Technician Verification Workspace...')}
       </div>
     );
   }
@@ -71,10 +73,10 @@ export default function TechnicianVerificationPage() {
   // 1. Header
   const headerComponent = (
     <VerificationPageHeader
-      title="Technician Verification Portal"
-      subtitle="Verify your identity, trade licenses, ITI certifications, skills, and service availability for dispatch"
+      title={t('technicianVerification.portalTitle', 'Technician Verification Portal')}
+      subtitle={t('technicianVerification.portalSubtitle', 'Verify your identity, trade licenses, ITI certifications, skills, and service availability for dispatch')}
       icon={Wrench}
-      actionText="Start Verification Wizard"
+      actionText={t('technicianVerification.startWizard', 'Start Verification Wizard')}
       onAction={() => navigate('/technician/verification/wizard')}
     />
   );
@@ -88,15 +90,15 @@ export default function TechnicianVerificationPage() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               <div>
-                <p className="font-semibold text-sm">Technician Verification Required</p>
-                <p className="text-xs opacity-90">Complete identity & trade license verification to start accepting maintenance jobs.</p>
+                <p className="font-semibold text-sm">{t('technicianVerification.requiredTitle', 'Technician Verification Required')}</p>
+                <p className="text-xs opacity-90">{t('technicianVerification.requiredDesc', 'Complete identity & trade license verification to start accepting maintenance jobs.')}</p>
               </div>
             </div>
             <button
               onClick={() => navigate('/technician/verification/wizard')}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all"
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
             >
-              Verify Now
+              {t('common.verifyNow', 'Verify Now')}
             </button>
           </div>
         );
@@ -106,12 +108,12 @@ export default function TechnicianVerificationPage() {
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 flex-shrink-0" />
               <div>
-                <p className="font-semibold text-sm">Certified & Verified Service Technician</p>
-                <p className="text-xs opacity-90">You hold Gold Technician status and full workforce dispatch eligibility.</p>
+                <p className="font-semibold text-sm">{t('technicianVerification.certifiedTitle', 'Certified & Verified Service Technician')}</p>
+                <p className="text-xs opacity-90">{t('technicianVerification.certifiedDesc', 'You hold Gold Technician status and full workforce dispatch eligibility.')}</p>
               </div>
             </div>
             <span className="text-xs font-mono px-2.5 py-1 rounded bg-emerald-500/20 border border-emerald-500/40">
-              VRF: {verification.verificationNumber}
+              {t('technicianVerification.vrf', 'VRF')}: {verification.verificationNumber}
             </span>
           </div>
         );
@@ -124,42 +126,42 @@ export default function TechnicianVerificationPage() {
   const heroComponent = (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Technician Verification Status Card */}
-      <VerificationSectionCard title="Technician Status" icon={ShieldCheck}>
+      <VerificationSectionCard title={t('technicianVerification.statusTitle', 'Technician Status')} icon={ShieldCheck}>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-medium">Verification VRF</span>
+            <span className="text-xs text-slate-400 font-medium">{t('technicianVerification.verificationVrf', 'Verification VRF')}</span>
             <span className="text-xs font-mono text-slate-200">{verification.verificationNumber}</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-medium">Status</span>
+            <span className="text-xs text-slate-400 font-medium">{t('common.status', 'Status')}</span>
             <VerificationStatusBadge status={verification.status} />
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-medium">Technician Level</span>
+            <span className="text-xs text-slate-400 font-medium">{t('technicianVerification.level', 'Technician Level')}</span>
             <span className="text-xs font-semibold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
               {verification.technicianLevel}
             </span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-medium">Trust Badge</span>
+            <span className="text-xs text-slate-400 font-medium">{t('technicianVerification.trustBadge', 'Trust Badge')}</span>
             <VerificationBadge badge={verification.badge} />
           </div>
 
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-400">Dispatch Status</span>
+            <span className="text-xs text-slate-400">{t('technicianVerification.dispatchStatus', 'Dispatch Status')}</span>
             <span className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Active & Available
+              {t('technicianVerification.activeAvailable', 'Active & Available')}
             </span>
           </div>
         </div>
       </VerificationSectionCard>
 
       {/* Technician Trust Hero */}
-      <VerificationSectionCard title="Technician Trust Score" icon={Award}>
+      <VerificationSectionCard title={t('technicianVerification.trustScoreTitle', 'Technician Trust Score')} icon={Award}>
         <div className="flex items-center justify-around py-2">
           <CircularProgress value={trustScore.score} max={100} size={110} strokeWidth={9} color="#10B981" />
           <div className="space-y-2 text-left">
@@ -170,37 +172,37 @@ export default function TechnicianVerificationPage() {
             <TrustScoreBadge score={trustScore.score} />
             <button
               onClick={() => navigate('/technician/trust-score')}
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
+              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors cursor-pointer"
             >
-              Score Details <ChevronRight className="w-3 h-3" />
+              {t('technicianVerification.scoreDetails', 'Score Details')} <ChevronRight className="w-3 h-3" />
             </button>
           </div>
         </div>
       </VerificationSectionCard>
 
       {/* Technician Professional Summary Card */}
-      <VerificationSectionCard title="Professional Summary" icon={Briefcase}>
+      <VerificationSectionCard title={t('technicianVerification.summaryTitle', 'Professional Summary')} icon={Briefcase}>
         <div className="space-y-3">
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Primary Skill</span>
+            <span className="text-slate-400">{t('technicianVerification.primarySkill', 'Primary Skill')}</span>
             <span className="text-slate-200 font-semibold">{summary.primarySkill}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Experience</span>
+            <span className="text-slate-400">{t('technicianVerification.experience', 'Experience')}</span>
             <span className="text-slate-200 font-semibold">{summary.yearsExperience}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Completed Jobs</span>
-            <span className="text-emerald-400 font-bold">{summary.completedJobs} Jobs</span>
+            <span className="text-slate-400">{t('technicianVerification.completedJobs', 'Completed Jobs')}</span>
+            <span className="text-emerald-400 font-bold">{summary.completedJobs} {t('technicianVerification.jobs', 'Jobs')}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Average Rating</span>
+            <span className="text-slate-400">{t('technicianVerification.averageRating', 'Average Rating')}</span>
             <span className="text-amber-400 font-semibold flex items-center gap-1">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {summary.averageRating}
             </span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Response Time</span>
+            <span className="text-slate-400">{t('technicianVerification.responseTime', 'Response Time')}</span>
             <span className="text-slate-200 font-semibold">{summary.responseTime}</span>
           </div>
         </div>
@@ -216,20 +218,20 @@ export default function TechnicianVerificationPage() {
           <UserCheck className="w-6 h-6" />
         </div>
         <div>
-          <h3 className="text-base font-bold text-white">Technician Verification Readiness</h3>
-          <p className="text-xs text-slate-400">All mandatory trade documents & ITI diplomas are verified.</p>
+          <h3 className="text-base font-bold text-white">{t('technicianVerification.readinessTitle', 'Technician Verification Readiness')}</h3>
+          <p className="text-xs text-slate-400">{t('technicianVerification.readinessDesc', 'All mandatory trade documents & ITI diplomas are verified.')}</p>
         </div>
       </div>
       <div className="flex items-center gap-4 w-full md:w-auto justify-end">
         <div className="text-right">
-          <p className="text-xs text-slate-400">Verification Readiness</p>
-          <p className="text-lg font-extrabold text-emerald-400">100% Complete</p>
+          <p className="text-xs text-slate-400">{t('technicianVerification.readiness', 'Verification Readiness')}</p>
+          <p className="text-lg font-extrabold text-emerald-400">{t('technicianVerification.completePercent', '100% Complete')}</p>
         </div>
         <button
           onClick={() => navigate('/technician/verification/wizard')}
-          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all"
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
         >
-          Update Verification
+          {t('technicianVerification.updateVerification', 'Update Verification')}
         </button>
       </div>
     </div>
@@ -240,38 +242,38 @@ export default function TechnicianVerificationPage() {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <button
         onClick={() => navigate('/technician/verification/documents')}
-        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all text-left group"
+        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-all text-left group cursor-pointer"
       >
         <FileCheck className="w-5 h-5 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
-        <h4 className="text-xs font-bold text-slate-200">Trade Documents</h4>
-        <p className="text-[11px] text-slate-400">5 Verified Files</p>
+        <h4 className="text-xs font-bold text-slate-200">{t('technicianVerification.tradeDocs', 'Trade Documents')}</h4>
+        <p className="text-[11px] text-slate-400">{t('technicianVerification.verifiedFiles', '5 Verified Files')}</p>
       </button>
 
       <button
         onClick={() => navigate('/technician/trust-score')}
-        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all text-left group"
+        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-all text-left group cursor-pointer"
       >
         <Star className="w-5 h-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
-        <h4 className="text-xs font-bold text-slate-200">Trust Score</h4>
-        <p className="text-[11px] text-slate-400">91 / 100 Score</p>
+        <h4 className="text-xs font-bold text-slate-200">{t('technicianVerification.trustScore', 'Trust Score')}</h4>
+        <p className="text-[11px] text-slate-400">{t('technicianVerification.scoreDisplay', '91 / 100 Score')}</p>
       </button>
 
       <button
         onClick={() => navigate('/technician/verification/timeline')}
-        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-purple-500/50 hover:bg-slate-800/50 transition-all text-left group"
+        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-purple-500/50 hover:bg-slate-800/50 transition-all text-left group cursor-pointer"
       >
         <Activity className="w-5 h-5 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-        <h4 className="text-xs font-bold text-slate-200">Audit Trail</h4>
-        <p className="text-[11px] text-slate-400">10 Events Logged</p>
+        <h4 className="text-xs font-bold text-slate-200">{t('technicianVerification.auditTrail', 'Audit Trail')}</h4>
+        <p className="text-[11px] text-slate-400">{t('technicianVerification.eventsLogged', '10 Events Logged')}</p>
       </button>
 
       <button
         onClick={() => navigate('/technician/verification/wizard')}
-        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all text-left group"
+        className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/50 transition-all text-left group cursor-pointer"
       >
         <Wrench className="w-5 h-5 text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
-        <h4 className="text-xs font-bold text-slate-200">Edit Skills</h4>
-        <p className="text-[11px] text-slate-400">Update Trade Certs</p>
+        <h4 className="text-xs font-bold text-slate-200">{t('technicianVerification.editSkills', 'Edit Skills')}</h4>
+        <p className="text-[11px] text-slate-400">{t('technicianVerification.updateTradeCerts', 'Update Trade Certs')}</p>
       </button>
     </div>
   );
@@ -281,13 +283,13 @@ export default function TechnicianVerificationPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Professional Skills */}
-        <VerificationSectionCard title="Professional Skills & Competency" icon={Wrench}>
+        <VerificationSectionCard title={t('technicianVerification.skillsTitle', 'Professional Skills & Competency')} icon={Wrench}>
           <div className="space-y-3">
             {skills.map((skill) => (
               <div key={skill.id} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-200">{skill.name}</p>
-                  <p className="text-[11px] text-slate-400">{skill.years} Years Experience</p>
+                  <p className="text-[11px] text-slate-400">{skill.years} {t('technicianVerification.yearsExperience', 'Years Experience')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -295,7 +297,7 @@ export default function TechnicianVerificationPage() {
                   </span>
                   {skill.certified && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Certified
+                      {t('technicianVerification.certified', 'Certified')}
                     </span>
                   )}
                 </div>
@@ -305,23 +307,23 @@ export default function TechnicianVerificationPage() {
         </VerificationSectionCard>
 
         {/* Right: Certification Summary */}
-        <VerificationSectionCard title="Certification & Trade Clearance" icon={FileCheck}>
+        <VerificationSectionCard title={t('technicianVerification.clearanceTitle', 'Certification & Trade Clearance')} icon={FileCheck}>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-center">
-              <p className="text-[11px] text-slate-400">Master Trade License</p>
-              <p className="text-xs font-bold text-emerald-400 mt-1">Verified ✓</p>
+              <p className="text-[11px] text-slate-400">{t('technicianVerification.masterTradeLicense', 'Master Trade License')}</p>
+              <p className="text-xs font-bold text-emerald-400 mt-1">{t('technicianVerification.verifiedMark', 'Verified ✓')}</p>
             </div>
             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-center">
-              <p className="text-[11px] text-slate-400">ITI / NSDC Diploma</p>
-              <p className="text-xs font-bold text-emerald-400 mt-1">Verified ✓</p>
+              <p className="text-[11px] text-slate-400">{t('technicianVerification.itiDiploma', 'ITI / NSDC Diploma')}</p>
+              <p className="text-xs font-bold text-emerald-400 mt-1">{t('technicianVerification.verifiedMark', 'Verified ✓')}</p>
             </div>
             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-center">
-              <p className="text-[11px] text-slate-400">Liability Insurance</p>
-              <p className="text-xs font-bold text-emerald-400 mt-1">Active ($1M)</p>
+              <p className="text-[11px] text-slate-400">{t('technicianVerification.liabilityInsurance', 'Liability Insurance')}</p>
+              <p className="text-xs font-bold text-emerald-400 mt-1">{t('technicianVerification.activeInsurance', 'Active ($1M)')}</p>
             </div>
             <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-center">
-              <p className="text-[11px] text-slate-400">Police Clearance</p>
-              <p className="text-xs font-bold text-amber-400 mt-1">Pending Audit</p>
+              <p className="text-[11px] text-slate-400">{t('technicianVerification.policeClearance', 'Police Clearance')}</p>
+              <p className="text-xs font-bold text-amber-400 mt-1">{t('technicianVerification.pendingAudit', 'Pending Audit')}</p>
             </div>
           </div>
         </VerificationSectionCard>
@@ -329,25 +331,25 @@ export default function TechnicianVerificationPage() {
 
       {/* Row 2: Renewal Lifecycle & Service Attributes */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <VerificationSectionCard title="Certification Renewal Lifecycle" icon={RefreshCw}>
+        <VerificationSectionCard title={t('technicianVerification.renewalLifecycle', 'Certification Renewal Lifecycle')} icon={RefreshCw}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                <p className="text-[11px] text-slate-400">Certification Expiry</p>
+                <p className="text-[11px] text-slate-400">{t('technicianVerification.certExpiry', 'Certification Expiry')}</p>
                 <p className="text-sm font-bold text-slate-200 mt-0.5">{renewal.expiresOn}</p>
               </div>
               <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
-                <p className="text-[11px] text-slate-400">Days Remaining</p>
-                <p className="text-sm font-bold text-emerald-400 mt-0.5">{renewal.daysRemaining} Days</p>
+                <p className="text-[11px] text-slate-400">{t('technicianVerification.daysRemaining', 'Days Remaining')}</p>
+                <p className="text-sm font-bold text-emerald-400 mt-0.5">{renewal.daysRemaining} {t('technicianVerification.days', 'Days')}</p>
               </div>
             </div>
             <div className="p-3 rounded-lg bg-slate-950/40 border border-slate-800/80">
-              <p className="text-xs font-semibold text-slate-300 mb-2">Renewal History</p>
+              <p className="text-xs font-semibold text-slate-300 mb-2">{t('technicianVerification.renewalHistory', 'Renewal History')}</p>
               {renewal.renewalHistory.map((rh, idx) => (
                 <div key={idx} className="text-xs space-y-1">
                   <div className="flex justify-between text-slate-400">
-                    <span>Renewed: {rh.renewedAt}</span>
-                    <span>By: {rh.renewedBy}</span>
+                    <span>{t('technicianVerification.renewed', 'Renewed')}: {rh.renewedAt}</span>
+                    <span>{t('technicianVerification.by', 'By')}: {rh.renewedBy}</span>
                   </div>
                   <p className="text-[11px] text-slate-400 italic">{rh.remarks}</p>
                 </div>
@@ -356,22 +358,22 @@ export default function TechnicianVerificationPage() {
           </div>
         </VerificationSectionCard>
 
-        <VerificationSectionCard title="Service Attributes & Operating Hours" icon={Clock}>
+        <VerificationSectionCard title={t('technicianVerification.serviceAttrsTitle', 'Service Attributes & Operating Hours')} icon={Clock}>
           <div className="space-y-3 text-xs">
             <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-400">Employee ID</span>
+              <span className="text-slate-400">{t('technicianVerification.employeeId', 'Employee ID')}</span>
               <span className="text-slate-200 font-mono font-semibold">{summary.employeeId}</span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-400">Service Coverage Area</span>
+              <span className="text-slate-400">{t('technicianVerification.coverageArea', 'Service Coverage Area')}</span>
               <span className="text-slate-200 font-semibold">{summary.serviceArea}</span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-400">Operating Hours</span>
+              <span className="text-slate-400">{t('technicianVerification.operatingHours', 'Operating Hours')}</span>
               <span className="text-slate-200 font-semibold">{summary.workingHours}</span>
             </div>
             <div className="flex justify-between py-1.5">
-              <span className="text-slate-400">Employment Type</span>
+              <span className="text-slate-400">{t('technicianVerification.employmentType', 'Employment Type')}</span>
               <span className="text-emerald-400 font-semibold">{summary.employmentType}</span>
             </div>
           </div>
@@ -382,7 +384,7 @@ export default function TechnicianVerificationPage() {
 
   // 7. Future Integrations
   const integrationsComponent = (
-    <VerificationSectionCard title="Future Production Integrations" icon={Lock}>
+    <VerificationSectionCard title={t('technicianVerification.futureIntegrations', 'Future Production Integrations')} icon={Lock}>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { name: 'NSDC Skill API', flag: 'NSDC_VERIFICATION' },
@@ -392,7 +394,7 @@ export default function TechnicianVerificationPage() {
         ].map((item, idx) => (
           <div key={idx} className="p-3 rounded-lg bg-slate-950/40 border border-slate-800/80 flex items-center justify-between opacity-60">
             <span className="text-xs text-slate-300 font-medium">{item.name}</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Disabled</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{t('common.disabled', 'Disabled')}</span>
           </div>
         ))}
       </div>

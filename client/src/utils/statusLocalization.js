@@ -84,6 +84,40 @@ export const STATUS_KEY_MAP = {
     furnished: 'property.furnished',
     semi_furnished: 'property.semiFurnished',
     unfurnished: 'property.unfurnished',
+  },
+  // Technician availability & workforce statuses
+  technician: {
+    available: 'technician.statusAvailable',
+    free: 'technician.statusAvailable',
+    working: 'technician.statusWorking',
+    busy: 'technician.statusWorking',
+    travelling: 'technician.statusTravelling',
+    break: 'technician.statusBreak',
+    meeting: 'technician.statusMeeting',
+    emergency_call: 'technician.statusEmergencyCall',
+    on_leave: 'technician.statusOnLeave',
+    training: 'technician.statusTraining',
+    off_duty: 'technician.statusOffDuty',
+    offline: 'technician.statusOffline',
+    invited: 'technician.statusInvited',
+    active: 'technician.statusActive',
+  },
+  // Dispatch statuses
+  dispatch: {
+    unassigned: 'workforce.statusUnassigned',
+    assigned: 'workforce.statusAssigned',
+    in_transit: 'workforce.statusInTransit',
+    on_site: 'workforce.statusOnSite',
+    completed: 'workforce.statusCompleted',
+  },
+  // Subscription plans
+  plan: {
+    starter: 'subscription.starter',
+    plus: 'subscription.plus',
+    pro: 'subscription.pro',
+    manager_starter: 'subscription.managerStarter',
+    manager_plus: 'subscription.managerPlus',
+    manager_pro: 'subscription.managerPro',
   }
 };
 

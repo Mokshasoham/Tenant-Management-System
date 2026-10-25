@@ -159,6 +159,7 @@ function ManagerStatCard({ card }) {
 }
 
 function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, onRefresh, fetchRenewals }) {
+    const { t } = useLanguage();
     const [actionLoadingId, setActionLoadingId] = useState(null);
     const [actionMessage, setActionMessage] = useState(null);
 
@@ -199,64 +200,64 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
 
     const tabConfig = {
         renewals: {
-            title: 'Pending Renewal Requests',
+            title: t('manager.pendingRenewals', 'Pending Renewal Requests'),
             count: stats?.pendingRenewalRequests ?? 0,
-            countLabel: 'pending decision',
+            countLabel: t('manager.pendingDecision', 'pending decision'),
             color: 'text-indigo-400',
             bg: 'bg-indigo-500/10',
             border: 'border-indigo-500/30',
             icon: RefreshCw,
             previewKey: 'renewalRequests',
             viewAllUrl: '/leases?tab=renewals',
-            emptyText: 'No pending renewal requests requiring decision right now.'
+            emptyText: t('manager.noPendingRenewalsRequiringDecision', 'No pending renewal requests requiring decision right now.')
         },
         moveouts: {
-            title: 'Pending Move-Out Notices & Inspections',
+            title: t('manager.pendingMoveOuts', 'Pending Move-Out Notices & Inspections'),
             count: stats?.pendingMoveOutRequests ?? 0,
-            countLabel: 'active in lifecycle',
+            countLabel: t('manager.activeInLifecycle', 'active in lifecycle'),
             color: 'text-amber-500 dark:text-amber-400',
             bg: 'bg-amber-500/10',
             border: 'border-amber-500/30',
             icon: Clock,
             previewKey: 'moveOutRequests',
             viewAllUrl: '/leases?tab=moveouts',
-            emptyText: 'No pending move-out notices recorded.'
+            emptyText: t('manager.noPendingMoveOuts', 'No pending move-out notices recorded.')
         },
         expiring: {
-            title: 'Leases Expiring Within 7 Days',
+            title: t('manager.leasesExpiring7Days', 'Leases Expiring Within 7 Days'),
             count: stats?.leasesExpiringWithin7Days ?? 0,
-            countLabel: 'expiring soon',
+            countLabel: t('manager.expiringSoon', 'expiring soon'),
             color: 'text-orange-500 dark:text-orange-400',
             bg: 'bg-orange-500/10',
             border: 'border-orange-500/30',
             icon: AlertTriangle,
             previewKey: 'expiringSoon',
             viewAllUrl: '/leases?filter=expiring_soon',
-            emptyText: 'No active leases expiring within the next 7 days.'
+            emptyText: t('manager.noExpiringLeasesNext7Days', 'No active leases expiring within the next 7 days.')
         },
         expired: {
-            title: 'Expired Leases',
+            title: t('manager.expiredLeases', 'Expired Leases'),
             count: stats?.expiredLeases ?? 0,
-            countLabel: 'past term',
+            countLabel: t('manager.pastTerm', 'past term'),
             color: 'text-slate-400',
             bg: 'bg-slate-500/10',
             border: 'border-slate-500/30',
             icon: XCircle,
             previewKey: 'expiredLeases',
             viewAllUrl: '/leases?status=expired',
-            emptyText: 'No expired leases found.'
+            emptyText: t('manager.noExpiredLeases', 'No expired leases found.')
         },
         dues: {
-            title: 'Outstanding Dues on Expired Leases',
+            title: t('manager.outstandingDuesExpired', 'Outstanding Dues on Expired Leases'),
             count: `₹${(stats?.outstandingPaymentsOnExpiredLeasesAmount ?? 0).toLocaleString('en-IN')}`,
-            countLabel: `${stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} leases`,
+            countLabel: `${stats?.outstandingPaymentsOnExpiredLeasesCount ?? 0} ${t('manager.leasesCount', 'leases')}`,
             color: 'text-rose-500 dark:text-rose-400',
             bg: 'bg-rose-500/10',
             border: 'border-rose-500/30',
             icon: CreditCard,
             previewKey: 'expiredDues',
             viewAllUrl: '/leases?filter=unpaid_expired',
-            emptyText: 'Zero unpaid dues on expired leases. All expired lease accounts are fully settled!'
+            emptyText: t('manager.zeroUnpaidDuesExpired', 'Zero unpaid dues on expired leases. All expired lease accounts are fully settled!')
         }
     };
 
@@ -290,7 +291,7 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                             </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Showing top actionable records scoped to your managed properties
+                            {t('manager.showingActionableScoped', 'Showing top actionable records scoped to your managed properties')}
                         </p>
                     </div>
                 </div>
@@ -300,13 +301,13 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                         onClick={() => navigate(current.viewAllUrl)}
                         className="text-xs font-bold text-primary hover:underline flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 transition-all cursor-pointer"
                     >
-                        <span>View All in Leases</span>
+                        <span>{t('manager.viewAllInLeases', 'View All in Leases')}</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={onClose}
                         className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                        title="Close preview"
+                        title={t('common.closePreview', 'Close preview')}
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -320,7 +321,7 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                     actionMessage.type === 'success' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                 )}>
                     <span>{actionMessage.text}</span>
-                    <button onClick={() => setActionMessage(null)} className="text-[10px] opacity-70 hover:opacity-100 font-bold ml-2 cursor-pointer">Dismiss</button>
+                    <button onClick={() => setActionMessage(null)} className="text-[10px] opacity-70 hover:opacity-100 font-bold ml-2 cursor-pointer">{t('common.dismiss', 'Dismiss')}</button>
                 </div>
             )}
 
@@ -368,26 +369,26 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
                                     <span className="font-medium text-foreground/80">{item.property?.name || 'Property'}</span>
                                     {item.property?.address && <span className="text-[10px] opacity-75">· {item.property.address}</span>}
-                                    {item.currentRent ? <span>· Rent: ₹{Number(item.currentRent).toLocaleString('en-IN')}/mo</span> : null}
+                                    {item.currentRent ? <span>· {t('common.rent', 'Rent')}: ₹{Number(item.currentRent).toLocaleString('en-IN')}{t('common.perMonth', '/mo')}</span> : null}
                                 </div>
 
                                 {/* Dynamic category specific details */}
                                 {tab === 'renewals' && (
                                     <div className="text-[11px] text-indigo-400 flex items-center gap-2 flex-wrap">
-                                        <span>Duration: <strong>{item.requestedDuration || 'Standard'}</strong></span>
+                                        <span>{t('lease.duration', 'Duration')}: <strong>{item.requestedDuration || t('lease.standardDuration', 'Standard')}</strong></span>
                                         {item.proposedRent && (
-                                            <span>· Proposed: <strong>₹{Number(item.proposedRent).toLocaleString('en-IN')}/mo</strong></span>
+                                            <span>· {t('lease.proposed', 'Proposed')}: <strong>₹{Number(item.proposedRent).toLocaleString('en-IN')}{t('common.perMonth', '/mo')}</strong></span>
                                         )}
                                         {item.requestedStartDate && (
-                                            <span>· Start: <strong>{new Date(item.requestedStartDate).toLocaleDateString()}</strong></span>
+                                            <span>· {t('lease.start', 'Start')}: <strong>{new Date(item.requestedStartDate).toLocaleDateString()}</strong></span>
                                         )}
                                     </div>
                                 )}
 
                                 {tab === 'moveouts' && (
                                     <div className="text-[11px] text-amber-500/90 dark:text-amber-400 flex items-center gap-2 flex-wrap">
-                                        <span>Departure: <strong>{item.expectedDepartureDate ? new Date(item.expectedDepartureDate).toLocaleDateString() : 'Pending'}</strong></span>
-                                        {item.reason && <span>· Reason: {item.reason}</span>}
+                                        <span>{t('lease.departure', 'Departure')}: <strong>{item.expectedDepartureDate ? new Date(item.expectedDepartureDate).toLocaleDateString() : t('common.pending', 'Pending')}</strong></span>
+                                        {item.reason && <span>· {t('lease.reason', 'Reason')}: {item.reason}</span>}
                                         {item.comments && <span className="italic text-muted-foreground/80 truncate max-w-xs">"{item.comments}"</span>}
                                     </div>
                                 )}
@@ -395,23 +396,23 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                                 {tab === 'expiring' && (
                                     <div className="text-[11px] text-orange-500/90 dark:text-orange-400 flex items-center gap-2">
                                         <span className="font-bold bg-orange-500/10 px-2 py-0.5 rounded text-[10px]">
-                                            {item.daysLeft !== undefined ? `${item.daysLeft} day${item.daysLeft === 1 ? '' : 's'} remaining` : 'Expiring soon'}
+                                            {item.daysLeft !== undefined ? t('manager.daysRemaining', '{{count}} days remaining', { count: item.daysLeft }) : t('manager.expiringSoon', 'Expiring soon')}
                                         </span>
-                                        <span>End Date: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
+                                        <span>{t('lease.endDate', 'End Date')}: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
                                     </div>
                                 )}
 
                                 {tab === 'expired' && (
                                     <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                                        <span>Expired on: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
-                                        {item.startDate && <span>(Term started {new Date(item.startDate).toLocaleDateString()})</span>}
+                                        <span>{t('lease.expiredOn', 'Expired on')}: <strong>{item.endDate ? new Date(item.endDate).toLocaleDateString() : '—'}</strong></span>
+                                        {item.startDate && <span>({t('lease.termStarted', 'Term started {{date}}', { date: new Date(item.startDate).toLocaleDateString() })})</span>}
                                     </div>
                                 )}
 
                                 {tab === 'dues' && (
                                     <div className="text-[11px] text-rose-500 font-bold flex items-center gap-2">
-                                        <span>Unpaid Balance: ₹{(item.totalDue ?? item.totalUnpaid ?? 0).toLocaleString('en-IN')}</span>
-                                        {(item.oldestDueDate || item.dueDate) && <span className="text-muted-foreground font-normal">· Due: {new Date(item.oldestDueDate || item.dueDate).toLocaleDateString()}</span>}
+                                        <span>{t('lease.unpaidBalance', 'Unpaid Balance')}: ₹{(item.totalDue ?? item.totalUnpaid ?? 0).toLocaleString('en-IN')}</span>
+                                        {(item.oldestDueDate || item.dueDate) && <span className="text-muted-foreground font-normal">· {t('lease.due', 'Due')}: {new Date(item.oldestDueDate || item.dueDate).toLocaleDateString()}</span>}
                                     </div>
                                 )}
                             </div>
@@ -425,14 +426,14 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                                             onClick={() => handleApprove(item)}
                                             className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
                                         >
-                                            {actionLoadingId === item.id ? 'Processing...' : 'Approve'}
+                                            {actionLoadingId === item.id ? t('common.processing', 'Processing...') : t('common.approve', 'Approve')}
                                         </button>
                                         <button
                                             disabled={actionLoadingId === item.id}
                                             onClick={() => handleReject(item)}
                                             className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
                                         >
-                                            Decline
+                                            {t('common.decline', 'Decline')}
                                         </button>
                                     </>
                                 )}
@@ -441,7 +442,7 @@ function ActionCenterPreviewDrawer({ tab, previews, stats, onClose, navigate, on
                                     onClick={() => navigate(item.actionUrl || current.viewAllUrl)}
                                     className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all flex items-center gap-1 cursor-pointer"
                                 >
-                                    <span>Details</span>
+                                    <span>{t('common.details', 'Details')}</span>
                                     <ArrowUpRight className="w-3 h-3" />
                                 </button>
                             </div>
@@ -821,7 +822,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                 {stats?.actionCenterContractMismatch && (
                     <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs">
                         <AlertTriangle className="w-4 h-4 shrink-0" />
-                        <span>Production backend sync pending: Operational Action Center fields are not yet returned by the server.</span>
+                        <span>{t('manager.actionCenterBackendSyncPending', 'Production backend sync pending: Operational Action Center fields are not yet returned by the server.')}</span>
                     </div>
                 )}
 
@@ -1108,16 +1109,16 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                             <div className="p-2 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20">
                                 <CalendarDays className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                             </div>
-                            <p className="text-sm font-black text-foreground">Booking Requests & Deposits</p>
+                            <p className="text-sm font-black text-foreground">{t('manager.bookingRequestsDeposits', 'Booking Requests & Deposits')}</p>
                         </div>
                         <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto overflow-x-auto scrollbar-none">
                             {[
-                                { id: 'pending', label: 'Pending', count: pendingBookings.length },
-                                { id: 'approved', label: 'Awaiting Deposit', count: approvedBookings.length },
-                                { id: 'paid', label: 'Deposit Paid', count: paidBookings.length },
-                                { id: 'completed', label: 'Completed', count: completedBookings.length },
-                                { id: 'rejected', label: 'Rejected', count: rejectedBookings.length },
-                                { id: 'cancelled', label: 'Cancelled', count: cancelledBookings.length }
+                                { id: 'pending', label: t('common.pending', 'Pending'), count: pendingBookings.length },
+                                { id: 'approved', label: t('manager.awaitingDeposit', 'Awaiting Deposit'), count: approvedBookings.length },
+                                { id: 'paid', label: t('manager.depositPaid', 'Deposit Paid'), count: paidBookings.length },
+                                { id: 'completed', label: t('common.completed', 'Completed'), count: completedBookings.length },
+                                { id: 'rejected', label: t('common.rejected', 'Rejected'), count: rejectedBookings.length },
+                                { id: 'cancelled', label: t('common.cancelled', 'Cancelled'), count: cancelledBookings.length }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -1147,7 +1148,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'pending' && (
                             pendingBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No pending booking requests.
+                                    {t('manager.noPendingBookingRequests', 'No pending booking requests.')}
                                 </div>
                             ) : (
                                 pendingBookings.map((b, i) => (
@@ -1170,10 +1171,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
-                                                    {b.totalAmount === 0 ? 'FREE' : `₹${b.totalAmount?.toLocaleString('en-IN')}`}
+                                                    {b.totalAmount === 0 ? t('common.freeUpper', 'FREE') : `₹${b.totalAmount?.toLocaleString('en-IN')}`}
                                                 </p>
                                                 <p className="text-[9px] text-muted-foreground uppercase font-bold">
-                                                    {b.paymentStatus || 'Pending'}
+                                                    {getLocalizedStatus('booking', b.paymentStatus || 'pending', t, b.paymentStatus || 'Pending')}
                                                 </p>
                                             </div>
                                         </div>
@@ -1185,7 +1186,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                 }}
                                                 className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all cursor-pointer"
                                             >
-                                                APPROVE
+                                                {t('common.approveUpper', 'APPROVE')}
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -1194,14 +1195,14 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                 }}
                                                 className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
                                             >
-                                                DECLINE
+                                                {t('common.declineUpper', 'DECLINE')}
                                             </button>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(`/bookings/${b._id}`);
                                                 }}
-                                                title="View Details"
+                                                title={t('common.viewDetails', 'View Details')}
                                                 className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                             >
                                                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1215,7 +1216,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'approved' && (
                             approvedBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No bookings awaiting deposit payment.
+                                    {t('manager.noBookingsAwaitingDeposit', 'No bookings awaiting deposit payment.')}
                                 </div>
                             ) : (
                                 approvedBookings.map((b, i) => (
@@ -1239,7 +1240,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             <div className="flex items-center gap-2.5">
                                                 <div className="text-right">
                                                     <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                        Awaiting Deposit
+                                                        {t('manager.awaitingDeposit', 'Awaiting Deposit')}
                                                     </span>
                                                     <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
                                                         ₹{b.totalAmount?.toLocaleString('en-IN')}
@@ -1250,7 +1251,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         e.stopPropagation();
                                                         navigate(`/bookings/${b._id}`);
                                                     }}
-                                                    title="View Details"
+                                                    title={t('common.viewDetails', 'View Details')}
                                                     className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                                 >
                                                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1265,7 +1266,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'paid' && (
                             paidBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No bookings with paid deposit.
+                                    {t('manager.noBookingsWithPaidDeposit', 'No bookings with paid deposit.')}
                                 </div>
                             ) : (
                                 paidBookings.map((b, i) => (
@@ -1289,7 +1290,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             <div className="flex items-center gap-2.5">
                                                 <div className="text-right">
                                                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                        Deposit Paid
+                                                        {t('manager.depositPaid', 'Deposit Paid')}
                                                     </span>
                                                     <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
                                                         ₹{b.totalAmount?.toLocaleString('en-IN')}
@@ -1300,7 +1301,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         e.stopPropagation();
                                                         navigate(`/bookings/${b._id}`);
                                                     }}
-                                                    title="View Details"
+                                                    title={t('common.viewDetails', 'View Details')}
                                                     className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                                 >
                                                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1315,7 +1316,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'completed' && (
                             completedBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No completed/active bookings.
+                                    {t('manager.noCompletedBookings', 'No completed/active bookings.')}
                                 </div>
                             ) : (
                                 completedBookings.map((b, i) => (
@@ -1339,7 +1340,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             <div className="flex items-center gap-2.5">
                                                 <div className="text-right">
                                                     <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                        Completed
+                                                        {t('common.completed', 'Completed')}
                                                     </span>
                                                     <p className="text-xs font-black text-indigo-500 dark:text-indigo-400">
                                                         ₹{b.totalAmount?.toLocaleString('en-IN')}
@@ -1350,7 +1351,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         e.stopPropagation();
                                                         navigate(`/bookings/${b._id}`);
                                                     }}
-                                                    title="View Details"
+                                                    title={t('common.viewDetails', 'View Details')}
                                                     className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                                 >
                                                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1365,7 +1366,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'rejected' && (
                             rejectedBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No rejected bookings.
+                                    {t('manager.noRejectedBookings', 'No rejected bookings.')}
                                 </div>
                             ) : (
                                 rejectedBookings.map((b, i) => (
@@ -1389,10 +1390,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             <div className="flex items-center gap-2.5">
                                                 <div className="text-right">
                                                     <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                        Rejected
+                                                        {t('common.rejected', 'Rejected')}
                                                     </span>
                                                     <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-rose-400">
-                                                        {b.rejectionReason || 'No reason'}
+                                                        {b.rejectionReason || t('common.noReason', 'No reason')}
                                                     </p>
                                                 </div>
                                                 <button
@@ -1400,7 +1401,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         e.stopPropagation();
                                                         navigate(`/bookings/${b._id}`);
                                                     }}
-                                                    title="View Details"
+                                                    title={t('common.viewDetails', 'View Details')}
                                                     className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                                 >
                                                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1415,7 +1416,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         {bookingTab === 'cancelled' && (
                             cancelledBookings.length === 0 ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground/30 text-sm">
-                                    No cancelled bookings.
+                                    {t('manager.noCancelledBookings', 'No cancelled bookings.')}
                                 </div>
                             ) : (
                                 cancelledBookings.map((b, i) => (
@@ -1439,10 +1440,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             <div className="flex items-center gap-2.5">
                                                 <div className="text-right">
                                                     <span className="px-2 py-0.5 rounded bg-gray-500/10 border border-gray-500/20 text-gray-500 text-[8px] font-black uppercase tracking-wider block mb-1">
-                                                        Cancelled
+                                                        {t('common.cancelled', 'Cancelled')}
                                                     </span>
                                                     <p className="text-[9px] text-muted-foreground truncate max-w-[150px] font-bold text-right text-muted-foreground/60">
-                                                        {b.cancellationReason || 'No reason'}
+                                                        {b.cancellationReason || t('common.noReason', 'No reason')}
                                                     </p>
                                                 </div>
                                                 <button
@@ -1450,7 +1451,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         e.stopPropagation();
                                                         navigate(`/bookings/${b._id}`);
                                                     }}
-                                                    title="View Details"
+                                                    title={t('common.viewDetails', 'View Details')}
                                                     className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all cursor-pointer shrink-0"
                                                 >
                                                     <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1476,7 +1477,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         <div className="p-2 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20">
                             <CalendarDays className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                         </div>
-                        <p className="text-sm font-black text-foreground">Lease Renewals & Offers</p>
+                        <p className="text-sm font-black text-foreground">{t('manager.leaseRenewalsOffers', 'Lease Renewals & Offers')}</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1487,7 +1488,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                         <p className="text-sm font-bold text-foreground">{r.tenant?.firstName} {r.tenant?.lastName}</p>
                                         <p className="text-xs text-muted-foreground">{r.property?.name}</p>
                                         <p className="text-[10px] text-muted-foreground mt-1">
-                                            Proposed Period: {new Date(r.requestedStartDate).toLocaleDateString()} - {new Date(r.requestedEndDate).toLocaleDateString()}
+                                            {t('manager.proposedPeriod', 'Proposed Period:')} {new Date(r.requestedStartDate).toLocaleDateString()} - {new Date(r.requestedEndDate).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <span className={cn(
@@ -1496,7 +1497,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                         r.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
                                         'bg-rose-500/10 text-rose-500'
                                     )}>
-                                        {r.status}
+                                        {getLocalizedStatus('lease', r.status, t, r.status)}
                                     </span>
                                 </div>
 
@@ -1608,26 +1609,26 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                     <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
                                                     {v.status === 'reschedule_pending' && (
                                                         <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[8px] font-black uppercase tracking-wider">
-                                                            Awaiting Tenant Confirmation
+                                                            {t('manager.awaitingTenantConfirmation', 'Awaiting Tenant Confirmation')}
                                                         </span>
                                                     )}
                                                     {v.status === 'pending' && v.isExpired && (
                                                         <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[8px] font-black uppercase tracking-wider">
-                                                            Slot Expired
+                                                            {t('manager.slotExpired', 'Slot Expired')}
                                                         </span>
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">{v.property?.address}</p>
                                                 <p className="text-xs text-indigo-400 mt-1 font-semibold">
-                                                    Requested Date: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                    {t('manager.requestedDate', 'Requested Date:')} {new Date(v.visitDate).toLocaleDateString()} {t('common.at', 'at')} {v.timeSlot}
                                                 </p>
                                                 {v.status === 'reschedule_pending' && v.rescheduledSlot && (
                                                     <p className="text-xs text-amber-300/90 font-medium mt-0.5">
-                                                        Proposed New Slot: {new Date(v.rescheduledSlot.visitDate).toLocaleDateString()} at {v.rescheduledSlot.timeSlot}
+                                                        {t('manager.proposedNewSlot', 'Proposed New Slot:')} {new Date(v.rescheduledSlot.visitDate).toLocaleDateString()} {t('common.at', 'at')} {v.rescheduledSlot.timeSlot}
                                                     </p>
                                                 )}
                                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
+                                                    {t('common.tenant', 'Tenant:')} {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
                                                 </p>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
@@ -1642,23 +1643,23 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                             }}
                                                             className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
                                                         >
-                                                            Propose Different Time
+                                                            {t('manager.proposeDifferentTime', 'Propose Different Time')}
                                                         </button>
                                                         <button
                                                             onClick={() => handleUpdateVisit(v._id, 'rejected')}
                                                             className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
                                                         >
-                                                            Reject
+                                                            {t('common.reject', 'Reject')}
                                                         </button>
                                                     </>
                                                 ) : v.isExpired ? (
                                                     <>
                                                         <button
                                                             disabled
-                                                            title="Cannot approve an expired visit slot. Please propose a new time."
+                                                            title={t('manager.cannotApproveExpiredSlot', 'Cannot approve an expired visit slot. Please propose a new time.')}
                                                             className="px-2.5 py-1 rounded bg-muted text-muted-foreground/50 text-[10px] font-black uppercase cursor-not-allowed border border-white/5"
                                                         >
-                                                            Approve (Expired)
+                                                            {t('manager.approveExpired', 'Approve (Expired)')}
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -1669,13 +1670,13 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                             }}
                                                             className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[10px] font-black uppercase hover:bg-indigo-500 transition-all shadow-md"
                                                         >
-                                                            Propose New Time
+                                                            {t('manager.proposeNewTime', 'Propose New Time')}
                                                         </button>
                                                         <button
                                                             onClick={() => handleUpdateVisit(v._id, 'rejected')}
                                                             className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
                                                         >
-                                                            Reject
+                                                            {t('common.reject', 'Reject')}
                                                         </button>
                                                     </>
                                                 ) : (
@@ -1684,13 +1685,13 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                             onClick={() => handleUpdateVisit(v._id, 'approved')}
                                                             className="px-2.5 py-1 rounded bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all"
                                                         >
-                                                            Approve
+                                                            {t('common.approve', 'Approve')}
                                                         </button>
                                                         <button
                                                             onClick={() => handleUpdateVisit(v._id, 'rejected')}
                                                             className="px-2.5 py-1 rounded bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all"
                                                         >
-                                                            Reject
+                                                            {t('common.reject', 'Reject')}
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -1701,7 +1702,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                             }}
                                                             className="px-2.5 py-1 rounded bg-blue-500 text-white text-[10px] font-black uppercase hover:bg-blue-600 transition-all"
                                                         >
-                                                            Reschedule
+                                                            {t('manager.reschedule', 'Reschedule')}
                                                         </button>
                                                     </>
                                                 )}
@@ -1710,10 +1711,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
 
                                         {reschedulingId === v._id && (
                                             <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-3 mt-2">
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-white/80">Propose New Visit Time to Tenant</p>
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-white/80">{t('manager.proposeNewVisitTimeTitle', 'Propose New Visit Time to Tenant')}</p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <div className="flex-1 min-w-[120px]">
-                                                        <label className="text-[9px] text-white/50 block mb-1">Proposed Date</label>
+                                                        <label className="text-[9px] text-white/50 block mb-1">{t('manager.proposedDate', 'Proposed Date')}</label>
                                                         <input
                                                             type="date"
                                                             value={reschedDate}
@@ -1723,7 +1724,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         />
                                                     </div>
                                                     <div className="flex-1 min-w-[150px]">
-                                                        <label className="text-[9px] text-white/50 block mb-1">Time Slot</label>
+                                                        <label className="text-[9px] text-white/50 block mb-1">{t('manager.timeSlot', 'Time Slot')}</label>
                                                         <select
                                                             value={reschedSlot}
                                                             onChange={(e) => setReschedSlot(e.target.value)}
@@ -1735,11 +1736,11 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         </select>
                                                     </div>
                                                     <div className="w-full">
-                                                        <label className="text-[9px] text-white/50 block mb-1">Note to Tenant (Optional)</label>
+                                                        <label className="text-[9px] text-white/50 block mb-1">{t('manager.noteToTenantOptional', 'Note to Tenant (Optional)')}</label>
                                                         <input
                                                             type="text"
                                                             value={reschedNote}
-                                                            placeholder="Reason for reschedule or instructions..."
+                                                            placeholder={t('manager.placeholderRescheduleReason', 'Reason for reschedule or instructions...')}
                                                             onChange={(e) => setReschedNote(e.target.value)}
                                                             className="w-full bg-black/40 border border-white/10 rounded p-1.5 text-xs text-white"
                                                         />
@@ -1751,7 +1752,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         onClick={() => setReschedulingId(null)}
                                                         className="px-2 py-1 rounded bg-white/10 text-white text-[9px] font-bold uppercase hover:bg-white/20 transition-all"
                                                     >
-                                                        Cancel
+                                                        {t('common.cancel', 'Cancel')}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -1759,7 +1760,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                         onClick={() => handleProposeReschedule(v._id)}
                                                         className="px-2.5 py-1 rounded bg-indigo-600 text-white text-[9px] font-black uppercase hover:bg-indigo-500 transition-all disabled:opacity-50"
                                                     >
-                                                        {reschedSubmitting ? 'Sending Proposal...' : 'Send Reschedule Proposal'}
+                                                        {reschedSubmitting ? t('manager.sendingProposal', 'Sending Proposal...') : t('manager.sendRescheduleProposal', 'Send Reschedule Proposal')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1771,7 +1772,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
 
                         {visitTab === 'approved' && (
                             approvedVisits.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-8">No scheduled inspection visits.</p>
+                                <p className="text-xs text-muted-foreground text-center py-8">{t('manager.noScheduledVisits', 'No scheduled inspection visits.')}</p>
                             ) : (
                                 approvedVisits.map(v => {
                                     const slotHasStarted = v.slotStartTime ? new Date() >= new Date(v.slotStartTime) : true;
@@ -1781,10 +1782,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                 <h4 className="text-sm font-bold text-foreground">{v.property?.name}</h4>
                                                 <p className="text-xs text-muted-foreground">{v.property?.address}</p>
                                                 <p className="text-xs text-emerald-400 mt-1 font-semibold">
-                                                    Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                    {t('manager.scheduled', 'Scheduled:')} {new Date(v.visitDate).toLocaleDateString()} {t('common.at', 'at')} {v.timeSlot}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    Tenant: {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
+                                                    {t('common.tenant', 'Tenant:')} {v.tenant?.firstName} {v.tenant?.lastName} ({v.tenant?.email})
                                                 </p>
                                             </div>
                                             {slotHasStarted ? (
@@ -1792,15 +1793,15 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                     onClick={() => handleUpdateVisit(v._id, 'completed')}
                                                     className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase transition-all"
                                                 >
-                                                    Mark Completed
+                                                    {t('manager.markCompleted', 'Mark Completed')}
                                                 </button>
                                             ) : (
                                                 <button
                                                     disabled
-                                                    title="Cannot mark completed before the scheduled visit slot starts"
+                                                    title={t('manager.cannotMarkCompletedBeforeSlot', 'Cannot mark completed before the scheduled visit slot starts')}
                                                     className="px-3 py-1.5 rounded bg-muted text-muted-foreground/50 text-[10px] font-black uppercase cursor-not-allowed border border-white/5"
                                                 >
-                                                    Slot Pending
+                                                    {t('manager.slotPending', 'Slot Pending')}
                                                 </button>
                                             )}
                                         </div>
@@ -1811,7 +1812,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
 
                         {visitTab === 'completed' && (
                             completedVisits.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-8">No past inspection visits.</p>
+                                <p className="text-xs text-muted-foreground text-center py-8">{t('manager.noPastVisits', 'No past inspection visits.')}</p>
                             ) : (
                                 completedVisits.map(v => {
                                     const isExpiredApproved = v.status === 'approved' && v.isExpired;
@@ -1823,15 +1824,15 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                     <p className="text-xs text-muted-foreground">{v.property?.address}</p>
                                                     {isExpiredApproved ? (
                                                         <p className="text-xs text-rose-400 mt-1 font-semibold">
-                                                            Scheduled: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot} (Expired / Missed)
+                                                            {t('manager.scheduled', 'Scheduled:')} {new Date(v.visitDate).toLocaleDateString()} {t('common.at', 'at')} {v.timeSlot} {t('manager.expiredMissed', '(Expired / Missed)')}
                                                         </p>
                                                     ) : (
                                                         <p className="text-xs text-muted-foreground mt-1">
-                                                            Visit Date: {new Date(v.visitDate).toLocaleDateString()} at {v.timeSlot}
+                                                            {t('manager.visitDate', 'Visit Date:')} {new Date(v.visitDate).toLocaleDateString()} {t('common.at', 'at')} {v.timeSlot}
                                                         </p>
                                                     )}
                                                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                        Tenant: {v.tenant?.firstName} {v.tenant?.lastName}
+                                                        {t('common.tenant', 'Tenant:')} {v.tenant?.firstName} {v.tenant?.lastName}
                                                     </p>
                                                 </div>
                                                 <span className={cn(
@@ -1840,21 +1841,21 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                                     v.status === 'rejected' && "bg-rose-500/10 border border-rose-500/20 text-rose-500",
                                                     isExpiredApproved && "bg-rose-500/10 border border-rose-500/20 text-rose-400"
                                                 )}>
-                                                    {isExpiredApproved ? 'Expired / Missed' : v.status}
+                                                    {isExpiredApproved ? t('manager.expiredMissedNoParens', 'Expired / Missed') : getLocalizedStatus('visit', v.status, t, v.status)}
                                                 </span>
                                             </div>
 
                                         {v.feedback && v.feedback.rating ? (
                                             <div className="p-3 rounded-lg bg-black/40 border border-white/5 text-[11px] space-y-1.5">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="font-bold text-indigo-400">Feedback: {v.feedback.rating} ⭐️</span>
-                                                    <span className="text-[9px] text-muted-foreground">Recommend: {v.feedback.recommend ? '✅ Yes' : '❌ No'}</span>
+                                                    <span className="font-bold text-indigo-400">{t('manager.feedback', 'Feedback:')} {v.feedback.rating} ⭐️</span>
+                                                    <span className="text-[9px] text-muted-foreground">{t('manager.recommend', 'Recommend:')} {v.feedback.recommend ? '✅ ' + t('common.yes', 'Yes') : '❌ ' + t('common.no', 'No')}</span>
                                                 </div>
                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[9px] text-muted-foreground pt-1 border-t border-white/5">
-                                                    <span>Condition: {v.feedback.propertyCondition}/5</span>
-                                                    <span>Manager: {v.feedback.managerExperience}/5</span>
-                                                    <span>Cleanliness: {v.feedback.cleanliness}/5</span>
-                                                    <span>Location: {v.feedback.locationSatisfaction}/5</span>
+                                                    <span>{t('manager.condition', 'Condition:')} {v.feedback.propertyCondition}/5</span>
+                                                    <span>{t('manager.manager', 'Manager:')} {v.feedback.managerExperience}/5</span>
+                                                    <span>{t('manager.cleanliness', 'Cleanliness:')} {v.feedback.cleanliness}/5</span>
+                                                    <span>{t('manager.location', 'Location:')} {v.feedback.locationSatisfaction}/5</span>
                                                 </div>
                                                 {v.feedback.comments && (
                                                     <p className="text-white/70 italic mt-1 font-medium bg-white/2 p-2 rounded">
@@ -1864,12 +1865,12 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                             </div>
                                         ) : (
                                             v.status === 'completed' && (
-                                                <p className="text-[10px] text-muted-foreground italic">Awaiting tenant review submission...</p>
+                                                <p className="text-[10px] text-muted-foreground italic">{t('manager.awaitingTenantReview', 'Awaiting tenant review submission...')}</p>
                                             )
                                         )}
                                         {v.notInterested && (
                                             <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold inline-block">
-                                                Not Interested post-visit
+                                                {t('manager.notInterestedPostVisit', 'Not Interested post-visit')}
                                             </span>
                                         )}
                                     </div>
@@ -1899,7 +1900,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         onClick={() => navigate('/maintenance')}
                         className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
                     >
-                        View All <ArrowUpRight className="w-3 h-3" />
+                        <span>{t('common.viewAll', 'View All')}</span> <ArrowUpRight className="w-3 h-3" />
                     </button>
                 </div>
                 <div className="space-y-2">
@@ -2033,6 +2034,7 @@ function SLACountdown({ createdAt, priority, status }) {
 }
 
 function AnimatedCardTimeline({ status }) {
+    const { t } = useLanguage();
     const stageMap = {
         open: 1, submitted: 1, manager_review: 1,
         technician_assigned: 2, visit_scheduled: 2,
@@ -2045,19 +2047,19 @@ function AnimatedCardTimeline({ status }) {
     const pct = isCancelled ? 100 : currentStage === 1 ? 25 : currentStage === 2 ? 50 : currentStage === 3 ? 75 : 100;
 
     const stages = [
-        { num: 1, label: 'Submitted', icon: FileText },
-        { num: 2, label: 'Assigned', icon: UserCheck },
-        { num: 3, label: 'In Work', icon: Wrench },
-        { num: 4, label: 'Resolved', icon: CheckCircle2 }
+        { num: 1, label: t('maintenance.stageSubmitted', 'Submitted'), icon: FileText },
+        { num: 2, label: t('maintenance.stageAssigned', 'Assigned'), icon: UserCheck },
+        { num: 3, label: t('maintenance.stageInWork', 'In Work'), icon: Wrench },
+        { num: 4, label: t('maintenance.stageResolved', 'Resolved'), icon: CheckCircle2 }
     ];
 
     return (
         <div className="space-y-2 py-1.5 bg-muted/20 p-2.5 rounded-2xl border border-border/40">
             <div className="flex items-center justify-between text-[10px] font-bold">
                 <span className="text-muted-foreground/80 uppercase tracking-widest text-[9px] flex items-center gap-1">
-                    <Activity className="w-3 h-3 text-amber-500 animate-spin" /> Live Status Timeline
+                    <Activity className="w-3 h-3 text-amber-500 animate-spin" /> {t('manager.liveStatusTimeline', 'Live Status Timeline')}
                 </span>
-                <span className="font-mono text-amber-500 font-extrabold">{pct}% Progress</span>
+                <span className="font-mono text-amber-500 font-extrabold">{pct}% {t('common.progress', 'Progress')}</span>
             </div>
 
             <div className="relative w-full h-2 rounded-full bg-muted/60 overflow-hidden p-0.5 border border-border/40">
@@ -2253,13 +2255,13 @@ function ManagerMaintenanceView({ navigate }) {
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 bg-muted/60 border border-border p-1 rounded-xl text-xs font-bold">
-                        <span className="text-[10px] uppercase font-black text-muted-foreground px-2">Refresh:</span>
+                        <span className="text-[10px] uppercase font-black text-muted-foreground px-2">{t('common.refreshLabel', 'Refresh:')}</span>
                         {[30, 60, 0].map(s => (
                             <button key={s} onClick={() => setAutoRefreshInterval(s)}
                                 className={cn('px-2.5 py-1 rounded-lg transition-all text-xs font-black',
                                     autoRefreshInterval === s ? 'bg-amber-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                                )}>
-                                {s === 0 ? 'Off' : `${s}s`}
+                                 )}>
+                                {s === 0 ? t('common.off', 'Off') : `${s}s`}
                             </button>
                         ))}
                     </div>
@@ -2301,14 +2303,14 @@ function ManagerMaintenanceView({ navigate }) {
                                         <SLACountdown createdAt={emg.createdAt} priority="emergency" status={emg.status} />
                                     </div>
                                     <h4 className="text-xs font-black text-foreground mt-1 truncate">{emg.title}</h4>
-                                    <p className="text-[10px] text-muted-foreground">📍 Apt {emg.unit || 'A-402'} • {emg.property?.name || 'Main Property'}</p>
+                                    <p className="text-[10px] text-muted-foreground">📍 {t('common.apt', 'Apt')} {emg.unit || 'A-402'} • {emg.property?.name || 'Main Property'}</p>
                                 </div>
                                 <div className="pt-2 border-t border-rose-500/20 flex items-center justify-between gap-1">
                                     <button onClick={() => setAssigningTicket(emg)} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-black text-[10px] hover:bg-rose-500 transition-all flex items-center gap-1">
-                                        <UserCheck className="w-3 h-3" /> Assign
+                                        <UserCheck className="w-3 h-3" /> {t('technician.assign', 'Assign')}
                                     </button>
                                     <button onClick={() => setPreviewTicket(emg)} className="px-2.5 py-1 rounded-lg bg-card border border-border text-foreground font-bold text-[10px] hover:bg-muted transition-all flex items-center gap-1">
-                                        <Eye className="w-3 h-3" /> View
+                                        <Eye className="w-3 h-3" /> {t('common.view', 'View')}
                                     </button>
                                 </div>
                             </div>
@@ -2316,7 +2318,7 @@ function ManagerMaintenanceView({ navigate }) {
                     </div>
                 ) : (
                     <div className="p-4 text-center text-xs font-bold text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">
-                        ✓ No active emergency tickets in queue
+                        {t('manager.noActiveEmergencyTickets', '✓ No active emergency tickets in queue')}
                     </div>
                 )}
             </div>
@@ -2326,16 +2328,16 @@ function ManagerMaintenanceView({ navigate }) {
                 {/* 4. Queue Density KPI Cards (Spans 3 cols) */}
                 <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {[
-                        { label: 'Total Requests', val: kpis.totalRequests, color: 'text-foreground', spark: '↑12%', pct: 100, bar: 'bg-blue-500' },
-                        { label: 'Open', val: kpis.open, color: 'text-rose-500', spark: '↑5%', pct: 40, bar: 'bg-rose-500' },
-                        { label: 'In Progress', val: kpis.inProgress, color: 'text-amber-500', spark: '↓8%', pct: 60, bar: 'bg-amber-500' },
-                        { label: 'Emergency', val: kpis.emergency, color: 'text-rose-600 font-black animate-pulse', spark: '🚨 Live', pct: 20, bar: 'bg-rose-600' },
-                        { label: 'SLA Breached', val: kpis.slaBreached, color: 'text-orange-500', spark: '↑2%', pct: 15, bar: 'bg-orange-500' },
-                        { label: 'Completed Today', val: kpis.completedToday, color: 'text-emerald-400', spark: '↑15%', pct: 80, bar: 'bg-emerald-500' },
-                        { label: 'Avg Response', val: `${kpis.avgResponseTimeMins}m`, color: 'text-blue-400', spark: '< 30m', pct: 75, bar: 'bg-blue-400' },
-                        { label: 'Avg Resolution', val: `${kpis.avgResolutionTimeHours}h`, color: '< 24h', pct: 85, bar: 'bg-purple-400' },
-                        { label: 'Tech Utilization', val: `${kpis.technicianUtilizationPercent}%`, color: 'text-cyan-400', spark: '84%', pct: 84, bar: 'bg-cyan-400' },
-                        { label: 'Customer CSAT', val: `★ ${kpis.customerSatisfactionScore}`, color: 'text-amber-400', spark: '96%', pct: 96, bar: 'bg-amber-400' },
+                        { label: t('maintenance.kpiTotalRequests', 'Total Requests'), val: kpis.totalRequests, color: 'text-foreground', spark: '↑12%', pct: 100, bar: 'bg-blue-500' },
+                        { label: t('maintenance.kpiOpen', 'Open'), val: kpis.open, color: 'text-rose-500', spark: '↑5%', pct: 40, bar: 'bg-rose-500' },
+                        { label: t('maintenance.kpiInProgress', 'In Progress'), val: kpis.inProgress, color: 'text-amber-500', spark: '↓8%', pct: 60, bar: 'bg-amber-500' },
+                        { label: t('maintenance.kpiEmergency', 'Emergency'), val: kpis.emergency, color: 'text-rose-600 font-black animate-pulse', spark: '🚨 Live', pct: 20, bar: 'bg-rose-600' },
+                        { label: t('maintenance.kpiSlaBreached', 'SLA Breached'), val: kpis.slaBreached, color: 'text-orange-500', spark: '↑2%', pct: 15, bar: 'bg-orange-500' },
+                        { label: t('maintenance.kpiCompletedToday', 'Completed Today'), val: kpis.completedToday, color: 'text-emerald-400', spark: '↑15%', pct: 80, bar: 'bg-emerald-500' },
+                        { label: t('maintenance.kpiAvgResponse', 'Avg Response'), val: `${kpis.avgResponseTimeMins}m`, color: 'text-blue-400', spark: '< 30m', pct: 75, bar: 'bg-blue-400' },
+                        { label: t('maintenance.kpiAvgResolution', 'Avg Resolution'), val: `${kpis.avgResolutionTimeHours}h`, color: '< 24h', pct: 85, bar: 'bg-purple-400' },
+                        { label: t('maintenance.kpiTechUtilization', 'Tech Utilization'), val: `${kpis.technicianUtilizationPercent}%`, color: 'text-cyan-400', spark: '84%', pct: 84, bar: 'bg-cyan-400' },
+                        { label: t('maintenance.kpiCustomerCsat', 'Customer CSAT'), val: `★ ${kpis.customerSatisfactionScore}`, color: 'text-amber-400', spark: '96%', pct: 96, bar: 'bg-amber-400' },
                     ].map(kpi => (
                         <div key={kpi.label} className="p-3.5 rounded-2xl border border-border bg-card shadow-sm space-y-2">
                             <div className="flex justify-between items-center text-[9px] font-black uppercase text-muted-foreground/60">
@@ -2355,7 +2357,7 @@ function ManagerMaintenanceView({ navigate }) {
                 <div className="p-4 rounded-3xl border border-border bg-card shadow-sm space-y-3 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-1.5">
-                            <Bell className="w-4 h-4 text-amber-500" /> Manager Operational Inbox
+                            <Bell className="w-4 h-4 text-amber-500" /> {t('manager.operationalInbox', 'Manager Operational Inbox')}
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[9px] font-black">{inboxMessages.length}</span>
                     </div>
@@ -2376,14 +2378,14 @@ function ManagerMaintenanceView({ navigate }) {
 
             {/* 3. Saved Queue Filters Bar */}
             <div className="p-3 rounded-2xl border border-border bg-card/60 backdrop-blur-md flex items-center gap-2 overflow-x-auto">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 shrink-0 px-2">1-Click Presets:</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 shrink-0 px-2">{t('manager.oneClickPresets', '1-Click Presets:')}</span>
                 {[
-                    { id: 'emergency', label: '🚨 My Emergencies', class: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-                    { id: 'sla', label: '⏰ SLA Breached', class: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-                    { id: 'waiting_parts', label: '📦 Waiting Parts', class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-                    { id: 'high_priority', label: '⚡ High Priority', class: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-                    { id: 'unassigned', label: '📋 Open Unassigned', class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-                    { id: 'reset', label: '↺ All Tickets', class: 'bg-muted text-muted-foreground border-border' },
+                    { id: 'emergency', label: '🚨 ' + t('maintenance.presetEmergencies', 'My Emergencies'), class: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+                    { id: 'sla', label: '⏰ ' + t('maintenance.presetSlaBreached', 'SLA Breached'), class: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+                    { id: 'waiting_parts', label: '📦 ' + t('maintenance.presetWaitingParts', 'Waiting Parts'), class: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+                    { id: 'high_priority', label: '⚡ ' + t('maintenance.presetHighPriority', 'High Priority'), class: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+                    { id: 'unassigned', label: '📋 ' + t('maintenance.presetOpenUnassigned', 'Open Unassigned'), class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+                    { id: 'reset', label: '↺ ' + t('maintenance.presetAllTickets', 'All Tickets'), class: 'bg-muted text-muted-foreground border-border' },
                 ].map(preset => (
                     <button key={preset.id} onClick={() => handleApplyPreset(preset.id)}
                         className={cn("px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap transition-all", preset.class)}>
@@ -2401,7 +2403,7 @@ function ManagerMaintenanceView({ navigate }) {
                         <input
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Search by Ticket ID, Title, Unit..."
+                            placeholder={t('manager.searchTicketPlaceholder', 'Search by Ticket ID, Title, Unit...')}
                             className="w-full pl-9 pr-4 py-2 rounded-xl bg-muted/50 border border-border text-foreground text-xs font-semibold placeholder-muted-foreground/40 focus:outline-none focus:border-amber-500/50"
                         />
                     </div>
@@ -2409,10 +2411,10 @@ function ManagerMaintenanceView({ navigate }) {
                     {/* 11. Queue Export Actions */}
                     <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => handleExportQueue('pdf')} className="px-3 py-1.5 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-bold hover:bg-muted transition-all flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5 text-rose-400" /> Export PDF
+                            <Download className="w-3.5 h-3.5 text-rose-400" /> {t('common.exportPdf', 'Export PDF')}
                         </button>
                         <button onClick={() => handleExportQueue('xlsx')} className="px-3 py-1.5 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-bold hover:bg-muted transition-all flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5 text-emerald-400" /> Excel
+                            <Download className="w-3.5 h-3.5 text-emerald-400" /> {t('common.excel', 'Excel')}
                         </button>
                         <button onClick={() => handleExportQueue('csv')} className="px-3 py-1.5 rounded-xl border border-border bg-muted/40 text-foreground text-xs font-bold hover:bg-muted transition-all flex items-center gap-1">
                             <Download className="w-3.5 h-3.5 text-blue-400" /> CSV
@@ -2423,17 +2425,17 @@ function ManagerMaintenanceView({ navigate }) {
                 {/* 8. Queue Statistics Summary Row */}
                 <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 flex items-center justify-between text-xs font-bold text-foreground">
                     <div className="flex items-center gap-4">
-                        <span>Total: <span className="font-mono text-primary">{queue.length} Tickets</span></span>
-                        <span>Filtered: <span className="font-mono text-amber-500">{queue.length}</span></span>
-                        <span>Selected: <span className="font-mono text-blue-400">{selectedIds.size}</span></span>
+                        <span>{t('common.totalLabel', 'Total:')} <span className="font-mono text-primary">{queue.length} {t('common.tickets', 'Tickets')}</span></span>
+                        <span>{t('common.filteredLabel', 'Filtered:')} <span className="font-mono text-amber-500">{queue.length}</span></span>
+                        <span>{t('common.selectedLabel', 'Selected:')} <span className="font-mono text-blue-400">{selectedIds.size}</span></span>
                     </div>
                     {selectedIds.size > 0 && (
                         <div className="flex items-center gap-2">
                             <button onClick={() => handleBulkStatusChange('completed')} className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px]">
-                                Bulk Resolve
+                                {t('manager.bulkResolve', 'Bulk Resolve')}
                             </button>
                             <button onClick={() => handleBulkStatusChange('cancelled')} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold text-[10px]">
-                                Bulk Cancel
+                                {t('manager.bulkCancel', 'Bulk Cancel')}
                             </button>
                         </div>
                     )}
@@ -2447,13 +2449,13 @@ function ManagerMaintenanceView({ navigate }) {
                                 <th className="p-3 w-10 text-center">
                                     <input type="checkbox" checked={selectedIds.size === queue.length && queue.length > 0} onChange={toggleSelectAll} className="rounded border-border bg-card" />
                                 </th>
-                                <th className="p-3">Ticket ID</th>
-                                <th className="p-3">Issue Title</th>
-                                <th className="p-3">Tenant</th>
-                                <th className="p-3">Priority</th>
-                                <th className="p-3">Live SLA Countdown</th>
-                                <th className="p-3">Technician Availability</th>
-                                <th className="p-3 text-right">Actions</th>
+                                <th className="p-3">{t('maintenance.ticketId', 'Ticket ID')}</th>
+                                <th className="p-3">{t('maintenance.issueTitle', 'Issue Title')}</th>
+                                <th className="p-3">{t('common.tenant', 'Tenant')}</th>
+                                <th className="p-3">{t('maintenance.priority', 'Priority')}</th>
+                                <th className="p-3">{t('maintenance.liveSlaCountdown', 'Live SLA Countdown')}</th>
+                                <th className="p-3">{t('maintenance.technicianAvailability', 'Technician Availability')}</th>
+                                <th className="p-3 text-right">{t('common.actions', 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60 text-xs font-medium">
@@ -2467,7 +2469,7 @@ function ManagerMaintenanceView({ navigate }) {
                                     <td className="p-3 text-muted-foreground">{ticket.requestedBy?.firstName} {ticket.requestedBy?.lastName}</td>
                                     <td className="p-3">
                                         <span className="px-2 py-0.5 rounded-md border text-[9px] font-black capitalize bg-card border-border">
-                                            {ticket.priority}
+                                            {getLocalizedStatus(ticket.priority, t, 'priority')}
                                         </span>
                                     </td>
                                     <td className="p-3">
@@ -2478,11 +2480,11 @@ function ManagerMaintenanceView({ navigate }) {
                                         {ticket.assignedTo ? (
                                             <span className="px-2 py-1 rounded-xl bg-card border border-border text-[10px] font-bold text-foreground flex items-center gap-1.5 w-fit">
                                                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                                {ticket.assignedTo.firstName} (2 Jobs • 74%)
+                                                {ticket.assignedTo.firstName} {t('technician.assignedLoadSummary', '({{count}} Jobs • 74%)', { count: 2 })}
                                             </span>
                                         ) : (
                                             <button onClick={() => setAssigningTicket(ticket)} className="text-[10px] font-bold text-amber-500 hover:underline">
-                                                + Assign Tech
+                                                {t('technician.assignTech', '+ Assign Tech')}
                                             </button>
                                         )}
                                     </td>
@@ -2492,7 +2494,7 @@ function ManagerMaintenanceView({ navigate }) {
                                             <Eye className="w-3.5 h-3.5" />
                                         </button>
                                         <button onClick={() => navigate('/maintenance', { state: { searchId: ticket._id } })} className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold text-[10px]">
-                                            Inspect
+                                            {t('manager.inspect', 'Inspect')}
                                         </button>
                                     </td>
                                 </tr>
@@ -2510,14 +2512,14 @@ function ManagerMaintenanceView({ navigate }) {
                                 <SLACountdown createdAt={ticket.createdAt} priority={ticket.priority} status={ticket.status} />
                             </div>
                             <h4 className="text-sm font-black text-foreground">{ticket.title}</h4>
-                            <p className="text-xs text-muted-foreground">Tenant: {ticket.requestedBy?.firstName} {ticket.requestedBy?.lastName} • Apt {ticket.unit || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground">{t('common.tenant', 'Tenant')}: {ticket.requestedBy?.firstName} {ticket.requestedBy?.lastName} • {t('common.apt', 'Apt')} {ticket.unit || 'N/A'}</p>
                             
                             <AnimatedCardTimeline status={ticket.status} />
 
                             <div className="pt-2 flex items-center justify-between border-t border-border/40">
-                                <span className="text-[10px] font-bold text-foreground">Tech: {ticket.assignedTo?.firstName || 'Unassigned'}</span>
+                                <span className="text-[10px] font-bold text-foreground">{t('technician.techPrefix', 'Tech:')} {ticket.assignedTo?.firstName || t('technician.unassigned', 'Unassigned')}</span>
                                 <button onClick={() => setPreviewTicket(ticket)} className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs">
-                                    Preview
+                                    {t('common.preview', 'Preview')}
                                 </button>
                             </div>
                         </div>
@@ -2540,13 +2542,13 @@ function ManagerMaintenanceView({ navigate }) {
                                 <button onClick={() => setPreviewTicket(null)} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                             </div>
                             <div className="space-y-2 text-xs">
-                                <p><span className="font-bold text-muted-foreground">Tenant:</span> {previewTicket.requestedBy?.firstName} {previewTicket.requestedBy?.lastName}</p>
-                                <p><span className="font-bold text-muted-foreground">Description:</span> {previewTicket.description}</p>
+                                <p><span className="font-bold text-muted-foreground">{t('common.tenant', 'Tenant:')}</span> {previewTicket.requestedBy?.firstName} {previewTicket.requestedBy?.lastName}</p>
+                                <p><span className="font-bold text-muted-foreground">{t('common.description', 'Description:')}</span> {previewTicket.description}</p>
                                 <AnimatedCardTimeline status={previewTicket.status} />
                             </div>
                             <div className="pt-3 border-t border-border flex gap-2">
-                                <button onClick={() => setPreviewTicket(null)} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold">Close</button>
-                                <button onClick={() => { setPreviewTicket(null); navigate('/maintenance', { state: { searchId: previewTicket._id } }); }} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold">Full Details</button>
+                                <button onClick={() => setPreviewTicket(null)} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-bold">{t('common.close', 'Close')}</button>
+                                <button onClick={() => { setPreviewTicket(null); navigate('/maintenance', { state: { searchId: previewTicket._id } }); }} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold">{t('common.fullDetails', 'Full Details')}</button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -2560,8 +2562,8 @@ function ManagerMaintenanceView({ navigate }) {
                         <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-md rounded-3xl border border-border bg-card p-6 space-y-4 shadow-2xl">
                             <div className="flex items-center justify-between border-b border-border pb-3">
                                 <div>
-                                    <span className="text-[10px] font-black uppercase text-amber-500">Smart Tech Dispatch</span>
-                                    <h3 className="text-base font-black text-foreground">Assign Specialist for #{String(assigningTicket._id).substring(0, 8)}</h3>
+                                    <span className="text-[10px] font-black uppercase text-amber-500">{t('technician.smartTechDispatch', 'Smart Tech Dispatch')}</span>
+                                    <h3 className="text-base font-black text-foreground">{t('technician.assignSpecialistFor', 'Assign Specialist for')} #{String(assigningTicket._id).substring(0, 8)}</h3>
                                 </div>
                                 <button onClick={() => setAssigningTicket(null)} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                             </div>
@@ -2569,21 +2571,21 @@ function ManagerMaintenanceView({ navigate }) {
                             <div className="space-y-2">
                                 {availableTechs.length === 0 ? (
                                     <div className="text-center py-6 text-muted-foreground/60 text-xs">
-                                        No registered technicians found for your properties. Go to Workforce to invite technicians.
+                                        {t('technician.noRegisteredTechsFound', 'No registered technicians found for your properties. Go to Workforce to invite technicians.')}
                                     </div>
                                 ) : (
                                     availableTechs.map(tech => (
                                         <div key={tech._id || tech.id} className="p-3.5 rounded-2xl border border-border bg-muted/20 flex items-center justify-between">
                                             <div>
                                                 <h4 className="text-xs font-black text-foreground">{tech.firstName} {tech.lastName} <span className="text-amber-400 font-bold">★ {tech.technicianProfile?.rating || '5.0'}</span></h4>
-                                                <p className="text-[10px] text-muted-foreground">{tech.technicianProfile?.specialties?.join(', ') || 'General Maintenance'} • Status: {tech.technicianProfile?.availabilityStatus || 'Available'}</p>
+                                                <p className="text-[10px] text-muted-foreground">{tech.technicianProfile?.specialties?.join(', ') || t('technician.generalMaintenance', 'General Maintenance')} {t('common.statusColon', '• Status:')} {getLocalizedStatus('technician', tech.technicianProfile?.availabilityStatus || 'available', t, tech.technicianProfile?.availabilityStatus || 'Available')}</p>
                                             </div>
                                             <button onClick={async () => {
                                                 await maintenanceService.updateRequest(assigningTicket._id, { assignedTo: tech._id || tech.id, status: 'technician_assigned' });
                                                 setAssigningTicket(null);
                                                 fetchDashboardData();
                                             }} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition-all cursor-pointer">
-                                                Assign
+                                                {t('technician.assign', 'Assign')}
                                             </button>
                                         </div>
                                     ))
