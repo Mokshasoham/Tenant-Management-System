@@ -547,7 +547,7 @@ export default function TenantSubscriptionPage() {
               )}
             >
               {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              <span>Retry</span>
+              <span>{t('common.retry', 'Retry')}</span>
             </button>
           </div>
         )}
@@ -560,6 +560,13 @@ export default function TenantSubscriptionPage() {
             const isPlanPro = plan.planId === 'pro';
             const isCurrent = isPlanFree ? (currentPlanId === 'free' || !currentPlanId) : (plan.planId === currentPlanId);
             const PlanIcon = planIcons[plan.planId] || Home;
+            const badgeText = isCurrent
+              ? t("subscription.currentPlan", "CURRENT PLAN")
+              : isPlanPlus
+              ? t("subscription.mostPopular", "MOST POPULAR")
+              : isPlanPro
+              ? t("subscription.bestValue", "BEST VALUE")
+              : t("subscription.free", "FREE");
 
             return (
               <motion.div
@@ -567,7 +574,7 @@ export default function TenantSubscriptionPage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.25 }}
                 className={cn(
-                  "relative rounded-[30px] border pt-9 sm:pt-10 pb-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
+                  "relative rounded-[30px] border pt-5 pb-6 sm:pt-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
                   isDark
                     ? (isPlanPlus
                         ? "bg-gradient-to-b from-[#072421] via-[#041618] to-[#020A0D] border-emerald-400/60 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/40 md:-translate-y-2 text-white"
@@ -581,23 +588,25 @@ export default function TenantSubscriptionPage() {
                         : "bg-white border-slate-200 shadow-md text-slate-900")
                 )}
               >
-                {/* Plan Badge */}
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-full max-w-[85%] flex justify-center z-20 pointer-events-none">
-                  <span
-                    className={cn(
-                      "px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border text-center whitespace-normal leading-tight",
-                      isCurrent
-                        ? (isDark ? "bg-emerald-950 text-emerald-300 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300")
-                        : isPlanPlus
-                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-emerald-300 shadow-emerald-500/30"
-                        : "bg-gradient-to-r from-cyan-500 to-teal-500 text-white border-cyan-300 shadow-cyan-500/30"
-                    )}
-                  >
-                    {isCurrent ? t("subscription.currentPlan", "CURRENT PLAN") : (isPlanPlus ? t("subscription.mostPopular", "MOST POPULAR") : t("subscription.bestValue", "BEST VALUE"))}
-                  </span>
-                </div>
-
                 <div className="space-y-6">
+                  {/* Top Inset Plan Badge */}
+                  <div className="flex justify-center items-center w-full min-h-[36px] sm:min-h-[40px] px-1">
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md border text-center leading-snug max-w-full break-words",
+                        isCurrent
+                          ? (isDark ? "bg-emerald-950 text-emerald-300 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300")
+                          : isPlanPlus
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-emerald-300 shadow-emerald-500/30"
+                          : isPlanPro
+                          ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white border-cyan-300 shadow-cyan-500/30"
+                          : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
+                      )}
+                    >
+                      {badgeText}
+                    </span>
+                  </div>
+
                   {/* Header: Icon + Title + Description */}
                   <div className="space-y-3">
                     <div
@@ -647,7 +656,7 @@ export default function TenantSubscriptionPage() {
                       "text-xs font-bold uppercase tracking-wider",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      / month
+                      {t('subscription.perMonth', '/ month')}
                     </span>
                   </div>
 
@@ -776,11 +785,24 @@ export default function TenantSubscriptionPage() {
                       {upgradingPlanId === plan.planId ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Processing...</span>
+                          <span>{t('common.processing', 'Processing...')}</span>
                         </>
                       ) : (
                         <>
-                          <span>{t("subscription.upgradeTo", { plan: isPlanPlus ? "Plus" : "Pro" })}</span>
+                          <span>
+                            {t('subscription.upgradeTo', 'Upgrade to {{plan}}', {
+                              plan: isPlanPlus
+                                ? t('subscription.plus', 'Plus')
+                                : isPlanPro
+                                ? t('subscription.pro', 'Pro')
+                                : (plan.planName || t('subscription.plan', 'Plan')),
+                              PLAN: isPlanPlus
+                                ? t('subscription.plus', 'Plus')
+                                : isPlanPro
+                                ? t('subscription.pro', 'Pro')
+                                : (plan.planName || t('subscription.plan', 'Plan')),
+                            })}
+                          </span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
@@ -930,7 +952,7 @@ export default function TenantSubscriptionPage() {
 
                   {/* Col 2: FREE Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1" />
+                    <div className="min-h-[24px] mb-1" />
                     <div className={cn(
                       "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 shadow-sm box-border",
                       isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-100 border-slate-200"
@@ -939,25 +961,25 @@ export default function TenantSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-slate-400" : "text-slate-500"
                       )}>
-                        FREE
+                        {t('subscription.free', 'FREE')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>/mo</span>
+                        ₹0 <span className={cn("text-[10px] font-normal", isDark ? "text-slate-500" : "text-slate-400")}>{t('subscription.perMonth', '/mo')}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-slate-400" : "text-slate-600")}>
-                        2 leases
+                        {t('subscription.leaseCapacityCount', '{{count}} lease capacity', { count: 2 })}
                       </span>
                     </div>
                   </div>
 
                   {/* Col 3: PLUS Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1 flex items-center justify-center">
-                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-emerald-300/40">
-                        MOST POPULAR
+                    <div className="min-h-[24px] mb-1 flex items-center justify-center">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md border border-emerald-300/40 text-center leading-tight break-words max-w-full">
+                        {t('subscription.mostPopular', 'MOST POPULAR')}
                       </span>
                     </div>
                     <div className={cn(
@@ -970,25 +992,25 @@ export default function TenantSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-emerald-400" : "text-emerald-700"
                       )}>
-                        ✦ PLUS
+                        ✦ {t('subscription.plus', 'PLUS')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        ₹499 <span className={cn("text-[10px] font-normal", isDark ? "text-emerald-400/70" : "text-emerald-600")}>/mo</span>
+                        ₹499 <span className={cn("text-[10px] font-normal", isDark ? "text-emerald-400/70" : "text-emerald-600")}>{t('subscription.perMonth', '/mo')}</span>
                       </span>
                       <span className={cn("text-[10px] font-bold block", isDark ? "text-emerald-300" : "text-emerald-800")}>
-                        4 leases
+                        {t('subscription.leaseCapacityCount', '{{count}} lease capacity', { count: 4 })}
                       </span>
                     </div>
                   </div>
 
                   {/* Col 4: PRO Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1 flex items-center justify-center">
-                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-cyan-300/40">
-                        BEST VALUE
+                    <div className="min-h-[24px] mb-1 flex items-center justify-center">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md border border-cyan-300/40 text-center leading-tight break-words max-w-full">
+                        {t('subscription.bestValue', 'BEST VALUE')}
                       </span>
                     </div>
                     <div className={cn(
@@ -1001,7 +1023,7 @@ export default function TenantSubscriptionPage() {
                         "text-[10px] font-black uppercase tracking-wider block",
                         isDark ? "text-cyan-400" : "text-cyan-700"
                       )}>
-                        ♛ PRO
+                        ♛ {t('subscription.pro', 'PRO')}
                       </span>
                       <span className={cn(
                         "text-base sm:text-lg font-black block tracking-tight",

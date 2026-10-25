@@ -107,11 +107,13 @@ export function LanguageProvider({ children }) {
       val = fallbackVal !== undefined ? fallbackVal : (fallbackDefault || key);
     }
 
-    // Interpolation replacement for {{param}} and {param}
+    // Interpolation replacement for {{param}} and {param} (case-insensitive, whitespace-tolerant, dollar-safe)
     if (params && typeof val === 'string') {
       for (const [pKey, pVal] of Object.entries(params)) {
         const replacement = pVal !== undefined && pVal !== null ? String(pVal) : '';
-        val = val.replaceAll(`{{${pKey}}}`, replacement).replaceAll(`{${pKey}}`, replacement);
+        const escapedKey = pKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?:\\{\\{|\\{)\\s*${escapedKey}\\s*(?:\\}\\}|\\})`, 'gi');
+        val = val.replace(regex, () => replacement);
       }
     }
 

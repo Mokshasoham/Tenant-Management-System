@@ -571,6 +571,13 @@ export default function ManagerSubscriptionPage() {
             const isPro = plan.planId === 'pro';
             const isCurrent = isStarter ? (currentPlanId === 'starter' || !currentPlanId) : (plan.planId === currentPlanId);
             const PlanIcon = planIcons[plan.planId] || Building2;
+            const badgeText = isCurrent
+              ? t('subscription.currentPlanBadge', 'CURRENT PLAN')
+              : isPlus
+              ? t('subscription.mostPopularBadge', 'MOST POPULAR')
+              : isPro
+              ? t('subscription.growingPortfoliosBadge', 'FOR GROWING PORTFOLIOS')
+              : t('subscription.starter', 'STARTER');
 
             return (
               <motion.div
@@ -578,7 +585,7 @@ export default function ManagerSubscriptionPage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.25 }}
                 className={cn(
-                  "relative rounded-[30px] border p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
+                  "relative rounded-[30px] border pt-5 pb-6 sm:pt-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
                   isDark
                     ? (isPlus
                         ? "bg-gradient-to-b from-[#0F1B3E] via-[#091028] to-[#040816] border-indigo-400/60 shadow-[0_15px_40px_-10px_rgba(99,102,241,0.3)] ring-1 ring-indigo-400/40 md:-translate-y-2 text-white"
@@ -592,23 +599,25 @@ export default function ManagerSubscriptionPage() {
                         : "bg-white border-slate-200 shadow-md text-slate-900")
                 )}
               >
-                {/* Plan Badge */}
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span
-                    className={cn(
-                      "px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border",
-                      isCurrent
-                        ? (isDark ? "bg-indigo-950 text-indigo-300 border-indigo-500/40" : "bg-indigo-100 text-indigo-800 border-indigo-300")
-                        : isPlus
-                        ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-indigo-300 shadow-indigo-500/30"
-                        : "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border-violet-300 shadow-violet-500/30"
-                    )}
-                  >
-                    {isCurrent ? t('subscription.currentPlanBadge', 'CURRENT PLAN') : (isPlus ? t('subscription.mostPopularBadge', 'MOST POPULAR') : t('subscription.growingPortfoliosBadge', 'FOR GROWING PORTFOLIOS'))}
-                  </span>
-                </div>
-
                 <div className="space-y-6">
+                  {/* Top Inset Plan Badge */}
+                  <div className="flex justify-center items-center w-full min-h-[36px] sm:min-h-[40px] px-1">
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md border text-center leading-snug max-w-full break-words",
+                        isCurrent
+                          ? (isDark ? "bg-indigo-950 text-indigo-300 border-indigo-500/40" : "bg-indigo-100 text-indigo-800 border-indigo-300")
+                          : isPlus
+                          ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-indigo-300 shadow-indigo-500/30"
+                          : isPro
+                          ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border-violet-300 shadow-violet-500/30"
+                          : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
+                      )}
+                    >
+                      {badgeText}
+                    </span>
+                  </div>
+
                   {/* Header: Icon + Title + Description */}
                   <div className="space-y-3">
                     <div
@@ -635,7 +644,7 @@ export default function ManagerSubscriptionPage() {
                         "text-xl font-black tracking-tight uppercase",
                         isDark ? "text-white" : "text-slate-900"
                       )}>
-                        {plan.planName}
+                        {getLocalizedPlanName(plan.planId, plan.planName)}
                       </h3>
                       <p className={cn(
                         "text-xs font-medium mt-1",
@@ -791,7 +800,20 @@ export default function ManagerSubscriptionPage() {
                         </>
                       ) : (
                         <>
-                          <span>{t('subscription.upgradeTo', 'Upgrade to')} {isPlus ? t('subscription.plus', 'Plus') : t('subscription.pro', 'Pro')}</span>
+                          <span>
+                            {t('subscription.upgradeTo', 'Upgrade to {{plan}}', {
+                              plan: isPlus
+                                ? t('subscription.plus', 'Plus')
+                                : isPro
+                                ? t('subscription.pro', 'Pro')
+                                : (plan.planName || t('subscription.plan', 'Plan')),
+                              PLAN: isPlus
+                                ? t('subscription.plus', 'Plus')
+                                : isPro
+                                ? t('subscription.pro', 'Pro')
+                                : (plan.planName || t('subscription.plan', 'Plan')),
+                            })}
+                          </span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
@@ -941,7 +963,7 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Col 2: STARTER Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1" />
+                    <div className="min-h-[24px] mb-1" />
                     <div className={cn(
                       "w-full p-3.5 sm:p-4 rounded-2xl border text-center space-y-1 shadow-sm box-border",
                       isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-100 border-slate-200"
@@ -966,8 +988,8 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Col 3: PLUS Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1 flex items-center justify-center">
-                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-indigo-300/40">
+                    <div className="min-h-[24px] mb-1 flex items-center justify-center">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-[8px] font-black tracking-widest uppercase shadow-md border border-indigo-300/40 text-center leading-tight break-words max-w-full">
                         {t('subscription.mostPopularBadge', 'MOST POPULAR')}
                       </span>
                     </div>
@@ -997,9 +1019,9 @@ export default function ManagerSubscriptionPage() {
 
                   {/* Col 4: PRO Header Card */}
                   <div className="flex flex-col h-full justify-end">
-                    <div className="h-6 mb-1 flex items-center justify-center">
-                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white text-[8px] font-black tracking-widest uppercase shadow-md whitespace-nowrap border border-violet-300/40">
-                        {t('subscription.growingPortfoliosBadge', 'GROWING PORTFOLIOS')}
+                    <div className="min-h-[24px] mb-1 flex items-center justify-center">
+                      <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white text-[8px] font-black tracking-widest uppercase shadow-md border border-violet-300/40 text-center leading-tight break-words max-w-full">
+                        {t('subscription.growingPortfoliosBadge', 'FOR GROWING PORTFOLIOS')}
                       </span>
                     </div>
                     <div className={cn(
