@@ -5,10 +5,12 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Card, Button } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKGROUND_URL = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop";
 
 export default function VerifyEmailPage() {
+    const { t } = useLanguage();
     const { token } = useParams();
     const navigate = useNavigate();
     const verifyEmail = useAuthStore((state) => state.verifyEmail);
@@ -58,8 +60,8 @@ export default function VerifyEmailPage() {
                             {status === 'loading' && (
                                 <div className="flex flex-col items-center">
                                     <Loader2 className="w-16 h-16 animate-spin text-primary mb-6" />
-                                    <h2 className="text-2xl font-black text-foreground mb-2">Verifying Email</h2>
-                                    <p className="text-muted-foreground font-medium">Please wait while we verify your email address...</p>
+                                    <h2 className="text-2xl font-black text-foreground mb-2">{t('auth.verifyingEmail', 'Verifying Email')}</h2>
+                                    <p className="text-muted-foreground font-medium">{t('auth.verifyingEmailDesc', 'Please wait while we verify your email address...')}</p>
                                 </div>
                             )}
 
@@ -68,10 +70,10 @@ export default function VerifyEmailPage() {
                                     <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 mb-6">
                                         <CheckCircle2 className="w-12 h-12" />
                                     </div>
-                                    <h2 className="text-3xl font-black text-foreground mb-4">Email Verified!</h2>
+                                    <h2 className="text-3xl font-black text-foreground mb-4">{t('auth.emailVerifiedTitle', 'Email Verified!')}</h2>
                                     <p className="text-muted-foreground font-medium text-lg mb-8">{message}</p>
                                     <Button onClick={() => navigate('/dashboard')} className="w-full py-4 text-lg">
-                                        Go to Dashboard
+                                        {t('dashboard.goToDashboard', 'Go to Dashboard')}
                                     </Button>
                                 </div>
                             )}
@@ -81,10 +83,10 @@ export default function VerifyEmailPage() {
                                     <div className="w-20 h-20 rounded-full bg-destructive/20 flex items-center justify-center text-destructive mb-6">
                                         <XCircle className="w-12 h-12" />
                                     </div>
-                                    <h2 className="text-3xl font-black text-foreground mb-4">Verification Failed</h2>
+                                    <h2 className="text-3xl font-black text-foreground mb-4">{t('auth.verificationFailedTitle', 'Verification Failed')}</h2>
                                     <p className="text-muted-foreground font-medium text-lg mb-8">{message}</p>
                                     <Button onClick={() => navigate('/login')} variant="outline" className="w-full py-4 text-lg">
-                                        Return to Login
+                                        {t('auth.returnToLogin', 'Return to Login')}
                                     </Button>
                                 </div>
                             )}

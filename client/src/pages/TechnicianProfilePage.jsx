@@ -3,12 +3,14 @@ import useAuthStore from '../context/authStore';
 import { technicianPortalService } from '../services/api';
 import { User, ShieldCheck, Save } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 export default function TechnicianProfilePage() {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
@@ -39,10 +41,10 @@ export default function TechnicianProfilePage() {
       <div>
         <h1 className="text-xl font-black text-foreground flex items-center gap-2">
           <User className="w-6 h-6 text-cyan-500" />
-          Technician Mobile Profile
+          {t('technician.mobileProfile', 'Technician Mobile Profile')}
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-          View company credentials and update self-service contact details
+          {t('technician.mobileProfileDesc', 'View company credentials and update self-service contact details')}
         </p>
       </div>
 
@@ -59,14 +61,14 @@ export default function TechnicianProfilePage() {
         {/* Company Identity Banner */}
         <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] text-muted-foreground font-mono uppercase font-bold">Company Employee Identity</span>
+            <span className="text-[10px] text-muted-foreground font-mono uppercase font-bold">{t('technician.employeeIdentity', 'Company Employee Identity')}</span>
             <p className="text-base font-mono font-black text-cyan-500 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-cyan-500" />
               {profile.employeeId || 'TECH-7846'}
             </p>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold block">Verification Status</span>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold block">{t('technician.verificationStatus', 'Verification Status')}</span>
             <span className="text-xs font-black text-emerald-500 uppercase">
               {profile.verificationStatus || 'VERIFIED'}
             </span>
@@ -76,7 +78,7 @@ export default function TechnicianProfilePage() {
         {/* Read-Only Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-bold text-muted-foreground block mb-1">Full Name</label>
+            <label className="text-xs font-bold text-muted-foreground block mb-1">{t('technician.fullName', 'Full Name')}</label>
             <input
               type="text"
               disabled
@@ -88,7 +90,7 @@ export default function TechnicianProfilePage() {
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-muted-foreground block mb-1">Email Address</label>
+            <label className="text-xs font-bold text-muted-foreground block mb-1">{t('technician.emailAddress', 'Email Address')}</label>
             <input
               type="text"
               disabled
@@ -103,7 +105,7 @@ export default function TechnicianProfilePage() {
 
         {/* Editable Phone */}
         <div>
-          <label className="text-xs font-bold text-foreground block mb-1">Contact Phone Number</label>
+          <label className="text-xs font-bold text-foreground block mb-1">{t('technician.contactPhone', 'Contact Phone Number')}</label>
           <input
             type="text"
             value={phone}
@@ -121,14 +123,14 @@ export default function TechnicianProfilePage() {
             "p-3.5 rounded-2xl border text-center",
             theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
           )}>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold">First-Time Fix Rate</span>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold">{t('technician.firstTimeFixRate', 'First-Time Fix Rate')}</span>
             <p className="text-lg font-black text-amber-500 mt-1">{profile.firstTimeFixRate ? `${profile.firstTimeFixRate}%` : 'Not available'}</p>
           </div>
           <div className={cn(
             "p-3.5 rounded-2xl border text-center",
             theme === 'light' ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-white/5"
           )}>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold">Performance Rating</span>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold">{t('technician.performanceRating', 'Performance Rating')}</span>
             <p className="text-lg font-black text-purple-500 mt-1">{profile.rating ? `${profile.rating} ★` : 'Not available'}</p>
           </div>
         </div>
@@ -140,7 +142,7 @@ export default function TechnicianProfilePage() {
             className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? 'Saving...' : 'Save Profile'}
+            {saving ? t('common.saving', 'Saving...') : t('technician.saveProfile', 'Save Profile')}
           </button>
         </div>
       </form>

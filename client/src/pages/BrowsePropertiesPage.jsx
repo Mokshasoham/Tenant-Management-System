@@ -1,5 +1,6 @@
 import React from 'react';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import PropertyDirectory from '../components/property/PropertyDirectory';
 import TenantBrowseProperties from '../components/property/TenantBrowseProperties';
 import { AlertCircle } from 'lucide-react';
@@ -14,6 +15,7 @@ import { AlertCircle } from 'lucide-react';
  * - Technician: Restricted workspace notice
  */
 export default function BrowsePropertiesPage() {
+  const { t } = useLanguage();
   const user = useAuthStore((state) => state.user);
   const role = user?.role?.toLowerCase();
 
@@ -30,9 +32,9 @@ export default function BrowsePropertiesPage() {
       return (
         <div className="max-w-md mx-auto my-20 p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-xl">
           <AlertCircle className="w-12 h-12 mx-auto text-amber-500" />
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Property Directory Restricted</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{t('property.restrictedTitle', 'Property Directory Restricted')}</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Property directory browsing is configured for Tenant search and Admin/Manager portfolio operations. Please use the Technician Workspace to manage assigned repair jobs.
+            {t('property.restrictedDesc', 'Property directory browsing is configured for Tenant search and Admin/Manager portfolio operations. Please use the Technician Workspace to manage assigned repair jobs.')}
           </p>
         </div>
       );

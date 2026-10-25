@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
 import { offerService } from '../../services/api';
 import {
   Handshake, Search, Clock, CheckCircle2, XCircle, ArrowRight,
@@ -19,6 +20,7 @@ const isOfferExpired = (offer) => Boolean(
 );
 
 export default function ManagerNegotiationsPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [offers, setOffers] = useState([]);
@@ -198,15 +200,15 @@ export default function ManagerNegotiationsPage() {
         </div>
 
         <div className="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Locked Deals</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{t('negotiations.lockedDeals', 'Locked Deals')}</p>
           <p className="text-2xl font-black text-emerald-400">{metrics.accepted}</p>
-          <p className="text-xs text-emerald-500/80">Agreed & ready for booking</p>
+          <p className="text-xs text-emerald-500/80">{t('negotiations.agreedReadyDesc', 'Agreed & ready for booking')}</p>
         </div>
 
         <div className="p-5 rounded-3xl bg-rose-500/10 border border-rose-500/20 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Expiring Soon</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">{t('negotiations.expiringSoon', 'Expiring Soon')}</p>
           <p className="text-2xl font-black text-rose-400">{metrics.expiringSoon}</p>
-          <p className="text-xs text-rose-500/80">&lt; 24h validity remaining</p>
+          <p className="text-xs text-rose-500/80">{t('negotiations.validityRemainingDesc', '< 24h validity remaining')}</p>
         </div>
       </div>
 
@@ -214,11 +216,11 @@ export default function ManagerNegotiationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           {[
-            { id: 'all', label: 'All Deals' },
-            { id: 'action_required', label: 'Action Required', badge: metrics.actionRequired },
-            { id: 'countered', label: 'Countered' },
-            { id: 'accepted', label: 'Locked Deals', badge: metrics.accepted },
-            { id: 'closed', label: 'Closed / Expired' }
+            { id: 'all', label: t('negotiations.allDeals', 'All Deals') },
+            { id: 'action_required', label: t('negotiations.actionRequired', 'Action Required'), badge: metrics.actionRequired },
+            { id: 'countered', label: t('negotiations.countered', 'Countered') },
+            { id: 'accepted', label: t('negotiations.lockedDeals', 'Locked Deals'), badge: metrics.accepted },
+            { id: 'closed', label: t('negotiations.closedExpired', 'Closed / Expired') }
           ].map(tab => (
             <button
               key={tab.id}
@@ -247,7 +249,7 @@ export default function ManagerNegotiationsPage() {
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search deals, properties, tenants..."
+            placeholder={t('negotiations.searchPlaceholder', 'Search deals, properties, tenants...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-medium focus:outline-none focus:border-emerald-500 transition-all"
@@ -259,12 +261,12 @@ export default function ManagerNegotiationsPage() {
       {loading ? (
         <div className="py-20 flex flex-col items-center justify-center text-muted-foreground space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <p className="text-xs font-bold">Loading negotiations...</p>
+          <p className="text-xs font-bold">{t('negotiations.loading', 'Loading negotiations...')}</p>
         </div>
       ) : filteredOffers.length === 0 ? (
         <div className="py-16 p-8 rounded-3xl bg-muted/20 border border-border border-dashed text-center space-y-3">
           <Handshake className="w-12 h-12 text-muted-foreground/40 mx-auto" />
-          <h3 className="text-base font-black text-foreground">No negotiations found</h3>
+          <h3 className="text-base font-black text-foreground">{t('negotiations.noNegotiationsFound', 'No negotiations found')}</h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             {searchQuery || statusFilter !== 'all'
               ? 'Try changing your search or filters to see more deals.'
@@ -316,13 +318,13 @@ export default function ManagerNegotiationsPage() {
                         : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                     )}>
                       {offer.status === 'accepted'
-                        ? 'Locked Deal'
+                        ? t('negotiations.lockedDeal', 'Locked Deal')
                         : isAwaitingManager
-                        ? 'Review Needed'
+                        ? t('negotiations.reviewNeeded', 'Review Needed')
                         : isExpired
-                        ? 'Expired'
+                        ? t('negotiations.expired', 'Expired')
                         : offer.status === 'countered'
-                        ? 'Awaiting Tenant'
+                        ? t('negotiations.awaitingTenant', 'Awaiting Tenant')
                         : offer.status}
                     </span>
                   </div>
@@ -346,14 +348,14 @@ export default function ManagerNegotiationsPage() {
                   {/* Pricing Comparison Banner */}
                   <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">Listed Public Rent</span>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground block">{t('negotiations.listedRent', 'Listed Public Rent')}</span>
                       <span className="text-xs font-semibold text-muted-foreground line-through font-mono">
                         ₹{listedRent.toLocaleString('en-IN')}
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] uppercase font-bold text-emerald-400 block">
-                        {offer.status === 'accepted' ? 'Locked Rent' : 'Current Offer'}
+                        {offer.status === 'accepted' ? t('negotiations.lockedRent', 'Locked Rent') : t('negotiations.currentOffer', 'Current Offer')}
                       </span>
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="text-lg font-black text-foreground font-mono">
@@ -370,7 +372,7 @@ export default function ManagerNegotiationsPage() {
 
                   {offer.maintenanceIncluded && (
                     <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-                      <span className="font-bold">Maintenance: Included</span>
+                      <span className="font-bold">{t('negotiations.maintenanceIncluded', 'Maintenance: Included')}</span>
                       <span className="font-mono font-bold">
                         +₹{(offer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo (Total: ₹{((offer.status === 'accepted' ? (offer.agreedRent || offerRent) : offerRent) + (offer.maintenanceAmount || 500)).toLocaleString('en-IN')}/mo)
                       </span>
@@ -407,14 +409,14 @@ export default function ManagerNegotiationsPage() {
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-muted-foreground text-[10px]">
-                          {offer.status === 'accepted' ? 'Locked Lease Term' : 'Proposed Lease Term'}
+                          {offer.status === 'accepted' ? t('negotiations.lockedLeaseTerm', 'Locked Lease Term') : t('negotiations.proposedLeaseTerm', 'Proposed Lease Term')}
                         </span>
                         <div className="flex items-center gap-1 text-[10px]">
                           <Clock className="w-3 h-3 text-muted-foreground" />
                           <span>
                             {isExpired
-                              ? 'Offer expired'
-                              : `Expires ${new Date(offer.expiresAt).toLocaleDateString()}`}
+                              ? t('negotiations.offerExpired', 'Offer expired')
+                              : `${t('negotiations.expiresPrefix', 'Expires')} ${new Date(offer.expiresAt).toLocaleDateString()}`}
                           </span>
                         </div>
                       </div>
@@ -437,18 +439,18 @@ export default function ManagerNegotiationsPage() {
                         className="flex-1 py-2.5 px-3 rounded-2xl bg-foreground text-background hover:opacity-90 active:scale-95 transition-all text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow"
                       >
                         <Handshake className="w-3.5 h-3.5" />
-                        Respond
+                        {t('negotiations.respond', 'Respond')}
                       </button>
                       <button
                         onClick={() => handleOpenAction(offer, 'accept')}
                         className="py-2.5 px-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 active:scale-95 transition-all text-xs font-black uppercase tracking-wider"
                       >
-                        Accept
+                        {t('negotiations.accept', 'Accept')}
                       </button>
                       <button
                         onClick={() => handleOpenAction(offer, 'reject')}
                         className="py-2.5 px-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 active:scale-95 transition-all text-xs font-black"
-                        title="Reject Offer"
+                        title={t('negotiations.rejectOffer', 'Reject Offer')}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -458,7 +460,7 @@ export default function ManagerNegotiationsPage() {
                       onClick={() => handleOpenAction(offer, 'history')}
                       className="w-full py-2.5 rounded-2xl bg-muted hover:bg-muted/80 text-foreground transition-all text-xs font-bold flex items-center justify-center gap-2"
                     >
-                      <span>View Negotiation Timeline</span>
+                      <span>{t('negotiations.viewTimeline', 'View Negotiation Timeline')}</span>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
                   )}
@@ -509,7 +511,7 @@ export default function ManagerNegotiationsPage() {
 
               {/* Rounds Timeline History */}
               <div className="space-y-2">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Negotiation History</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('negotiations.history', 'Negotiation History')}</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto p-3 rounded-2xl bg-muted/40 border border-border/70 divide-y divide-border/40">
                   {(selectedOffer.offerHistory || []).map((round, idx) => {
                     const senderRole = round.offeredBy || round.senderRole;
@@ -538,7 +540,7 @@ export default function ManagerNegotiationsPage() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span className="line-clamp-1 italic">{noteText || 'No message provided'}</span>
+                          <span className="line-clamp-1 italic">{noteText || t('negotiations.noMessageProvided', 'No message provided')}</span>
                           <span className="font-mono text-[10px] shrink-0 ml-2">{dateStr}</span>
                         </div>
                         {round.startDate && round.endDate && (
@@ -573,7 +575,7 @@ export default function ManagerNegotiationsPage() {
                           responseAction === 'counter' ? "bg-foreground text-background shadow" : "text-muted-foreground hover:text-foreground"
                         )}
                       >
-                        Counter Offer
+                        {t('negotiations.counterOffer', 'Counter Offer')}
                       </button>
                     )}
                     <button
@@ -584,7 +586,7 @@ export default function ManagerNegotiationsPage() {
                         responseAction === 'accept' ? "bg-emerald-500 text-white shadow" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      Accept Deal
+                      {t('negotiations.acceptDeal', 'Accept Deal')}
                     </button>
                     <button
                       type="button"
@@ -594,7 +596,7 @@ export default function ManagerNegotiationsPage() {
                         responseAction === 'reject' ? "bg-rose-500 text-white shadow" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      Reject Offer
+                      {t('negotiations.rejectOffer', 'Reject Offer')}
                     </button>
                   </div>
 
@@ -603,7 +605,7 @@ export default function ManagerNegotiationsPage() {
                       <>
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Your Counter Rent (₹ / Month) *
+                            {t('negotiations.counterRentLabel', 'Your Counter Rent (₹ / Month) *')}
                           </label>
                           <input
                             type="number"
@@ -618,7 +620,7 @@ export default function ManagerNegotiationsPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-                              <span>Start Date *</span>
+                              <span>{t('negotiations.startDateRequired', 'Start Date *')}</span>
                             </label>
                             <input
                               type="date"
@@ -632,7 +634,7 @@ export default function ManagerNegotiationsPage() {
 
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-                              <span>End Date *</span>
+                              <span>{t('negotiations.endDateRequired', 'End Date *')}</span>
                             </label>
                             <input
                               type="date"
@@ -647,7 +649,7 @@ export default function ManagerNegotiationsPage() {
 
                         {counterStartDate && counterEndDate && (
                           <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between">
-                            <span className="text-muted-foreground text-[11px] font-medium">Calculated Duration:</span>
+                            <span className="text-muted-foreground text-[11px] font-medium">{t('negotiations.calculatedDuration', 'Calculated Duration:')}</span>
                             <span className="font-bold text-emerald-400">
                               {calculateLeaseDuration(counterStartDate, counterEndDate).durationText}
                             </span>
@@ -655,7 +657,7 @@ export default function ManagerNegotiationsPage() {
                         )}
 
                         <div className="text-[11px] text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border flex items-center justify-between">
-                          <span>Upcoming Round:</span>
+                          <span>{t('negotiations.upcomingRound', 'Upcoming Round:')}</span>
                           <span className="font-bold text-foreground">
                             Round {(selectedOffer.roundCount || 1) + 1} of {selectedOffer.maxRounds || 5}
                           </span>
@@ -663,7 +665,7 @@ export default function ManagerNegotiationsPage() {
 
                         {selectedOffer.maintenanceIncluded && (
                           <div className="text-[11px] text-cyan-400 bg-cyan-500/10 p-2.5 rounded-xl border border-cyan-500/20 flex items-center justify-between">
-                            <span>Maintenance &amp; Repairs:</span>
+                            <span>{t('negotiations.maintenanceRepairs', 'Maintenance & Repairs:')}</span>
                             <span className="font-bold">Preserved (+₹{(selectedOffer.maintenanceAmount || 500).toLocaleString('en-IN')}/mo)</span>
                           </div>
                         )}
@@ -691,23 +693,23 @@ export default function ManagerNegotiationsPage() {
                       <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 space-y-1.5 text-xs">
                         <div className="flex items-center gap-2 font-bold">
                           <XCircle className="w-4 h-4" />
-                          <span>Reject & Close Deal</span>
+                          <span>{t('negotiations.rejectCloseDeal', 'Reject & Close Deal')}</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          This will permanently close the current negotiation round for this tenant.
+                          {t('negotiations.rejectCloseDesc', 'This will permanently close the current negotiation round for this tenant.')}
                         </p>
                       </div>
                     )}
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Note / Explanation to Tenant (Optional)
+                        {t('negotiations.noteOptional', 'Note / Explanation to Tenant (Optional)')}
                       </label>
                       <textarea
                         rows={2}
                         value={responseMessage}
                         onChange={(e) => setResponseMessage(e.target.value)}
-                        placeholder="Add terms, utility inclusions, or reasoning..."
+                        placeholder={t('negotiations.notePlaceholder', 'Add terms, utility inclusions, or reasoning...')}
                         className="w-full px-4 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs focus:outline-none focus:border-emerald-500 resize-none"
                       />
                     </div>
@@ -725,7 +727,7 @@ export default function ManagerNegotiationsPage() {
                         onClick={() => setSelectedOffer(null)}
                         className="w-1/3 py-3 rounded-2xl font-bold bg-muted hover:bg-muted/80 text-foreground transition-all text-xs"
                       >
-                        Cancel
+                        {t('common.cancel', 'Cancel')}
                       </button>
                       <button
                         type="submit"
@@ -741,10 +743,10 @@ export default function ManagerNegotiationsPage() {
                       >
                         {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                         {responseAction === 'accept'
-                          ? 'Confirm & Lock Deal'
+                          ? t('negotiations.confirmLockDeal', 'Confirm & Lock Deal')
                           : responseAction === 'reject'
-                          ? 'Confirm Rejection'
-                          : 'Send Counter Offer'}
+                          ? t('negotiations.confirmRejection', 'Confirm Rejection')
+                          : t('negotiations.sendCounterOffer', 'Send Counter Offer')}
                       </button>
                     </div>
                   </form>

@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import ScrollToTopButton from '../components/common/ScrollToTopButton';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 const ROLE_BG = {
@@ -26,6 +27,7 @@ const ROLE_BG = {
 };
 
 export default function DashboardLayout({ children }) {
+  const { t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved === null ? true : saved === 'true';
@@ -81,7 +83,7 @@ export default function DashboardLayout({ children }) {
                   className="px-4 py-2 rounded-2xl border border-border/80 bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200 flex items-center gap-2 text-xs font-black uppercase tracking-wider shadow-sm select-none"
                 >
                   <ArrowLeft className="w-4 h-4 text-primary" />
-                  <span>Back</span>
+                  <span>{t('common.back', 'Back')}</span>
                 </button>
               </div>
             )}

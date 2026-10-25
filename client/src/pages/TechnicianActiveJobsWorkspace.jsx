@@ -20,12 +20,14 @@ import TechnicianJobCard from '../components/technician/TechnicianJobCard';
 import CheckInOutPanel from '../components/technician/CheckInOutPanel';
 import PhotoWorkflowCapture from '../components/technician/PhotoWorkflowCapture';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 export default function TechnicianActiveJobsWorkspace() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { theme } = useTheme();
+  const { t } = useLanguage();
 
   const initialStatus = searchParams.get('status') || 'active';
   const [activeTab, setActiveTab] = useState(initialStatus); // 'active' | 'completed' | 'all'
@@ -83,10 +85,10 @@ export default function TechnicianActiveJobsWorkspace() {
           <div>
             <h1 className="text-xl font-black text-foreground flex items-center gap-2">
               <Wrench className="w-6 h-6 text-cyan-500" />
-              Technician Job Workspace
+              {t('technician.jobWorkspace', 'Technician Job Workspace')}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-              Field operations dispatch center for your assigned maintenance requests
+              {t('technician.jobWorkspaceDesc', 'Field operations dispatch center for your assigned maintenance requests')}
             </p>
           </div>
 
@@ -96,7 +98,7 @@ export default function TechnicianActiveJobsWorkspace() {
             className="self-start sm:self-auto px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Jobs
+            {t('technician.refreshJobs', 'Refresh Jobs')}
           </button>
         </div>
 
@@ -117,7 +119,7 @@ export default function TechnicianActiveJobsWorkspace() {
               )}
             </span>
             <span className="font-bold text-foreground">
-              {isTracking ? 'GPS Telemetry Active (30s Ping)' : 'GPS Telemetry Paused'}
+              {isTracking ? t('technician.gpsActive', 'GPS Telemetry Active (30s Ping)') : t('technician.gpsPaused', 'GPS Telemetry Paused')}
             </span>
             {coords.latitude && coords.longitude && (
               <span className="text-[11px] font-mono text-cyan-500 font-bold hidden md:inline">
@@ -137,7 +139,7 @@ export default function TechnicianActiveJobsWorkspace() {
                   : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
               )}
             >
-              {isTracking ? 'Pause Tracking' : 'Enable Telemetry'}
+              {isTracking ? t('technician.pauseTracking', 'Pause Tracking') : t('technician.enableTelemetry', 'Enable Telemetry')}
             </button>
           </div>
         </div>
@@ -151,9 +153,9 @@ export default function TechnicianActiveJobsWorkspace() {
           theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15]/80 border-white/10"
         )}>
           {[
-            { id: 'active', label: '⚡ Active Jobs' },
-            { id: 'completed', label: '✓ Completed' },
-            { id: 'all', label: '📋 All Assigned' },
+            { id: 'active', label: t('technician.tabActiveJobs', '⚡ Active Jobs') },
+            { id: 'completed', label: t('technician.tabCompletedJobs', '✓ Completed') },
+            { id: 'all', label: t('technician.tabAllAssigned', '📋 All Assigned') },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -175,7 +177,7 @@ export default function TechnicianActiveJobsWorkspace() {
           <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search job, unit, property..."
+            placeholder={t('technician.searchJobsPlaceholder', 'Search job, unit, property...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={cn(
@@ -190,7 +192,7 @@ export default function TechnicianActiveJobsWorkspace() {
       {loading ? (
         <div className="py-16 text-center text-muted-foreground text-xs font-bold flex flex-col items-center gap-2">
           <RefreshCw className="w-6 h-6 animate-spin text-cyan-500" />
-          Loading your assigned maintenance jobs...
+          {t('technician.loadingJobs', 'Loading your assigned maintenance jobs...')}
         </div>
       ) : filteredJobs.length === 0 ? (
         <div className={cn(
@@ -198,9 +200,9 @@ export default function TechnicianActiveJobsWorkspace() {
           theme === 'light' ? "bg-white border-slate-200" : "bg-[#0c0d15]/50 border-white/10"
         )}>
           <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-          <p className="font-extrabold text-foreground text-sm">No assigned jobs found</p>
+          <p className="font-extrabold text-foreground text-sm">{t('technician.noAssignedJobs', 'No assigned jobs found')}</p>
           <p className="text-xs text-muted-foreground">
-            {searchQuery ? 'Try matching another search term.' : 'Check back later for new dispatch assignments.'}
+            {searchQuery ? t('technician.tryAnotherSearch', 'Try matching another search term.') : t('technician.checkBackLater', 'Check back later for new dispatch assignments.')}
           </p>
         </div>
       ) : (

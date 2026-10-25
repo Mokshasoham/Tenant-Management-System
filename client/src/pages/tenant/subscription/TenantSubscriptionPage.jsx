@@ -369,7 +369,7 @@ export default function TenantSubscriptionPage() {
             )}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>BACK</span>
+            <span>{t('common.back', 'BACK')}</span>
           </button>
         </div>
 
@@ -437,7 +437,7 @@ export default function TenantSubscriptionPage() {
                     "text-[11px] font-bold",
                     isDark ? "text-slate-400" : "text-slate-600"
                   )}>
-                    {usage.isUnlimited ? 'Unlimited leases' : `${maxLimit} lease capacity`}
+                    {usage.isUnlimited ? t('subscription.unlimitedLeases', 'Unlimited leases') : t('subscription.leaseCapacityCount', '{{count}} lease capacity', { count: maxLimit })}
                   </span>
                   <span className={cn(
                     "inline-flex items-center px-2 py-0.2 rounded-full text-[9px] font-black tracking-wide border",
@@ -479,21 +479,21 @@ export default function TenantSubscriptionPage() {
                     "text-xs font-mono font-bold",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
-                    ({currentCount} / {usage.isUnlimited ? '∞ Unlimited' : `${maxLimit} leases used`})
+                    ({currentCount} / {usage.isUnlimited ? t('subscription.unlimited', '∞ Unlimited') : t('subscription.leasesUsed', '{{count}} leases used', { count: maxLimit })})
                   </span>
                 </div>
 
                 {usage.isExceeded ? (
                   <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Plan limit exceeded (Downgrade safety active)
+                    <AlertTriangle className="w-3.5 h-3.5" /> {t('subscription.planLimitExceeded', 'Plan limit exceeded (Downgrade safety active)')}
                   </span>
                 ) : usage.isAtLimit ? (
                   <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> 0 lease slots remaining (Limit reached)
+                    <AlertTriangle className="w-3.5 h-3.5" /> {t('subscription.zeroSlotsRemaining', '0 lease slots remaining (Limit reached)')}
                   </span>
                 ) : (
                   <span className={cn("text-xs font-bold", isDark ? "text-emerald-400" : "text-emerald-600")}>
-                    {remainingSlots} lease slot{remainingSlots === 1 ? '' : 's'} remaining
+                    {t('subscription.slotsRemaining', '{{count}} lease slots remaining', { count: remainingSlots })}
                   </span>
                 )}
               </div>
@@ -818,11 +818,11 @@ export default function TenantSubscriptionPage() {
               <div className="flex items-center gap-2 text-emerald-500">
                 <Building2 className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Multiple Leases
+                  {t('subscription.pillarMultipleLeases', 'Multiple Leases')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Manage more rental properties simultaneously from one consolidated account.
+                {t('subscription.pillarMultipleLeasesDesc', 'Manage more rental properties simultaneously from one consolidated account.')}
               </p>
             </div>
 
@@ -833,11 +833,11 @@ export default function TenantSubscriptionPage() {
               <div className="flex items-center gap-2 text-teal-500">
                 <ShieldCheck className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Priority Support
+                  {t('subscription.pillarPrioritySupport', 'Priority Support')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Get accelerated resolution and direct staff assistance when you need it.
+                {t('subscription.pillarPrioritySupportDesc', 'Get accelerated resolution and direct staff assistance when you need it.')}
               </p>
             </div>
 
@@ -848,11 +848,11 @@ export default function TenantSubscriptionPage() {
               <div className="flex items-center gap-2 text-cyan-500">
                 <TrendingUp className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Advanced Insights
+                  {t('subscription.pillarAdvancedInsights', 'Advanced Insights')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Access rich payment analytics, expense charts, and tax-ready PDF exports.
+                {t('subscription.pillarAdvancedInsightsDesc', 'Access rich payment analytics, expense charts, and tax-ready PDF exports.')}
               </p>
             </div>
 
@@ -863,11 +863,11 @@ export default function TenantSubscriptionPage() {
               <div className="flex items-center gap-2 text-amber-500">
                 <FolderLock className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Secure Documents
+                  {t('subscription.pillarSecureDocuments', 'Secure Documents')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Permanent encrypted vault for all your lease agreements, bills, and receipts.
+                {t('subscription.pillarSecureDocumentsDesc', 'Permanent encrypted vault for all your lease agreements, bills, and receipts.')}
               </p>
             </div>
           </div>

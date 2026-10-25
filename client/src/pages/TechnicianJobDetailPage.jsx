@@ -22,6 +22,7 @@ import {
   ThumbsUp
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 import CheckInOutPanel from '../components/technician/CheckInOutPanel';
@@ -30,6 +31,7 @@ import VoiceNoteRecorder from '../components/technician/VoiceNoteRecorder';
 import SignaturePad from '../components/technician/SignaturePad';
 
 export default function TechnicianJobDetailPage() {
+  const { t } = useLanguage();
   const { id } = useParams();
   const { theme } = useTheme();
 
@@ -153,7 +155,7 @@ export default function TechnicianJobDetailPage() {
           className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Jobs
+          {t('technician.backToJobs', 'Back to Jobs')}
         </Link>
         <div className="flex items-center gap-2">
           <span className={cn(
@@ -210,11 +212,11 @@ export default function TechnicianJobDetailPage() {
         {/* Action Tabs Navigation */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 pt-2 border-t border-border/40">
           {[
-            { id: 'overview', label: 'Overview', icon: FileText },
-            { id: 'checkin', label: 'GPS Check-In', icon: Navigation },
-            { id: 'photos', label: 'Photos', icon: Camera },
-            { id: 'voicenotes', label: 'Voice Notes', icon: Mic },
-            { id: 'signature', label: 'Signatures', icon: FileSignature },
+            { id: 'overview', label: t('common.overview', 'Overview'), icon: FileText },
+            { id: 'checkin', label: t('technician.gpsCheckIn', 'GPS Check-In'), icon: Navigation },
+            { id: 'photos', label: t('technician.photos', 'Photos'), icon: Camera },
+            { id: 'voicenotes', label: t('technician.voiceNotes', 'Voice Notes'), icon: Mic },
+            { id: 'signature', label: t('technician.signatures', 'Signatures'), icon: FileSignature },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

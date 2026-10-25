@@ -13,6 +13,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import handleViewPropertyNavigation from '../utils/propertyNavigationHelper';
 import LocationFilterPopover from './property/LocationFilterPopover';
 
@@ -40,11 +41,11 @@ const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
 
 const TYPE_PILLS = [
-    { val: '', label: '🏠 All' },
-    { val: 'apartment', label: '🏢 Apt' },
-    { val: 'house', label: '🏡 House' },
-    { val: 'commercial', label: '🏬 Commercial' },
-    { val: 'land', label: '🌿 Land' },
+    { val: '', key: 'property.typeAll', label: '🏠 All' },
+    { val: 'apartment', key: 'property.typeApartment', label: '🏢 Apt' },
+    { val: 'house', key: 'property.typeHouse', label: '🏡 House' },
+    { val: 'commercial', key: 'property.typeCommercial', label: '🏬 Commercial' },
+    { val: 'land', key: 'property.typeLand', label: '🌿 Land' },
 ];
 
 function priceIcon(property, isSelected) {
@@ -83,6 +84,7 @@ function priceIcon(property, isSelected) {
 }
 
 export default function InteractivePropertyMap({
+
     height = '100%',
     properties = [],
     loading = false,
@@ -100,6 +102,7 @@ export default function InteractivePropertyMap({
     onClearFilters,
 }) {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const { theme } = useTheme();
     const containerRef = useRef(null);
     const mapRef = useRef(null);
@@ -351,7 +354,7 @@ export default function InteractivePropertyMap({
                                     boxShadow: active ? `0 4px 14px ${color}50` : 'none',
                                 }}
                             >
-                                <span>{label}</span>
+                                <span>{t(TYPE_PILLS.find(p => p.val === val)?.key || '', label)}</span>
                             </button>
                         );
                     })}
@@ -374,13 +377,13 @@ export default function InteractivePropertyMap({
                     onClick={searchArea}
                     className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-indigo-600/50 border border-white/20 transition-all cursor-pointer"
                 >
-                    🔍 Search this area
+                    🔍 {t('property.searchThisArea', 'Search this area')}
                 </button>
             )}
 
             {/* ── Bottom-Left Count Badge (Strictly Synchronized with Results) ── */}
             <div className="absolute bottom-4 left-4 z-10 px-4 py-1.5 rounded-full bg-background/90 text-foreground font-black text-xs uppercase tracking-wider backdrop-blur-md border border-border shadow-lg">
-                {loading ? 'Loading…' : `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`}
+                {loading ? t('common.loading', 'Loading…') : t('property.propertyCount', '{{count}} properties', { count: properties.length })}
             </div>
 
             {/* ── Leaflet Container ── */}

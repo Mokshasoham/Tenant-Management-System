@@ -12,6 +12,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { technicianPortalService } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * CheckInOutPanel Component
@@ -19,6 +20,7 @@ import { technicianPortalService } from '../../services/api';
  * on-site duration timer, and action buttons for checking in and out with GPS.
  */
 export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
+  const { t } = useLanguage();
   const activeTicketId = ticketId || ticket?._id;
 
   // Local state initialized from ticket prop or updated after API calls
@@ -214,7 +216,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-fade-scale">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            VERIFIED ON-SITE
+            {t('technician.verifiedOnSite', 'VERIFIED ON-SITE')}
           </span>
         );
 
@@ -230,7 +232,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-fade-scale">
             <XCircle className="w-3.5 h-3.5" />
-            GPS UNAVAILABLE
+            {t('technician.gpsUnavailable', 'GPS UNAVAILABLE')}
           </span>
         );
 
@@ -238,7 +240,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/40 animate-fade-scale">
             <ShieldAlert className="w-3.5 h-3.5" />
-            MANUAL OVERRIDE
+            {t('technician.manualOverride', 'MANUAL OVERRIDE')}
           </span>
         );
 
@@ -246,7 +248,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            VERIFIED
+            {t('technician.verified', 'VERIFIED')}
           </span>
         );
     }
@@ -261,8 +263,8 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
             <Navigation className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Job Location Check-In</h3>
-            <p className="text-[11px] text-slate-400">GPS geofence verification & duration tracking</p>
+            <h3 className="text-sm font-bold text-white">{t('technician.jobLocationCheckIn', 'Job Location Check-In')}</h3>
+            <p className="text-[11px] text-slate-400">{t('technician.geofenceTracking', 'GPS geofence verification & duration tracking')}</p>
           </div>
         </div>
         <div>{renderVerificationBadge()}</div>
@@ -277,7 +279,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
 
       {/* Main Status & Timer Body */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* On-Site Timer Box */}
+        {/* {t('technician.onSiteTimer', 'On-Site Timer')} Box */}
         <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="flex items-center gap-1">
@@ -287,7 +289,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
             {checkInState.checkInTime && !checkInState.checkOutTime && (
               <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold uppercase">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Active Work
+                {t('technician.activeWork', 'Active Work')}
               </span>
             )}
           </div>
@@ -311,12 +313,12 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
               {loadingAction ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Verifying GPS Location...
+                  {t('technician.verifyingLocation', 'Verifying GPS Location...')}
                 </>
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
-                  Check In (GPS Verify)
+                  {t('technician.checkInGps', 'Check In (GPS Verify)')}
                 </>
               )}
             </button>
@@ -331,13 +333,13 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
                   className="w-full h-12 rounded-xl bg-slate-800 hover:bg-emerald-600/90 text-white font-bold text-sm border border-emerald-500/40 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-emerald-400" />
-                  Check Out & Finish Job
+                  {t('technician.checkOutFinish', 'Check Out & Finish Job')}
                 </button>
               ) : (
                 <div className="space-y-2 animate-slide-up">
                   <input
                     type="text"
-                    placeholder="Work summary / completion notes (optional)"
+                    placeholder={t('technician.checkoutNotesPlaceholder', 'Work summary / completion notes (optional)')}
                     value={checkoutNotes}
                     onChange={(e) => setCheckoutNotes(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -353,13 +355,13 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
                       ) : (
                         <LogOut className="w-3.5 h-3.5" />
                       )}
-                      Confirm Check Out
+                      {t('technician.confirmCheckOut', 'Confirm Check Out')}
                     </button>
                     <button
                       onClick={() => setShowNotesInput(false)}
                       className="px-3 h-10 rounded-xl bg-slate-800 text-slate-400 text-xs hover:text-white"
                     >
-                      Cancel
+                      {t('common.cancel', 'Cancel')}
                     </button>
                   </div>
                 </div>
@@ -370,7 +372,7 @@ export default function CheckInOutPanel({ ticket, ticketId, onStatusChange }) {
           {checkInState.checkOutTime && (
             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold text-center flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
-              Job Completed & Checked Out
+              {t('technician.jobCompletedCheckedOut', 'Job Completed & Checked Out')}
             </div>
           )}
         </div>

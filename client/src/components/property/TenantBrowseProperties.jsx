@@ -44,10 +44,10 @@ class MapErrorBoundary extends React.Component {
 }
 
 const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest First' },
-    { value: 'price_asc', label: 'Price: Low to High' },
-    { value: 'price_desc', label: 'Price: High to Low' },
-    { value: 'rating', label: 'Top Rated' },
+    { value: 'newest', key: 'property.sortNewest', label: 'Newest First' },
+    { value: 'price_asc', key: 'property.sortPriceLowHigh', label: 'Price: Low to High' },
+    { value: 'price_desc', key: 'property.sortPriceHighLow', label: 'Price: High to Low' },
+    { value: 'rating', key: 'property.sortRating', label: 'Top Rated' },
 ];
 
 /**
@@ -410,7 +410,7 @@ export function TenantBrowseProperties() {
                         >
                             {SORT_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value} className="bg-card">
-                                    {o.label}
+                                    {t(o.key, o.label)}
                                 </option>
                             ))}
                         </select>
@@ -474,7 +474,7 @@ export function TenantBrowseProperties() {
                             <div className="p-5 rounded-[1.75rem] bg-card border border-border grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 transition-colors shadow-sm">
                                 <div>
                                     <label className="block text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-1.5 ml-1">
-                                        Country
+                                        {t('property.country', 'Country')}
                                     </label>
                                     <input
                                         type="text"
@@ -488,7 +488,7 @@ export function TenantBrowseProperties() {
                                 </div>
                                 <div>
                                     <label className="block text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-1.5 ml-1">
-                                        Min Price (₹)
+                                        {t('property.minPrice', 'Min Price (₹)')}
                                     </label>
                                     <input
                                         type="number"
@@ -502,7 +502,7 @@ export function TenantBrowseProperties() {
                                 </div>
                                 <div>
                                     <label className="block text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-1.5 ml-1">
-                                        Max Price (₹)
+                                        {t('property.maxPrice', 'Max Price (₹)')}
                                     </label>
                                     <input
                                         type="number"
@@ -516,7 +516,7 @@ export function TenantBrowseProperties() {
                                 </div>
                                 <div>
                                     <label className="block text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-1.5 ml-1">
-                                        Bedrooms
+                                        {t('property.bedrooms', 'Bedrooms')}
                                     </label>
                                     <input
                                         type="number"
@@ -530,7 +530,7 @@ export function TenantBrowseProperties() {
                                 </div>
                                 <div>
                                     <label className="block text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] mb-1.5 ml-1">
-                                        Furnishing
+                                        {t('property.furnishing', 'Furnishing')}
                                     </label>
                                     <select
                                         value={drawerFilters.furnishing}
@@ -539,10 +539,10 @@ export function TenantBrowseProperties() {
                                         }
                                         className={cn(inputClass, "h-10 text-xs px-3 appearance-none cursor-pointer")}
                                     >
-                                        <option value="" className="bg-card">Any</option>
-                                        <option value="furnished" className="bg-card">Furnished</option>
-                                        <option value="semi-furnished" className="bg-card">Semi-Furnished</option>
-                                        <option value="unfurnished" className="bg-card">Unfurnished</option>
+                                        <option value="" className="bg-card">{t('common.any', 'Any')}</option>
+                                        <option value="furnished" className="bg-card">{t('property.furnished', 'Furnished')}</option>
+                                        <option value="semi-furnished" className="bg-card">{t('property.semiFurnished', 'Semi-Furnished')}</option>
+                                        <option value="unfurnished" className="bg-card">{t('property.unfurnished', 'Unfurnished')}</option>
                                     </select>
                                 </div>
 
@@ -560,7 +560,7 @@ export function TenantBrowseProperties() {
                                         }
                                         className="h-10 px-4 w-full rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-500 font-black text-xs uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
                                     >
-                                        Reset Drawer
+                                        {t('property.resetDrawer', 'Reset Drawer')}
                                     </button>
                                 </div>
                             </div>
@@ -578,7 +578,7 @@ export function TenantBrowseProperties() {
                         ) : filteredProperties.length === 0 ? (
                             <div className="col-span-full py-20 flex flex-col items-center justify-center bg-card border border-dashed border-border rounded-[2.5rem] text-center p-6 space-y-4">
                                 <div className="text-6xl mb-2 grayscale opacity-40">🏠</div>
-                                <h3 className="text-xl font-black text-foreground">No properties found</h3>
+                                <h3 className="text-xl font-black text-foreground">{t('property.noPropertiesFound', 'No properties found')}</h3>
                                 <p className="text-muted-foreground text-xs max-w-sm">
                                     {typeFilter === 'land'
                                         ? 'There are currently no available land listings matching your selected criteria.'
@@ -590,7 +590,7 @@ export function TenantBrowseProperties() {
                                     className="px-6 py-2.5 rounded-2xl bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-md cursor-pointer flex items-center gap-2"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
-                                    <span>Clear Filters</span>
+                                    <span>{t('common.clearFilters', 'Clear Filters')}</span>
                                 </button>
                             </div>
                         ) : (
@@ -655,10 +655,8 @@ export function TenantBrowseProperties() {
                             <div className="sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 flex items-center justify-between px-2 border-b border-border/40">
                                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">
                                     {loading
-                                        ? '⏳ Searching…'
-                                        : `${filteredProperties.length} ${
-                                              filteredProperties.length === 1 ? 'result' : 'results'
-                                          } in area`}
+                                        ? t('common.loading', '⏳ Searching…')
+                                        : t('property.resultsInArea', '{{count}} in area', { count: filteredProperties.length })}
                                 </p>
                                 {(typeFilter || stateFilter || cityFilter || search) && (
                                     <button
@@ -667,7 +665,7 @@ export function TenantBrowseProperties() {
                                         className="text-[10px] font-black uppercase text-rose-500 hover:underline flex items-center gap-1 cursor-pointer"
                                     >
                                         <RotateCcw className="w-3 h-3" />
-                                        <span>Reset</span>
+                                        <span>{t('common.reset', 'Reset')}</span>
                                     </button>
                                 )}
                             </div>
@@ -733,14 +731,14 @@ export function TenantBrowseProperties() {
                         >
                             <Scale className="w-5 h-5 text-white flex-shrink-0" />
                             <span className="text-white font-black text-sm whitespace-nowrap">
-                                {compareList.length} propert{compareList.length > 1 ? 'ies' : 'y'} selected
+                                {t('property.propertiesSelected', '{{count}} properties selected', { count: compareList.length })}
                             </span>
                             <button
                                 type="button"
                                 onClick={() => navigate('/compare', { state: { compareList } })}
                                 className="px-5 py-2 rounded-xl bg-white text-primary font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-md cursor-pointer"
                             >
-                                Compare Now →
+                                {t('property.compareNow', 'Compare Now →')}
                             </button>
                             <button
                                 type="button"

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopButton from '../components/common/ScrollToTopButton';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import { technicianPortalService } from '../services/api';
 import {
   LayoutDashboard,
@@ -24,23 +25,24 @@ import OfflineSyncCenterModal from '../components/technician/OfflineSyncCenterMo
 import { useOfflineSync } from '../hooks/useOfflineSync';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/technician/dashboard', icon: LayoutDashboard },
-  { label: 'My Jobs', path: '/technician/jobs', icon: Wrench },
-  { label: 'Schedule', path: '/technician/schedule', icon: Calendar },
-  { label: 'QR Scanner', path: '/technician/qr-scanner', icon: QrCode },
-  { label: 'Messages', path: '/technician/messages', icon: MessageSquare },
-  { label: 'Notifications', path: '/technician/notifications', icon: Bell },
-  { label: 'Profile', path: '/technician/profile', icon: User },
+  { label: 'Dashboard', key: 'dashboard', path: '/technician/dashboard', icon: LayoutDashboard },
+  { label: 'My Jobs', key: 'myJobs', path: '/technician/jobs', icon: Wrench },
+  { label: 'Schedule', key: 'techSchedule', path: '/technician/schedule', icon: Calendar },
+  { label: 'QR Scanner', key: 'techQr', path: '/technician/qr-scanner', icon: QrCode },
+  { label: 'Messages', key: 'messages', path: '/technician/messages', icon: MessageSquare },
+  { label: 'Notifications', key: 'notifications', path: '/technician/notifications', icon: Bell },
+  { label: 'Profile', key: 'techProfile', path: '/technician/profile', icon: User },
 ];
 
 const AVAILABILITY_OPTIONS = [
-  { value: 'available', label: 'Available', color: 'bg-emerald-500' },
-  { value: 'busy', label: 'Busy / On Job', color: 'bg-amber-500' },
-  { value: 'break', label: 'On Break', color: 'bg-blue-500' },
-  { value: 'off_duty', label: 'Off Duty', color: 'bg-slate-500' },
+  { value: 'available', labelKey: 'technician.statusAvailable', fallback: 'Available', color: 'bg-emerald-500' },
+  { value: 'busy', labelKey: 'technician.statusBusy', fallback: 'Busy / On Job', color: 'bg-amber-500' },
+  { value: 'break', labelKey: 'technician.statusBreak', fallback: 'On Break', color: 'bg-blue-500' },
+  { value: 'off_duty', labelKey: 'technician.statusOffDuty', fallback: 'Off Duty', color: 'bg-slate-500' },
 ];
 
 export default function TechnicianLayout({ children }) {
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -118,7 +120,7 @@ export default function TechnicianLayout({ children }) {
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                {item.label}
+                {t('nav.' + item.key, item.label)}
               </Link>
             );
           })}
@@ -151,7 +153,7 @@ export default function TechnicianLayout({ children }) {
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 border border-transparent transition-all cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            Sign Out
+            {t('nav.logout', 'Sign Out')}
           </button>
         </div>
       </aside>
@@ -180,7 +182,7 @@ export default function TechnicianLayout({ children }) {
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700/60 text-xs font-medium hover:border-slate-600 transition-all cursor-pointer"
             >
               <span className={`w-2.5 h-2.5 rounded-full ${activeOption.color} animate-pulse`} />
-              <span className="text-slate-200">{activeOption.label}</span>
+              <span className="text-slate-200">{t(activeOption.labelKey, activeOption.fallback)}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
@@ -193,7 +195,7 @@ export default function TechnicianLayout({ children }) {
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-all text-left cursor-pointer"
                   >
                     <span className={`w-2 h-2 rounded-full ${opt.color}`} />
-                    {opt.label}
+                    {t(opt.labelKey, opt.fallback)}
                   </button>
                 ))}
               </div>
@@ -234,7 +236,7 @@ export default function TechnicianLayout({ children }) {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    {item.label}
+                    {t('nav.' + item.key, item.label)}
                   </Link>
                 );
               })}

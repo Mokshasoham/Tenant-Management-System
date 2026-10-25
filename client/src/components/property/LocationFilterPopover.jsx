@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Search, ChevronRight, ChevronDown, X, Globe, Check } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * LocationFilterPopover
  * Professional hierarchical State / City location selector for Tenant Map View.
  */
 export default function LocationFilterPopover({
+
     stateFilter = '',
     cityFilter = '',
     availableLocations = { states: [], cities: [], hierarchy: [] },
@@ -18,6 +20,7 @@ export default function LocationFilterPopover({
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedStates, setExpandedStates] = useState({});
     const popoverRef = useRef(null);
+    const { t } = useLanguage();
 
     // Auto-expand currently selected state if any
     useEffect(() => {
@@ -67,7 +70,7 @@ export default function LocationFilterPopover({
 
     const activeDisplayLabel = cityFilter
         ? `${cityFilter}${stateFilter ? `, ${stateFilter}` : ''}`
-        : stateFilter || 'Select State / City';
+        : stateFilter || t('property.selectStateCity', 'Select State / City');
 
     const q = searchQuery.toLowerCase().trim();
 
@@ -107,7 +110,7 @@ export default function LocationFilterPopover({
                             handleResetAll();
                         }}
                         className="p-1 rounded-full bg-background/90 hover:bg-rose-500 hover:text-white border border-border text-muted-foreground transition-colors shadow-sm cursor-pointer"
-                        title="Clear location filter"
+                        title={t('property.clearLocationFilter', 'Clear location filter')}
                     >
                         <X className="w-3 h-3" />
                     </button>
@@ -129,7 +132,7 @@ export default function LocationFilterPopover({
                             <div className="flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-emerald-500" />
                                 <span className="text-xs font-black text-foreground uppercase tracking-wider">
-                                    Filter by Location
+                                    {t('property.filterByLocation', 'Filter by Location')}
                                 </span>
                             </div>
                             <button
@@ -149,7 +152,7 @@ export default function LocationFilterPopover({
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search state or city..."
+                                    placeholder={t('property.searchStateCity', 'Search state or city...')}
                                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted/60 border border-border text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                                     autoFocus
                                 />
@@ -180,14 +183,14 @@ export default function LocationFilterPopover({
                             >
                                 <div className="flex items-center gap-2">
                                     <Globe className="w-4 h-4 text-primary" />
-                                    <span>All Locations (India)</span>
+                                    <span>{t('property.allLocationsIndia', 'All Locations (India)')}</span>
                                 </div>
                                 {!isLocationActive && <Check className="w-3.5 h-3.5 text-primary" />}
                             </button>
 
                             {/* Divider */}
                             <div className="px-3 py-1.5 text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em]">
-                                Available States & Cities
+                                {t('property.availableStatesCities', 'Available States & Cities')}
                             </div>
 
                             {/* Hierarchical States */}

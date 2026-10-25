@@ -10,6 +10,7 @@ import {
     Compass, Check, BarChart2, MessageSquare, Scale, ExternalLink
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 
 // 1. Status Engine Colors & Icons
 const STATUS_ENGINE = {
@@ -272,6 +273,7 @@ function TechnicianWorkspaceModal({ technician, onClose, onRefresh }) {
 }
 
 export default function TechniciansPage() {
+    const { t } = useLanguage();
     const { user } = useAuthStore();
     const [technicians, setTechnicians] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -319,21 +321,21 @@ export default function TechniciansPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-400 to-indigo-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500">Enterprise Workforce Engine</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-500">{t('technician.enterpriseWorkforceEngine', 'Enterprise Workforce Engine')}</p>
                     </div>
-                    <h1 className="text-3xl font-black text-foreground">Technician &amp; Workforce Portal</h1>
+                    <h1 className="text-3xl font-black text-foreground">{t('technician.workforcePortalTitle', 'Technician & Workforce Portal')}</h1>
                 </div>
 
                 <div className="flex items-center gap-2">
                     {compareSelected.length === 2 && (
                         <button onClick={() => setShowCompareModal(true)}
                             className="px-4 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer">
-                            <Scale className="w-4 h-4" /> Compare 2 Technicians
+                            <Scale className="w-4 h-4" /> {t('technician.compare2Techs', 'Compare 2 Technicians')}
                         </button>
                     )}
                     <button onClick={() => setShowAddModal(true)}
                         className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer transition-all">
-                        <Plus className="w-4 h-4" /> Invite Technician
+                        <Plus className="w-4 h-4" /> {t('technician.inviteTechnician', 'Invite Technician')}
                     </button>
                 </div>
             </motion.div>
@@ -356,27 +358,27 @@ export default function TechniciansPage() {
                 return (
                     <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">Available</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.statusAvailable', 'Available')}</span>
                             <p className="text-xl font-black text-emerald-400">{kpis.available}</p>
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">Busy / Working</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.statusBusyWorking', 'Busy / Working')}</span>
                             <p className="text-xl font-black text-amber-500">{kpis.busy}</p>
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">On Leave</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.statusOnLeave', 'On Leave')}</span>
                             <p className="text-xl font-black text-yellow-400">{kpis.on_leave}</p>
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">Total Technicians</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.totalTechnicians', 'Total Technicians')}</span>
                             <p className="text-xl font-black text-cyan-400">{kpis.total}</p>
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Utilization</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.avgUtilization', 'Avg Utilization')}</span>
                             <p className="text-xl font-black text-purple-400">{kpis.avgUtilization}%</p>
                         </div>
                         <div className="p-3.5 rounded-2xl border border-border bg-card text-center">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Rating</span>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.avgRating', 'Avg Rating')}</span>
                             <p className="text-xl font-black text-amber-400">{kpis.avgRating}</p>
                         </div>
                     </div>
@@ -389,14 +391,14 @@ export default function TechniciansPage() {
                     <div className="relative flex-1">
                         <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground/40" />
                         <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="7. Search by Skill, Property, Availability, Shift, Rating, Territory..."
+                            placeholder={t('technician.searchWorkforcePlaceholder', 'Search by Skill, Property, Availability, Shift, Rating, Territory...')}
                             className="w-full pl-9 pr-4 py-2 rounded-xl bg-muted/50 border border-border text-foreground text-xs font-semibold focus:outline-none" />
                     </div>
 
                     <div className="flex items-center gap-2">
                         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
                             className="px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-xs font-semibold">
-                            <option value="">All Statuses</option>
+                            <option value="">{t('common.allStatuses', 'All Statuses')}</option>
                             {Object.entries(STATUS_ENGINE).map(([k, v]) => (
                                 <option key={k} value={k}>{v.label}</option>
                             ))}
@@ -419,13 +421,13 @@ export default function TechniciansPage() {
                     <table className="w-full text-left text-xs">
                         <thead className="bg-muted/40 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
                             <tr>
-                                <th className="p-3 w-10 text-center">Compare</th>
-                                <th className="p-3">Technician</th>
-                                <th className="p-3">Skill Matrix</th>
-                                <th className="p-3">3. Workload Meter</th>
-                                <th className="p-3">Status</th>
-                                <th className="p-3">Rating</th>
-                                <th className="p-3 text-right">9. Quick Actions</th>
+                                <th className="p-3 w-10 text-center">{t('technician.compare', 'Compare')}</th>
+                                <th className="p-3">{t('technician.technician', 'Technician')}</th>
+                                <th className="p-3">{t('technician.skillMatrix', 'Skill Matrix')}</th>
+                                <th className="p-3">{t('technician.workloadMeter', 'Workload Meter')}</th>
+                                <th className="p-3">{t('common.status', 'Status')}</th>
+                                <th className="p-3">{t('technician.rating', 'Rating')}</th>
+                                <th className="p-3 text-right">{t('technician.quickActions', 'Quick Actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -434,7 +436,7 @@ export default function TechniciansPage() {
                                     <td colSpan="7" className="p-8 text-center text-muted-foreground">
                                         <div className="flex items-center justify-center gap-2 text-xs font-semibold">
                                             <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-                                            Loading workforce data...
+                                            {t('technician.loadingWorkforceData', 'Loading workforce data...')}
                                         </div>
                                     </td>
                                 </tr>
@@ -443,7 +445,7 @@ export default function TechniciansPage() {
                                 <tr>
                                     <td colSpan="7" className="p-8 text-center text-muted-foreground space-y-2">
                                         <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                                        <p className="font-bold text-xs">No technicians found</p>
+                                        <p className="font-bold text-xs">{t('technician.noTechniciansFound', 'No technicians found')}</p>
                                         <p className="text-[10px]">Click "+ Invite Technician" above to add technicians to your workforce.</p>
                                     </td>
                                 </tr>

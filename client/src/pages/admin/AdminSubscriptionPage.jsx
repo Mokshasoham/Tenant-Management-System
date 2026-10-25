@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { subscriptionService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 export default function AdminSubscriptionPage() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,13 +121,13 @@ export default function AdminSubscriptionPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 text-[10px] font-black tracking-widest uppercase mb-2">
               <ShieldCheck className="w-3 h-3" />
-              <span>ADMIN COMMAND CENTER</span>
+              <span>{t('admin.commandCenterBadge', 'ADMIN COMMAND CENTER')}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Subscription Management &amp; Pricing
+              {t('admin.subManagementPricing', 'Subscription Management & Pricing')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-400">
-              Configure Resident and Manager subscription plan pricing, limits, and review live revenue metrics.
+              {t('admin.subManagementDesc', 'Configure Resident and Manager subscription plan pricing, limits, and review live revenue metrics.')}
             </p>
           </div>
 
@@ -134,7 +136,7 @@ export default function AdminSubscriptionPage() {
             className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white flex items-center gap-2 self-start sm:self-auto cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
+            <span>{t('common.refresh', 'Refresh')}</span>
           </button>
         </div>
 
@@ -142,32 +144,32 @@ export default function AdminSubscriptionPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-6 rounded-2xl bg-gradient-to-b from-[#0B1530] to-[#050A19] border border-indigo-500/30 shadow-xl space-y-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Active Subscriptions
+              {t('admin.activeSubscriptions', 'Active Subscriptions')}
             </span>
             <div className="text-3xl font-black text-white">
               {stats?.activeSubscriptions || 0}
             </div>
-            <span className="text-[11px] text-indigo-400 font-medium">Across all tenants &amp; managers</span>
+            <span className="text-[11px] text-indigo-400 font-medium">{t('admin.acrossTenantsManagers', 'Across all tenants & managers')}</span>
           </div>
 
           <div className="p-6 rounded-2xl bg-gradient-to-b from-[#061D1A] to-[#030E0C] border border-emerald-500/30 shadow-xl space-y-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Monthly Recurring Revenue
+              {t('admin.mrrTitle', 'Monthly Recurring Revenue')}
             </span>
             <div className="text-3xl font-black text-emerald-400 font-mono">
               ₹{stats?.totalMonthlyRevenue || 0}
             </div>
-            <span className="text-[11px] text-emerald-400/80 font-medium">From active paid subscriptions</span>
+            <span className="text-[11px] text-emerald-400/80 font-medium">{t('admin.fromPaidSubs', 'From active paid subscriptions')}</span>
           </div>
 
           <div className="p-6 rounded-2xl bg-gradient-to-b from-[#1C1405] to-[#0A0702] border border-amber-500/30 shadow-xl space-y-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Total Managed Accounts
+              {t('admin.totalManagedAccounts', 'Total Managed Accounts')}
             </span>
             <div className="text-3xl font-black text-amber-400 font-mono">
               {stats?.totalSubscriptions || 0}
             </div>
-            <span className="text-[11px] text-amber-400/80 font-medium">Free &amp; paid users registered</span>
+            <span className="text-[11px] text-amber-400/80 font-medium">{t('admin.freePaidRegistered', 'Free & paid users registered')}</span>
           </div>
         </div>
 
@@ -180,8 +182,8 @@ export default function AdminSubscriptionPage() {
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white">Tenant (Resident) Plans</h2>
-                <p className="text-xs text-slate-400">Controls active lease capacity limits and pricing for residents.</p>
+                <h2 className="text-lg font-black text-white">{t('admin.tenantPlansTitle', 'Tenant (Resident) Plans')}</h2>
+                <p className="text-xs text-slate-400">{t('admin.tenantPlansDesc', 'Controls active lease capacity limits and pricing for residents.')}</p>
               </div>
             </div>
 
@@ -306,8 +308,8 @@ export default function AdminSubscriptionPage() {
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-white">Manager (Portfolio) Plans</h2>
-                <p className="text-xs text-slate-400">Controls property portfolio capacity limits and pricing for managers.</p>
+                <h2 className="text-lg font-black text-white">{t('admin.managerPlansTitle', 'Manager (Portfolio) Plans')}</h2>
+                <p className="text-xs text-slate-400">{t('admin.managerPlansDesc', 'Controls property portfolio capacity limits and pricing for managers.')}</p>
               </div>
             </div>
 
@@ -435,12 +437,12 @@ export default function AdminSubscriptionPage() {
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving Configurations...</span>
+                  <span>{t('admin.savingConfigs', 'Saving Configurations...')}</span>
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Save Plan Configurations</span>
+                  <span>{t('admin.savePlanConfigs', 'Save Plan Configurations')}</span>
                 </>
               )}
             </button>

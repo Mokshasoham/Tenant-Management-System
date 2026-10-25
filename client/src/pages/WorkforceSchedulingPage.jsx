@@ -9,8 +9,10 @@ import {
     Check, AlertCircle, FileText, Download, Share2
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function WorkforceSchedulingPage() {
+    const { t } = useLanguage();
     const { user } = useAuthStore();
     const [viewMode, setViewMode] = useState('board'); // 'board' | 'calendar' | 'timeline'
     const [calendarView, setCalendarView] = useState('week'); // 'day' | 'week' | 'month'
@@ -147,18 +149,18 @@ export default function WorkforceSchedulingPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-indigo-500 to-purple-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-500">Phase 3.3.2 — Dispatch Engine</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-500">{t('technician.dispatchEngine', 'Dispatch Engine')}</p>
                     </div>
-                    <h1 className="text-3xl font-black text-foreground">Workforce Scheduling &amp; Dispatch</h1>
+                    <h1 className="text-3xl font-black text-foreground">{t('technician.workforceSchedulingTitle', 'Workforce Scheduling & Dispatch')}</h1>
                 </div>
 
                 <div className="flex items-center gap-2 overflow-x-auto">
                     {/* View Switchers */}
                     <div className="p-1 rounded-2xl bg-muted border border-border flex items-center gap-1">
                         {[
-                            { id: 'board', label: '3. Dispatch Board', icon: Briefcase },
-                            { id: 'calendar', label: '1. Calendar', icon: CalendarIcon },
-                            { id: 'timeline', label: '9. Daily Timeline', icon: Clock },
+                            { id: 'board', label: t('technician.viewDispatchBoard', 'Dispatch Board'), icon: Briefcase },
+                            { id: 'calendar', label: t('technician.viewCalendar', 'Calendar'), icon: CalendarIcon },
+                            { id: 'timeline', label: t('technician.viewTimeline', 'Daily Timeline'), icon: Clock },
                         ].map(v => (
                             <button key={v.id} onClick={() => setViewMode(v.id)}
                                 className={cn("px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5",
@@ -171,11 +173,11 @@ export default function WorkforceSchedulingPage() {
 
                     <button onClick={() => setShowShiftModal(true)}
                         className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-black text-xs hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-lg">
-                        <Plus className="w-4 h-4" /> 2. Add Shift
+                        <Plus className="w-4 h-4" /> {t('technician.addShift', 'Add Shift')}
                     </button>
                     <button onClick={handleOptimizeSelectedRoute} disabled={optimizingRoute}
                         className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs hover:opacity-90 transition-all flex items-center gap-1.5 shadow-lg">
-                        {optimizingRoute ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} Route Optimizer
+                        {optimizingRoute ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} {t('technician.routeOptimizer', 'Route Optimizer')}
                     </button>
                 </div>
             </motion.div>
@@ -183,23 +185,23 @@ export default function WorkforceSchedulingPage() {
             {/* 10. Workforce Command Center Banner */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Live Technicians</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.liveTechnicians', 'Live Technicians')}</span>
                     <p className="text-2xl font-black text-foreground">{technicians.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Unassigned Tickets</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.unassignedTickets', 'Unassigned Tickets')}</span>
                     <p className="text-2xl font-black text-rose-400">{unassignedTickets.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Today's Visits</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.todaysVisits', "Today's Visits")}</span>
                     <p className="text-2xl font-black text-blue-400">{todaysVisits.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Active Dispatches</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.activeDispatches', 'Active Dispatches')}</span>
                     <p className="text-2xl font-black text-amber-500">{activeDispatches.length}</p>
                 </div>
                 <div className="p-4 rounded-2xl border border-border bg-card shadow-sm text-center">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground">Avg Capacity</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground">{t('technician.avgCapacity', 'Avg Capacity')}</span>
                     <p className="text-2xl font-black text-emerald-400">{avgCapacity}</p>
                 </div>
             </div>
@@ -207,7 +209,7 @@ export default function WorkforceSchedulingPage() {
             {/* 3. Enterprise Dispatch Board */}
             {viewMode === 'board' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Column 1: Unassigned Queue */}
+                    {/* Column 1: {t('technician.unassignedQueue', 'Unassigned Queue')} */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20">
                             <span className="text-xs font-black text-rose-400 uppercase tracking-wider flex items-center gap-1.5">

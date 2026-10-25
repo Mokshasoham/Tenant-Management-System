@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, CheckCircle2, MapPin, ArrowRight } from 'lucide-react';
 import { useTechnicianJobs } from '../hooks/useTechnicianJobs';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 export default function TechnicianSchedulePage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { jobs, loading } = useTechnicianJobs();
 
   return (
@@ -15,10 +17,10 @@ export default function TechnicianSchedulePage() {
       <div>
         <h1 className="text-xl font-black text-foreground flex items-center gap-2">
           <CalendarIcon className="w-6 h-6 text-cyan-500" />
-          My Dispatch & Shift Schedule
+          {t('technician.mySchedule', 'My Dispatch & Shift Schedule')}
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-          View your assigned shifts, operating hours, and scheduled maintenance visits
+          {t('technician.myScheduleDesc', 'View your assigned shifts, operating hours, and scheduled maintenance visits')}
         </p>
       </div>
 
@@ -30,23 +32,23 @@ export default function TechnicianSchedulePage() {
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
           <Clock className="w-5 h-5 text-cyan-500 shrink-0" />
           <div>
-            <h3 className="text-sm font-black text-foreground">Standard Shift: 09:00 - 17:00 (Mon - Fri)</h3>
-            <p className="text-xs text-muted-foreground font-medium">Territory: Main Property Network</p>
+            <h3 className="text-sm font-black text-foreground">{t('technician.standardShift', 'Standard Shift: 09:00 - 17:00 (Mon - Fri)')}</h3>
+            <p className="text-xs text-muted-foreground font-medium">{t('technician.territoryNetwork', 'Territory: Main Property Network')}</p>
           </div>
         </div>
 
         {/* Assigned Jobs Timeline */}
         <div className="space-y-4">
           <h2 className="text-sm font-black text-foreground flex items-center justify-between border-b border-border/40 pb-2">
-            <span>Today's Dispatch Calendar</span>
-            <span className="text-xs font-mono text-cyan-500 font-bold">{jobs.length} Assigned Jobs</span>
+            <span>{t('technician.todaysCalendar', "Today's Dispatch Calendar")}</span>
+            <span className="text-xs font-mono text-cyan-500 font-bold">{jobs.length} {t('technician.assignedJobs', 'Assigned Jobs')}</span>
           </h2>
 
           {loading ? (
-            <div className="py-8 text-center text-muted-foreground text-xs font-bold">Loading scheduled visits...</div>
+            <div className="py-8 text-center text-muted-foreground text-xs font-bold">{t('technician.loadingScheduledVisits', 'Loading scheduled visits...')}</div>
           ) : jobs.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-xs font-bold border border-dashed border-border/60 rounded-2xl">
-              No scheduling conflicts detected for today.
+              {t('technician.noConflictsToday', 'No scheduling conflicts detected for today.')}
             </div>
           ) : (
             <div className="space-y-3">
@@ -75,7 +77,7 @@ export default function TechnicianSchedulePage() {
                     onClick={() => navigate(`/technician/jobs/${job._id}`)}
                     className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer shrink-0"
                   >
-                    View Job <ArrowRight className="w-3.5 h-3.5" />
+                    {t('technician.viewJob', 'View Job')} <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}

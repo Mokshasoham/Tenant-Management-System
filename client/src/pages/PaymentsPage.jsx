@@ -447,7 +447,7 @@ export default function PaymentsPage() {
               <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-black text-amber-700 dark:text-amber-300">Payment Due</p>
+              <p className="text-sm font-black text-amber-700 dark:text-amber-300">{t('payments.paymentDue', 'Payment Due')}</p>
               <p className="text-xs text-amber-700/60 dark:text-amber-300/60">Your rent of <strong>₹{pendingPayments[0]?.amount?.toLocaleString('en-IN')}</strong> is due soon</p>
             </div>
           </div>
@@ -544,7 +544,7 @@ export default function PaymentsPage() {
                         <div>
                           <p className="text-sm font-bold text-foreground/80 truncate">{payment.property?.name || 'N/A'}</p>
                           <p className="text-[10px] text-muted-foreground/50 uppercase font-black tracking-wider">
-                            {payment.type === 'security_deposit' ? 'Security Deposit' : 'Monthly Rent'}
+                            {payment.type === 'security_deposit' ? t('payments.typeSecurityDeposit', 'Security Deposit') : t('payments.typeMonthlyRent', 'Monthly Rent')}
                           </p>
                         </div>
                       ) : (
@@ -575,7 +575,15 @@ export default function PaymentsPage() {
                     <div className="col-span-2 flex items-center gap-2">
                       <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black', statusStyle.bg, statusStyle.color)}>
                         <span className={cn('w-1.5 h-1.5 rounded-full', statusStyle.dot)} />
-                        {t('common.' + payment.status, statusStyle.label)}
+                        {payment.status === 'paid'
+                          ? t('payments.paid', 'Paid')
+                          : payment.status === 'pending'
+                          ? t('payments.pending', 'Pending')
+                          : payment.status === 'overdue'
+                          ? t('payments.overdue', 'Overdue')
+                          : payment.status === 'partially_paid'
+                          ? t('payments.partiallyPaid', 'Partial')
+                          : t('payments.status_' + payment.status, statusStyle.label)}
                       </span>
 
                       {/* Download invoice button for paid records */}
@@ -584,7 +592,7 @@ export default function PaymentsPage() {
                           href={payment.invoiceUrl}
                           target="_blank"
                           rel="noreferrer"
-                          title="Download Invoice"
+                          title={t('payments.downloadReceipt', 'Download Invoice')}
                           className="p-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all opacity-0 group-hover:opacity-100"
                         >
                           <Download className="w-3.5 h-3.5" />

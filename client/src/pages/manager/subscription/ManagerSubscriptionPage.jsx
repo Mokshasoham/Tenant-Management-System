@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { subscriptionService } from '../../../services/api';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { cn } from '../../../utils/cn';
 
 // Authoritative fallback plans for Manager Portal
@@ -83,6 +84,7 @@ const FALLBACK_MANAGER_PLANS = [
 ];
 
 export default function ManagerSubscriptionPage() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
@@ -95,6 +97,32 @@ export default function ManagerSubscriptionPage() {
   const [upgradingPlanId, setUpgradingPlanId] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successToast, setSuccessToast] = useState(null);
+
+  const getLocalizedManagerFeature = (feat) => {
+    if (!feat) return '';
+    const map = {
+      'Manage up to 3 properties': t('subscription.featManage3Props', 'Manage up to 3 properties'),
+      'Full tenant management directory': t('subscription.featFullTenantDir', 'Full tenant management directory'),
+      'Digital lease agreement workflows': t('subscription.featDigitalLeases', 'Digital lease agreement workflows'),
+      'Maintenance dispatch & ticket tracking': t('subscription.featMaintenanceDispatch', 'Maintenance dispatch & ticket tracking'),
+      'Automated rent collection & invoices': t('subscription.featAutoRentInvoices', 'Automated rent collection & invoices'),
+      'Standard operational reports': t('subscription.featStandardReports', 'Standard operational reports'),
+      'Everything in Manager Starter': t('subscription.featEverythingStarter', 'Everything in Manager Starter'),
+      'Manage up to 5 properties': t('subscription.featManage5Props', 'Manage up to 5 properties'),
+      'Advanced financial & occupancy analytics': t('subscription.featAdvancedAnalytics', 'Advanced financial & occupancy analytics'),
+      'Enhanced tenant verification tools': t('subscription.featEnhancedVerification', 'Enhanced tenant verification tools'),
+      'Priority technician dispatch coordination': t('subscription.featPriorityDispatch', 'Priority technician dispatch coordination'),
+      'Detailed PDF & CSV audit exports': t('subscription.featAuditExports', 'Detailed PDF & CSV audit exports'),
+      'Everything in Manager Plus': t('subscription.featEverythingPlus', 'Everything in Manager Plus'),
+      'Unlimited property portfolio (6+)': t('subscription.featUnlimitedProps', 'Unlimited property portfolio (6+)'),
+      'Enterprise analytics & revenue forecasting': t('subscription.featEnterpriseAnalytics', 'Enterprise analytics & revenue forecasting'),
+      'Multi-manager & staff delegation tools': t('subscription.featMultiManager', 'Multi-manager & staff delegation tools'),
+      'Dedicated account management': t('subscription.featDedicatedAccount', 'Dedicated account management'),
+      'Custom workflow automations & API access': t('subscription.featCustomAutomations', 'Custom workflow automations & API access'),
+    };
+    return map[feat] || feat;
+  };
+
 
   const fetchSubscriptionData = useCallback(async (isRetry = false) => {
     if (isRetry) setRetrying(true);
@@ -298,7 +326,7 @@ export default function ManagerSubscriptionPage() {
             )}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>BACK</span>
+            <span>{t('common.back', 'BACK')}</span>
           </button>
         </div>
 
@@ -325,19 +353,19 @@ export default function ManagerSubscriptionPage() {
                 isDark ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-indigo-100 border-indigo-300 text-indigo-800"
               )}>
                 <Briefcase className="w-3 h-3 text-indigo-500" />
-                <span>✦ PROPERTY OPERATIONS</span>
+                <span>{t('subscription.propertyOperationsTag', '✦ PROPERTY OPERATIONS')}</span>
               </div>
               <h1 className={cn(
                 "text-2xl sm:text-4xl font-black tracking-tight",
                 isDark ? "text-white" : "text-slate-900"
               )}>
-                Scale Your Property Operations
+                {t('subscription.managerUpgradeTitle', 'Scale Your Property Operations')}
               </h1>
               <p className={cn(
                 "text-xs sm:text-sm max-w-xl font-medium leading-relaxed",
                 isDark ? "text-slate-300" : "text-slate-600"
               )}>
-                Expand your property portfolio capacity, unlock enterprise revenue analytics, and coordinate multi-tenant maintenance at scale.
+                {t('subscription.managerUpgradeSubtitle', 'Expand your property portfolio capacity, unlock enterprise revenue analytics, and coordinate multi-tenant maintenance at scale.')}
               </p>
             </div>
 
@@ -357,7 +385,7 @@ export default function ManagerSubscriptionPage() {
                   "text-[10px] font-bold uppercase tracking-wider block",
                   isDark ? "text-slate-400" : "text-slate-500"
                 )}>
-                  CURRENT PLAN
+                  {t('subscription.currentPlan', 'CURRENT PLAN')}
                 </span>
                 <span className={cn(
                   "text-base font-black tracking-tight block",
@@ -376,7 +404,7 @@ export default function ManagerSubscriptionPage() {
                     "inline-flex items-center px-2 py-0.2 rounded-full text-[9px] font-black tracking-wide border",
                     isDark ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" : "bg-indigo-100 text-indigo-800 border-indigo-300"
                   )}>
-                    ACTIVE
+                    {t('subscription.active', 'ACTIVE')}
                   </span>
                 </div>
               </div>
@@ -384,7 +412,7 @@ export default function ManagerSubscriptionPage() {
           </div>
         </div>
 
-        {/* ── 2. PROPERTY PORTFOLIO CAPACITY CARD ── */}
+        {/* ── 2. {t('subscription.propertyCapacity', 'PROPERTY PORTFOLIO CAPACITY')} CARD ── */}
         <div className={cn(
           "p-6 rounded-[24px] border space-y-4 shadow-lg relative overflow-hidden transition-all duration-300",
           isDark ? "bg-[#050C1F]/90 border-slate-800/90" : "bg-white border-slate-200 shadow-slate-100"
@@ -422,7 +450,7 @@ export default function ManagerSubscriptionPage() {
                     isDark ? "text-amber-400 bg-amber-500/10 border-amber-500/30" : "text-amber-800 bg-amber-100 border-amber-300"
                   )}>
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    <span>PLAN LIMIT EXCEEDED (Downgrade safety active)</span>
+                    <span>{t('subscription.propertyLimitExceeded', 'PLAN LIMIT EXCEEDED (Downgrade safety active)')}</span>
                   </span>
                 ) : isAtLimit ? (
                   <span className={cn(
@@ -430,11 +458,11 @@ export default function ManagerSubscriptionPage() {
                     isDark ? "text-amber-400 bg-amber-500/10 border-amber-500/30" : "text-amber-800 bg-amber-100 border-amber-300"
                   )}>
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    <span>0 property slots remaining (Limit reached)</span>
+                    <span>{t('subscription.zeroPropertySlotsRemaining', '0 property slots remaining (Limit reached)')}</span>
                   </span>
                 ) : (
                   <span className={cn("text-xs font-bold", isDark ? "text-indigo-400" : "text-indigo-600")}>
-                    {remainingSlots} property slot{remainingSlots === 1 ? '' : 's'} remaining
+                    {t('subscription.propertySlotsRemaining', '{{count}} property slots remaining', { count: remainingSlots })}
                   </span>
                 )}
               </div>
@@ -616,7 +644,7 @@ export default function ManagerSubscriptionPage() {
                       "text-xs font-bold uppercase tracking-wider",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      / month
+                      {t('subscription.perMonth', '/ month')}
                     </span>
                   </div>
 
@@ -668,7 +696,7 @@ export default function ManagerSubscriptionPage() {
                       "text-[10px] font-black uppercase tracking-wider block",
                       isDark ? "text-slate-400" : "text-slate-500"
                     )}>
-                      INCLUDED FEATURES
+                      {t('subscription.includedFeatures', 'INCLUDED FEATURES')}
                     </span>
 
                     <div className="space-y-2.5">
@@ -695,7 +723,7 @@ export default function ManagerSubscriptionPage() {
                           >
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </div>
-                          <span className={cn("font-medium leading-tight", isDark ? "text-slate-300" : "text-slate-700")}>{feat}</span>
+                          <span className={cn("font-medium leading-tight", isDark ? "text-slate-300" : "text-slate-700")}>{getLocalizedManagerFeature(feat)}</span>
                         </div>
                       ))}
                     </div>
@@ -715,7 +743,7 @@ export default function ManagerSubscriptionPage() {
                       )}
                     >
                       <CheckCircle2 className="w-4 h-4 text-indigo-500" />
-                      <span>Current Plan</span>
+                      <span>{t('subscription.currentPlan', 'Current Plan')}</span>
                     </button>
                   ) : isStarter ? (
                     <button
@@ -728,7 +756,7 @@ export default function ManagerSubscriptionPage() {
                       )}
                     >
                       <Check className="w-4 h-4 text-slate-400" />
-                      <span>Included Base Tier</span>
+                      <span>{t('subscription.includedBaseTier', 'Included Base Tier')}</span>
                     </button>
                   ) : (
                     <button
@@ -745,11 +773,11 @@ export default function ManagerSubscriptionPage() {
                       {upgradingPlanId === plan.planId ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Processing...</span>
+                          <span>{t('common.processing', 'Processing...')}</span>
                         </>
                       ) : (
                         <>
-                          <span>Upgrade to {isPlus ? 'Plus' : 'Pro'}</span>
+                          <span>{t('subscription.upgradeTo', 'Upgrade to')} {isPlus ? t('subscription.plus', 'Plus') : t('subscription.pro', 'Pro')}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       )}
@@ -772,10 +800,10 @@ export default function ManagerSubscriptionPage() {
               isDark ? "text-white" : "text-slate-900"
             )}>
               <Sparkles className="w-4 h-4 text-indigo-500" />
-              <span>Why Upgrade?</span>
+              <span>{t('subscription.whyUpgrade', 'Why Upgrade?')}</span>
             </h3>
             <p className={cn("text-xs font-medium", isDark ? "text-slate-400" : "text-slate-500")}>
-              Enterprise property tools built to scale operations and revenue.
+              {t('subscription.whyUpgradeSubtitle', 'Enterprise property tools built to scale operations and revenue.')}
             </p>
           </div>
 
@@ -787,11 +815,11 @@ export default function ManagerSubscriptionPage() {
               <div className="flex items-center gap-2 text-blue-500">
                 <Building2 className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Portfolio Scaling
+                  {t('subscription.portfolioScaling', 'Portfolio Scaling')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Manage more properties and units simultaneously from one unified operations control center.
+                {t('subscription.portfolioScalingDesc', 'Manage more properties and units simultaneously from one unified operations control center.')}
               </p>
             </div>
 
@@ -802,11 +830,11 @@ export default function ManagerSubscriptionPage() {
               <div className="flex items-center gap-2 text-indigo-500">
                 <TrendingUp className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Advanced Analytics
+                  {t('subscription.advancedAnalytics', 'Advanced Analytics')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Financial, occupancy and revenue insights with tax-ready CSV and PDF audit exports.
+                {t('subscription.advancedAnalyticsDesc', 'Financial, occupancy and revenue insights with tax-ready CSV and PDF audit exports.')}
               </p>
             </div>
 
@@ -817,11 +845,11 @@ export default function ManagerSubscriptionPage() {
               <div className="flex items-center gap-2 text-violet-500">
                 <Users className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Team Management
+                  {t('subscription.teamManagement', 'Team Management')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Coordinate managers, technicians and staff with role delegation and workflow logs.
+                {t('subscription.teamManagementDesc', 'Coordinate managers, technicians and staff with role delegation and workflow logs.')}
               </p>
             </div>
 
@@ -832,11 +860,11 @@ export default function ManagerSubscriptionPage() {
               <div className="flex items-center gap-2 text-cyan-500">
                 <Zap className="w-4 h-4" />
                 <span className={cn("text-xs font-black uppercase tracking-wider", isDark ? "text-white" : "text-slate-900")}>
-                  Automation &amp; API
+                  {t('subscription.automationApi', 'Automation & API')}
                 </span>
               </div>
               <p className={cn("text-[11px] font-medium leading-relaxed", isDark ? "text-slate-400" : "text-slate-600")}>
-                Automate operational workflows, lease renewal cycles, and custom webhook integrations.
+                {t('subscription.automationApiDesc', 'Automate operational workflows, lease renewal cycles, and custom webhook integrations.')}
               </p>
             </div>
           </div>
@@ -873,13 +901,13 @@ export default function ManagerSubscriptionPage() {
                 "text-2xl sm:text-3xl font-black tracking-tight",
                 isDark ? "text-white" : "text-slate-900"
               )}>
-                Compare Manager Plan Features
+                {t('subscription.compareManagerTitle', 'Compare Manager Plan Features')}
               </h2>
               <p className={cn(
                 "text-xs sm:text-sm font-medium",
                 isDark ? "text-slate-400" : "text-slate-500"
               )}>
-                Detailed breakdown of portfolio capacity and operations across all Manager tiers.
+                {t('subscription.compareManagerSubtitle', 'Detailed breakdown of portfolio capacity and operations across all Manager tiers.')}
               </p>
             </div>
 
@@ -894,7 +922,7 @@ export default function ManagerSubscriptionPage() {
                     "text-[10px] font-black uppercase tracking-widest pb-3",
                     isDark ? "text-slate-400" : "text-slate-500"
                   )}>
-                    FEATURE BREAKDOWN
+                    {t('subscription.featureBreakdown', 'FEATURE BREAKDOWN')}
                   </div>
 
                   {/* Col 2: STARTER Header Card */}
@@ -1004,7 +1032,7 @@ export default function ManagerSubscriptionPage() {
                         <Building2 className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-bold tracking-tight", isDark ? "text-white" : "text-slate-900")}>
-                        Properties Managed
+                        {t('subscription.propertiesManaged', 'Properties Managed')}
                       </span>
                     </div>
 
@@ -1050,7 +1078,7 @@ export default function ManagerSubscriptionPage() {
                         <Users className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Tenant &amp; Lease Directory
+                        {t('subscription.tenantLeaseDir', 'Tenant & Lease Directory')}
                       </span>
                     </div>
 
@@ -1096,7 +1124,7 @@ export default function ManagerSubscriptionPage() {
                         <Zap className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Maintenance Ticket Dispatch
+                        {t('subscription.maintenanceDispatch', 'Maintenance Ticket Dispatch')}
                       </span>
                     </div>
 
@@ -1142,7 +1170,7 @@ export default function ManagerSubscriptionPage() {
                         <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Financial &amp; Revenue Analytics
+                        {t('subscription.financialAnalytics', 'Financial & Revenue Analytics')}
                       </span>
                     </div>
 
@@ -1183,7 +1211,7 @@ export default function ManagerSubscriptionPage() {
                         <FileText className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Enhanced PDF &amp; CSV Audit Exports
+                        {t('subscription.auditExports', 'Enhanced PDF & CSV Audit Exports')}
                       </span>
                     </div>
 
@@ -1224,7 +1252,7 @@ export default function ManagerSubscriptionPage() {
                         <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Priority Support &amp; Dispatch Assistance
+                        {t('subscription.prioritySupportDispatch', 'Priority Support & Dispatch Assistance')}
                       </span>
                     </div>
 
@@ -1265,7 +1293,7 @@ export default function ManagerSubscriptionPage() {
                         <FolderLock className="w-3.5 h-3.5 text-violet-500" />
                       </div>
                       <span className={cn("text-xs font-medium", isDark ? "text-slate-200" : "text-slate-700")}>
-                        Enterprise Multi-Manager Delegation &amp; API Access
+                        {t('subscription.enterpriseDelegation', 'Enterprise Multi-Manager Delegation & API Access')}
                       </span>
                     </div>
 
@@ -1294,7 +1322,7 @@ export default function ManagerSubscriptionPage() {
                   "pt-6 mt-4 border-t flex flex-col sm:flex-row items-center justify-between text-xs gap-2 px-3 sm:px-4",
                   isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600"
                 )}>
-                  <span className="font-medium">Choose the plan that fits your property operations.</span>
+                  <span className="font-medium">{t('subscription.footerManagerChoose', 'Choose the plan that fits your property operations.')}</span>
                   <span className={cn("text-[11px]", isDark ? "text-slate-500" : "text-slate-400")}>Plans can be upgraded as your portfolio expands.</span>
                 </div>
               </div>

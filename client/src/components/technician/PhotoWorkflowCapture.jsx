@@ -14,6 +14,7 @@ import {
 import { compressImage } from '../../utils/compressImage';
 import { maintenanceService } from '../../services/api';
 import { resolveMediaBaseUrl } from '../../utils/envConfig.js';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * PhotoWorkflowCapture Component
@@ -35,6 +36,7 @@ export function resolveImageUrl(rawUrl) {
 }
 
 export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos, onPhotoUploaded, onUploadSuccess }) {
+  const { t } = useLanguage();
   const resolvedTicketId = ticketId || ticket?._id || ticket?.id;
 
   const [activePhase, setActivePhase] = useState('before'); // 'before' | 'during' | 'after'
@@ -69,9 +71,9 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
   }, [existingPhotos, ticket]);
 
   const phases = [
-    { key: 'before', label: '1. Before Work', description: 'Capture initial condition before work starts', icon: '📸' },
-    { key: 'during', label: '2. In-Progress', description: 'Capture work evidence & replaced parts', icon: '🔧' },
-    { key: 'after', label: '3. After Work', description: 'Capture completed repair & clean work area', icon: '✨' },
+    { key: 'before', label: t('technician.phaseBeforeLabel', '1. Before Work'), description: t('technician.phaseBeforeDesc', 'Capture initial condition before work starts'), icon: '📸' },
+    { key: 'during', label: t('technician.phaseDuringLabel', '2. In-Progress'), description: t('technician.phaseDuringDesc', 'Capture work evidence & replaced parts'), icon: '🔧' },
+    { key: 'after', label: t('technician.phaseAfterLabel', '3. After Work'), description: t('technician.phaseAfterDesc', 'Capture completed repair & clean work area'), icon: '✨' },
   ];
 
   // Validation: Check if "After" phase is locked due to missing "Before" photos
@@ -197,8 +199,8 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
             <Camera className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">3-Phase Photo Evidence Wizard</h3>
-            <p className="text-[11px] text-slate-400">Guided photo workflow with auto-compression</p>
+            <h3 className="text-sm font-bold text-white">{t('technician.photoEvidenceWizard', '3-Phase Photo Evidence Wizard')}</h3>
+            <p className="text-[11px] text-slate-400">{t('technician.guidedPhotoWorkflow', 'Guided photo workflow with auto-compression')}</p>
           </div>
         </div>
       </div>
@@ -254,7 +256,7 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
         })}
       </div>
 
-      {/* Active Phase Info Banner */}
+      {/* {t('technician.activePhase', 'Active Phase')} Info Banner */}
       <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-xs">
         <div>
           <span className="text-cyan-400 font-bold uppercase tracking-wider text-[10px] block mb-0.5">
@@ -300,7 +302,7 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
             </div>
             <div className="text-center">
               <p className="text-xs font-semibold text-white">Upload or Capture {activePhase.toUpperCase()} Photo</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Supports direct mobile camera or file picker</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{t('technician.mobileCameraOrFile', 'Supports direct mobile camera or file picker')}</p>
             </div>
             <button
               onClick={triggerCamera}
@@ -321,11 +323,11 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
       {/* Photo Gallery for current phase */}
       <div className="space-y-2">
         <h4 className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-          <span>Captured Photos ({photos[activePhase].length})</span>
+          <span>{t('technician.capturedPhotos', 'Captured Photos')} ({photos[activePhase].length})</span>
         </h4>
 
         {photos[activePhase].length === 0 ? (
-          <p className="text-xs text-slate-500 italic py-2">No photos uploaded for this phase yet.</p>
+          <p className="text-xs text-slate-500 italic py-2">{t('technician.noPhotosYet', 'No photos uploaded for this phase yet.')}</p>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-1">
             {photos[activePhase].map((photo, idx) => {
@@ -359,7 +361,7 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
                       disabled={isDeleting}
                       onClick={(e) => handleDeletePhoto(photo, e)}
                       className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40"
-                      title="Delete Photo"
+                      title="{t('technician.deletePhoto', 'Delete Photo')}"
                     >
                       {isDeleting ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4" />}
                     </button>
@@ -392,7 +394,7 @@ export default function PhotoWorkflowCapture({ ticketId, ticket, existingPhotos,
                 onClick={() => setSelectedPreview(null)}
                 className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
               >
-                Close
+                {t('common.close', 'Close')}
               </button>
             </div>
           </div>

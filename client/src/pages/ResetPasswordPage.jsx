@@ -7,10 +7,12 @@ import { Card, Button, Input } from '../components/PremiumUI';
 import PageTransition from '../components/PageTransition';
 import PublicNavbar from '../components/PublicNavbar';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKGROUND_URL = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop";
 
 export default function ResetPasswordPage() {
+    const { t } = useLanguage();
     const { token } = useParams();
     const navigate = useNavigate();
     const { register, handleSubmit, watch, formState: { errors } } = useForm();
@@ -67,8 +69,8 @@ export default function ResetPasswordPage() {
                         <Card className="p-10 border-white/20 shadow-2xl">
                             {!isSubmitted ? (
                                 <>
-                                    <h2 className="text-3xl font-black text-foreground mb-2">Reset Password</h2>
-                                    <p className="text-muted-foreground mb-8 font-medium">Please enter your new password below.</p>
+                                    <h2 className="text-3xl font-black text-foreground mb-2">{t('auth.resetPassword', 'Reset Password')}</h2>
+                                    <p className="text-muted-foreground mb-8 font-medium">{t('auth.enterNewPasswordDesc', 'Please enter your new password below.')}</p>
 
                                     {error && (
                                         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl mb-8 text-sm font-semibold">
@@ -78,7 +80,7 @@ export default function ResetPasswordPage() {
 
                                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                                         <Input
-                                            label="New Password"
+                                            label={t('auth.newPassword', 'New Password')}
                                             type="password"
                                             placeholder="••••••••"
                                             error={errors.password?.message}
@@ -93,7 +95,7 @@ export default function ResetPasswordPage() {
                                         />
 
                                         <Input
-                                            label="Confirm New Password"
+                                            label={t('auth.confirmNewPassword', 'Confirm New Password')}
                                             type="password"
                                             placeholder="••••••••"
                                             error={errors.confirmPassword?.message}
@@ -107,7 +109,7 @@ export default function ResetPasswordPage() {
                                             disabled={isLoading}
                                             className="w-full py-4 text-lg flex items-center justify-center gap-2"
                                         >
-                                            {isLoading ? 'Updating Password...' : 'Reset Password'}
+                                            {isLoading ? t('auth.updatingPassword', 'Updating Password...') : t('auth.resetPassword', 'Reset Password')}
                                             <ArrowRight className="w-5 h-5" />
                                         </Button>
                                     </form>
@@ -117,15 +119,15 @@ export default function ResetPasswordPage() {
                                     <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 mx-auto mb-6">
                                         <CheckCircle2 className="w-12 h-12" />
                                     </div>
-                                    <h2 className="text-3xl font-black mb-4 text-foreground">Password Reset!</h2>
+                                    <h2 className="text-3xl font-black mb-4 text-foreground">{t('auth.passwordResetSuccessTitle', 'Password Reset!')}</h2>
                                     <p className="text-muted-foreground mb-10 font-medium text-lg">
-                                        Your password has been successfully updated. You can now securely log in to your account.
+                                        {t('auth.passwordResetSuccessDesc', 'Your password has been successfully updated. You can now securely log in to your account.')}
                                     </p>
                                     <Button
                                         onClick={() => navigate('/login')}
                                         className="w-full py-5 text-xl font-black"
                                     >
-                                        Go to Login
+                                        {t('auth.goToLogin', 'Go to Login')}
                                     </Button>
                                 </div>
                             )}

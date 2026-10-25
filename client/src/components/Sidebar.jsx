@@ -17,6 +17,7 @@ const ROLE_CONFIG = {
   admin: {
     label: 'Admin',
     sublabel: 'System Command Center',
+    sublabelKey: 'nav.sublabelAdmin',
     gradient: 'from-violet-600 via-purple-600 to-indigo-600',
     glowColor: 'rgba(124, 58, 237, 0.4)',
     activeBorder: 'border-violet-400/50',
@@ -33,6 +34,7 @@ const ROLE_CONFIG = {
   manager: {
     label: 'Manager',
     sublabel: 'Property Operations',
+    sublabelKey: 'nav.sublabelManager',
     gradient: 'from-blue-500 via-cyan-500 to-sky-600',
     glowColor: 'rgba(59, 130, 246, 0.4)',
     activeBorder: 'border-blue-400/50',
@@ -49,6 +51,7 @@ const ROLE_CONFIG = {
   tenant: {
     label: 'Tenant',
     sublabel: 'Resident Portal',
+    sublabelKey: 'nav.sublabelTenant',
     gradient: 'from-emerald-500 via-teal-500 to-green-600',
     glowColor: 'rgba(16, 185, 129, 0.4)',
     activeBorder: 'border-emerald-400/50',
@@ -65,6 +68,7 @@ const ROLE_CONFIG = {
   technician: {
     label: 'Technician',
     sublabel: 'Field Workspace',
+    sublabelKey: 'nav.sublabelTechnician',
     gradient: 'from-cyan-500 via-teal-500 to-sky-600',
     glowColor: 'rgba(6, 182, 212, 0.4)',
     activeBorder: 'border-cyan-400/50',
@@ -306,8 +310,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               }}
               role={!isOpen ? "button" : undefined}
               tabIndex={!isOpen ? 0 : undefined}
-              aria-label={!isOpen ? "Open sidebar" : undefined}
-              title={!isOpen ? "Open sidebar" : undefined}
+              aria-label={!isOpen ? t('nav.openSidebar', 'Open sidebar') : undefined}
+              title={!isOpen ? t('nav.openSidebar', 'Open sidebar') : undefined}
               onKeyDown={(e) => {
                 if (!isOpen && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault();
@@ -341,7 +345,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
             <div className={cn("transition-opacity duration-200", isOpen ? "opacity-100 block" : "opacity-0 hidden")}>
               <h2 className="text-lg font-black text-foreground tracking-tight leading-none">TMS</h2>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{theme.sublabel}</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">{t(theme.sublabelKey, theme.sublabel)}</p>
             </div>
           </div>
 
@@ -350,8 +354,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
+              aria-label={t('nav.collapseSidebar', 'Collapse sidebar')}
+              title={t('nav.collapseSidebar', 'Collapse sidebar')}
               className="hidden lg:flex p-2 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 border border-transparent hover:border-border/60 transition-all duration-200 items-center justify-center cursor-pointer group/toggle focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <PanelLeftClose className="w-4 h-4 transition-transform group-hover/toggle:scale-110" />
@@ -362,8 +366,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            aria-label="Close sidebar"
-            title="Close sidebar"
+            aria-label={t('nav.closeSidebar', 'Close sidebar')}
+            title={t('nav.closeSidebar', 'Close sidebar')}
             className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
           >
             <X className="w-4 h-4" />

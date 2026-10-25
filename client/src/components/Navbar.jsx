@@ -414,7 +414,7 @@ export default function Navbar({ toggleSidebar }) {
             isExpanded ? "hidden lg:block opacity-100 max-w-[180px]" : "max-w-0 opacity-0 hidden"
           )}>
             <p className="text-xs font-bold text-foreground/80 leading-none truncate">{user?.firstName} {user?.lastName}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">{user?.role}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">{t(`auth.role${user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ''}`, user?.role)}</p>
           </div>
         </button>
 
@@ -520,7 +520,7 @@ export default function Navbar({ toggleSidebar }) {
                         {/* Properties Section */}
                         {filteredProperties.length > 0 && (
                           <div className="space-y-1.5">
-                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">Properties</h3>
+                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">{t('nav.properties', 'Properties')}</h3>
                             <div className="space-y-1">
                               {filteredProperties.map((p) => (
                                 <button
@@ -549,7 +549,7 @@ export default function Navbar({ toggleSidebar }) {
                         {/* Payments & Invoices Section */}
                         {filteredPayments.length > 0 && (
                           <div className="space-y-1.5">
-                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">Payments & Invoices</h3>
+                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">{t('payments.rentAndPayments', 'Payments & Invoices')}</h3>
                             <div className="space-y-1">
                               {filteredPayments.map((pay) => (
                                 <button
@@ -571,7 +571,7 @@ export default function Navbar({ toggleSidebar }) {
                                       {pay.type?.replace('_', ' ')}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground/60">
-                                      Paid: ₹{pay.amountPaid?.toLocaleString('en-IN')} / ₹{pay.amount?.toLocaleString('en-IN')}
+                                      {t('payments.paid', 'Paid')}: ₹{pay.amountPaid?.toLocaleString('en-IN')} / ₹{pay.amount?.toLocaleString('en-IN')}
                                     </p>
                                   </div>
                                   <span className={cn(
@@ -582,7 +582,7 @@ export default function Navbar({ toggleSidebar }) {
                                         ? "bg-blue-500/10 border-blue-500/20 text-blue-500"
                                         : "bg-amber-500/10 border-amber-500/20 text-amber-500"
                                   )}>
-                                    {pay.status === 'partially_paid' ? 'Partial' : pay.status === 'paid' ? 'Paid' : 'Due'}
+                                    {pay.status === 'partially_paid' ? t('payments.statusPartial', 'Partial') : pay.status === 'paid' ? t('payments.statusPaid', 'Paid') : t('payments.statusDue', 'Due')}
                                   </span>
                                 </button>
                               ))}
@@ -593,7 +593,7 @@ export default function Navbar({ toggleSidebar }) {
                         {/* Maintenance Section */}
                         {filteredMaintenance.length > 0 && (
                           <div className="space-y-1.5">
-                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">Maintenance Requests</h3>
+                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">{t('maintenance.title', 'Maintenance Requests')}</h3>
                             <div className="space-y-1">
                               {filteredMaintenance.map((m) => (
                                 <button
@@ -608,7 +608,9 @@ export default function Navbar({ toggleSidebar }) {
                                   <span className="text-base">🔧</span>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black text-foreground group-hover:text-primary transition-colors truncate">{m.title || m.description}</p>
-                                    <p className="text-[10px] text-muted-foreground/60 truncate capitalize">Priority: {m.priority} • Category: {m.category}</p>
+                                    <p className="text-[10px] text-muted-foreground/60 truncate capitalize">
+                                      {t('maintenance.priorityLabel', 'Priority')}: {t(`maintenance.priority${m.priority ? m.priority.charAt(0).toUpperCase() + m.priority.slice(1) : ''}`, m.priority)} • {t('maintenance.categoryLabel', 'Category')}: {m.category}
+                                    </p>
                                   </div>
                                   <span className={cn(
                                     "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border",
@@ -618,7 +620,7 @@ export default function Navbar({ toggleSidebar }) {
                                         ? "bg-blue-500/10 border-blue-500/20 text-blue-500"
                                         : "bg-amber-500/10 border-amber-500/20 text-amber-500"
                                   )}>
-                                    {m.status?.replace('_', ' ')}
+                                    {t(`maintenance.status_${m.status}`, m.status?.replace('_', ' '))}
                                   </span>
                                 </button>
                               ))}
@@ -629,7 +631,7 @@ export default function Navbar({ toggleSidebar }) {
                         {/* Tenants Section (Manager / Admin only) */}
                         {filteredTenants.length > 0 && (
                           <div className="space-y-1.5">
-                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">Tenants</h3>
+                            <h3 className="text-[10px] font-black text-muted-foreground/45 uppercase tracking-widest px-2">{t('tenants.title', 'Tenants')}</h3>
                             <div className="space-y-1">
                               {filteredTenants.map((t) => (
                                 <button

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { technicianPortalService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import { Wrench, Lock, ShieldCheck, ArrowRight, AlertCircle } from 'lucide-react';
 import PageTransition from '../components/PageTransition';
 
 export default function ActivateAccountPage() {
+  const { t } = useLanguage();
   const { token } = useParams();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
@@ -56,9 +58,9 @@ export default function ActivateAccountPage() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/30">
               <Wrench className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white">Activate Technician Account</h1>
+            <h1 className="text-xl font-bold text-white">{t('auth.activateAccountTitle', 'Activate Technician Account')}</h1>
             <p className="text-xs text-slate-400">
-              Set a secure password to activate your company field account
+              {t('auth.activateAccountDesc', 'Set a secure password to activate your company field account')}
             </p>
           </div>
 
@@ -78,7 +80,7 @@ export default function ActivateAccountPage() {
           ) : (
             <form onSubmit={handleActivate} className="space-y-4">
               <div>
-                <label className="text-xs text-slate-300 block mb-1">New Password</label>
+                <label className="text-xs text-slate-300 block mb-1">{t('auth.newPassword', 'New Password')}</label>
                 <div className="relative">
                   <input
                     type="password"
@@ -93,7 +95,7 @@ export default function ActivateAccountPage() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-300 block mb-1">Confirm Password</label>
+                <label className="text-xs text-slate-300 block mb-1">{t('auth.confirmPassword', 'Confirm Password')}</label>
                 <div className="relative">
                   <input
                     type="password"
@@ -112,7 +114,7 @@ export default function ActivateAccountPage() {
                 disabled={loading}
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/25 mt-2"
               >
-                {loading ? 'Activating Account...' : 'Set Password & Activate'}
+                {loading ? t('auth.activatingAccount', 'Activating Account...') : t('auth.setPasswordActivate', 'Set Password & Activate')}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

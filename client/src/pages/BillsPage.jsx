@@ -502,8 +502,8 @@ export default function BillsPage() {
             className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all cursor-pointer"
           >
             <option value="all">{t('bills.allTypes', 'All Types')}</option>
-            {BILL_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {BILL_TYPES.map(bt => (
+              <option key={bt.value} value={bt.value}>{t('bills.type_' + bt.value, bt.label)}</option>
             ))}
           </select>
         </div>
@@ -534,9 +534,9 @@ export default function BillsPage() {
 
             let statusStyle = STATUS_CONFIG.pending;
             let StatusStyleIcon = AlertCircle;
-            let amountLabel = 'AMOUNT DUE';
+            let amountLabel = t('bills.amountDue', 'AMOUNT DUE');
             let amountValue = 0;
-            let dateLabel = 'Due';
+            let dateLabel = t('bills.dateDue', 'Due');
             let dateValue = '';
             let methodIcon = <Clock className="w-4 h-4 text-muted-foreground/40" />;
             let methodLabel = '';
@@ -545,9 +545,9 @@ export default function BillsPage() {
             if (item.isLegacy) {
               statusStyle = STATUS_CONFIG.paid;
               StatusStyleIcon = CheckCircle2;
-              amountLabel = 'AMOUNT PAID';
+              amountLabel = t('bills.amountPaid', 'AMOUNT PAID');
               amountValue = item.amount;
-              dateLabel = 'Paid';
+              dateLabel = t('bills.datePaid', 'Paid');
               dateValue = new Date(item.paymentDate || item.createdAt).toLocaleDateString();
               methodIcon = item.paymentMethod === 'card' ? <CreditCard className="w-4 h-4 text-muted-foreground/40" /> : <Wallet className="w-4 h-4 text-muted-foreground/40" />;
               methodLabel = item.paymentMethod || 'Card';
@@ -681,7 +681,7 @@ export default function BillsPage() {
                     statusStyle.color
                   )}>
                     <StatusStyleIcon className="w-3 h-3" />
-                    {statusStyle.label}
+                    {t('bills.status_' + item.status, statusStyle.label)}
                   </div>
                 </div>
 
@@ -745,8 +745,8 @@ export default function BillsPage() {
                   onChange={(e) => setGenType(e.target.value)}
                   className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50"
                 >
-                  {BILL_TYPES.map(t => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {BILL_TYPES.map(bt => (
+                    <option key={bt.value} value={bt.value}>{t('bills.type_' + bt.value, bt.label)}</option>
                   ))}
                 </select>
               </div>

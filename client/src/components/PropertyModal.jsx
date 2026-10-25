@@ -10,6 +10,7 @@ import {
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../utils/cn';
+import { useLanguage } from '../context/LanguageContext';
 import { resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import { COMBINED_COORDS_MAP as COORDS_MAP, resolveCoordinatesFromInput, isDefaultCoordinates, DEFAULT_COORDINATES } from '../utils/locationCoordinatesHelper';
 import L from 'leaflet';
@@ -85,6 +86,7 @@ const EMPTY_FORM = {
 const libraries = ['places'];
 
 export default function PropertyModal({ property, initialType = 'apartment', onClose, onSave, onChangeType }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' | 'details' | 'location' | 'media' | 'seo'
   const [form, setForm] = useState(() => {
     if (property) {
@@ -597,11 +599,11 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
   };
 
   const tabs = [
-    { id: 'basic', label: '1. Basic Info', icon: Info },
-    { id: 'details', label: '2. Specifications & Amenities', icon: Layers },
-    { id: 'location', label: '3. Location & Map', icon: Compass },
-    { id: 'media', label: '4. Media & 3D Tour', icon: ImageIcon },
-    { id: 'seo', label: '5. SEO & Publish', icon: Globe }
+    { id: 'basic', label: t('property.tabBasicInfo', '1. Basic Info'), icon: Info },
+    { id: 'details', label: t('property.tabSpecsAmenities', '2. Specifications & Amenities'), icon: Layers },
+    { id: 'location', label: t('property.tabLocationMap', '3. Location & Map'), icon: Compass },
+    { id: 'media', label: t('property.tabMediaTour', '4. Media & 3D Tour'), icon: ImageIcon },
+    { id: 'seo', label: t('property.tabSeoPublish', '5. SEO & Publish'), icon: Globe }
   ];
 
   // Helper label for active property type
@@ -648,7 +650,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
-                  {property ? 'Edit Property Workspace' : 'Add Property'}
+                  {property ? t('property.editPropertyWorkspace', 'Edit Property Workspace') : t('property.addProperty', 'Add Property')}
                 </h2>
                 <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border flex items-center gap-1", currentTypeInfo.color)}>
                   <TypeIcon className="w-3 h-3" />
@@ -656,7 +658,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 </span>
               </div>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Tailored Real Estate Listing Configuration
+                {t('property.listingConfigSubtitle', 'Tailored Real Estate Listing Configuration')}
               </p>
             </div>
           </div>
@@ -709,23 +711,23 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
           {activeTab === 'basic' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 1 — Basic Information</h3>
-                <p className="text-xs text-muted-foreground">Core listing identification, category parameters, and monthly pricing.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">{t('property.section1Basic', 'Section 1 — Basic Information')}</h3>
+                <p className="text-xs text-muted-foreground">{t('property.section1Desc', 'Core listing identification, category parameters, and monthly pricing.')}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Field label="Property Name / Title *" required value={form.name} onChange={v => set('name', v)} placeholder="e.g. Skyline Luxury 2BHK Residency" />
+                <Field label={t('property.propertyNameTitle', 'Property Name / Title *')} required value={form.name} onChange={v => set('name', v)} placeholder="e.g. Skyline Luxury 2BHK Residency" />
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Property Category *</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.categoryLabel', 'Property Category *')}</label>
                     {onChangeType && (
                       <button
                         type="button"
                         onClick={onChangeType}
                         className="text-[10px] font-bold text-emerald-500 hover:underline cursor-pointer"
                       >
-                        Change Type
+                        {t('property.changeType', 'Change Type')}
                       </button>
                     )}
                   </div>
@@ -744,21 +746,21 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Publish Status</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.publishStatusLabel', 'Publish Status')}</label>
                   <select value={form.publishStatus} onChange={e => set('publishStatus', e.target.value)}
                     className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                    <option value="published">Published (Live in Directory)</option>
-                    <option value="draft">Draft (Private Portfolio Only)</option>
-                    <option value="archived">Archived</option>
+                    <option value="published">{t('property.statusPublishedOption', 'Published (Live in Directory)')}</option>
+                    <option value="draft">{t('property.statusDraftOption', 'Draft (Private Portfolio Only)')}</option>
+                    <option value="archived">{t('property.statusArchivedOption', 'Archived')}</option>
                   </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Monthly Rent (₹) *" type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} placeholder="e.g. 25000" />
-                  <Field label="Security Deposit (₹)" type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} placeholder="e.g. 50000" />
+                  <Field label={t('property.monthlyRentRequired', 'Monthly Rent (₹) *')} type="number" required value={form.rentAmount} onChange={v => set('rentAmount', v)} placeholder="e.g. 25000" />
+                  <Field label={t('property.securityDepositLabel', 'Security Deposit (₹)')} type="number" value={form.depositAmount} onChange={v => set('depositAmount', v)} placeholder="e.g. 50000" />
                 </div>
 
-                {/* Private Rent Negotiation & DealFlow Configuration */}
+                {/* {t('property.privateNegotiationTitle', 'Private Rent Negotiation & DealFlow')} Configuration */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -770,7 +772,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                           Private Rent Negotiation & DealFlow
                         </h4>
                         <p className="text-[11px] text-muted-foreground">
-                          Allow qualified tenants to propose counter-offers 1-on-1 without altering your public listed rent.
+                          {t('property.privateNegotiationDesc', 'Allow qualified tenants to propose counter-offers 1-on-1 without altering your public listed rent.')}
                         </p>
                       </div>
                     </div>
@@ -872,7 +874,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 </div>
               </div>
 
-              <TextAreaField label="Property Description" value={form.description} onChange={v => set('description', v)} placeholder="Highlight key residency highlights, floor level, view, proximity to transit, rules..." />
+              <TextAreaField label={t('property.descriptionLabel', 'Property Description')} value={form.description} onChange={v => set('description', v)} placeholder="Highlight key residency highlights, floor level, view, proximity to transit, rules..." />
             </motion.div>
           )}
 
@@ -882,10 +884,10 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
-                    Section 2 — Tailored Specifications ({currentTypeInfo.label})
+                    {t('property.section2Specs', 'Section 2 — Tailored Specifications')} ({currentTypeInfo.label})
                   </h3>
                 </div>
-                <p className="text-xs text-muted-foreground">Detailed layout attributes tailored specifically for this property type.</p>
+                <p className="text-xs text-muted-foreground">{t('property.section2Desc', 'Detailed layout attributes tailored specifically for this property type.')}</p>
               </div>
 
               {/* ── TYPE 1: APARTMENT / FLAT ── */}
@@ -1272,15 +1274,15 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
             return (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 3 — Geolocation & Interactive Map</h3>
-                <p className="text-xs text-muted-foreground">Search address or click on the interactive map to position the property pin.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">{t('property.section3Location', 'Section 3 — Geolocation & Interactive Map')}</h3>
+                <p className="text-xs text-muted-foreground">{t('property.section3Desc', 'Search address or click on the interactive map to position the property pin.')}</p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   {/* Address Input */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Address (Search / Text) *</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.addressSearchLabel', 'Address (Search / Text) *')}</label>
                     {isLoaded ? (
                       <Autocomplete
                         onLoad={setAutocompleteInstance}
@@ -1418,8 +1420,8 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
           {activeTab === 'media' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 4 — Visual Media Assets</h3>
-                <p className="text-xs text-muted-foreground">Upload property photos, video tours, and set the primary portfolio cover image.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">{t('property.section4Media', 'Section 4 — Visual Media Assets')}</h3>
+                <p className="text-xs text-muted-foreground">{t('property.section4Desc', 'Upload property photos, video tours, and set the primary portfolio cover image.')}</p>
               </div>
 
               {/* Drag and Drop Zone */}
@@ -1438,9 +1440,9 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-black text-foreground">
-                    {isDragActive ? 'Drop images or videos here...' : 'Click to Browse or Drag & Drop Media Files'}
+                    {isDragActive ? t('property.dropMediaHere', 'Drop images or videos here...') : t('property.clickBrowseMedia', 'Click to Browse or Drag & Drop Media Files')}
                   </p>
-                  <p className="text-xs text-muted-foreground">Supports JPEG, PNG, WebP images and MP4, WebM videos (up to 50MB each)</p>
+                  <p className="text-xs text-muted-foreground">{t('property.mediaFormatsSupported', 'Supports JPEG, PNG, WebP images and MP4, WebM videos (up to 50MB each)')}</p>
                 </div>
               </div>
 
@@ -1529,8 +1531,8 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
           {activeTab === 'seo' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="space-y-1">
-                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Section 5 — SEO & Social Meta</h3>
-                <p className="text-xs text-muted-foreground">Search engine discovery, snippet previews, and social media open graph cards.</p>
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">{t('property.section5Seo', 'Section 5 — SEO & Social Meta')}</h3>
+                <p className="text-xs text-muted-foreground">{t('property.section5Desc', 'Search engine discovery, snippet previews, and social media open graph cards.')}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1542,7 +1544,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
 
               <div className="p-5 rounded-3xl bg-muted/40 border border-border space-y-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-emerald-500" /> Search Snippet Preview
+                  <Globe className="w-3.5 h-3.5 text-emerald-500" /> {t('property.searchSnippetPreview', 'Search Snippet Preview')}
                 </span>
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer truncate">
@@ -1567,7 +1569,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl border border-border text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
           >
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </button>
 
           <div className="flex items-center gap-3">
@@ -1577,7 +1579,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
               onClick={(e) => handleSubmit(e, 'draft')}
               className="px-5 py-3 rounded-2xl border border-border text-foreground font-black text-xs hover:bg-muted transition-all disabled:opacity-50 cursor-pointer"
             >
-              Save Draft
+              {t('common.saveDraft', 'Save Draft')}
             </button>
             <button
               type="button"
@@ -1586,7 +1588,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
               className="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs tracking-wide shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              <span>{loading ? 'Processing Property...' : (property ? 'Save Changes' : 'Create & Publish Property')}</span>
+              <span>{loading ? t('property.processingProperty', 'Processing Property...') : (property ? t('property.saveChanges', 'Save Changes') : t('property.createPublishProperty', 'Create & Publish Property'))}</span>
               {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </div>

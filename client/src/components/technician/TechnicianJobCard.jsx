@@ -17,6 +17,7 @@ import {
   Check
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils/cn';
 
 export default function TechnicianJobCard({
@@ -26,6 +27,7 @@ export default function TechnicianJobCard({
   onStartJob,
 }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [slaTimeLeft, setSlaTimeLeft] = useState('');
   const [isSlaOverdue, setIsSlaOverdue] = useState(false);
 
@@ -105,20 +107,20 @@ export default function TechnicianJobCard({
     if (isCheckedOut) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
-          <CheckCircle2 className="w-3 h-3" /> Checked Out
+          <CheckCircle2 className="w-3 h-3" /> {t('technician.checkedOut', 'Checked Out')}
         </span>
       );
     }
     if (isCheckedIn) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/20 text-cyan-500 border border-cyan-500/30">
-          <CheckCircle2 className="w-3 h-3 animate-pulse" /> {status === 'OUTSIDE_RADIUS' ? 'Checked In (Outside)' : 'Checked In'}
+          <CheckCircle2 className="w-3 h-3 animate-pulse" /> {status === 'OUTSIDE_RADIUS' ? t('technician.checkedInOutside', 'Checked In (Outside)') : t('technician.checkedIn', 'Checked In')}
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/20">
-        <MapPin className="w-3 h-3" /> Pending Check-In
+        <MapPin className="w-3 h-3" /> {t('technician.pendingCheckIn', 'Pending Check-In')}
       </span>
     );
   };
@@ -190,7 +192,7 @@ export default function TechnicianJobCard({
               <User className="w-4 h-4 text-cyan-500 shrink-0" />
               <div className="truncate">
                 <span className="text-foreground font-black truncate block">{tenantName}</span>
-                <span className="text-muted-foreground text-[11px]">Resident</span>
+                <span className="text-muted-foreground text-[11px]">{t('technician.resident', 'Resident')}</span>
               </div>
             </div>
             {tenantPhone && (
@@ -198,7 +200,7 @@ export default function TechnicianJobCard({
                 href={`tel:${tenantPhone}`}
                 className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 shrink-0 cursor-pointer"
               >
-                <Phone className="w-3 h-3" /> Call
+                <Phone className="w-3 h-3" /> {t('common.call', 'Call')}
               </a>
             )}
           </div>
@@ -220,7 +222,7 @@ export default function TechnicianJobCard({
             rel="noopener noreferrer"
             className="ml-auto px-3 py-1 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 text-[11px] font-black flex items-center gap-1 transition-all cursor-pointer"
           >
-            <Navigation className="w-3 h-3" /> Navigate
+            <Navigation className="w-3 h-3" /> {t('technician.navigate', 'Navigate')}
           </a>
         </div>
 
@@ -230,7 +232,7 @@ export default function TechnicianJobCard({
             {hasFeedback ? (
               <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Tenant Feedback</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">{t('technician.tenantFeedback', 'Tenant Feedback')}</span>
                   <div className="flex items-center gap-1 font-black text-amber-400">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                     <span>{'★'.repeat(feedbackScore)} {feedbackScore.toFixed(1)}</span>
@@ -251,7 +253,7 @@ export default function TechnicianJobCard({
               </div>
             ) : (
               <div className="p-3 rounded-2xl bg-muted/40 border border-border/60 text-center text-xs font-bold text-muted-foreground">
-                Tenant Feedback: <span className="italic font-normal text-muted-foreground/80">Waiting for tenant feedback</span>
+                {t('technician.tenantFeedback', 'Tenant Feedback')}: <span className="italic font-normal text-muted-foreground/80">{t('technician.waitingFeedback', 'Waiting for tenant feedback')}</span>
               </div>
             )}
           </div>
@@ -266,7 +268,7 @@ export default function TechnicianJobCard({
           className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
         >
           <LogIn className="w-3.5 h-3.5" />
-          Check In
+          {t('technician.checkInAction', 'Check In')}
         </button>
 
         {/* Photos Action */}
@@ -275,7 +277,7 @@ export default function TechnicianJobCard({
           className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
         >
           <Camera className="w-3.5 h-3.5" />
-          Photos
+          {t('technician.photosAction', 'Photos')}
         </button>
 
         {/* Start Job Action */}
@@ -290,7 +292,7 @@ export default function TechnicianJobCard({
           )}
         >
           <PlayCircle className="w-3.5 h-3.5" />
-          {job?.status === 'in_progress' ? 'In Progress' : 'Start Job'}
+          {job?.status === 'in_progress' ? t('technician.inProgress', 'In Progress') : t('technician.startJob', 'Start Job')}
         </button>
 
         {/* View Details Action */}
@@ -298,7 +300,7 @@ export default function TechnicianJobCard({
           to={`/technician/jobs/${job._id}`}
           className="h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs flex items-center justify-center gap-1.5 transition-all"
         >
-          Details
+          {t('common.details', 'Details')}
           <ArrowUpRight className="w-3.5 h-3.5" />
         </Link>
       </div>

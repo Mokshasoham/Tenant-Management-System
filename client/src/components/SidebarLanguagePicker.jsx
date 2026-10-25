@@ -6,7 +6,7 @@ import { useLanguage, SUPPORTED_LANGUAGES } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
 
 export function SidebarLanguagePicker({ isOpen, colorTheme = 'dark', effectiveRole = 'tenant' }) {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [showLangPicker, setShowLangPicker] = useState(false);
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
@@ -144,8 +144,8 @@ export function SidebarLanguagePicker({ isOpen, colorTheme = 'dark', effectiveRo
         onClick={handleToggle}
         aria-haspopup="true"
         aria-expanded={showLangPicker}
-        aria-label="Select language"
-        title={`Language: ${language?.toUpperCase() || 'EN'}`}
+        aria-label={t('nav.selectLanguage', 'Select language')}
+        title={`${t('nav.language', 'Language')}: ${language?.toUpperCase() || 'EN'}`}
         className={cn(
           "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all select-none",
           !isOpen && "w-full justify-center py-2.5"

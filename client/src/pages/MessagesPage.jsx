@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { messageService } from '../services/api';
 import useAuthStore from '../context/authStore';
+import { useLanguage } from '../context/LanguageContext';
 import {
     Send, Search, Plus, MessageSquare, ArrowLeft, MoreVertical,
     Check, CheckCheck, Smile, Paperclip, Phone, Video, X, Image as ImageIcon,
@@ -73,6 +74,7 @@ function Avatar({ name, role, size = 'md', isOnline = false }) {
 }
 
 export default function MessagesPage() {
+    const { t } = useLanguage();
     const user = useAuthStore((state) => state.user);
     const { 
         conversations: chatConversations, 
@@ -376,7 +378,7 @@ export default function MessagesPage() {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-6 rounded-full bg-emerald-500" />
-                                    <h2 className="text-xl font-black text-foreground tracking-tight">Chats</h2>
+                                    <h2 className="text-xl font-black text-foreground tracking-tight">{t('messages.chats', 'Chats')}</h2>
                                 </div>
                                 <motion.button
                                     whileHover={{ scale: 1.05, y: -2 }}
@@ -391,7 +393,7 @@ export default function MessagesPage() {
                                 <Search className="w-4 h-4 text-muted-foreground/30" />
                                 <input
                                     type="text"
-                                    placeholder="Search conversations..."
+                                    placeholder={t('messages.searchPlaceholder', 'Search conversations...')}
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
                                     className="bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/45 flex-1 font-medium"
@@ -419,11 +421,11 @@ export default function MessagesPage() {
                                         <MessageSquare className="w-7 h-7 text-emerald-500/60" />
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="font-black text-sm text-foreground/75">No chats yet</p>
+                                        <p className="font-black text-sm text-foreground/75">{t('messages.noChatsYet', 'No chats yet')}</p>
                                         <p className="text-[10px] text-muted-foreground/60 font-medium">
                                             {role === 'manager' 
-                                                ? "Tenants with active leases on your properties will appear here." 
-                                                : "You can message your property manager once your lease is active."}
+                                                ? t('messages.managerNoChatsDesc', 'Tenants with active leases on your properties will appear here.') 
+                                                : t('messages.tenantNoChatsDesc', 'You can message your property manager once your lease is active.')}
                                         </p>
                                     </div>
                                     <motion.button
@@ -432,7 +434,7 @@ export default function MessagesPage() {
                                         onClick={() => { setShowNewChat(true); fetchAvailableUsers(); }}
                                         className={cn('flex items-center gap-1.5 px-5 py-2.5 rounded-2xl text-[10px] font-black text-white transition-all uppercase tracking-wider shadow-md bg-gradient-to-r', myTheme.bubble)}
                                     >
-                                        <Plus className="w-3.5 h-3.5" /> Start Conversation
+                                        <Plus className="w-3.5 h-3.5" /> {t('messages.startConversation', 'Start Conversation')}
                                     </motion.button>
                                 </div>
                             ) : (
@@ -479,7 +481,7 @@ export default function MessagesPage() {
                                                     )}
                                                     <div className="flex justify-between items-center mt-0.5">
                                                         <p className={cn('text-[11px] truncate flex-1 pr-2', unread ? 'text-foreground font-black' : 'text-muted-foreground/50')}>
-                                                            {conv.lastMessage?.content || 'Start a conversation'}
+                                                            {conv.lastMessage?.content || t('messages.startConversation', 'Start a conversation')}
                                                         </p>
                                                         {unread && (
                                                             <span className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 animate-pulse" />
@@ -520,8 +522,8 @@ export default function MessagesPage() {
                                 <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500 shadow-xl shadow-emerald-500/5 animate-bounce">
                                     <FileUp className="w-8 h-8" />
                                 </div>
-                                <h3 className="text-lg font-black text-foreground">Drop File to Attach</h3>
-                                <p className="text-xs text-muted-foreground/60">Attach images, videos, PDFs, or documents directly to this chat.</p>
+                                <h3 className="text-lg font-black text-foreground">{t('messages.dropFiles', 'Drop File to Attach')}</h3>
+                                <p className="text-xs text-muted-foreground/60">{t('messages.dropFilesDesc', 'Attach images, videos, PDFs, or documents directly to this chat.')}</p>
                             </div>
                         </motion.div>
                     )}
@@ -554,11 +556,11 @@ export default function MessagesPage() {
                                                 <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1 }}>.</motion.span>
                                                 <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}>.</motion.span>
                                                 <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}>.</motion.span>
-                                                typing
+                                                {t('messages.typing', 'typing')}
                                             </span>
                                         ) : (
                                             <span className={isChatUserOnline ? 'text-emerald-500' : 'text-muted-foreground/40'}>
-                                                {isChatUserOnline ? 'Online' : 'Offline'}
+                                                {isChatUserOnline ? t('messages.online', 'Online') : t('messages.offline', 'Offline')}
                                             </span>
                                         )}
                                     </p>
@@ -568,14 +570,14 @@ export default function MessagesPage() {
                                 <button 
                                     onClick={() => setShowMsgSearch(!showMsgSearch)}
                                     className={cn('p-2.5 rounded-xl transition-all border border-transparent', showMsgSearch ? 'bg-primary/10 text-primary border-primary/10' : 'text-muted-foreground/30 hover:text-foreground hover:bg-muted/20')}
-                                    title="Search Messages"
+                                    title={t('messages.searchMessages', 'Search Messages')}
                                 >
                                     <Search className="w-4 h-4" />
                                 </button>
-                                <button className="p-2.5 text-muted-foreground/30 hover:text-foreground hover:bg-muted/20 rounded-xl transition-all border border-transparent" title="Voice Call">
+                                <button className="p-2.5 text-muted-foreground/30 hover:text-foreground hover:bg-muted/20 rounded-xl transition-all border border-transparent" title={t('messages.voiceCall', 'Voice Call')}>
                                     <Phone className="w-4 h-4" />
                                 </button>
-                                <button className="p-2.5 text-muted-foreground/30 hover:text-foreground hover:bg-muted/20 rounded-xl transition-all border border-transparent" title="Video Call">
+                                <button className="p-2.5 text-muted-foreground/30 hover:text-foreground hover:bg-muted/20 rounded-xl transition-all border border-transparent" title={t('messages.videoCall', 'Video Call')}>
                                     <Video className="w-4 h-4" />
                                 </button>
                             </div>
@@ -590,7 +592,7 @@ export default function MessagesPage() {
                                 <Search className="w-3.5 h-3.5 text-muted-foreground/40" />
                                 <input 
                                     type="text" 
-                                    placeholder="Find in chat..."
+                                    placeholder={t('messages.findInChat', 'Find in chat...')}
                                     value={msgSearchQuery}
                                     onChange={e => setMsgSearchQuery(e.target.value)}
                                     className="bg-transparent border-none outline-none text-xs text-foreground placeholder:text-muted-foreground/35 flex-1 font-medium"
@@ -612,8 +614,8 @@ export default function MessagesPage() {
                                         <Sparkles className="w-7 h-7 text-foreground" />
                                     </div>
                                     <div className="text-center space-y-1">
-                                        <p className="text-foreground font-black text-sm uppercase tracking-wider">Start a Conversation</p>
-                                        <p className="text-[10px] text-muted-foreground font-medium max-w-xs mx-auto">Send your first message or media files to begin communication.</p>
+                                        <p className="text-foreground font-black text-sm uppercase tracking-wider">{t('messages.startConversation', 'Start a Conversation')}</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium max-w-xs mx-auto">{t('messages.startConversationDesc', 'Send your first message or media files to begin communication.')}</p>
                                     </div>
                                 </div>
                             ) : (
@@ -668,7 +670,7 @@ export default function MessagesPage() {
                                                                                      type="button"
                                                                                      onClick={() => openAttachment(att)}
                                                                                      className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/60 text-white opacity-0 group-hover/att:opacity-100 transition-opacity"
-                                                                                     title="Download image"
+                                                                                     title={t('messages.downloadImage', 'Download image')}
                                                                                  >
                                                                                      <Download className="w-3.5 h-3.5" />
                                                                                  </button>
@@ -700,7 +702,7 @@ export default function MessagesPage() {
                                                                                      type="button"
                                                                                      onClick={() => openAttachment(att)}
                                                                                      className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex-shrink-0 shadow-inner"
-                                                                                     title="Open file"
+                                                                                     title={t('messages.openFile', 'Open file')}
                                                                                  >
                                                                                      <Download className="w-3.5 h-3.5" />
                                                                                  </button>
@@ -722,7 +724,7 @@ export default function MessagesPage() {
                                                             <button 
                                                                 onClick={() => handleDeleteMessage(msg._id)}
                                                                 className="text-muted-foreground/25 hover:text-rose-500 transition-colors ml-1"
-                                                                title="Delete Message"
+                                                                title={t('messages.deleteMessage', 'Delete Message')}
                                                             >
                                                                 <X className="w-2.5 h-2.5" />
                                                             </button>
@@ -800,7 +802,7 @@ export default function MessagesPage() {
                                                 className="absolute bottom-14 left-0 z-50 w-72 bg-card border border-border/80 rounded-2xl shadow-2xl p-3 flex flex-col gap-2 backdrop-blur-xl"
                                             >
                                                 <div className="flex justify-between items-center pb-2 border-b border-border">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Pick Emoji</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">{t('messages.pickEmoji', 'Pick Emoji')}</span>
                                                     <button type="button" onClick={() => setShowEmojiPicker(false)} className="text-muted-foreground/45 hover:text-foreground">
                                                         <X className="w-3.5 h-3.5" />
                                                     </button>
@@ -827,14 +829,14 @@ export default function MessagesPage() {
                                     type="text"
                                     value={newMessage}
                                     onChange={onTyping}
-                                    placeholder="Type a message or drag/drop files..."
+                                    placeholder={t('messages.typeMessage', 'Type a message or drag/drop files...')}
                                     className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/35 font-bold"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-primary hover:bg-muted/30 transition-colors flex items-center justify-center"
-                                    title="Attach File"
+                                    title={t('messages.attachFile', 'Attach File')}
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </button>
@@ -882,14 +884,14 @@ export default function MessagesPage() {
                             <MessageSquare className="w-9 h-9 text-emerald-500/60" />
                         </motion.div>
                         <div className="text-center space-y-2 max-w-sm">
-                            <h3 className="text-lg font-black text-foreground">Select a Conversation</h3>
-                            <p className="text-xs text-muted-foreground/45 font-bold uppercase tracking-widest leading-relaxed">Choose an existing chat from the sidebar or click below to start a new chat with property managers.</p>
+                            <h3 className="text-lg font-black text-foreground">{t('messages.selectConversation', 'Select a Conversation')}</h3>
+                            <p className="text-xs text-muted-foreground/45 font-bold uppercase tracking-widest leading-relaxed">{t('messages.selectConversationDesc', 'Choose an existing chat from the sidebar or click below to start a new chat with property managers.')}</p>
                         </div>
                         <button
                             onClick={() => { setShowNewChat(true); fetchAvailableUsers(); }}
                             className={cn('flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs text-white uppercase tracking-widest shadow-xl shadow-emerald-500/10 transition-all border border-emerald-500/10 bg-gradient-to-r', myTheme.bubble, 'hover:scale-[1.02]')}
                         >
-                            <Plus className="w-4 h-4" /> Start New Chat
+                            <Plus className="w-4 h-4" /> {t('messages.startNewChat', 'Start New Chat')}
                         </button>
                     </div>
                 )}
@@ -913,7 +915,7 @@ export default function MessagesPage() {
                             className="w-full max-w-sm bg-card border border-border/80 rounded-[2.2rem] overflow-hidden shadow-2xl transition-all backdrop-blur-xl"
                         >
                             <div className="flex items-center justify-between px-6 py-5 border-b border-border/60">
-                                <p className="font-black text-foreground uppercase tracking-widest text-xs">Start Conversation</p>
+                                <p className="font-black text-foreground uppercase tracking-widest text-xs">{t('messages.startConversation', 'Start Conversation')}</p>
                                 <button onClick={() => setShowNewChat(false)} className="text-muted-foreground/45 hover:text-foreground p-1 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
@@ -923,7 +925,7 @@ export default function MessagesPage() {
                                     <Search className="w-4 h-4 text-muted-foreground/35" />
                                     <input
                                         type="text"
-                                        placeholder="Search contacts..."
+                                        placeholder={t('messages.searchContacts', 'Search contacts...')}
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         autoFocus
@@ -934,12 +936,12 @@ export default function MessagesPage() {
                                     {filteredAvailable.length === 0 ? (
                                         <div className="text-center py-10 space-y-1 text-muted-foreground/60">
                                             <p className="font-bold text-xs text-foreground">
-                                                {role === 'manager' ? "No active tenant conversations" : "No active conversations"}
+                                                {role === 'manager' ? t('messages.noActiveTenantConversations', 'No active tenant conversations') : t('messages.noActiveConversations', 'No active conversations')}
                                             </p>
                                             <p className="text-[10px]">
                                                 {role === 'manager' 
-                                                    ? "Tenants who book your properties will appear here." 
-                                                    : "Book a property to connect with its manager."}
+                                                    ? t('messages.managerEmptyContactsHint', 'Tenants who book your properties will appear here.') 
+                                                    : t('messages.tenantEmptyContactsHint', 'Book a property to connect with its manager.')}
                                             </p>
                                         </div>
                                     ) : filteredAvailable.map((u) => (
@@ -959,7 +961,7 @@ export default function MessagesPage() {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <p className={cn('text-[9px] font-black uppercase tracking-widest', ROLE_COLORS[u.role]?.text || 'text-muted-foreground/40')}>{u.role}</p>
+                                                    <p className={cn('text-[9px] font-black uppercase tracking-widest', ROLE_COLORS[u.role]?.text || 'text-muted-foreground/40')}>{t('auth.role' + (u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : ''), u.role)}</p>
                                                     {u.propertyName && (
                                                         <p className="text-[9px] text-muted-foreground truncate max-w-[150px]">
                                                             • {u.propertyName}
