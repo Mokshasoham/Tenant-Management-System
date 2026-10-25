@@ -88,8 +88,16 @@ async function ensureAccount(browser, account) {
   await page.locator('input[type="email"]').waitFor({ state: 'visible', timeout: 25000 });
   await page.locator('input[type="email"]').fill(account.email);
   await page.locator('input[type="password"]').first().fill(account.password);
-  await page.getByRole('button', { name: /sign in/i }).first().click();
-  await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), null, { timeout: 30000 });
+  const loginForm = page.locator('form').filter({ has: page.locator('input[type="password"]') }).first();
+  await loginForm.getByRole('button', { name: /sign in/i }).click();
+  try {
+    await page.waitForFunction(() => Boolean(localStorage.getItem('authToken')), null, { timeout: 30000 });
+  } catch (error) {
+    await shot(page, account.role + '-login-error');
+    const errorText = await page.locator('form').innerText().catch(() => '');
+    check(account.role + '.login_ui', false, msg(error) + ' | UI: ' + errorText);
+    throw error;
+  }
   const user = await page.evaluate(() => {
     let u = null; try { u = JSON.parse(localStorage.getItem('user') || 'null'); } catch {}
     return { token: Boolean(localStorage.getItem('authToken')), id: u && (u._id || u.id), role: u && u.role };
