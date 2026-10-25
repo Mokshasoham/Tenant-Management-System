@@ -54,7 +54,7 @@ export const register = asyncHandler(async (req, res) => {
   if (!normalizedEmail) {
     throw new AppError('Please provide a valid email address', 400);
   }
-  if (normalizedPhone && !/^\\+?[0-9().\\s-]{7,20}$/.test(normalizedPhone)) {
+  if (normalizedPhone && !/^\+?[0-9().\s-]{7,20}$/.test(normalizedPhone)) {
     throw new AppError('Please provide a valid phone number', 400);
   }
 
@@ -96,7 +96,7 @@ export const register = asyncHandler(async (req, res) => {
   user.password = undefined;
 
   // Send verification email
-  const frontendBaseUrl = String(config.FRONTEND_BASE_URL || '').replace(/\\/$/, '');
+  const frontendBaseUrl = String(config.FRONTEND_BASE_URL || '').replace(/\/$/, '');
   const verifyURL = `${frontendBaseUrl}/verify-email/${verificationToken}`;
   const message = `Welcome to TMS!\n\nPlease verify your email address by clicking the link below:\n\n${verifyURL}\n\nThis link will expire in 24 hours.\n\nIf you did not create this account, please ignore this email.`;
 

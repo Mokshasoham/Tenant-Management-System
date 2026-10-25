@@ -6,12 +6,12 @@
  * individual customer records, payment identifiers, or database contents.
  */
 const DEFAULT_STAGING_API = 'https://tenant-management-backend-staging.onrender.com/api';
-const API_BASE_URL = (process.env.STAGING_API_BASE_URL || DEFAULT_STAGING_API).replace(/\\/+$/, '');
+const API_BASE_URL = (process.env.STAGING_API_BASE_URL || DEFAULT_STAGING_API).replace(/\/+$/, '');
 const ALLOWED_HOST = 'tenant-management-backend-staging.onrender.com';
 
 function assertStagingOnly() {
   const target = new URL(API_BASE_URL);
-  if (target.protocol !== 'https:' || target.hostname !== ALLOWED_HOST || target.pathname.replace(/\\/$/, '') !== '/api') {
+  if (target.protocol !== 'https:' || target.hostname !== ALLOWED_HOST || target.pathname.replace(/\/$/, '') !== '/api') {
     throw new Error('Safety guard: this audit script can target only the staging backend API.');
   }
 }

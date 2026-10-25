@@ -3,7 +3,7 @@ import config from './config.js';
 import logger from '../utils/logger.js';
 
 const redactMongoError = (message) => String(message || 'Unknown MongoDB error')
-  .replace(/(mongodb(?:\\+srv)?:\\/\\/)[^@\\s]+@/gi, '$1[REDACTED]@');
+  .replace(/(mongodb(?:\+srv)?:\/\/)[^@\s]+@/gi, '$1[REDACTED]@');
 
 const connectDB = async () => {
   try {
