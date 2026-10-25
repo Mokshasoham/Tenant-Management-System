@@ -221,12 +221,12 @@ async function main() {
     check('tenant.booking_form_visible', true, 'Booking card and date inputs are visible.');
     await dateFields.nth(0).fill(futureDate(14)); await dateFields.nth(1).fill(futureDate(45));
     await tenant.page.locator('#booking-card').getByRole('button', { name: /proceed to book|submit free booking/i }).last().click();
-    await tenant.page.getByText(/Booking Request Submitted!/i).waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
+    await tenant.page.getByText(/Booking Request Submitted/i).waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     await shot(tenant.page, 'tenant-booking-submit-result');
     const mine = dataOf(await api('/bookings/my', {}, tenant.token));
     const bookings = Array.isArray(mine) ? mine : [];
     const booking = bookings.find(b => String(b.property?._id || b.property || '') === propertyId && ['pending', 'approved'].includes(b.status));
-    const uiSuccess = await tenant.page.getByText(/Booking Request Submitted!/i).isVisible().catch(() => false);
+    const uiSuccess = await tenant.page.getByText(/Booking Request Submitted/i).isVisible().catch(() => false);
     check('tenant.booking_request_ui', Boolean(booking && uiSuccess), 'UI success banner=' + uiSuccess + '; persisted matching booking=' + Boolean(booking));
     if (!booking) throw new Error('Booking request did not persist for tenant/property.');
     report.booking = { id: String(booking._id || booking.id), propertyId, status: booking.status, paymentStatus: booking.paymentStatus };
