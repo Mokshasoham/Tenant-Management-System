@@ -197,29 +197,31 @@ describe('TMS Subscription Plan Badge Layout & Translation Interpolation Tests',
     });
   });
 
-  describe('4. Manager Subscription Page Layout & Badge Inset Rules', () => {
+  describe('4. Manager Subscription Page Layout & Floating Badge Rules', () => {
     let pageCode = '';
 
     beforeAll(() => {
       pageCode = fs.readFileSync(managerPagePath, 'utf8');
     });
 
-    test('Plan badge does NOT use negative absolute top offset (-top-3.5) on cards', () => {
+    test('Plan badge does NOT use brittle negative absolute offset (-top-3.5) on cards', () => {
       expect(pageCode).not.toContain('absolute -top-3.5');
     });
 
-    test('Plan badge uses top-inset reserved height container (min-h-[36px] or min-h-[40px])', () => {
-      expect(pageCode).toMatch(/min-h-\[36px\]|min-h-\[40px\]/);
+    test('Plan badge floats centered over card top border (top-0 -translate-y-1/2 left-1/2 -translate-x-1/2)', () => {
+      expect(pageCode).toContain('absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2');
+      expect(pageCode).toContain('z-20');
+      expect(pageCode).toMatch(/max-w-\[90%\]|max-w-\[85%\]/);
     });
 
     test('Plan badge has responsive word-wrapping classes without clipping', () => {
       expect(pageCode).toContain('break-words');
       expect(pageCode).toContain('max-w-full');
-      expect(pageCode).toContain('leading-snug');
+      expect(pageCode).toContain('leading-tight');
     });
 
-    test('Pricing cards have balanced top padding (pt-5 sm:pt-6)', () => {
-      expect(pageCode).toMatch(/pt-5.*sm:pt-6/);
+    test('Pricing cards reserve dedicated upper padding (pt-8 sm:pt-9) to prevent icon collision', () => {
+      expect(pageCode).toMatch(/pt-8.*sm:pt-9/);
     });
 
     test('Upgrade button passes localized plan parameter to subscription.upgradeTo', () => {
@@ -249,14 +251,19 @@ describe('TMS Subscription Plan Badge Layout & Translation Interpolation Tests',
       pageCode = fs.readFileSync(tenantPagePath, 'utf8');
     });
 
-    test('Tenant plan badge does NOT use negative absolute top offset (-top-3.5)', () => {
+    test('Tenant plan badge does NOT use brittle negative absolute offset (-top-3.5)', () => {
       expect(pageCode).not.toContain('absolute -top-3.5');
     });
 
-    test('Tenant plan badge uses top-inset container with responsive wrapping', () => {
-      expect(pageCode).toMatch(/min-h-\[36px\]|min-h-\[40px\]/);
+    test('Tenant plan badge floats centered over card top border with responsive wrapping', () => {
+      expect(pageCode).toContain('absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2');
+      expect(pageCode).toContain('z-20');
       expect(pageCode).toContain('break-words');
       expect(pageCode).toContain('max-w-full');
+    });
+
+    test('Tenant pricing cards reserve upper padding (pt-8 sm:pt-9) to prevent icon collision', () => {
+      expect(pageCode).toMatch(/pt-8.*sm:pt-9/);
     });
 
     test('Tenant upgrade button passes localized plan parameter', () => {

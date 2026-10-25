@@ -574,7 +574,7 @@ export default function TenantSubscriptionPage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.25 }}
                 className={cn(
-                  "relative rounded-[30px] border pt-5 pb-6 sm:pt-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
+                  "relative rounded-[30px] border pt-8 pb-6 sm:pt-9 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
                   isDark
                     ? (isPlanPlus
                         ? "bg-gradient-to-b from-[#072421] via-[#041618] to-[#020A0D] border-emerald-400/60 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/40 md:-translate-y-2 text-white"
@@ -588,25 +588,25 @@ export default function TenantSubscriptionPage() {
                         : "bg-white border-slate-200 shadow-md text-slate-900")
                 )}
               >
-                <div className="space-y-6">
-                  {/* Top Inset Plan Badge */}
-                  <div className="flex justify-center items-center w-full min-h-[36px] sm:min-h-[40px] px-1">
-                    <span
-                      className={cn(
-                        "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md border text-center leading-snug max-w-full break-words",
-                        isCurrent
-                          ? (isDark ? "bg-emerald-950 text-emerald-300 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300")
-                          : isPlanPlus
-                          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-emerald-300 shadow-emerald-500/30"
-                          : isPlanPro
-                          ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white border-cyan-300 shadow-cyan-500/30"
-                          : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
-                      )}
-                    >
-                      {badgeText}
-                    </span>
-                  </div>
+                {/* Floating Plan Badge Centered Over Top Border */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full max-w-[90%] sm:max-w-[85%] flex justify-center pointer-events-none">
+                  <span
+                    className={cn(
+                      "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border text-center leading-tight break-words max-w-full pointer-events-auto",
+                      isCurrent
+                        ? (isDark ? "bg-emerald-950 text-emerald-300 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300")
+                        : isPlanPlus
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-emerald-300 shadow-emerald-500/30"
+                        : isPlanPro
+                        ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white border-cyan-300 shadow-cyan-500/30"
+                        : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
+                    )}
+                  >
+                    {badgeText}
+                  </span>
+                </div>
 
+                <div className="space-y-6">
                   {/* Header: Icon + Title + Description */}
                   <div className="space-y-3">
                     <div

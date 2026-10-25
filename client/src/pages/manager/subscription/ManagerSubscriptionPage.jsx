@@ -585,7 +585,7 @@ export default function ManagerSubscriptionPage() {
                 whileHover={{ y: -5 }}
                 transition={{ duration: 0.25 }}
                 className={cn(
-                  "relative rounded-[30px] border pt-5 pb-6 sm:pt-6 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
+                  "relative rounded-[30px] border pt-8 pb-6 sm:pt-9 sm:pb-8 px-6 sm:px-8 flex flex-col justify-between transition-all duration-300 shadow-2xl",
                   isDark
                     ? (isPlus
                         ? "bg-gradient-to-b from-[#0F1B3E] via-[#091028] to-[#040816] border-indigo-400/60 shadow-[0_15px_40px_-10px_rgba(99,102,241,0.3)] ring-1 ring-indigo-400/40 md:-translate-y-2 text-white"
@@ -599,25 +599,25 @@ export default function ManagerSubscriptionPage() {
                         : "bg-white border-slate-200 shadow-md text-slate-900")
                 )}
               >
-                <div className="space-y-6">
-                  {/* Top Inset Plan Badge */}
-                  <div className="flex justify-center items-center w-full min-h-[36px] sm:min-h-[40px] px-1">
-                    <span
-                      className={cn(
-                        "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md border text-center leading-snug max-w-full break-words",
-                        isCurrent
-                          ? (isDark ? "bg-indigo-950 text-indigo-300 border-indigo-500/40" : "bg-indigo-100 text-indigo-800 border-indigo-300")
-                          : isPlus
-                          ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-indigo-300 shadow-indigo-500/30"
-                          : isPro
-                          ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border-violet-300 shadow-violet-500/30"
-                          : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
-                      )}
-                    >
-                      {badgeText}
-                    </span>
-                  </div>
+                {/* Floating Plan Badge Centered Over Top Border */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full max-w-[90%] sm:max-w-[85%] flex justify-center pointer-events-none">
+                  <span
+                    className={cn(
+                      "inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg border text-center leading-tight break-words max-w-full pointer-events-auto",
+                      isCurrent
+                        ? (isDark ? "bg-indigo-950 text-indigo-300 border-indigo-500/40" : "bg-indigo-100 text-indigo-800 border-indigo-300")
+                        : isPlus
+                        ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-indigo-300 shadow-indigo-500/30"
+                        : isPro
+                        ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border-violet-300 shadow-violet-500/30"
+                        : (isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-300")
+                    )}
+                  >
+                    {badgeText}
+                  </span>
+                </div>
 
+                <div className="space-y-6">
                   {/* Header: Icon + Title + Description */}
                   <div className="space-y-3">
                     <div
