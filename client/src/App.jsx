@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { HelmetProvider } from 'react-helmet-async';
 import useAuthStore from './context/authStore';
@@ -123,6 +123,7 @@ import QRScannerPage from './pages/QRScannerPage';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -198,6 +199,17 @@ const PropertyDetailsRouter = () => {
 };
 
 
+
+// Normalizes trailing slashes to canonical clean routes while preserving search & hash
+const TrailingSlashNormalizer = () => {
+  const location = useLocation();
+  if (location.pathname.length > 1 && location.pathname.endsWith('/')) {
+    const cleanPath = location.pathname.replace(/\/+$/, '') || '/';
+    return <Navigate to={{ pathname: cleanPath, search: location.search, hash: location.hash }} replace />;
+  }
+  return null;
+};
+
 const PaymentRedirectHandler = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -238,12 +250,14 @@ function App() {
         <Router>
           <VerificationProvider>
             <ChatProvider>
+              <TrailingSlashNormalizer />
               <PaymentRedirectHandler />
               <ErrorBoundary>
               <Routes>
                 {/* Public Marketing & Discovery Website */}
                 <Route path="/" element={<PublicHomePage />} />
                 <Route path="/properties" element={<PropertiesRouter />} />
+                <Route path="/properties/*" element={<PropertiesRouter />} />
                 <Route path="/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/features" element={<FeaturesPage />} />
                 <Route path="/for-tenants" element={<ForTenantsPage />} />

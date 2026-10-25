@@ -99,14 +99,125 @@ describe('TMS Manager Properties Route & Manager Portal Localization Regression 
   });
 
   describe('2. Error Boundary & Blank Page Resilience Protection', () => {
-    test('ErrorBoundary component exists and provides retry and recovery controls', () => {
+    test('ErrorBoundary component exists, exports both default and named, and defines lifecycle methods', () => {
       const ebPath = path.join(rootDir, 'client/src/components/ErrorBoundary.jsx');
       expect(fs.existsSync(ebPath)).toBe(true);
 
       const ebCode = fs.readFileSync(ebPath, 'utf8');
       expect(ebCode).toContain('componentDidCatch');
+      expect(ebCode).toContain('getDerivedStateFromError');
+      expect(ebCode).toContain('export class ErrorBoundary');
+      expect(ebCode).toContain('export default ErrorBoundary');
       expect(ebCode).toContain('Retry');
       expect(ebCode).toContain('Dashboard');
+
+      const ast = parse(ebCode, {
+        sourceType: 'module',
+        plugins: ['jsx', 'classProperties', 'dynamicImport']
+      });
+
+      let hasClass = false;
+      let hasDerived = false;
+      let hasDidCatch = false;
+
+      traverse(ast, {
+        ClassDeclaration(nodePath) {
+          if (nodePath.node.id?.name === 'ErrorBoundary') {
+            hasClass = true;
+          }
+        },
+        ClassMethod(nodePath) {
+          if (nodePath.node.key?.name === 'getDerivedStateFromError' && nodePath.node.static) {
+            hasDerived = true;
+          }
+          if (nodePath.node.key?.name === 'componentDidCatch') {
+            hasDidCatch = true;
+          }
+        }
+      });
+
+      expect(hasClass).toBe(true);
+      expect(hasDerived).toBe(true);
+      expect(hasDidCatch).toBe(true);
+    });
+
+    test('App.jsx must import ErrorBoundary and have it bound in scope (no ReferenceError)', () => {
+      const appCode = fs.readFileSync(path.join(rootDir, 'client/src/App.jsx'), 'utf8');
+
+      expect(appCode).toContain("import ErrorBoundary from './components/ErrorBoundary';");
+      expect(appCode).toContain('<ErrorBoundary>');
+      expect(appCode).toContain('</ErrorBoundary>');
+
+      const ast = parse(appCode, {
+        sourceType: 'module',
+        plugins: ['jsx', 'classProperties', 'dynamicImport']
+      });
+
+      let unboundEBCount = 0;
+      traverse(ast, {
+        JSXIdentifier(nodePath) {
+          if (nodePath.node.name === 'ErrorBoundary') {
+            const parent = nodePath.parent;
+            if (parent.type === 'JSXOpeningElement' || parent.type === 'JSXClosingElement') {
+              if (!nodePath.scope.hasBinding('ErrorBoundary')) {
+                unboundEBCount++;
+              }
+            }
+          }
+        }
+      });
+
+      expect(unboundEBCount).toBe(0);
+    });
+
+    test('Zero unbound ErrorBoundary JSX references across all client source files', () => {
+      function findJsx(dir) {
+        let res = [];
+        if (!fs.existsSync(dir)) return res;
+        for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, item.name);
+          if (item.isDirectory()) {
+            if (item.name !== 'node_modules' && item.name !== '.git' && item.name !== 'dist') {
+              res = res.concat(findJsx(full));
+            }
+          } else if (item.name.endsWith('.jsx') || item.name.endsWith('.js')) {
+            res.push(full);
+          }
+        }
+        return res;
+      }
+
+      const clientFiles = findJsx(path.join(rootDir, 'client/src'));
+      const unboundList = [];
+
+      for (const file of clientFiles) {
+        const code = fs.readFileSync(file, 'utf8');
+        if (!code.includes('ErrorBoundary')) continue;
+
+        try {
+          const ast = parse(code, {
+            sourceType: 'module',
+            plugins: ['jsx', 'classProperties', 'dynamicImport']
+          });
+
+          traverse(ast, {
+            JSXIdentifier(nodePath) {
+              if (nodePath.node.name === 'ErrorBoundary') {
+                const parent = nodePath.parent;
+                if (parent.type === 'JSXOpeningElement' || parent.type === 'JSXClosingElement') {
+                  if (!nodePath.scope.hasBinding('ErrorBoundary')) {
+                    unboundList.push({ file: path.relative(rootDir, file), line: nodePath.node.loc?.start?.line });
+                  }
+                }
+              }
+            }
+          });
+        } catch (err) {
+          unboundList.push({ file: path.relative(rootDir, file), syntaxError: err.message });
+        }
+      }
+
+      expect(unboundList).toEqual([]);
     });
 
     test('App.jsx and DashboardLayout.jsx must wrap routes in ErrorBoundary', () => {
@@ -115,6 +226,14 @@ describe('TMS Manager Properties Route & Manager Portal Localization Regression 
 
       expect(appCode).toContain('<ErrorBoundary>');
       expect(layoutCode).toContain('<ErrorBoundary>');
+    });
+
+    test('App.jsx provides TrailingSlashNormalizer to handle /dashboard/ and /properties/ routes', () => {
+      const appCode = fs.readFileSync(path.join(rootDir, 'client/src/App.jsx'), 'utf8');
+
+      expect(appCode).toContain('TrailingSlashNormalizer');
+      expect(appCode).toContain('location.pathname.endsWith');
+      expect(appCode).toContain('<TrailingSlashNormalizer />');
     });
   });
 
