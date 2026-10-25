@@ -2,30 +2,47 @@ import React, { useRef, useState } from 'react';
 import { Upload, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../../PremiumUI';
 import { formatFileSize } from '../../../utils/documentHelpers';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export const FileUploader = ({
   onFileSelect,
+  onFileSelected,
   accept = '.pdf,.png,.jpg,.jpeg',
   maxSizeBytes = 10 * 1024 * 1024,
-  label = 'Drag and drop your document here, or browse',
-  hint = 'Supports PDF, PNG, JPG up to 10MB',
+  label,
+  hint,
+  buttonText,
   className = '',
   disabled = false,
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
+  const displayLabel = label || t('verification.dragAndDropHint', 'Drag and drop your document here, or browse');
+  const displayHint = hint || t('verification.supportedFormatsHint', 'Supports PDF, PNG, JPG up to 10MB');
+  const displayBtnText = buttonText || t('verification.selectFile', 'Select File');
+
+  const notifySelection = (file) => {
+    if (onFileSelect) onFileSelect(file);
+    if (onFileSelected) onFileSelected(file);
+  };
+
   const handleFile = (file) => {
     if (!file) return;
     if (file.size > maxSizeBytes) {
-      setErrorMessage(`File exceeds maximum size limit of ${formatFileSize(maxSizeBytes)}`);
+      setErrorMessage(
+        t('verification.fileTooLarge', 'File exceeds maximum size limit of {{size}}', {
+          size: formatFileSize(maxSizeBytes),
+        })
+      );
       return;
     }
     setErrorMessage(null);
     setSelectedFile(file);
-    if (onFileSelect) onFileSelect(file);
+    notifySelection(file);
   };
 
   const handleDrop = (e) => {
@@ -89,6 +106,7 @@ export const FileUploader = ({
                 e.stopPropagation();
                 clearFile();
               }}
+              title={t('verification.removeFile', 'Remove File')}
               className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
@@ -99,10 +117,10 @@ export const FileUploader = ({
             <div className="p-3 rounded-2xl bg-primary/10 text-primary">
               <Upload className="w-6 h-6" />
             </div>
-            <p className="text-sm font-bold text-foreground mt-1">{label}</p>
-            <p className="text-xs text-muted-foreground">{hint}</p>
+            <p className="text-sm font-bold text-foreground mt-1">{displayLabel}</p>
+            <p className="text-xs text-muted-foreground">{displayHint}</p>
             <Button variant="outline" type="button" className="mt-2 text-xs py-1.5 px-4" disabled={disabled}>
-              Select File
+              {displayBtnText}
             </Button>
           </div>
         )}

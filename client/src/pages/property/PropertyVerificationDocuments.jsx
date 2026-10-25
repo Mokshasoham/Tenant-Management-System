@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FileText, Folder, CheckCircle, Clock, XCircle, AlertTriangle, FileQuestion, RefreshCw } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import getVerificationMapper from '../../mappers/verificationMapperFactory';
 import { MOCK_DOCUMENT_CATEGORIES, MOCK_REQUIRED_DOCUMENTS } from '../../mocks/propertyVerificationMock';
@@ -15,6 +16,7 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function PropertyVerificationDocuments() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const propertyId = searchParams.get('propertyId') || '';
   const { activeVerification, loadPropertyVerification } = useVerificationContext();
@@ -50,16 +52,19 @@ export default function PropertyVerificationDocuments() {
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Property Document Workspace"
-        subtitle="Manage title deeds, property tax receipts, occupancy certificates, utility bills, and safety NOCs"
+        title={t('verification.propertyDocWorkspaceTitle', 'Property Document Workspace')}
+        subtitle={t(
+          'verification.propertyDocWorkspaceSubtitle',
+          'Manage title deeds, property tax receipts, occupancy certificates, utility bills, and safety NOCs'
+        )}
         icon={FileText}
         breadcrumbs={[
-          { label: 'Property Operations', href: '/properties' },
+          { label: t('verification.propOperations', 'Property Operations'), href: '/properties' },
           {
-            label: 'Property Verification',
+            label: t('nav.propertyVerification', 'Property Verification'),
             href: propertyId ? `/property/verification?propertyId=${propertyId}` : '/property/verification',
           },
-          { label: 'Documents' },
+          { label: t('verification.documents', 'Documents') },
         ]}
       />
 
@@ -70,7 +75,9 @@ export default function PropertyVerificationDocuments() {
             <CheckCircle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Uploaded</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              {t('verification.uploaded', 'Uploaded')}
+            </p>
             <p className="text-base font-black text-foreground">{uploadedCount}</p>
           </div>
         </div>
@@ -80,7 +87,9 @@ export default function PropertyVerificationDocuments() {
             <Clock className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Pending</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              {t('verification.pending', 'Pending')}
+            </p>
             <p className="text-base font-black text-foreground">{pendingCount}</p>
           </div>
         </div>
@@ -90,7 +99,9 @@ export default function PropertyVerificationDocuments() {
             <XCircle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Rejected</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              {t('verification.rejected', 'Rejected')}
+            </p>
             <p className="text-base font-black text-foreground">{rejectedCount}</p>
           </div>
         </div>
@@ -100,7 +111,9 @@ export default function PropertyVerificationDocuments() {
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Expired</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              {t('verification.expired', 'Expired')}
+            </p>
             <p className="text-base font-black text-foreground">{expiredCount}</p>
           </div>
         </div>
@@ -110,7 +123,9 @@ export default function PropertyVerificationDocuments() {
             <FileQuestion className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground">Missing</p>
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              {t('verification.missing', 'Missing')}
+            </p>
             <p className="text-base font-black text-foreground">{missingCount}</p>
           </div>
         </div>
@@ -138,20 +153,34 @@ export default function PropertyVerificationDocuments() {
       <DocumentUploadCard
         template={{
           code: 'GENERIC_PROPERTY_DOC',
-          name: `Upload ${selectedCategory === 'ALL' ? 'Property File' : selectedCategory}`,
-          description: 'Upload high-resolution Sale Deed, Tax Receipt, or Building Plan PDF',
+          name: t('verification.uploadGenericDoc', 'Upload {{category}} Document', {
+            category: selectedCategory === 'ALL' ? t('verification.documents', 'Document') : selectedCategory,
+          }),
+          description: t(
+            'verification.step3PropSubtitle',
+            'Attach PDF or high-resolution photos of title deeds and tax receipts'
+          ),
           allowedFormats: ['pdf', 'png', 'jpg', 'jpeg'],
           maxSizeBytes: 15,
         }}
       />
 
       {/* Uploaded Property Documents */}
-      <VerificationSectionCard title="Property Document Repository" subtitle={`Showing ${filteredDocs.length} files`} icon={Folder}>
+      <VerificationSectionCard
+        title={t('verification.uploadedDocRepo', 'Property Document Repository')}
+        subtitle={t('verification.showingFilesCount', 'Showing {{count}} files', {
+          count: filteredDocs.length,
+        })}
+        icon={Folder}
+      >
         {filteredDocs.length === 0 ? (
           <VerificationEmptyState
             icon={Folder}
-            title="No Documents Uploaded"
-            description={`No property files found in the ${selectedCategory} category yet.`}
+            title={t('verification.noDocumentsUploaded', 'No Documents Uploaded')}
+            description={t(
+              'verification.noDocsInCategory',
+              'No documents uploaded in this category yet.'
+            )}
           />
         ) : (
           <div className="space-y-3">
@@ -165,7 +194,7 @@ export default function PropertyVerificationDocuments() {
                     onClick={() => trackEvent(VERIFICATION_EVENTS.PROPERTY_DOCUMENT, { action: 'replace', docId: doc.id })}
                   >
                     <RefreshCw className="w-3 h-3 mr-1" />
-                    Replace Deed
+                    {t('common.replace', 'Replace Deed')}
                   </Button>
                 </div>
               </div>

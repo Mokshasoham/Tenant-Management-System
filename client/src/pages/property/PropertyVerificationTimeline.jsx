@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { History, ShieldCheck } from 'lucide-react';
 import { useVerificationContext } from '../../context/VerificationContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { trackEvent, VERIFICATION_EVENTS } from '../../utils/verificationAnalytics';
 import getVerificationMapper from '../../mappers/verificationMapperFactory';
 import {
@@ -14,6 +15,7 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function PropertyVerificationTimeline() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const propertyId = searchParams.get('propertyId') || '';
   const { activeVerification, loadPropertyVerification } = useVerificationContext();
@@ -36,52 +38,66 @@ export default function PropertyVerificationTimeline() {
   return (
     <div className="p-6 sm:p-10 space-y-8">
       <VerificationPageHeader
-        title="Property Audit & Verification Timeline"
-        subtitle="Chronological audit log of physical inspections, title searches, tax verification, and approval events"
+        title={t('verification.propertyAuditTitle', 'Property Audit & Verification Timeline')}
+        subtitle={t(
+          'verification.propertyAuditSubtitle',
+          'Chronological audit log of physical inspections, title searches, tax verification, and approval events'
+        )}
         icon={History}
         breadcrumbs={[
-          { label: 'Property Operations', href: '/properties' },
+          { label: t('verification.propOperations', 'Property Operations'), href: '/properties' },
           {
-            label: 'Property Verification',
+            label: t('nav.propertyVerification', 'Property Verification'),
             href: propertyId ? `/property/verification?propertyId=${propertyId}` : '/property/verification',
           },
-          { label: 'Timeline & History' },
+          { label: t('verification.auditTimeline', 'Timeline & History') },
         ]}
         actionSlot={
-          <Button variant="outline" onClick={handleOpenDrawer} className="text-xs">
+          <Button variant="outline" type="button" onClick={handleOpenDrawer} className="text-xs">
             <History className="w-3.5 h-3.5 mr-1.5" />
-            View History Drawer
+            {t('verification.viewHistoryDrawer', 'View History Drawer')}
           </Button>
         }
       />
 
       {/* Color Coding Legend Bar */}
       <div className="flex flex-wrap items-center gap-4 p-3 rounded-xl bg-muted/30 border border-border text-xs font-medium">
-        <span className="text-muted-foreground font-bold">Event Legend:</span>
+        <span className="text-muted-foreground font-bold">
+          {t('verification.eventLegend', 'Event Legend:')}
+        </span>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span>Success / Verified</span>
+          <span>{t('verification.legendSuccess', 'Success / Verified')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span>Pending / Scheduled</span>
+          <span>{t('verification.legendPending', 'Pending / Scheduled')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span>Rejected / Issue</span>
+          <span>{t('verification.legendRejected', 'Rejected / Issue')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
-          <span>Information / Created</span>
+          <span>{t('verification.legendInfo', 'Information / Created')}</span>
         </div>
       </div>
 
-      <VerificationSectionCard title="Property Audit Log" subtitle={`Showing ${timelineEvents.length} recorded events`} icon={ShieldCheck}>
+      <VerificationSectionCard
+        title={t('verification.chronologicalAuditLog', 'Property Audit Log')}
+        subtitle={t('verification.showingRecordedEvents', 'Showing {{count}} recorded events', {
+          count: timelineEvents.length,
+        })}
+        icon={ShieldCheck}
+      >
         {timelineEvents.length === 0 ? (
           <VerificationEmptyState
             icon={History}
-            title="No Timeline Activity"
-            description="Property audit events will appear here once verification is initiated."
+            title={t('verification.noTimelineActivity', 'No Timeline Activity')}
+            description={t(
+              'verification.noTimelineActivityDesc',
+              'Property audit events will appear here once verification is initiated.'
+            )}
           />
         ) : (
           <VerificationTimeline timeline={timelineEvents} />
