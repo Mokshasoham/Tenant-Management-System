@@ -436,7 +436,7 @@ export function PropertyCard({
                 <div className="flex items-center gap-4 sm:gap-6 text-xs font-bold pt-1 pb-3.5 border-b border-border/60 text-muted-foreground flex-wrap">
                     {p.type === 'commercial' || p.type === 'shop' ? (
                         <>
-                            <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.commercialArea || p.squareFeet || 0} {t('properties.sqft', 'sqft')}</span>
+                            <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.commercialArea || p.squareFeet || 0} {t('property.sqft', 'sqft')}</span>
                             <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-blue-500" />{p.frontage || (p.floor !== undefined ? t('properties.floorN', `Floor ${p.floor}`, { floor: p.floor }) : t('properties.commercial', 'Commercial'))}</span>
                         </>
                     ) : p.type === 'hostel' ? (
@@ -454,7 +454,7 @@ export function PropertyCard({
                             <span className="flex items-center gap-1.5"><Bed className="w-4 h-4" style={{ color }} />{p.bhk || `${p.bedrooms || 0} ${t('properties.bed', 'Bed')}`}</span>
                             <span className="flex items-center gap-1.5"><Bath className="w-4 h-4 text-emerald-500" />{p.bathrooms || 0} {t('properties.bath', 'Bath')}</span>
                             {Boolean(p.squareFeet || p.builtUpArea) && (
-                                <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet || p.builtUpArea} {t('properties.sqft', 'sqft')}</span>
+                                <span className="flex items-center gap-1.5"><Square className="w-4 h-4 text-amber-500" />{p.squareFeet || p.builtUpArea} {t('property.sqft', 'sqft')}</span>
                             )}
                         </>
                     )}
