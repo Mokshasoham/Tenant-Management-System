@@ -1,0 +1,57 @@
+name: Staging Lifecycle E2E
+
+on:
+  push:
+    branches:
+      - staging
+    paths:
+      - ".github/workflows/staging-lifecycle-e2e.yml"
+      - "server/scripts/staging-lifecycle-e2e.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tms-staging-lifecycle-e2e
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Manager-to-tenant booking lifecycle (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+      - name: Install Playwright test browser tooling (ephemeral)
+        working-directory: server
+        run: npm install --no-save --package-lock=false playwright
+      - name: Install Chromium
+        working-directory: server
+        run: npx playwright install --with-deps chromium
+      - name: Run staging browser lifecycle
+        working-directory: server
+        env:
+          STAGING_FRONTEND_URL: https://staging.d1fq6q7ihzuzlq.amplifyapp.com
+          STAGING_API_BASE_URL: https://tenant-management-backend-staging.onrender.com/api
+          E2E_ARTIFACT_DIR: artifacts/staging-lifecycle
+          CI: "true"
+        run: node scripts/staging-lifecycle-e2e.mjs
+      - name: Upload screenshots and lifecycle report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tms-staging-lifecycle-${{ github.run_id }}
+          path: server/artifacts/staging-lifecycle/
+          if-no-files-found: warn
+          retention-days: 14
