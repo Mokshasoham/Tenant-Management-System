@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import ScrollToTopButton from '../components/common/ScrollToTopButton';
+import ErrorBoundary from '../components/ErrorBoundary';
 import useAuthStore from '../context/authStore';
 import { useLanguage } from '../context/LanguageContext';
 import { cn } from '../utils/cn';
@@ -87,7 +88,7 @@ export default function DashboardLayout({ children }) {
                 </button>
               </div>
             )}
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>
 

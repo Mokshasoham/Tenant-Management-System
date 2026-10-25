@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { X, UserCheck, Check, AlertCircle, RefreshCw, Search, Loader2 } from 'lucide-react';
 import { maintenanceService, userService } from '../../../../services/api';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export default function ManagerAssignTechnicianModal({ request, technicians: initialTechs = [], onClose, onSave, theme }) {
+  const { t } = useLanguage();
   const [selectedTechId, setSelectedTechId] = useState(request?.assignedTo?._id || request?.assignedTo || '');
   const [techList, setTechList] = useState(initialTechs);
   const [loadingTechs, setLoadingTechs] = useState(initialTechs.length === 0);
@@ -38,7 +40,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
           activeJobs: 0
         })));
       } catch (fbErr) {
-        setTechError('Unable to load technicians. Please try again.');
+        setTechError(t('maintenance.unableLoadTechs', 'Unable to load technicians. Please try again.'));
       }
     } finally {
       setLoadingTechs(false);
@@ -109,7 +111,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black tracking-tight">Assign Technician</h3>
+              <h3 className="text-base font-black tracking-tight">{t('maintenance.assignTechnician', 'Assign Technician')}</h3>
               <p className="text-[10px] text-muted-foreground font-mono font-bold">
                 Ticket: REQ-{String(request._id).substring(0, 8)}
               </p>
@@ -139,10 +141,10 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
         <div className="space-y-3 flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between gap-2">
             <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">
-              Select Available Field Technician
+              {t('maintenance.selectAvailableTech', 'Select Available Field Technician')}
             </label>
             <span className="text-[10px] font-mono font-bold text-purple-400">
-              {techList.length} Accounts in DB
+              {t('maintenance.accountsInDb', '{{count}} Accounts in DB', { count: techList.length })}
             </span>
           </div>
 
@@ -153,7 +155,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
                 <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search technician by name or skill..."
+                  placeholder={t('maintenance.searchTechPlaceholder', 'Search technician by name or skill...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={cn(
@@ -174,7 +176,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
                       : "bg-muted/40 text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  All ({techList.length})
+                  {t('common.all', 'All')} ({techList.length})
                 </button>
                 <button
                   type="button"
@@ -186,7 +188,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
                       : "bg-muted/40 text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Available ({techList.filter(t => t.status === 'available' || t.activeJobs === 0).length})
+                  {t('maintenance.availableTechs', 'Available')} ({techList.filter(t => t.status === 'available' || t.activeJobs === 0).length})
                 </button>
               </div>
             </div>
@@ -197,8 +199,8 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
             {loadingTechs ? (
               <div className="p-8 border border-dashed rounded-2xl text-center space-y-2 text-muted-foreground my-auto">
                 <Loader2 className="w-6 h-6 mx-auto animate-spin text-purple-400" />
-                <p className="text-xs font-bold text-foreground">Loading available technicians...</p>
-                <p className="text-[10px]">Fetching real technician accounts from MongoDB User collection</p>
+                <p className="text-xs font-bold text-foreground">{t('maintenance.loadingTechs', 'Loading available technicians...')}</p>
+                <p className="text-[10px]">{t('maintenance.loadingTechsDesc', 'Fetching real technician accounts from MongoDB User collection')}</p>
               </div>
             ) : techError ? (
               <div className="p-6 border border-dashed border-rose-500/30 rounded-2xl text-center space-y-2 text-rose-400 my-auto">
@@ -209,18 +211,18 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
                   onClick={fetchTechnicians}
                   className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-500 inline-flex items-center gap-1 cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                  <RefreshCw className="w-3.5 h-3.5" /> {t('common.retry', 'Retry')}
                 </button>
               </div>
             ) : techList.length === 0 ? (
               <div className="p-6 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground my-auto">
-                <p className="text-xs font-bold text-foreground">No technician accounts available in database.</p>
-                <p className="text-[10px]">Add technician users in Admin People Command Center first.</p>
+                <p className="text-xs font-bold text-foreground">{t('maintenance.noTechsInDb', 'No technician accounts available in database.')}</p>
+                <p className="text-[10px]">{t('maintenance.noTechsInDbDesc', 'Add technician users in Admin People Command Center first.')}</p>
               </div>
             ) : filteredTechs.length === 0 ? (
               <div className="p-6 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground my-auto">
-                <p className="text-xs font-bold text-foreground">No technicians match your search/filter.</p>
-                <p className="text-[10px]">Try clearing your search query or selecting "All".</p>
+                <p className="text-xs font-bold text-foreground">{t('maintenance.noTechsMatchFilter', 'No technicians match your search/filter.')}</p>
+                <p className="text-[10px]">{t('maintenance.noTechsMatchFilterDesc', 'Try clearing your search query or selecting "All".')}</p>
               </div>
             ) : (
               filteredTechs.map((t) => {
@@ -259,7 +261,7 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
                             "font-bold flex items-center gap-1",
                             isAvailable ? "text-emerald-400" : "text-amber-400"
                           )}>
-                            ● {isAvailable ? 'Available' : 'On Job'}
+                            ● {isAvailable ? t('maintenance.availableTechs', 'Available') : t('maintenance.onJob', 'On Job')}
                           </span>
                           <span className="text-muted-foreground/80 font-mono">
                             · {activeJobsCount} active job{activeJobsCount === 1 ? '' : 's'}
@@ -305,10 +307,10 @@ export default function ManagerAssignTechnicianModal({ request, technicians: ini
           >
             {submitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Assigning...
+                <Loader2 className="w-4 h-4 animate-spin" /> {t('maintenance.assigning', 'Assigning...')}
               </>
             ) : (
-              'Confirm Assignment'
+              t('maintenance.confirmAssignment', 'Confirm Assignment')
             )}
           </button>
         </div>

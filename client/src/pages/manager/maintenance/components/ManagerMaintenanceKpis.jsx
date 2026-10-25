@@ -1,8 +1,10 @@
 import React from 'react';
 import { AlertTriangle, Clock, Calendar as CalendarIcon, ShieldAlert, UserCheck } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export default function ManagerMaintenanceKpis({ requests = [], technicians = [], theme }) {
+  const { t } = useLanguage();
   const openCount = requests.filter(r => ['open', 'submitted', 'manager_review'].includes(r.status)).length;
   const inProgressCount = requests.filter(r => ['in_progress', 'technician_assigned', 'technician_en_route', 'work_started', 'waiting_parts'].includes(r.status)).length;
   const scheduledCount = requests.filter(r => ['visit_scheduled', 'scheduled'].includes(r.status) || r.requestedVisitDate || r.scheduledDate).length;
@@ -10,11 +12,11 @@ export default function ManagerMaintenanceKpis({ requests = [], technicians = []
   const availableTechsCount = technicians.filter(t => t.isActive !== false).length;
 
   const kpis = [
-    { label: 'OPEN', count: openCount, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20', icon: AlertTriangle, sub: 'Needs Assignment' },
-    { label: 'IN PROGRESS', count: inProgressCount, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', icon: Clock, sub: 'Active Dispatches' },
-    { label: 'SCHEDULED', count: scheduledCount, color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20', icon: CalendarIcon, sub: 'Confirmed Visits' },
-    { label: 'SLA RISK', count: slaRiskCount, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: ShieldAlert, sub: 'High Urgency' },
-    { label: 'AVAILABLE TECHS', count: availableTechsCount, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: UserCheck, sub: 'Field Workforce' },
+    { label: t('common.open', 'OPEN'), count: openCount, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20', icon: AlertTriangle, sub: t('maintenance.needsAssignment', 'Needs Assignment') },
+    { label: t('maintenance.inProgress', 'IN PROGRESS'), count: inProgressCount, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', icon: Clock, sub: t('maintenance.activeDispatches', 'Active Dispatches') },
+    { label: t('maintenance.scheduled', 'SCHEDULED'), count: scheduledCount, color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20', icon: CalendarIcon, sub: t('maintenance.confirmedVisits', 'Confirmed Visits') },
+    { label: t('maintenance.slaRisk', 'SLA RISK'), count: slaRiskCount, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', icon: ShieldAlert, sub: t('maintenance.highUrgency', 'High Urgency') },
+    { label: t('maintenance.availableTechs', 'AVAILABLE TECHS'), count: availableTechsCount, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: UserCheck, sub: t('maintenance.fieldWorkforce', 'Field Workforce') },
   ];
 
   return (

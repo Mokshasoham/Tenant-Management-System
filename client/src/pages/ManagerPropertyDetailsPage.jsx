@@ -115,6 +115,7 @@ function PropertyDetailMap({ location, name, address, city }) {
 }
 
 export default function ManagerPropertyDetailsPage() {
+  const { t, formatCurrency } = useLanguage();
     const { id } = useParams();
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
@@ -259,7 +260,7 @@ export default function ManagerPropertyDetailsPage() {
                 <div className="p-4 rounded-3xl bg-rose-500/10 border border-rose-500/20 text-rose-500">
                     <XCircle className="w-10 h-10" />
                 </div>
-                <h2 className="text-xl font-black text-foreground">Property Not Found</h2>
+                <h2 className="text-xl font-black text-foreground">{t('properties.empty', 'Property Not Found')}</h2>
                 <p className="text-sm text-muted-foreground max-w-md">{error || 'The requested property could not be loaded.'}</p>
                 <button
                     onClick={() => navigate('/properties')}
@@ -300,11 +301,11 @@ export default function ManagerPropertyDetailsPage() {
                         className="group flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        <span>Back to Properties</span>
+                        <span>{t('properties.backToProperties', 'Back to Properties')}</span>
                     </button>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">
                         <ShieldCheck className="w-4 h-4" />
-                        <span>Manager Operations</span>
+                        <span>{t('property.managerOperations', 'Manager Operations')}</span>
                     </div>
                 </div>
 
@@ -314,14 +315,14 @@ export default function ManagerPropertyDetailsPage() {
                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
                     >
                         <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit Property</span>
+                        <span>{t('properties.editProperty', 'Edit Property')}</span>
                     </button>
                     <button
                         onClick={() => navigate('/property/verification')}
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-border hover:bg-muted text-foreground font-black text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer"
                     >
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Verification</span>
+                        <span>{t('nav.verification', 'Verification')}</span>
                     </button>
                     <button
                         onClick={handleDeleteProperty}
@@ -333,7 +334,7 @@ export default function ManagerPropertyDetailsPage() {
                 </div>
             </div>
 
-            {/* Main Content Grid: Left Details & Right Manager Operations */}
+            {/* Main Content Grid: Left Details & Right {t('property.managerOperations', 'Manager Operations')} */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Media, Specs, Description, Location */}
                 <div className="lg:col-span-2 space-y-8">
@@ -390,7 +391,7 @@ export default function ManagerPropertyDetailsPage() {
                                         className="px-3 py-1.5 rounded-full bg-black/70 hover:bg-black text-white text-xs font-black uppercase tracking-wider border border-white/20 backdrop-blur-md flex items-center gap-1.5 shadow-lg transition-all cursor-pointer"
                                     >
                                         <Video className="w-3.5 h-3.5 text-cyan-400" />
-                                        <span>3D Tour</span>
+                                        <span>{t('properties.virtualTour', '3D Tour')}</span>
                                     </button>
                                 )}
                                 <button
@@ -460,7 +461,7 @@ export default function ManagerPropertyDetailsPage() {
                             <div className="sm:text-right space-y-1">
                                 <p className="text-3xl font-black text-foreground">
                                     ₹{(property.rentAmount || 0).toLocaleString('en-IN')}
-                                    <span className="text-xs font-normal text-muted-foreground"> / month</span>
+                                    <span className="text-xs font-normal text-muted-foreground"> / {t('properties.monthly', 'month')}</span>
                                 </p>
                                 <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
                                     Deposit: ₹{(property.depositAmount || 0).toLocaleString('en-IN')}
@@ -604,22 +605,22 @@ export default function ManagerPropertyDetailsPage() {
                                     <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                         <Bed className="w-4 h-4 text-emerald-500" />
                                         <p className="text-foreground font-black text-sm">{property.bhk || (property.bedrooms ? `${property.bedrooms} Bed` : '—')}</p>
-                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">BHK / Bedrooms</p>
+                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('properties.bedrooms', 'BHK / Bedrooms')}</p>
                                     </div>
                                     <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                         <Bath className="w-4 h-4 text-teal-500" />
                                         <p className="text-foreground font-black text-sm">{property.bathrooms ? `${property.bathrooms} Bath` : '—'}</p>
-                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Bathrooms</p>
+                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('properties.bathrooms', 'Bathrooms')}</p>
                                     </div>
                                     <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                         <Square className="w-4 h-4 text-amber-500" />
                                         <p className="text-foreground font-black text-sm">{property.squareFeet || property.builtUpArea ? `${property.squareFeet || property.builtUpArea} sqft` : '—'}</p>
-                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Built-up Area</p>
+                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('properties.area', 'Built-up Area')}</p>
                                     </div>
                                     <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-1">
                                         <Building2 className="w-4 h-4 text-indigo-500" />
                                         <p className="text-foreground font-black text-sm capitalize truncate">{property.furnishing || 'Unfurnished'}</p>
-                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Furnishing</p>
+                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{t('properties.furnishing', 'Furnishing')}</p>
                                     </div>
                                 </div>
                             )}
@@ -669,7 +670,7 @@ export default function ManagerPropertyDetailsPage() {
                                         rel="noopener noreferrer"
                                         className="text-[11px] font-black text-emerald-500 hover:underline flex items-center gap-1 cursor-pointer"
                                     >
-                                        <span>Open in Google Maps</span>
+                                        <span>{t('property.openInGoogleMaps', 'Open in Google Maps')}</span>
                                         <ExternalLink className="w-3 h-3" />
                                     </a>
                                 )}
@@ -689,7 +690,7 @@ export default function ManagerPropertyDetailsPage() {
                                         <Navigation className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-xs font-black text-foreground uppercase tracking-wide">Manager Direct Navigation</p>
+                                        <p className="text-xs font-black text-foreground uppercase tracking-wide">{t('property.managerNavigation', 'Manager Direct Navigation')}</p>
                                         <p className="text-[11px] text-muted-foreground">Coordinates: {property.location?.lat || '—'}, {property.location?.lng || '—'}</p>
                                     </div>
                                 </div>
@@ -700,7 +701,7 @@ export default function ManagerPropertyDetailsPage() {
                                         rel="noopener noreferrer"
                                         className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
                                     >
-                                        <span>Get Directions</span>
+                                        <span>{t('property.getDirections', 'Get Directions')}</span>
                                         <ExternalLink className="w-3 h-3" />
                                     </a>
                                 )}
@@ -709,9 +710,9 @@ export default function ManagerPropertyDetailsPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Manager Unit Operations, Tenancy & Financials */}
+                {/* Right Column: Manager {t('property.unitOperations', 'Unit Operations')}, Tenancy & Financials */}
                 <div className="space-y-6">
-                    {/* Card 1: Unit Operations & Tenancy */}
+                    {/* Card 1: {t('property.unitOperations', 'Unit Operations')} & Tenancy */}
                     <div className="p-7 rounded-[2.25rem] bg-card border border-border shadow-xl space-y-6">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
@@ -719,7 +720,7 @@ export default function ManagerPropertyDetailsPage() {
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                     Property Management
                                 </span>
-                                <h3 className="text-xl font-black text-foreground">Unit Operations</h3>
+                                <h3 className="text-xl font-black text-foreground">{t('property.unitOperations', 'Unit Operations')}</h3>
                             </div>
                             <span className={cn(
                                 "px-3 py-1 text-xs font-black rounded-full border uppercase tracking-wider shadow-sm",
@@ -735,11 +736,11 @@ export default function ManagerPropertyDetailsPage() {
                         {/* Financial Highlights */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
-                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Monthly Rent</p>
+                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">{t('properties.rent', 'Monthly Rent')}</p>
                                 <p className="text-xl font-black text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}<span className="text-xs font-normal text-muted-foreground/50">/mo</span></p>
                             </div>
                             <div className="p-4 rounded-2xl bg-muted/60 border border-border/60">
-                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Security Deposit</p>
+                                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">{t('lease.depositHeld', 'Security Deposit')}</p>
                                 <p className="text-xl font-black text-foreground">₹{(property.depositAmount || 0).toLocaleString('en-IN')}</p>
                             </div>
                         </div>
@@ -747,7 +748,7 @@ export default function ManagerPropertyDetailsPage() {
                         {/* Property Specs Meta Table */}
                         <div className="p-4 rounded-2xl bg-muted/40 border border-border/60 space-y-2.5 text-xs font-bold">
                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Property ID</span>
+                                <span className="text-muted-foreground">{t('properties.propertyId', 'Property ID')}</span>
                                 <button
                                     type="button"
                                     onClick={handleCopyId}
@@ -759,11 +760,11 @@ export default function ManagerPropertyDetailsPage() {
                                 </button>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Property Type</span>
+                                <span className="text-muted-foreground">{t('properties.type', 'Property Type')}</span>
                                 <span className="text-foreground capitalize">{property.type || 'Apartment'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Managed By</span>
+                                <span className="text-muted-foreground">{t('property.assignedManager', 'Managed By')}</span>
                                 <span className="text-foreground">{property.manager?.firstName || property.owner?.firstName || user?.firstName || 'Assigned Manager'}</span>
                             </div>
                         </div>
@@ -803,7 +804,7 @@ export default function ManagerPropertyDetailsPage() {
                                 return (
                                     <>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Tenancy</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.currentTenancy', 'Current Tenancy')}</span>
                                             <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border", badgeClass)}>
                                                 {badgeText}
                                             </span>
@@ -812,11 +813,11 @@ export default function ManagerPropertyDetailsPage() {
                                         {activeLease ? (
                                             <div className="p-4 rounded-2xl bg-muted/60 border border-border/60 space-y-2">
                                                 <div className="flex justify-between items-center text-xs font-bold">
-                                                    <span className="text-muted-foreground">Active Tenant</span>
+                                                    <span className="text-muted-foreground">{t('property.activeTenant', 'Active Tenant')}</span>
                                                     <span className="text-foreground">{activeLease.tenant?.firstName ? `${activeLease.tenant.firstName} ${activeLease.tenant.lastName || ''}`.trim() : (activeLease.tenant?.name || activeLease.tenant?.email || 'Tenant')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-xs font-bold">
-                                                    <span className="text-muted-foreground">Lease Term</span>
+                                                    <span className="text-muted-foreground">{t('property.leaseTerm', 'Lease Term')}</span>
                                                     <span className="text-foreground">{new Date(activeLease.startDate).toLocaleDateString()} - {new Date(activeLease.endDate).toLocaleDateString()}</span>
                                                 </div>
                                                 {activeLease.moveOutStatus && activeLease.moveOutStatus !== 'none' && (
@@ -836,11 +837,11 @@ export default function ManagerPropertyDetailsPage() {
                                         ) : isExpired && latestLease ? (
                                             <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20 space-y-2">
                                                 <div className="flex justify-between items-center text-xs font-bold">
-                                                    <span className="text-muted-foreground">Past Tenant</span>
+                                                    <span className="text-muted-foreground">{t('property.pastTenant', 'Past Tenant')}</span>
                                                     <span className="text-foreground">{latestLease.tenant?.firstName ? `${latestLease.tenant.firstName} ${latestLease.tenant.lastName || ''}`.trim() : (latestLease.tenant?.name || latestLease.tenant?.email || 'Tenant')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-xs font-bold">
-                                                    <span className="text-muted-foreground">Expired On</span>
+                                                    <span className="text-muted-foreground">{t('property.expiredOn', 'Expired On')}</span>
                                                     <span className="text-rose-400">{new Date(latestLease.endDate).toLocaleDateString()}</span>
                                                 </div>
                                                 {latestLease.paymentSummary?.hasOutstandingDues && (
@@ -877,14 +878,14 @@ export default function ManagerPropertyDetailsPage() {
 
                         {/* Manager Primary Operations Actions */}
                         <div className="space-y-2.5 pt-2 border-t border-border/60">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manager Actions</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.managerOperations', 'Manager Actions')}</span>
                             <button
                                 type="button"
                                 onClick={() => setShowEditModal(true)}
                                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <Edit2 className="w-4 h-4" />
-                                <span>Edit Property Details</span>
+                                <span>{t('properties.editProperty', 'Edit Property')} Details</span>
                             </button>
                             <button
                                 type="button"
@@ -892,7 +893,7 @@ export default function ManagerPropertyDetailsPage() {
                                 className="w-full py-3 rounded-2xl bg-muted border border-border hover:border-emerald-500/30 text-foreground font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <Users className="w-4 h-4 text-emerald-500" />
-                                <span>Manage Leases & Tenancies</span>
+                                <span>{t('property.manageLeasesTenancies', 'Manage Leases & Tenancies')}</span>
                             </button>
                             <button
                                 type="button"
@@ -900,7 +901,7 @@ export default function ManagerPropertyDetailsPage() {
                                 className="w-full py-3 rounded-2xl bg-muted border border-border hover:border-amber-500/30 text-foreground font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <Wrench className="w-4 h-4 text-amber-500" />
-                                <span>View Maintenance Work Orders</span>
+                                <span>{t('property.viewMaintenanceOrders', 'View Maintenance Work Orders')}</span>
                             </button>
                         </div>
                     </div>
@@ -912,19 +913,19 @@ export default function ManagerPropertyDetailsPage() {
                                 <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />
                                 Financial Overview
                             </span>
-                            <span className="text-[10px] font-black text-emerald-500 uppercase">Annual Yield</span>
+                            <span className="text-[10px] font-black text-emerald-500 uppercase">{t('property.annualYield', 'Annual Yield')}</span>
                         </div>
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-semibold">Monthly Rent Roll</span>
+                                <span className="text-muted-foreground font-semibold">{t('properties.rent', 'Monthly Rent')} Roll</span>
                                 <span className="font-bold text-foreground">₹{(property.rentAmount || 0).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-semibold">Security Deposit Escrow</span>
+                                <span className="text-muted-foreground font-semibold">{t('lease.depositHeld', 'Security Deposit')} Escrow</span>
                                 <span className="font-bold text-foreground">₹{(property.depositAmount || 0).toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-semibold">Projected Annual Revenue</span>
+                                <span className="text-muted-foreground font-semibold">{t('property.projectedAnnualRevenue', 'Projected Annual Revenue')}</span>
                                 <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">₹{((property.rentAmount || 0) * 12).toLocaleString('en-IN')}</span>
                             </div>
                         </div>
@@ -932,7 +933,7 @@ export default function ManagerPropertyDetailsPage() {
                 </div>
             </div>
 
-            {/* Edit Property Modal */}
+            {/* {t('properties.editProperty', 'Edit Property')} Modal */}
             <AnimatePresence>
                 {showEditModal && (
                     <PropertyModal

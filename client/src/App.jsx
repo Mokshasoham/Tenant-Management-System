@@ -239,6 +239,7 @@ function App() {
           <VerificationProvider>
             <ChatProvider>
               <PaymentRedirectHandler />
+              <ErrorBoundary>
               <Routes>
                 {/* Public Marketing & Discovery Website */}
                 <Route path="/" element={<PublicHomePage />} />
@@ -374,6 +375,7 @@ function App() {
                 {/* Catch-all fallback */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
+              </ErrorBoundary>
             </ChatProvider>
           </VerificationProvider>
         </Router>

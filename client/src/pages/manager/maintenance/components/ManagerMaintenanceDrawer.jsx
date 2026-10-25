@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { X, Wrench, UserCheck, ShieldAlert, CheckCircle2, DollarSign, Activity } from 'lucide-react';
 import { maintenanceService } from '../../../../services/api';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, onClose, onRefresh, theme }) {
+  const { t, formatDate } = useLanguage();
   const [escalateReason, setEscalateReason] = useState('');
   const [showEscalateInput, setShowEscalateInput] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, o
   };
 
   const dt = request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A';
-  const techName = request.assignedTo ? `${request.assignedTo.firstName || ''} ${request.assignedTo.lastName || ''}`.trim() : 'Unassigned';
+  const techName = request.assignedTo ? `${request.assignedTo.firstName || ''} ${request.assignedTo.lastName || ''}`.trim() : t('maintenance.unassigned', 'Unassigned');
 
   return (
     <motion.div
@@ -73,23 +75,23 @@ export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, o
         {/* Location & Tenant info */}
         <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs space-y-1">
           <p className="font-extrabold text-foreground">
-            📍 {request.property?.name || 'Assigned Property'} · Unit {request.unit || 'N/A'}
+            📍 {request.property?.name || t('maintenance.noAssignedProperties', 'Assigned Property')} · Unit {request.unit || t('common.na', 'N/A')}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            Submitted by: <strong className="text-foreground">{request.requestedBy ? `${request.requestedBy.firstName || ''} ${request.requestedBy.lastName || ''}`.trim() : 'Tenant'}</strong> · Date: {dt}
+            {t('maintenance.submittedBy', 'Submitted by')}: <strong className="text-foreground">{request.requestedBy ? `${request.requestedBy.firstName || ''} ${request.requestedBy.lastName || ''}`.trim() : 'Tenant'}</strong> · {t('common.date', 'Date')}: {request.createdAt ? formatDate(new Date(request.createdAt)) : t('common.na', 'N/A')}
           </p>
         </div>
 
         {/* Priority & Status Controls */}
         <div className="space-y-2 text-xs">
           <span className="text-[10px] font-black uppercase text-muted-foreground block">
-            Update Status Phase
+            {t('maintenance.updateStatusPhase', 'Update Status Phase')}
           </span>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'open', label: 'Open' },
-              { id: 'in_progress', label: 'In Progress' },
-              { id: 'resolved', label: 'Resolved' },
+              { id: 'open', label: t('common.open', 'Open') },
+              { id: 'in_progress', label: t('maintenance.inProgress', 'In Progress') },
+              { id: 'resolved', label: t('maintenance.status_resolved', 'Resolved') },
             ].map((st) => (
               <button
                 key={st.id}
@@ -111,12 +113,12 @@ export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, o
         {/* Technician Assignment Section */}
         <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/5 space-y-2 text-xs">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black uppercase text-purple-400">Assigned Technician</span>
+            <span className="text-[10px] font-black uppercase text-purple-400">{t('maintenance.assignedTechnician', 'Assigned Technician')}</span>
             <button
               onClick={() => onOpenAssignModal && onOpenAssignModal(request)}
               className="text-xs font-black text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer"
             >
-              <UserCheck className="w-3.5 h-3.5" /> Reassign
+              <UserCheck className="w-3.5 h-3.5" /> {t('maintenance.reassign', 'Reassign')}
             </button>
           </div>
           <p className="font-extrabold text-sm text-foreground">{techName}</p>
@@ -126,18 +128,18 @@ export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, o
         {showEscalateInput ? (
           <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2 text-xs">
             <h4 className="font-black text-rose-400 flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4" /> Escalate Ticket to Emergency
+              <ShieldAlert className="w-4 h-4" /> {t('maintenance.escalateToEmergency', 'Escalate Ticket to Emergency')}
             </h4>
             <textarea
               value={escalateReason}
               onChange={(e) => setEscalateReason(e.target.value)}
               rows={2}
-              placeholder="Reason for escalation..."
+              placeholder={t('maintenance.escalateReasonPlaceholder', 'Reason for escalation...')}
               className="w-full p-2.5 rounded-xl bg-slate-900 text-xs border border-white/10 text-white focus:outline-none"
             />
             <div className="flex gap-2">
-              <button onClick={() => setShowEscalateInput(false)} className="flex-1 py-2 rounded-xl border border-border font-bold">Cancel</button>
-              <button onClick={handleEscalate} disabled={loading} className="flex-1 py-2 rounded-xl bg-rose-600 text-white font-black">Confirm Escalation</button>
+              <button onClick={() => setShowEscalateInput(false)} className="flex-1 py-2 rounded-xl border border-border font-bold">{t('common.cancel', 'Cancel')}</button>
+              <button onClick={handleEscalate} disabled={loading} className="flex-1 py-2 rounded-xl bg-rose-600 text-white font-black">{t('maintenance.confirmEscalation', 'Confirm Escalation')}</button>
             </div>
           </div>
         ) : (
@@ -145,7 +147,7 @@ export default function ManagerMaintenanceDrawer({ request, onOpenAssignModal, o
             onClick={() => setShowEscalateInput(true)}
             className="w-full py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <ShieldAlert className="w-4 h-4" /> Escalate to Emergency Ticket
+            <ShieldAlert className="w-4 h-4" /> {t('maintenance.escalateToEmergency', 'Escalate to Emergency Ticket')}
           </button>
         )}
       </motion.div>

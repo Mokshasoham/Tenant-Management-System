@@ -13,6 +13,7 @@ import { cn } from '../utils/cn';
 import { getDisplayStatus, resolveMediaUrl, DEFAULT_PLACEHOLDER_SVG } from '../utils/propertyHelper';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { getLocalizedStatus } from '../utils/statusLocalization';
 import PropertyModal from '../components/PropertyModal';
 import PropertyTypeSelectorModal from '../components/property/PropertyTypeSelectorModal';
 import ManagerPropertyLimitModal from '../components/subscription/ManagerPropertyLimitModal';
@@ -180,7 +181,7 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 gap-2 p-6">
             <Building2 className="w-10 h-10 opacity-30 text-slate-400" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Media Not Available</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{t('properties.mediaNotAvailable', 'Media Not Available')}</span>
           </div>
         )}
 
@@ -221,17 +222,17 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
                 displayStatus === 'Under Maintenance' ? "bg-amber-500/90 border-amber-400/30 text-white" :
                 "bg-amber-600/90 border-amber-500/30 text-white"
               )}>
-                {displayStatus}
+                {getLocalizedStatus(displayStatus, t, 'property')}
               </span>
             )}
             {videoUrls.length > 0 && (
               <span className="px-2 py-0.5 bg-black/60 text-emerald-400 text-[8px] font-black rounded-full shadow-lg backdrop-blur-md border border-white/15">
-                ▶ {videoUrls.length === 1 ? 'Video' : `${videoUrls.length} Videos`}
+                ▶ {videoUrls.length === 1 ? t('properties.video', 'Video') : t('properties.videosCount', '{{count}} Videos', { count: videoUrls.length })}
               </span>
             )}
             {p.virtualTourUrl && (
               <span className="px-2 py-0.5 bg-cyan-500/90 text-white text-[8px] font-black rounded-full shadow-lg backdrop-blur-md border border-white/20">
-                360° Tour
+                360° {t('properties.tour', 'Tour')}
               </span>
             )}
           </div>
@@ -438,6 +439,8 @@ function ManagerPropertyCard({ p, index, onEdit, onDelete, onView, theme }) {
 export default function PropertiesPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const [error, setError] = useState(null);
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -488,6 +491,7 @@ export default function PropertiesPage() {
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await propertyService.getAllProperties({
         page,
         limit: LIMIT,
@@ -501,6 +505,7 @@ export default function PropertiesPage() {
       setTotal(res.data?.pagination?.total || res.pagination?.total || (Array.isArray(data) ? data.length : 0));
     } catch (e) {
       console.error('[PropertiesPage] Failed to fetch properties:', e);
+      setError(e?.response?.data?.message || e?.message || 'Failed to fetch properties from server');
     } finally {
       setLoading(false);
     }
@@ -512,7 +517,7 @@ export default function PropertiesPage() {
 
   const handleDelete = async (id, e) => {
     if (e) e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this property? This action cannot be undone.')) return;
+    if (!window.confirm(t('properties.confirmDelete', 'Are you sure you want to delete this property? This action cannot be undone.'))) return;
     try {
       await propertyService.deleteProperty(id);
       fetchProperties();
@@ -602,17 +607,17 @@ export default function PropertiesPage() {
             bg: 'bg-teal-500/10 border-teal-500/20',
           },
           {
-            label: 'Upcoming / Leased',
+            label: t('properties.upcomingOrLeased', 'Upcoming / Leased'),
             value: String(upcomingOrOccupiedCount).padStart(2, '0'),
-            desc: 'Active tenancies',
+            desc: t('properties.activeTenancies', 'Active tenancies'),
             icon: Users,
             color: 'text-indigo-500',
             bg: 'bg-indigo-500/10 border-indigo-500/20',
           },
           {
-            label: 'Monthly Portfolio Value',
+            label: t('properties.monthlyPortfolioValue', 'Monthly Portfolio Value'),
             value: `₹${totalPortfolioValue.toLocaleString('en-IN')}`,
-            desc: 'Total rent roll',
+            desc: t('properties.totalRentRoll', 'Total rent roll'),
             icon: IndianRupee,
             color: 'text-emerald-500',
             bg: 'bg-emerald-500/10 border-emerald-500/20',
@@ -666,7 +671,7 @@ export default function PropertiesPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search by name, address, or city..."
+              placeholder={t('properties.searchPlaceholder', 'Search by name, address, or city...')}
               className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-semibold placeholder-muted-foreground/40 focus:outline-none focus:border-emerald-500/50 focus:bg-muted transition-all"
             />
             {search && (
@@ -698,11 +703,11 @@ export default function PropertiesPage() {
           >
             <option value="" className="bg-card">{t('properties.allTypes', 'All Types')}</option>
             <option value="apartment" className="bg-card">{t('properties.apartment', 'Apartment')}</option>
-            <option value="house" className="bg-card">House</option>
+            <option value="house" className="bg-card">{t('properties.house', 'House')}</option>
             <option value="commercial" className="bg-card">{t('properties.commercial', 'Commercial')}</option>
-            <option value="villa" className="bg-card">Villa</option>
-            <option value="studio" className="bg-card">Studio</option>
-            <option value="land" className="bg-card">Land</option>
+            <option value="villa" className="bg-card">{t('properties.villa', 'Villa')}</option>
+            <option value="studio" className="bg-card">{t('properties.studio', 'Studio')}</option>
+            <option value="land" className="bg-card">{t('properties.land', 'Land')}</option>
           </select>
 
           {/* Status Filter */}
@@ -722,7 +727,7 @@ export default function PropertiesPage() {
             <option value="available" className="bg-card">{t('properties.statusAvailable', 'Available')}</option>
             <option value="occupied" className="bg-card">{t('properties.statusOccupied', 'Occupied')}</option>
             <option value="maintenance" className="bg-card">{t('properties.statusMaintenance', 'Maintenance')}</option>
-            <option value="rented" className="bg-card">Rented</option>
+            <option value="rented" className="bg-card">{t('properties.statusRented', 'Rented')}</option>
           </select>
 
           {/* Sort By */}
@@ -738,18 +743,18 @@ export default function PropertiesPage() {
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`
             }}
           >
-            <option value="newest" className="bg-card">Newest First</option>
-            <option value="oldest" className="bg-card">Oldest First</option>
-            <option value="price_asc" className="bg-card">Rent: Low → High</option>
-            <option value="price_desc" className="bg-card">Rent: High → Low</option>
-            <option value="name_asc" className="bg-card">Name: A → Z</option>
+            <option value="newest" className="bg-card">{t('properties.sortNewest', 'Newest First')}</option>
+            <option value="oldest" className="bg-card">{t('properties.sortOldest', 'Oldest First')}</option>
+            <option value="price_asc" className="bg-card">{t('properties.sortRentAsc', 'Rent: Low → High')}</option>
+            <option value="price_desc" className="bg-card">{t('properties.sortRentDesc', 'Rent: High → Low')}</option>
+            <option value="name_asc" className="bg-card">{t('properties.sortNameAsc', 'Name: A → Z')}</option>
           </select>
         </div>
 
         {/* Results Count Badge */}
         <div className="flex items-center justify-between md:justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-border/60">
           <span className="text-[11px] font-bold text-muted-foreground/60">
-            Showing <span className="text-foreground font-black">{properties.length}</span> of <span className="text-foreground font-black">{totalCount}</span> properties
+            {t('properties.showingResults', 'Showing {{count}} of {{total}} properties', { count: properties.length, total: totalCount })}
           </span>
           {(search || typeFilter || statusFilter || sortBy !== 'newest') && (
             <button
@@ -762,11 +767,37 @@ export default function PropertiesPage() {
               }}
               className="text-[10px] font-black uppercase tracking-wider text-emerald-500 hover:text-emerald-400 transition-colors flex items-center gap-1"
             >
-              <RefreshCw className="w-3 h-3" /> Reset
+              <RefreshCw className="w-3 h-3" /> {t('common.reset', 'Reset')}
             </button>
           )}
         </div>
       </motion.div>
+
+      {/* ── Error Banner State ── */}
+      {error && !loading && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-5 rounded-3xl bg-destructive/10 border border-destructive/20 flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-destructive/20 text-destructive flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-foreground">{t('properties.fetchErrorTitle', 'Unable to load properties')}</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">{error}</p>
+            </div>
+          </div>
+          <button
+            onClick={fetchProperties}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-all cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>{t('common.retry', 'Retry')}</span>
+          </button>
+        </motion.div>
+      )}
 
       {/* ── Cards Grid ── */}
       {loading ? (
@@ -800,11 +831,15 @@ export default function PropertiesPage() {
             <Building2 className="w-8 h-8" />
           </div>
           <div>
-            <h3 className="text-lg font-black text-foreground">No properties found</h3>
+            <h3 className="text-lg font-black text-foreground">
+              {search || typeFilter || statusFilter
+                ? t('properties.noMatchingProperties', 'No matching properties found')
+                : t('properties.noPropertiesYet', 'No properties found')}
+            </h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto leading-relaxed">
               {search || typeFilter || statusFilter
-                ? "Try adjusting your search terms or clearing your filters."
-                : "Start building your portfolio by adding your first property."}
+                ? t('properties.adjustFiltersDesc', 'Try adjusting your search terms or clearing your filters.')
+                : t('properties.emptyPortfolioDesc', 'Start building your portfolio by adding your first property.')}
             </p>
           </div>
           <button
@@ -818,9 +853,9 @@ export default function PropertiesPage() {
                 handleAddPropertyClick();
               }
             }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
           >
-            {search || typeFilter || statusFilter ? 'Clear Filters' : <><Plus className="w-4 h-4" /> Add Property</>}
+            {search || typeFilter || statusFilter ? t('properties.clearFilters', 'Clear Filters') : <><Plus className="w-4 h-4" /> {t('properties.addProperty', 'Add Property')}</>}
           </button>
         </motion.div>
       ) : (
@@ -844,7 +879,11 @@ export default function PropertiesPage() {
       {total > LIMIT && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/60">
           <p className="text-xs text-muted-foreground font-medium">
-            Showing <span className="font-bold text-foreground">{Math.min((page - 1) * LIMIT + 1, total)}</span>–<span className="font-bold text-foreground">{Math.min(page * LIMIT, total)}</span> of <span className="font-bold text-foreground">{total}</span>
+            {t('properties.paginationRange', 'Showing {{start}}–{{end}} of {{total}}', {
+              start: Math.min((page - 1) * LIMIT + 1, total),
+              end: Math.min(page * LIMIT, total),
+              total
+            })}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -852,17 +891,17 @@ export default function PropertiesPage() {
               onClick={() => setPage(p => p - 1)}
               className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 border border-border transition-all cursor-pointer disabled:cursor-not-allowed"
             >
-              ← Prev
+              ← {t('common.prev', 'Prev')}
             </button>
             <span className="px-3 py-1 text-xs font-black text-foreground">
-              Page {page} of {Math.ceil(total / LIMIT)}
+              {t('common.pageOf', 'Page {{current}} of {{total}}', { current: page, total: Math.ceil(total / LIMIT) })}
             </span>
             <button
               disabled={page * LIMIT >= total}
               onClick={() => setPage(p => p + 1)}
               className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-25 border border-border transition-all cursor-pointer disabled:cursor-not-allowed"
             >
-              Next →
+              {t('common.next', 'Next')} →
             </button>
           </div>
         </div>

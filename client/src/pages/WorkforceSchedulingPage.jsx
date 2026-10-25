@@ -40,7 +40,7 @@ export default function WorkforceSchedulingPage() {
         const targetTech = technicians[0];
         const activeTicketIds = unassignedTickets.slice(0, 4).map(t => t._id);
         if (activeTicketIds.length === 0) {
-            alert('No unassigned tickets available to optimize dispatch sequence.');
+            alert(t('technician.noUnassignedTickets', 'No unassigned tickets') + ' available to optimize dispatch sequence.');
             return;
         }
 
@@ -221,7 +221,7 @@ export default function WorkforceSchedulingPage() {
                                 <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
                                     <CheckCircle2 className="w-6 h-6 mx-auto text-emerald-500 mb-1" />
                                     <p className="text-xs font-bold text-foreground">No unassigned tickets</p>
-                                    <p className="text-[10px]">All maintenance requests are assigned.</p>
+                                    <p className="text-[10px]">{t('technician.allRequestsAssigned', 'All maintenance requests are assigned.')}</p>
                                 </div>
                             ) : (
                                 unassignedTickets.map(t => (
@@ -254,8 +254,8 @@ export default function WorkforceSchedulingPage() {
                             {technicians.length === 0 ? (
                                 <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
                                     <UserCheck className="w-6 h-6 mx-auto text-muted-foreground/50 mb-1" />
-                                    <p className="text-xs font-bold text-foreground">No technicians available</p>
-                                    <p className="text-[10px]">Invite technicians to assign tasks.</p>
+                                    <p className="text-xs font-bold text-foreground">{t('technician.noTechsAvailable', 'No technicians available')}</p>
+                                    <p className="text-[10px]">{t('technician.inviteTechsToAssign', 'Invite technicians to assign tasks.')}</p>
                                 </div>
                             ) : (
                                 technicians.map(tech => (
@@ -274,7 +274,7 @@ export default function WorkforceSchedulingPage() {
                                         </div>
                                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                                             <span>Capacity: {tech.workload?.currentJobs || 0} / {tech.technicianProfile?.maxCapacity || 5} Jobs</span>
-                                            <span className="text-emerald-400 font-bold">● Free</span>
+                                            <span className="text-emerald-400 font-bold">● {t('technician.freeStatus', 'Free')}</span>
                                         </div>
                                     </div>
                                 ))
@@ -293,8 +293,8 @@ export default function WorkforceSchedulingPage() {
                             {activeDispatches.length === 0 ? (
                                 <div className="p-8 border border-dashed rounded-2xl text-center space-y-1 text-muted-foreground">
                                     <Zap className="w-6 h-6 mx-auto text-muted-foreground/50 mb-1" />
-                                    <p className="text-xs font-bold text-foreground">No active dispatches</p>
-                                    <p className="text-[10px]">Active maintenance dispatches will appear here.</p>
+                                    <p className="text-xs font-bold text-foreground">{t('technician.noActiveDispatches', 'No active dispatches')}</p>
+                                    <p className="text-[10px]">{t('technician.activeDispatchesAppear', 'Active maintenance dispatches will appear here.')}</p>
                                 </div>
                             ) : (
                                 activeDispatches.map(t => (
@@ -348,7 +348,7 @@ export default function WorkforceSchedulingPage() {
                 </div>
             )}
 
-            {/* 9. Daily Dispatch Timeline View */}
+            {/* {t('technician.dailyDispatchTimeline', 'Daily Dispatch Timeline')} View */}
             {viewMode === 'timeline' && (
                 <div className="p-6 rounded-3xl border border-border bg-card space-y-4">
                     <h3 className="text-sm font-black text-foreground uppercase tracking-wider">9. Daily Dispatch Timeline</h3>
@@ -386,7 +386,7 @@ export default function WorkforceSchedulingPage() {
                             <div className="flex items-center justify-between border-b border-border pb-3">
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-5 h-5 text-amber-500" />
-                                    <h3 className="text-base font-black text-foreground">7. Auto-Scheduling Assistant</h3>
+                                    <h3 className="text-base font-black text-foreground">{t('technician.autoSchedulingAssistant', 'Auto-Scheduling Assistant')}</h3>
                                 </div>
                                 <button onClick={() => setSuggestTarget(null)} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                             </div>
@@ -434,13 +434,13 @@ export default function WorkforceSchedulingPage() {
 
                             <form onSubmit={handleSaveShift} className="space-y-3 text-xs">
                                 <div>
-                                    <label className="font-bold text-muted-foreground block mb-1">Select Technician</label>
+                                    <label className="font-bold text-muted-foreground block mb-1">{t('technician.selectTechnician', 'Select Technician')}</label>
                                     <select value={shiftData.technician} onChange={e => {
                                         setShiftData({ ...shiftData, technician: e.target.value });
                                         handleCheckConflicts(e.target.value, shiftData.startDate, shiftData.endDate);
                                     }}
                                         required className="w-full p-2.5 rounded-xl bg-muted border border-border text-foreground font-semibold">
-                                        <option value="">Choose Technician...</option>
+                                        <option value="">{t('technician.chooseTechnician', 'Choose Technician...')}</option>
                                         {technicians.map(t => (
                                             <option key={t._id} value={t._id}>{t.firstName} {t.lastName} ({t.technicianProfile?.employeeId || 'TECH'})</option>
                                         ))}
@@ -448,7 +448,7 @@ export default function WorkforceSchedulingPage() {
                                 </div>
 
                                 <div>
-                                    <label className="font-bold text-muted-foreground block mb-1">Shift Type</label>
+                                    <label className="font-bold text-muted-foreground block mb-1">{t('technician.shiftType', 'Shift Type')}</label>
                                     <select value={shiftData.shiftName} onChange={e => setShiftData({ ...shiftData, shiftName: e.target.value })}
                                         className="w-full p-2.5 rounded-xl bg-muted border border-border text-foreground font-semibold capitalize">
                                         {['morning', 'afternoon', 'evening', 'night', 'split_shift', 'custom'].map(s => (
@@ -459,12 +459,12 @@ export default function WorkforceSchedulingPage() {
 
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="font-bold text-muted-foreground block mb-1">Start Date</label>
+                                        <label className="font-bold text-muted-foreground block mb-1">{t('technician.startDate', 'Start Date')}</label>
                                         <input type="date" value={shiftData.startDate} onChange={e => setShiftData({ ...shiftData, startDate: e.target.value })}
                                             className="w-full p-2.5 rounded-xl bg-muted border border-border text-foreground font-semibold" />
                                     </div>
                                     <div>
-                                        <label className="font-bold text-muted-foreground block mb-1">End Date</label>
+                                        <label className="font-bold text-muted-foreground block mb-1">{t('technician.endDate', 'End Date')}</label>
                                         <input type="date" value={shiftData.endDate} onChange={e => setShiftData({ ...shiftData, endDate: e.target.value })}
                                             className="w-full p-2.5 rounded-xl bg-muted border border-border text-foreground font-semibold" />
                                     </div>
@@ -472,7 +472,7 @@ export default function WorkforceSchedulingPage() {
 
                                 {conflictWarning && conflictWarning.hasConflict && (
                                     <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 space-y-1">
-                                        <span className="font-black text-[10px] uppercase">5. Conflict Warning Detected:</span>
+                                        <span className="font-black text-[10px] uppercase">{t('technician.conflictWarning', 'Conflict Warning Detected')}:</span>
                                         {conflictWarning.warnings.map((w, i) => <p key={i} className="text-[10px]">{w}</p>)}
                                     </div>
                                 )}
@@ -494,28 +494,28 @@ export default function WorkforceSchedulingPage() {
                             <div className="flex items-center justify-between border-b border-border pb-3">
                                 <div className="flex items-center gap-2">
                                     <Zap className="w-5 h-5 text-amber-500" />
-                                    <h3 className="text-base font-black text-foreground">Auto-Dispatched Daily Route Optimization</h3>
+                                    <h3 className="text-base font-black text-foreground">{t('technician.routeOptimization', 'Auto-Dispatched Daily Route Optimization')}</h3>
                                 </div>
                                 <button onClick={() => setRouteResult(null)} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2 text-center text-xs">
                                 <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                                    <span className="text-[9px] font-black uppercase text-amber-400 block">Est Travel Time</span>
+                                    <span className="text-[9px] font-black uppercase text-amber-400 block">{t('technician.estTravelTime', 'Est Travel Time')}</span>
                                     <span className="font-mono font-black text-foreground">{routeResult.estimatedTravelMinutes} mins</span>
                                 </div>
                                 <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                                    <span className="text-[9px] font-black uppercase text-emerald-400 block">Total Route Distance</span>
+                                    <span className="text-[9px] font-black uppercase text-emerald-400 block">{t('technician.totalRouteDistance', 'Total Route Distance')}</span>
                                     <span className="font-mono font-black text-foreground">{routeResult.routeDistanceKm} km</span>
                                 </div>
                                 <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
-                                    <span className="text-[9px] font-black uppercase text-blue-400 block">Algorithm Version</span>
+                                    <span className="text-[9px] font-black uppercase text-blue-400 block">{t('technician.algorithmVersion', 'Algorithm Version')}</span>
                                     <span className="font-mono font-bold text-foreground text-[10px]">{routeResult.optimizedRouteVersion}</span>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">Optimized Job Sequence (Job A → Job B → Job C):</span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block">{t('technician.optimizedJobSequence', 'Optimized Job Sequence')} (Job A → Job B → Job C):</span>
                                 {routeResult.sequence?.map((step) => (
                                     <div key={step.step} className="p-3 rounded-2xl border border-border bg-muted/20 flex items-center justify-between text-xs">
                                         <div className="flex items-center gap-3">

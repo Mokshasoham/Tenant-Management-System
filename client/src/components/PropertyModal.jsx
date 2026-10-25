@@ -895,16 +895,16 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 <div className="space-y-5 p-5 rounded-3xl bg-muted/30 border border-border">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">BHK Layout</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.bhkLayout', 'BHK Layout')}</label>
                       <select value={form.bhk || ''} onChange={e => set('bhk', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="">Select BHK</option>
-                        <option value="Studio">Studio Apartment</option>
-                        <option value="1 BHK">1 BHK</option>
-                        <option value="2 BHK">2 BHK</option>
-                        <option value="3 BHK">3 BHK</option>
-                        <option value="4 BHK">4 BHK</option>
-                        <option value="4+ BHK">4+ BHK / Penthouse</option>
+                        <option value="">{t('property.selectBhk', 'Select BHK')}</option>
+                        <option value="Studio">{t('property.studioApartment', 'Studio Apartment')}</option>
+                        <option value="1 BHK">{t('property.bhk1', '1 BHK')}</option>
+                        <option value="2 BHK">{t('property.bhk2', '2 BHK')}</option>
+                        <option value="3 BHK">{t('property.bhk3', '3 BHK')}</option>
+                        <option value="4 BHK">{t('property.bhk4', '4 BHK')}</option>
+                        <option value="4+ BHK">{t('property.bhk4Plus', '4+ BHK / Penthouse')}</option>
                       </select>
                     </div>
 
@@ -915,26 +915,26 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     <Field label="Total Floors in Bldg" type="number" value={form.totalFloors} onChange={v => set('totalFloors', v)} placeholder="e.g. 12" />
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Furnishing Status</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.furnishingStatus', 'Furnishing Status')}</label>
                       <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="unfurnished">Unfurnished</option>
-                        <option value="semi-furnished">Semi-Furnished</option>
-                        <option value="fully-furnished">Fully-Furnished</option>
+                        <option value="unfurnished">{t('property.unfurnished', 'Unfurnished')}</option>
+                        <option value="semi-furnished">{t('property.semiFurnished', 'Semi-Furnished')}</option>
+                        <option value="fully-furnished">{t('property.fullyFurnished', 'Fully-Furnished')}</option>
                       </select>
                     </div>
 
                     <Field label="Balconies Count" type="number" value={form.balcony} onChange={v => set('balcony', v)} placeholder="e.g. 2" />
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Parking Facility</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.parkingFacility', 'Parking Facility')}</label>
                       <select value={form.parking || ''} onChange={e => set('parking', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="">Select Parking</option>
-                        <option value="Covered Parking">Covered Stilt Parking</option>
-                        <option value="Open Parking">Open Designated Parking</option>
-                        <option value="Two-Wheeler Only">Two-Wheeler Only</option>
-                        <option value="No Parking">No Parking Available</option>
+                        <option value="">{t('property.selectParking', 'Select Parking')}</option>
+                        <option value="Covered Parking">{t('property.coveredParking', 'Covered Stilt Parking')}</option>
+                        <option value="Open Parking">{t('property.openParking', 'Open Designated Parking')}</option>
+                        <option value="{t('property.twoWheelerOnly', 'Two-Wheeler Only')}">{t('property.twoWheelerOnly', 'Two-Wheeler Only')}</option>
+                        <option value="No Parking">{t('property.noParking', 'No Parking Available')}</option>
                       </select>
                     </div>
                   </div>
@@ -951,24 +951,24 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     <Field label="Total House Stories" type="number" value={form.totalFloors} onChange={v => set('totalFloors', v)} placeholder="e.g. 2 (G + 1)" />
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Furnishing Status</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.furnishingStatus', 'Furnishing Status')}</label>
                       <select value={form.furnishing || 'unfurnished'} onChange={e => set('furnishing', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="unfurnished">Unfurnished</option>
-                        <option value="semi-furnished">Semi-Furnished</option>
-                        <option value="fully-furnished">Fully-Furnished</option>
+                        <option value="unfurnished">{t('property.unfurnished', 'Unfurnished')}</option>
+                        <option value="semi-furnished">{t('property.semiFurnished', 'Semi-Furnished')}</option>
+                        <option value="fully-furnished">{t('property.fullyFurnished', 'Fully-Furnished')}</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Garden / Outdoor Space</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.gardenOutdoor', 'Garden / Outdoor Space')}</label>
                       <select value={form.garden || ''} onChange={e => set('garden', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="">Select Garden Type</option>
-                        <option value="Private Front Lawn & Garden">Private Front Lawn & Garden</option>
-                        <option value="Terrace Garden">Rooftop Terrace Garden</option>
-                        <option value="Backyard Courtyard">Backyard Courtyard</option>
-                        <option value="No Garden">No Private Garden</option>
+                        <option value="">{t('property.selectGarden', 'Select Garden Type')}</option>
+                        <option value="{t('property.privateLawn', 'Private Front Lawn & Garden')}">{t('property.privateLawn', 'Private Front Lawn & Garden')}</option>
+                        <option value="Terrace Garden">{t('property.rooftopTerrace', 'Rooftop Terrace Garden')}</option>
+                        <option value="{t('property.backyard', 'Backyard Courtyard')}">{t('property.backyard', 'Backyard Courtyard')}</option>
+                        <option value="No Garden">{t('property.noGarden', 'No Private Garden')}</option>
                       </select>
                     </div>
 
@@ -976,7 +976,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Driveway & Parking</label>
                       <select value={form.parking || ''} onChange={e => set('parking', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="">Select Parking</option>
+                        <option value="">{t('property.selectParking', 'Select Parking')}</option>
                         <option value="Private Garage (2+ Cars)">Private Garage (2+ Cars)</option>
                         <option value="Covered Driveway">Covered Driveway</option>
                         <option value="Open Compound Parking">Open Compound Parking</option>
@@ -998,25 +998,25 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     <Field label="Frontage / Glass Width (ft)" value={form.frontage} onChange={v => set('frontage', v)} placeholder="e.g. 25 ft" />
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Washroom Setup</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.washroomSetup', 'Washroom Setup')}</label>
                       <select value={form.washroom || ''} onChange={e => set('washroom', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="">Select Washroom</option>
-                        <option value="Private Attached Washroom">Private Attached Washroom</option>
-                        <option value="Common Floor Washroom">Common Floor Washroom</option>
+                        <option value="{t('property.attachedWashroom', 'Private Attached Washroom')}">{t('property.attachedWashroom', 'Private Attached Washroom')}</option>
+                        <option value="{t('property.commonWashroom', 'Common Floor Washroom')}">{t('property.commonWashroom', 'Common Floor Washroom')}</option>
                         <option value="No Washroom Inside">No Dedicated Washroom</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Electricity & Power</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.powerSetup', 'Electricity & Power')}</label>
                       <select value={form.electricity || ''} onChange={e => set('electricity', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="">Select Power Setup</option>
-                        <option value="3-Phase Commercial Dedicated">3-Phase Commercial Dedicated</option>
-                        <option value="Single Phase Commercial">Single Phase Commercial</option>
+                        <option value="{t('property.phase3Commercial', '3-Phase Commercial Dedicated')}">{t('property.phase3Commercial', '3-Phase Commercial Dedicated')}</option>
+                        <option value="{t('property.singlePhaseCommercial', 'Single Phase Commercial')}">{t('property.singlePhaseCommercial', 'Single Phase Commercial')}</option>
                         <option value="10+ kVA High Load Power">10+ kVA High Load Power</option>
-                        <option value="Full Power Backup DG">Full Power Backup DG</option>
+                        <option value="{t('property.powerBackup', 'Full Power Backup DG')}">{t('property.powerBackup', 'Full Power Backup DG')}</option>
                       </select>
                     </div>
 
@@ -1066,50 +1066,50 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     <Field label="Total Beds Available *" type="number" value={form.totalBeds} onChange={v => set('totalBeds', v)} placeholder="e.g. 50" />
                     
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Room Type / Sharing</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.roomSharing', 'Room Type / Sharing')}</label>
                       <select value={form.roomType || ''} onChange={e => set('roomType', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="">Select Room Type</option>
-                        <option value="Single Private Room">Single Private Room</option>
-                        <option value="2-Bed Double Sharing">2-Bed Double Sharing</option>
-                        <option value="3-Bed Triple Sharing">3-Bed Triple Sharing</option>
-                        <option value="4-Bed Sharing Room">4-Bed Sharing Room</option>
-                        <option value="Dormitory (6+ Beds)">Dormitory (6+ Beds)</option>
+                        <option value="{t('property.singleRoom', 'Single Private Room')}">{t('property.singleRoom', 'Single Private Room')}</option>
+                        <option value="{t('property.doubleSharing', '2-Bed Double Sharing')}">{t('property.doubleSharing', '2-Bed Double Sharing')}</option>
+                        <option value="{t('property.tripleSharing', '3-Bed Triple Sharing')}">{t('property.tripleSharing', '3-Bed Triple Sharing')}</option>
+                        <option value="{t('property.fourSharing', '4-Bed Sharing Room')}">{t('property.fourSharing', '4-Bed Sharing Room')}</option>
+                        <option value="{t('property.dormitory', 'Dormitory (6+ Beds)')}">{t('property.dormitory', 'Dormitory (6+ Beds)')}</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gender Preference</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.genderPreference', 'Gender Preference')}</label>
                       <select value={form.genderPreference || 'any'} onChange={e => set('genderPreference', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
-                        <option value="male">Boys / Male Only</option>
-                        <option value="female">Girls / Female Only</option>
-                        <option value="co-ed">Co-ed / Unisex</option>
-                        <option value="any">Open / Any</option>
+                        <option value="male">{t('property.boysOnly', 'Boys / Male Only')}</option>
+                        <option value="female">{t('property.girlsOnly', 'Girls / Female Only')}</option>
+                        <option value="co-ed">{t('property.coEd', 'Co-ed / Unisex')}</option>
+                        <option value="any">{t('property.openAny', 'Open / Any')}</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Food & Mess Availability</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.foodMessPlan', 'Food & Mess Availability')}</label>
                       <select value={form.foodAvailability || ''} onChange={e => set('foodAvailability', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="">Select Food Plan</option>
-                        <option value="All 3 Meals Included">All 3 Meals Included (Breakfast, Lunch, Dinner)</option>
-                        <option value="Breakfast & Dinner Only">Breakfast & Dinner Only</option>
-                        <option value="Optional Mess Subscription">Optional Mess Subscription</option>
-                        <option value="Self Cooking Allowed">Self Cooking Allowed in Common Kitchen</option>
-                        <option value="No Food Facility">No Food Facility</option>
+                        <option value="All 3 Meals Included">{t('property.allMeals', 'All 3 Meals Included (Breakfast, Lunch, Dinner)')}</option>
+                        <option value="{t('property.breakfastDinner', 'Breakfast & Dinner Only')}">{t('property.breakfastDinner', 'Breakfast & Dinner Only')}</option>
+                        <option value="{t('property.optionalMess', 'Optional Mess Subscription')}">{t('property.optionalMess', 'Optional Mess Subscription')}</option>
+                        <option value="Self Cooking Allowed">{t('property.selfCooking', 'Self Cooking Allowed in Common Kitchen')}</option>
+                        <option value="{t('property.noFood', 'No Food Facility')}">{t('property.noFood', 'No Food Facility')}</option>
                       </select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Air Conditioning</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.acType', 'Air Conditioning')}</label>
                       <select value={form.acAvailable || ''} onChange={e => set('acAvailable', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="">Select AC Option</option>
-                        <option value="AC Rooms Available">AC Rooms Available</option>
-                        <option value="Non-AC Rooms">Non-AC Rooms</option>
-                        <option value="Both AC & Non-AC Available">Both AC & Non-AC Available</option>
+                        <option value="{t('property.acRooms', 'AC Rooms Available')}">{t('property.acRooms', 'AC Rooms Available')}</option>
+                        <option value="{t('property.nonAcRooms', 'Non-AC Rooms')}">{t('property.nonAcRooms', 'Non-AC Rooms')}</option>
+                        <option value="{t('property.bothAcNonAc', 'Both AC & Non-AC Available')}">{t('property.bothAcNonAc', 'Both AC & Non-AC Available')}</option>
                       </select>
                     </div>
 
@@ -1163,13 +1163,13 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     <Field label="Sharing Capacity (Persons/Room)" type="number" value={form.sharingCapacity || form.occupancyCapacity} onChange={v => { set('sharingCapacity', v); set('occupancyCapacity', v); }} placeholder="e.g. 2" />
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gender Preference</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.genderPreference', 'Gender Preference')}</label>
                       <select value={form.genderPreference || 'any'} onChange={e => set('genderPreference', e.target.value)}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/80 border border-border text-foreground text-xs font-bold focus:outline-none focus:border-emerald-500">
                         <option value="male">Male / Boys PG</option>
                         <option value="female">Female / Girls PG</option>
-                        <option value="co-ed">Co-ed / Unisex PG</option>
-                        <option value="any">Open / Any</option>
+                        <option value="co-ed">{t('property.coEd', 'Co-ed / Unisex')} PG</option>
+                        <option value="any">{t('property.openAny', 'Open / Any')}</option>
                       </select>
                     </div>
 
@@ -1316,7 +1316,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Country *</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.country', 'Country *')}</label>
                       <select value={form.country} onChange={e => { set('country', e.target.value); set('state', ''); }}
                         className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none">
                         {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1324,11 +1324,11 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">State *</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.state', 'State *')}</label>
                       {form.country === 'India' ? (
                         <select value={form.state} onChange={e => handleStateChange(e.target.value)}
                           className="w-full px-4 py-3 rounded-2xl bg-muted/60 border border-border text-foreground text-xs font-bold focus:outline-none">
-                          <option value="">Select State</option>
+                          <option value="">{t('property.selectState', 'Select State')}</option>
                           {INDIA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       ) : (
@@ -1346,7 +1346,7 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                   {/* Latitude / Longitude & GPS Trigger */}
                   <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">GPS Coordinates</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('property.gpsCoordinates', 'GPS Coordinates')}</span>
                       <div className="flex items-center gap-2">
                         {form.city && (
                           <button
@@ -1384,8 +1384,8 @@ export default function PropertyModal({ property, initialType = 'apartment', onC
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <span>Interactive Pin Drop</span>
-                      <span className="text-[9px] text-emerald-500 font-bold">(Drag pin or click map)</span>
+                      <span>{t('property.pinDrop', 'Interactive Pin Drop')}</span>
+                      <span className="text-[9px] text-emerald-500 font-bold">({t('property.dragPinOrClick', 'Drag pin or click map')})</span>
                     </label>
                     <span className="text-[10px] text-muted-foreground font-mono">
                       {form.location?.lat !== undefined && !isNaN(Number(form.location.lat)) ? Number(form.location.lat).toFixed(4) : form.location?.lat}, {form.location?.lng !== undefined && !isNaN(Number(form.location.lng)) ? Number(form.location.lng).toFixed(4) : form.location?.lng}

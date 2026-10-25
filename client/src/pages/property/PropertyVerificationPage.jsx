@@ -127,6 +127,7 @@ function getPropertyTypeRequiredDocs(propType = '') {
 //  MANAGER PROPERTY VERIFICATION CENTER COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 export default function PropertyVerificationPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
@@ -351,7 +352,7 @@ export default function PropertyVerificationPage() {
             <Building2 className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold text-foreground">No properties available for verification</h2>
+            <h2 className="text-xl font-bold text-foreground">{t('properties.empty', 'No properties available for verification')}</h2>
             <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
               Add your first managed property to establish its real estate trust score, verify legal title deeds, and increase tenant inquiries.
             </p>
@@ -363,7 +364,7 @@ export default function PropertyVerificationPage() {
               className="px-6 py-2.5 inline-flex items-center gap-2 font-bold text-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Add Property</span>
+              <span>+ {t('properties.addProperty', 'Add Property')}</span>
             </Button>
           </div>
         </div>
@@ -384,7 +385,7 @@ export default function PropertyVerificationPage() {
 
         <div className="p-10 text-center rounded-[2.5rem] border border-rose-500/20 bg-rose-500/5 max-w-xl mx-auto my-8 space-y-4">
           <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
-          <h3 className="text-lg font-bold text-foreground">Property Access Denied or Not Found</h3>
+          <h3 className="text-lg font-bold text-foreground">{t('properties.empty', 'Property Access Denied or Not Found')}</h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             {propertyError || "The requested property does not exist or you do not have permission to manage its verification."}
           </p>
@@ -567,7 +568,7 @@ export default function PropertyVerificationPage() {
                   {/* Properties List */}
                   <div className="max-h-[320px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-border">
                     {filteredProperties.length === 0 ? (
-                      <p className="p-4 text-center text-xs text-muted-foreground">No matching properties found.</p>
+                      <p className="p-4 text-center text-xs text-muted-foreground">{t('properties.noMatchingProperties', 'No matching properties found.')}</p>
                     ) : (
                       filteredProperties.map((p) => {
                         const isSelected = String(p._id) === String(selectedPropertyId);
@@ -724,12 +725,12 @@ export default function PropertyVerificationPage() {
         >
           <div className="space-y-3.5 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Verification State</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.verificationState', 'Verification State')}</span>
               <VerificationStatusBadge status={status} />
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Property Badge</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.trustBadge', 'Property Badge')}</span>
               <VerificationBadge badge={badge} />
             </div>
 
@@ -760,7 +761,7 @@ export default function PropertyVerificationPage() {
                   className="w-full text-xs justify-between font-bold"
                   onClick={() => navigate(`/property/verification/wizard?propertyId=${selectedPropertyId}`)}
                 >
-                  <span>Start Verification</span>
+                  <span>{t('verification.startVerification', 'Start Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -771,7 +772,7 @@ export default function PropertyVerificationPage() {
                   className="w-full text-xs justify-between font-bold"
                   onClick={() => navigate(`/property/verification/wizard?propertyId=${selectedPropertyId}`)}
                 >
-                  <span>Continue Draft</span>
+                  <span>{t('verification.continueDraft', 'Continue Draft')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -782,7 +783,7 @@ export default function PropertyVerificationPage() {
                   className="w-full text-xs justify-between bg-rose-500 text-white hover:bg-rose-600 font-bold"
                   onClick={() => navigate(`/property/verification/wizard?propertyId=${selectedPropertyId}`)}
                 >
-                  <span>Resubmit Property Verification</span>
+                  <span>{t('verification.resubmitVerification', 'Resubmit Property Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -790,7 +791,7 @@ export default function PropertyVerificationPage() {
               {status === 'APPROVED' && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Property Fully Certified & Verified</span>
+                  <span>{t('verification.accountFullyVerified', 'Property Fully Certified & Verified')}</span>
                 </div>
               )}
 
@@ -829,7 +830,7 @@ export default function PropertyVerificationPage() {
             <div className="w-full p-2.5 rounded-xl bg-muted/40 border border-border flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 text-muted-foreground font-semibold">
                 <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Property Health</span>
+                <span>{t('verification.propertyHealth', 'Property Health')}</span>
               </div>
               <span className="font-black text-emerald-500">{healthScore.healthScorePercent}%</span>
             </div>
@@ -842,7 +843,7 @@ export default function PropertyVerificationPage() {
                 navigate(`/property/trust-score?propertyId=${selectedPropertyId}`);
               }}
             >
-              <span>View Score Breakdown</span>
+              <span>{t('verification.viewScoreBreakdown', 'View Score Breakdown')}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
@@ -876,7 +877,7 @@ export default function PropertyVerificationPage() {
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Physical Inspection</span>
+              <span className="text-muted-foreground font-medium">{t('verification.physicalInspection', 'Physical Inspection')}</span>
               <span className="font-black text-emerald-500">
                 {activeVerification?.inspectionStatus || (isUnverified ? 'Pending Initiation' : 'Scheduled')}
               </span>
@@ -895,7 +896,7 @@ export default function PropertyVerificationPage() {
           <div className="space-y-2 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-bold text-foreground">Verified Real Estate Credential</span>
+              <span className="text-xs font-bold text-foreground">{t('verification.verifiedRealEstate', 'Verified Real Estate Credential')}</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
                 {propertyLevel}
               </span>
@@ -1051,12 +1052,12 @@ export default function PropertyVerificationPage() {
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Days Remaining</span>
+              <span className="text-muted-foreground font-medium">{t('verification.daysRemaining', 'Days Remaining')}</span>
               <span className="font-black text-primary">{renewal.daysRemaining || 0} Days</span>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Last Renewal Completed</span>
+              <span className="text-muted-foreground font-medium">{t('verification.lastRenewalCompleted', 'Last Renewal Completed')}</span>
               <span className="font-bold text-foreground">{renewal.lastRenewedOn || 'N/A'}</span>
             </div>
           </div>
@@ -1082,7 +1083,7 @@ export default function PropertyVerificationPage() {
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
-              <span className="text-muted-foreground font-medium">Assigned Manager</span>
+              <span className="text-muted-foreground font-medium">{t('verification.assignedManager', 'Assigned Manager')}</span>
               <span className="font-bold text-foreground">
                 {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Active Manager'}
               </span>

@@ -37,6 +37,7 @@ function renderStars(rating = 4) {
 
 // 8. Technician Comparison Modal
 function ComparisonModal({ techA, techB, onClose }) {
+    const { t } = useLanguage();
     if (!techA || !techB) return null;
 
     const metrics = [
@@ -57,13 +58,13 @@ function ComparisonModal({ techA, techB, onClose }) {
                 <div className="flex items-center justify-between border-b border-border pb-3">
                     <div className="flex items-center gap-2">
                         <Scale className="w-5 h-5 text-amber-500" />
-                        <h3 className="text-base font-black text-foreground">8. Side-by-Side Technician Comparison</h3>
+                        <h3 className="text-base font-black text-foreground">{t('technician.sideBySideComparison', 'Side-by-Side Technician Comparison')}</h3>
                     </div>
                     <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-center border-b border-border pb-4">
-                    <div className="text-left font-black text-xs uppercase text-muted-foreground">Metric</div>
+                    <div className="text-left font-black text-xs uppercase text-muted-foreground">{t('technician.metric', 'Metric')}</div>
                     <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 font-black text-xs text-blue-400">
                         {techA.firstName} {techA.lastName}
                     </div>
@@ -91,6 +92,7 @@ function ComparisonModal({ techA, techB, onClose }) {
 }
 
 function TechnicianWorkspaceModal({ technician, onClose, onRefresh }) {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('overview');
     const [liveTech, setLiveTech] = useState(technician);
     const [loading, setLoading] = useState(false);
@@ -172,10 +174,10 @@ function TechnicianWorkspaceModal({ technician, onClose, onRefresh }) {
                     {/* 3. Live Workload Meter */}
                     {activeTab === 'workload' && (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">3. Live Workload Capacity Meter</h4>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">{t('technician.workloadCapacityMeter', 'Live Workload Capacity Meter')}</h4>
                             <div className="p-5 rounded-3xl border border-border bg-card space-y-3">
                                 <div className="flex items-center justify-between text-xs font-bold">
-                                    <span className="text-muted-foreground">Current Jobs Capacity</span>
+                                    <span className="text-muted-foreground">{t('technician.currentJobsCapacity', 'Current Jobs Capacity')}</span>
                                     <span className="font-mono text-amber-500 font-extrabold">{currentJobs} / {maxCapacity} Jobs ({capacityPct}%)</span>
                                 </div>
                                 <div className="w-full h-3 rounded-full bg-muted overflow-hidden p-0.5 border border-border/40">
@@ -191,7 +193,7 @@ function TechnicianWorkspaceModal({ technician, onClose, onRefresh }) {
                     {/* 2. Skill Matrix */}
                     {activeTab === 'skills' && (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">2. Certified Skill Matrix with Rating</h4>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">{t('technician.certifiedSkillMatrix', 'Certified Skill Matrix with Rating')}</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {[
                                     { name: 'Electrical', stars: 5, yrs: 6, cert: 'Certified Master Electrician' },
@@ -214,7 +216,7 @@ function TechnicianWorkspaceModal({ technician, onClose, onRefresh }) {
                     {/* 5. Technician Activity Timeline */}
                     {activeTab === 'timeline' && (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">5. Technician Daily Activity Timeline</h4>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-primary">{t('technician.dailyActivityTimeline', 'Technician Daily Activity Timeline')}</h4>
                             <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
                                 {[
                                     { time: '09:00 AM', text: 'Started Shift & Checked In', color: 'bg-emerald-500' },
@@ -446,7 +448,7 @@ export default function TechniciansPage() {
                                     <td colSpan="7" className="p-8 text-center text-muted-foreground space-y-2">
                                         <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
                                         <p className="font-bold text-xs">{t('technician.noTechniciansFound', 'No technicians found')}</p>
-                                        <p className="text-[10px]">Click "+ Invite Technician" above to add technicians to your workforce.</p>
+                                        <p className="text-[10px]">{t('technician.clickInviteTechnician', 'Click "+ Invite Technician" above to add technicians to your workforce.')}</p>
                                     </td>
                                 </tr>
                             )}
@@ -529,6 +531,7 @@ export default function TechniciansPage() {
 }
 
 function AddTechnicianModal({ onClose, onCreated }) {
+    const { t } = useLanguage();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -616,7 +619,7 @@ function AddTechnicianModal({ onClose, onCreated }) {
                     <div className="space-y-4 py-2">
                         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
                             <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                            <h4 className="font-black text-sm text-foreground">Technician Invitation Sent!</h4>
+                            <h4 className="font-black text-sm text-foreground">{t('technician.invitationSent', 'Technician Invitation Sent!')}</h4>
                             <p className="text-xs text-muted-foreground">
                                 Employee <span className="font-mono text-emerald-400 font-bold">{createdResult.technicianProfile?.employeeId || formData.employeeId}</span> has been invited.
                             </p>
@@ -624,14 +627,14 @@ function AddTechnicianModal({ onClose, onCreated }) {
 
                         {createdResult.activationUrl && (
                             <div className="p-4 rounded-2xl bg-muted/60 border border-border space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Account Activation Link (Dev Testing)</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{t('technician.activationLinkDev', 'Account Activation Link (Dev Testing)')}</label>
                                 <div className="flex items-center gap-2">
                                     <input type="text" readOnly value={createdResult.activationUrl} className="flex-1 px-3 py-2 rounded-xl bg-card border border-border text-xs font-mono text-foreground focus:outline-none" />
                                     <button onClick={handleCopyActivationUrl} className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold whitespace-nowrap hover:opacity-90">
                                         {copied ? '✓ Copied!' : 'Copy Link'}
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">Open this link in an Incognito window to set password and log in as the technician.</p>
+                                <p className="text-[10px] text-muted-foreground">{t('technician.activationLinkDesc', 'Open this link in an Incognito window to set password and log in as the technician.')}</p>
                             </div>
                         )}
 
@@ -643,52 +646,52 @@ function AddTechnicianModal({ onClose, onCreated }) {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">First Name *</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.firstName', 'First Name *')}</label>
                                 <input required type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} placeholder="John" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Last Name *</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.lastName', 'Last Name *')}</label>
                                 <input required type="text" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} placeholder="Doe" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Email Address *</label>
+                            <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('auth.email', 'Email Address *')}</label>
                             <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@company.com" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Phone Number</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.phoneNumber', 'Phone Number')}</label>
                                 <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+1 555-0199" className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Employee ID *</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.employeeId', 'Employee ID *')}</label>
                                 <input required type="text" value={formData.employeeId} onChange={e => setFormData({ ...formData, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-mono font-bold focus:outline-none focus:border-primary" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Employment Type</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.employmentType', 'Employment Type')}</label>
                                 <select value={formData.employmentType} onChange={e => setFormData({ ...formData, employmentType: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold">
-                                    <option value="full_time">Full Time</option>
-                                    <option value="part_time">Part Time</option>
-                                    <option value="contractor">Contractor</option>
+                                    <option value="full_time">{t('technician.fullTime', 'Full Time')}</option>
+                                    <option value="part_time">{t('technician.partTime', 'Part Time')}</option>
+                                    <option value="contractor">{t('technician.contractor', 'Contractor')}</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">Shift</label>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1">{t('technician.shift', 'Shift')}</label>
                                 <select value={formData.shift} onChange={e => setFormData({ ...formData, shift: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs text-foreground font-semibold">
-                                    <option value="morning">Morning (8 AM - 4 PM)</option>
-                                    <option value="afternoon">Afternoon (4 PM - 12 AM)</option>
-                                    <option value="night">Night (12 AM - 8 AM)</option>
+                                    <option value="morning">{t('technician.shiftMorning', 'Morning (8 AM - 4 PM)')}</option>
+                                    <option value="afternoon">{t('technician.shiftAfternoon', 'Afternoon (4 PM - 12 AM)')}</option>
+                                    <option value="night">{t('technician.shiftNight', 'Night (12 AM - 8 AM)')}</option>
                                 </select>
                             </div>
                         </div>
 
                         <div className="pt-2 flex items-center justify-end gap-2 border-t border-border">
-                            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-foreground">Cancel</button>
+                            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:text-foreground">{t('common.cancel', 'Cancel')}</button>
                             <button type="submit" disabled={loading} className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50">
                                 {loading ? 'Inviting...' : 'Send Invitation'}
                             </button>

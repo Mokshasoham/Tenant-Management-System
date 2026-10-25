@@ -6,6 +6,8 @@ import {
     CreditCard, ShieldCheck, X, Building2, RefreshCw, Unlink, Receipt
 } from 'lucide-react';
 import { payoutService } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
+import { getLocalizedStatus } from '../../utils/statusLocalization';
 import { cn } from '../../utils/cn';
 
 // Quick bank lookup from IFSC prefix
@@ -26,6 +28,7 @@ const IFSC_PREVIEW_MAP = {
 };
 
 export default function PayoutsSection() {
+    const { t } = useLanguage();
     const [stats, setStats] = useState({ available: 0, totalEarned: 0, pending: 0 });
     const [history, setHistory] = useState([]);
     const [earningsBreakdown, setEarningsBreakdown] = useState([]);
@@ -348,16 +351,16 @@ export default function PayoutsSection() {
                         <Wallet size={120} />
                     </div>
                     
-                    <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-1">Available to Withdraw</p>
+                    <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-1">{t('payments.availableToWithdraw', 'Available to Withdraw')}</p>
                     <h2 className="text-5xl font-black mb-8">₹{stats.available.toLocaleString('en-IN')}</h2>
                     
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <p className="text-[10px] font-bold uppercase opacity-60">Total Earned</p>
+                            <p className="text-[10px] font-bold uppercase opacity-60">{t('payments.totalEarned', 'Total Earned')}</p>
                             <p className="text-lg font-black">₹{stats.totalEarned.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="flex-1">
-                            <p className="text-[10px] font-bold uppercase opacity-60">Pending</p>
+                            <p className="text-[10px] font-bold uppercase opacity-60">{t('leases.statusPending', 'Pending')}</p>
                             <p className="text-lg font-black">₹{stats.pending.toLocaleString('en-IN')}</p>
                         </div>
                     </div>
@@ -367,16 +370,16 @@ export default function PayoutsSection() {
                 <div className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-black text-foreground flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-blue-500" /> Bank Payout Account
+                            <Building2 className="w-4 h-4 text-blue-500" /> {t('payments.bankPayoutAccount', 'Bank Payout Account')}
                         </h3>
                         {bankAccount && (
                             bankAccount.verificationStatus === 'verified' ? (
                                 <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                    <CheckCircle2 className="w-3 h-3" /> {t('verification.verified', 'Verified')}
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                                    <Clock className="w-3 h-3" /> Pending Verification
+                                    <Clock className="w-3 h-3" /> {t('verification.pending', 'Pending Verification')}
                                 </span>
                             )
                         )}
@@ -419,7 +422,7 @@ export default function PayoutsSection() {
                                     onClick={handleOpenBankModal}
                                     className="flex-1 py-2 rounded-xl border border-border bg-card hover:bg-muted/80 text-foreground font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
                                 >
-                                    <RefreshCw className="w-3 h-3 text-blue-500" /> Change Account
+                                    <RefreshCw className="w-3 h-3 text-blue-500" /> {t('payments.changeAccount', 'Change Account')}
                                 </button>
                                 <button
                                     type="button"
@@ -435,7 +438,7 @@ export default function PayoutsSection() {
                         /* Unconnected State */
                         <div className="space-y-3">
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                Connect your bank account to receive property rental payouts directly to your account.
+                                {t('payments.bankAccountHelp', 'Connect your bank account to receive property rental payouts directly to your account.')}
                             </p>
                             <button
                                 type="button"
@@ -451,7 +454,7 @@ export default function PayoutsSection() {
                 {/* Request Payout Form Card */}
                 <div className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-6">
                     <h3 className="text-sm font-black text-foreground mb-4 flex items-center gap-2">
-                        <ArrowDownToLine className="w-4 h-4 text-blue-500" /> Request Payout
+                        <ArrowDownToLine className="w-4 h-4 text-blue-500" /> {t('payments.requestPayout', 'Request Payout')}
                     </h3>
                     
                     <form onSubmit={handleOpenConfirm} className="space-y-4">
@@ -461,7 +464,7 @@ export default function PayoutsSection() {
                                 type="number"
                                 value={requestAmount}
                                 onChange={(e) => setRequestAmount(e.target.value)}
-                                placeholder="Min. ₹500"
+                                placeholder={t('payments.minPayout', 'Min. ₹500')}
                                 min="500"
                                 max={stats.available > 0 ? stats.available : undefined}
                                 className="w-full bg-white/5 border border-border rounded-xl py-3 pl-8 pr-4 text-foreground font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
@@ -473,7 +476,7 @@ export default function PayoutsSection() {
                             disabled={requesting || !requestAmount || stats.available < 500 || !bankAccount || bankAccount.verificationStatus !== 'verified'}
                             className="w-full py-3 rounded-xl bg-blue-500 text-white font-black text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
                         >
-                            {requesting ? 'Processing...' : 'Withdraw to Bank'}
+                            {requesting ? t('common.processing', 'Processing...') : t('payments.withdrawToBank', 'Withdraw to Bank')}
                         </button>
                     </form>
 
@@ -503,7 +506,7 @@ export default function PayoutsSection() {
                     <div className="mt-6 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
                         <Info className="w-5 h-5 text-blue-500 flex-shrink-0" />
                         <p className="text-[10px] text-muted-foreground leading-relaxed">
-                            Funds are transferred to your verified bank account within 2-3 business days after processing.
+                            {t('payments.payoutProcessingNote', 'Funds are transferred to your verified bank account within 2–3 business days after processing.')}
                         </p>
                     </div>
                 </div>
@@ -524,7 +527,7 @@ export default function PayoutsSection() {
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                <History className="w-3.5 h-3.5 text-blue-500" /> Withdrawal History
+                                <History className="w-3.5 h-3.5 text-blue-500" /> {t('payments.withdrawalHistory', 'Withdrawal History')}
                             </button>
                             <button
                                 type="button"
@@ -536,7 +539,7 @@ export default function PayoutsSection() {
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                <Receipt className="w-3.5 h-3.5 text-emerald-500" /> Rental Earnings Breakdown
+                                <Receipt className="w-3.5 h-3.5 text-emerald-500" /> {t('payments.rentalEarningsBreakdown', 'Rental Earnings Breakdown')}
                             </button>
                         </div>
 
@@ -557,7 +560,7 @@ export default function PayoutsSection() {
                             history.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                                     <History className="w-12 h-12 opacity-20 mb-2" />
-                                    <p className="text-sm font-bold italic">No payouts requested yet.</p>
+                                    <p className="text-sm font-bold italic">{t('payments.noPayoutsYet', 'No payouts requested yet.')}</p>
                                 </div>
                             ) : (
                                 history.map((item, i) => (
@@ -625,23 +628,23 @@ export default function PayoutsSection() {
 
                                         <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border/40 text-[11px]">
                                             <div>
-                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Gross Rent</p>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">{t('payments.grossRent', 'Gross Rent')}</p>
                                                 <p className="font-bold text-foreground">₹{Number(item.grossRent || 0).toLocaleString('en-IN')}</p>
                                             </div>
                                             <div>
-                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">TMS Fee</p>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">{t('payments.tmsFee', 'TMS Fee')}</p>
                                                 <p className="font-bold text-indigo-400">
                                                     {item.platformFee !== null ? `₹${Number(item.platformFee).toLocaleString('en-IN')}` : '—'}
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Commission</p>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">{t('payments.commission', 'Commission')}</p>
                                                 <p className="font-bold text-muted-foreground">
                                                     {item.managerCommission !== null && item.managerCommission > 0 ? `₹${Number(item.managerCommission).toLocaleString('en-IN')}` : '₹0'}
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Manager Net</p>
+                                                <p className="text-[9px] uppercase font-bold text-muted-foreground">{t('payments.managerNet', 'Manager Net')}</p>
                                                 <p className="font-black text-emerald-400">₹{Number(item.managerNet || 0).toLocaleString('en-IN')}</p>
                                             </div>
                                         </div>

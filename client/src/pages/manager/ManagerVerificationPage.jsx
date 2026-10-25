@@ -22,6 +22,7 @@ import {
 import { Button } from '../../components/PremiumUI';
 
 export default function ManagerVerificationPage() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const { activeVerification, widgetData, loading, error, refresh, loadWidget } = useVerificationContext();
@@ -94,11 +95,11 @@ export default function ManagerVerificationPage() {
         <VerificationSectionCard title="Current Status" subtitle={`VRF Sequence: ${vrfNumber}`} icon={ShieldCheck}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Verification State</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.verificationState', 'Verification State')}</span>
               <VerificationStatusBadge status={status} />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted-foreground">Trust Badge</span>
+              <span className="text-xs font-semibold text-muted-foreground">{t('verification.trustBadge', 'Trust Badge')}</span>
               <VerificationBadge badge={badge} />
             </div>
 
@@ -110,7 +111,7 @@ export default function ManagerVerificationPage() {
                   className="w-full text-xs justify-between"
                   onClick={() => navigate('/manager/verification/wizard')}
                 >
-                  <span>Start Verification</span>
+                  <span>{t('verification.startVerification', 'Start Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -121,7 +122,7 @@ export default function ManagerVerificationPage() {
                   className="w-full text-xs justify-between"
                   onClick={() => navigate('/manager/verification/wizard')}
                 >
-                  <span>Continue Draft</span>
+                  <span>{t('verification.continueDraft', 'Continue Draft')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -132,7 +133,7 @@ export default function ManagerVerificationPage() {
                   className="w-full text-xs justify-between bg-rose-500 text-white hover:bg-rose-600"
                   onClick={() => navigate('/manager/verification/wizard')}
                 >
-                  <span>Resubmit Verification</span>
+                  <span>{t('verification.resubmitVerification', 'Resubmit Verification')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
@@ -140,14 +141,14 @@ export default function ManagerVerificationPage() {
               {status === 'APPROVED' && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Account Fully Verified & Certified</span>
+                  <span>{t('verification.accountFullyVerified', 'Account Fully Verified & Certified')}</span>
                 </div>
               )}
 
               {['SUBMITTED', 'AUTO_REVIEW', 'MANAGER_REVIEW', 'ADMIN_REVIEW'].includes(status) && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold flex items-center gap-2">
                   <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>Submission Under Active Review</span>
+                  <span>{t('verification.underActiveReview', 'Submission Under Active Review')}</span>
                 </div>
               )}
             </div>
@@ -170,7 +171,7 @@ export default function ManagerVerificationPage() {
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 space-y-2">
           <div className="flex items-center gap-2 font-bold text-sm">
             <AlertTriangle className="w-5 h-5" />
-            <span>Verification Rejection Remarks</span>
+            <span>{t('verification.rejectionRemarks', 'Verification Rejection Remarks')}</span>
           </div>
           <p className="text-xs leading-relaxed">{activeVerification.verificationRemarks}</p>
           <Button
@@ -191,12 +192,12 @@ export default function ManagerVerificationPage() {
         <VerificationSectionCard title="Verification Renewal Lifecycle" subtitle="Document validity & annual renewal schedule" icon={Clock}>
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-              <span className="font-semibold text-muted-foreground">Current Credential Expiry</span>
+              <span className="font-semibold text-muted-foreground">{t('verification.currentExpiry', 'Current Credential Expiry')}</span>
               <span className="font-bold text-foreground">12 Dec 2027</span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-              <span className="font-semibold text-muted-foreground">Renewal Status</span>
-              <span className="font-bold text-emerald-500">Not Required (Valid)</span>
+              <span className="font-semibold text-muted-foreground">{t('verification.renewalStatus', 'Renewal Status')}</span>
+              <span className="font-bold text-emerald-500">{t('verification.notRequiredValid', 'Not Required (Valid)')}</span>
             </div>
             <Button variant="outline" disabled className="w-full text-xs opacity-75 cursor-not-allowed">
               <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
@@ -213,8 +214,8 @@ export default function ManagerVerificationPage() {
               className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
             >
               <FileText className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-bold text-foreground">Document Workspace</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Upload & manage business files</p>
+              <p className="text-xs font-bold text-foreground">{t('verification.documentWorkspace', 'Document Workspace')}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.uploadManageFiles', 'Upload & manage business files')}</p>
             </button>
 
             <button
@@ -223,8 +224,8 @@ export default function ManagerVerificationPage() {
               className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
             >
               <Award className="w-5 h-5 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-bold text-foreground">Trust Score Analytics</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Breakdown & improvement tips</p>
+              <p className="text-xs font-bold text-foreground">{t('verification.trustScoreAnalytics', 'Trust Score Analytics')}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.scoreBreakdownTips', 'Breakdown & improvement tips')}</p>
             </button>
 
             <button
@@ -233,8 +234,8 @@ export default function ManagerVerificationPage() {
               className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
             >
               <History className="w-5 h-5 text-cyan-500 mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-bold text-foreground">Audit Timeline</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Chronological review history</p>
+              <p className="text-xs font-bold text-foreground">{t('lease.auditTimeline', 'Audit Timeline')}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.auditTimelineDesc', 'Chronological review history')}</p>
             </button>
 
             <button
@@ -243,8 +244,8 @@ export default function ManagerVerificationPage() {
               className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-left transition-all group"
             >
               <ShieldCheck className="w-5 h-5 text-violet-500 mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-bold text-foreground">Verification Wizard</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Multi-step form wizard</p>
+              <p className="text-xs font-bold text-foreground">{t('nav.verification', 'Verification Wizard')}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t('verification.multiStepWizard', 'Multi-step form wizard')}</p>
             </button>
           </div>
         </VerificationSectionCard>

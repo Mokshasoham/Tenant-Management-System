@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { maintenanceService, propertyService, userService } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
@@ -16,6 +17,7 @@ import ManagerAssignTechnicianModal from './components/ManagerAssignTechnicianMo
 import ManagerMaintenanceDrawer from './components/ManagerMaintenanceDrawer';
 
 export default function ManagerMaintenanceCommandCenter() {
+  const { t } = useLanguage();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,7 +56,7 @@ export default function ManagerMaintenanceCommandCenter() {
       setTechnicians(extractList(techRes));
     } catch (err) {
       console.error('Error fetching manager maintenance data:', err);
-      setError('Unable to load manager operations data. Please check connection.');
+      setError(t('maintenance.managerOpsError', 'Unable to load manager operations data. Please check connection.'));
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export default function ManagerMaintenanceCommandCenter() {
             onClick={fetchManagerData}
             className="px-3 py-1 rounded-xl bg-purple-600 text-white hover:bg-purple-500 flex items-center gap-1 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Retry
+            <RefreshCw className="w-3.5 h-3.5" /> {t('common.retry', 'Retry')}
           </button>
         </div>
       )}

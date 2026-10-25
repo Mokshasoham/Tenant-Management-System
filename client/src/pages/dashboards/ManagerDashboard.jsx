@@ -13,6 +13,7 @@ import PayoutsSection from '../../components/dashboard/PayoutsSection';
 import ReportingHubTab from '../../components/dashboard/ReportingHubTab';
 import useAuthStore from '../../context/authStore';
 import { useLanguage } from '../../context/LanguageContext';
+import { getLocalizedStatus } from '../../utils/statusLocalization';
 
 function useCounter(end, duration = 2000) {
     const [count, setCount] = useState(0);
@@ -33,6 +34,7 @@ function useCounter(end, duration = 2000) {
 
 // Ring progress chart
 function RingChart({ percentage, color, size = 100 }) {
+    const { t } = useLanguage();
     const RADIUS = 38;
     const CIRCUM = 2 * Math.PI * RADIUS;
     const dash = (percentage / 100) * CIRCUM;
@@ -64,7 +66,7 @@ function RingChart({ percentage, color, size = 100 }) {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xl font-black text-foreground">{percentage}%</span>
-                <span className="text-[8px] text-muted-foreground uppercase font-black tracking-wider">Occupied</span>
+                <span className="text-[8px] text-muted-foreground uppercase font-black tracking-wider">{t('dashboard.occupied', 'Occupied')}</span>
             </div>
         </div>
     );
@@ -763,18 +765,18 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         >
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs font-black uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded-full">Getting Started</span>
+                                    <span className="text-xs font-black uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded-full">{t('dashboard.gettingStarted', 'Getting Started')}</span>
                                 </div>
-                                <h2 className="text-xl font-black text-foreground">Welcome to your Property Operations Hub 👋</h2>
+                                <h2 className="text-xl font-black text-foreground">{t('dashboard.welcomeManagerHub', 'Welcome to your Property Operations Hub 👋')}</h2>
                                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                                    You currently have 0 managed properties. Add your first property to start receiving tenant bookings, managing leases, tracking rent collections in ₹ (INR), and resolving maintenance requests.
+                                    {t('dashboard.welcomeManagerHubDesc', 'You currently have 0 managed properties. Add your first property to start receiving tenant bookings, managing leases, tracking rent collections in ₹ (INR), and resolving maintenance requests.')}
                                 </p>
                             </div>
                             <button
                                 onClick={() => navigate('/properties')}
                                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all shrink-0 cursor-pointer"
                             >
-                                <Plus className="w-4 h-4" /> Add Your First Property
+                                <Plus className="w-4 h-4" /> {t('dashboard.addFirstProperty', 'Add Your First Property')}
                             </button>
                         </motion.div>
                     )}
@@ -800,10 +802,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         </div>
                         <div>
                             <h3 className="text-sm font-black tracking-wide text-foreground uppercase">
-                                Tenancy &amp; Lease Action Center
+                                {t('dashboard.tenancyActionCenter', 'Tenancy & Lease Action Center')}
                             </h3>
                             <p className="text-xs text-muted-foreground">
-                                Real-time lifecycle queue: renewals, move-outs, upcoming expiries &amp; unpaid dues
+                                {t('dashboard.tenancyActionCenterDesc', 'Real-time lifecycle queue: renewals, move-outs, upcoming expiries & unpaid dues')}
                             </p>
                         </div>
                     </div>
@@ -811,7 +813,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         onClick={() => navigate('/leases')}
                         className="text-xs font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 transition-colors self-start sm:self-auto cursor-pointer"
                     >
-                        <span>View All Leases</span>
+                        <span>{t('dashboard.viewAllLeases', 'View All Leases')}</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
@@ -835,7 +837,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         )}
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">Renewal Requests</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">{t('dashboard.renewalRequests', 'Renewal Requests')}</span>
                             <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
                                 <RefreshCw className="w-3.5 h-3.5" />
                             </div>
@@ -851,11 +853,11 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 }}
                                 className="text-[10px] font-bold text-indigo-400 flex items-center gap-0.5 hover:underline cursor-pointer"
                             >
-                                Review <ArrowUpRight className="w-3 h-3" />
+                                {t('dashboard.reviewAction', 'Review')} <ArrowUpRight className="w-3 h-3" />
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {activeActionCenterTab === 'renewals' ? '▲ Hide preview' : '▼ Awaiting decision'}
+                            {activeActionCenterTab === 'renewals' ? '▲ ' + t('dashboard.hidePreview', 'Hide preview') : '▼ ' + t('dashboard.awaitingDecision', 'Awaiting decision')}
                         </p>
                     </div>
 
@@ -870,7 +872,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         )}
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 dark:text-amber-400">Move-Out Notices</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 dark:text-amber-400">{t('dashboard.moveOutNotices', 'Move-Out Notices')}</span>
                             <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform">
                                 <Clock className="w-3.5 h-3.5" />
                             </div>
@@ -886,11 +888,11 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 }}
                                 className="text-[10px] font-bold text-amber-500 dark:text-amber-400 flex items-center gap-0.5 hover:underline cursor-pointer"
                             >
-                                Inspect <ArrowUpRight className="w-3 h-3" />
+                                {t('dashboard.inspectAction', 'Inspect')} <ArrowUpRight className="w-3 h-3" />
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {activeActionCenterTab === 'moveouts' ? '▲ Hide preview' : '▼ Active inspections'}
+                            {activeActionCenterTab === 'moveouts' ? '▲ ' + t('dashboard.hidePreview', 'Hide preview') : '▼ ' + t('dashboard.activeInspections', 'Active inspections')}
                         </p>
                     </div>
 
@@ -905,7 +907,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         )}
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400">Expiring in 7 Days</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400">{t('dashboard.expiringIn7Days', 'Expiring in 7 Days')}</span>
                             <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500 dark:text-orange-400 group-hover:scale-110 transition-transform">
                                 <AlertTriangle className="w-3.5 h-3.5" />
                             </div>
@@ -921,11 +923,11 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 }}
                                 className="text-[10px] font-bold text-orange-500 dark:text-orange-400 flex items-center gap-0.5 hover:underline cursor-pointer"
                             >
-                                Filter <ArrowUpRight className="w-3 h-3" />
+                                {t('dashboard.filterAction', 'Filter')} <ArrowUpRight className="w-3 h-3" />
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {activeActionCenterTab === 'expiring' ? '▲ Hide preview' : '▼ Window closing'}
+                            {activeActionCenterTab === 'expiring' ? '▲ ' + t('dashboard.hidePreview', 'Hide preview') : '▼ ' + t('dashboard.windowClosing', 'Window closing')}
                         </p>
                     </div>
 
@@ -940,7 +942,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         )}
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Expired Leases</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('dashboard.expiredLeases', 'Expired Leases')}</span>
                             <div className="p-1.5 rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400 group-hover:scale-110 transition-transform">
                                 <XCircle className="w-3.5 h-3.5" />
                             </div>
@@ -956,11 +958,11 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                                 }}
                                 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-0.5 hover:underline cursor-pointer"
                             >
-                                View <ArrowUpRight className="w-3 h-3" />
+                                {t('dashboard.viewAction', 'View')} <ArrowUpRight className="w-3 h-3" />
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {activeActionCenterTab === 'expired' ? '▲ Hide preview' : '▼ Past contracts'}
+                            {activeActionCenterTab === 'expired' ? '▲ ' + t('dashboard.hidePreview', 'Hide preview') : '▼ ' + t('dashboard.pastContracts', 'Past contracts')}
                         </p>
                     </div>
 
@@ -975,7 +977,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         )}
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">Expired Lease Dues</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400">{t('dashboard.expiredLeaseDues', 'Expired Lease Dues')}</span>
                             <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 dark:text-rose-400 group-hover:scale-110 transition-transform">
                                 <CreditCard className="w-3.5 h-3.5" />
                             </div>
@@ -999,7 +1001,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {activeActionCenterTab === 'dues' ? '▲ Hide preview' : '▼ Unpaid rent balances'}
+                            {activeActionCenterTab === 'dues' ? '▲ ' + t('dashboard.hidePreview', 'Hide preview') : '▼ ' + t('dashboard.unsettled', 'Unpaid rent balances')}
                         </p>
                     </div>
                 </div>
@@ -1031,7 +1033,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                 >
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Monthly Collections</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{t('dashboard.monthlyCollections', 'Monthly Collections')}</p>
                             <p className="text-2xl font-black text-foreground">
                                 ₹{Number(stats?.totalRevenue || revenueMonths.reduce((a, b) => a + b, 0) || 0).toLocaleString('en-IN')}
                             </p>
@@ -1065,17 +1067,17 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                     transition={{ delay: 0.5, duration: 0.5 }}
                     className="rounded-2xl border border-border bg-card/40 backdrop-blur-sm p-5 flex flex-col"
                 >
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">Unit Occupancy</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-4">{t('dashboard.unitOccupancy', 'Unit Occupancy')}</p>
                     <div className="flex flex-col items-center gap-4 flex-1 justify-center">
                         <RingChart percentage={pct} color="#3b82f6" size={120} />
                         <div className="grid grid-cols-2 gap-3 w-full">
                             <div className="text-center p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 dark:bg-blue-500/10">
                                 <p className="text-lg font-black text-foreground">{occupied}</p>
-                                <p className="text-[9px] text-blue-500/80 dark:text-blue-300/60 font-black uppercase">Occupied</p>
+                                <p className="text-[9px] text-blue-500/80 dark:text-blue-300/60 font-black uppercase">{t('dashboard.occupied', 'Occupied')}</p>
                             </div>
                             <div className="text-center p-3 rounded-xl bg-muted border border-border">
                                 <p className="text-lg font-black text-foreground">{vacant}</p>
-                                <p className="text-[9px] text-muted-foreground font-black uppercase">Vacant</p>
+                                <p className="text-[9px] text-muted-foreground font-black uppercase">{t('dashboard.vacant', 'Vacant')}</p>
                             </div>
                         </div>
                     </div>
@@ -1564,13 +1566,13 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                             <div className="p-2 rounded-xl bg-blue-500/10 dark:bg-blue-500/20">
                                 <CalendarDays className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                             </div>
-                            <p className="text-sm font-black text-foreground">Property Inspection Visits</p>
+                            <p className="text-sm font-black text-foreground">{t('dashboard.inspectionVisits', 'Property Inspection Visits')}</p>
                         </div>
                         <div className="flex gap-1.5 p-1 rounded-xl bg-muted/65 w-fit self-start sm:self-auto">
                             {[
-                                { id: 'pending', label: 'Pending Requests', count: pendingVisits.length },
-                                { id: 'approved', label: 'Scheduled Visits', count: approvedVisits.length },
-                                { id: 'completed', label: 'Past & Feedback', count: completedVisits.length }
+                                { id: 'pending', label: t('dashboard.pendingRequests', 'Pending Requests'), count: pendingVisits.length },
+                                { id: 'approved', label: t('dashboard.scheduledVisits', 'Scheduled Visits'), count: approvedVisits.length },
+                                { id: 'completed', label: t('dashboard.pastAndFeedback', 'Past & Feedback'), count: completedVisits.length }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -1596,7 +1598,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                     <div className="space-y-3">
                         {visitTab === 'pending' && (
                             pendingVisits.length === 0 ? (
-                                <p className="text-xs text-muted-foreground text-center py-8">No pending property visit requests.</p>
+                                <p className="text-xs text-muted-foreground text-center py-8">{t('dashboard.noPendingVisits', 'No pending property visit requests.')}</p>
                             ) : (
                                 pendingVisits.map(v => (
                                     <div key={v._id} id={`visit-${v._id}`} className={cn("p-4 rounded-xl bg-white/3 border border-white/5 space-y-3", searchParams.get('visitId') === v._id && "ring-2 ring-indigo-500 border-indigo-500/80 bg-indigo-500/10")}>
@@ -1891,7 +1893,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                         <div className="p-2 rounded-xl bg-amber-500/10 dark:bg-amber-500/20">
                             <Wrench className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                         </div>
-                        <p className="text-sm font-black text-foreground">Maintenance Tickets</p>
+                        <p className="text-sm font-black text-foreground">{t('dashboard.maintenanceTickets', 'Maintenance Tickets')}</p>
                     </div>
                     <button
                         onClick={() => navigate('/maintenance')}
@@ -1903,7 +1905,7 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                 <div className="space-y-2">
                     {maintenanceList.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground/50 text-xs font-medium">
-                            No maintenance tickets reported yet.
+                            {t('dashboard.noMaintenanceTicketsYet', 'No maintenance tickets reported yet.')}
                         </div>
                     ) : (
                         maintenanceList.map((ticket, i) => (
@@ -1941,10 +1943,10 @@ export default function ManagerDashboard({ stats, loading, navigate, onRefresh, 
                 className="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
                 {[
-                    { label: 'View Payments', icon: CreditCard, path: '/payments', color: 'from-blue-600 to-blue-700' },
-                    { label: 'View Leases', icon: CalendarDays, path: '/leases', color: 'from-cyan-600 to-cyan-700' },
-                    { label: 'All Tenants', icon: Users, path: '/tenants', color: 'from-sky-600 to-sky-700' },
-                    { label: 'Properties', icon: Building2, path: '/properties', color: 'from-indigo-600 to-indigo-700' },
+                    { label: t('dashboard.viewPayments', 'View Payments'), icon: CreditCard, path: '/payments', color: 'from-blue-600 to-blue-700' },
+                    { label: t('dashboard.viewLeases', 'View Leases'), icon: CalendarDays, path: '/leases', color: 'from-cyan-600 to-cyan-700' },
+                    { label: t('dashboard.allTenants', 'All Tenants'), icon: Users, path: '/tenants', color: 'from-sky-600 to-sky-700' },
+                    { label: t('nav.properties', 'Properties'), icon: Building2, path: '/properties', color: 'from-indigo-600 to-indigo-700' },
                 ].map((action, i) => {
                     const Icon = action.icon;
                     return (
@@ -2109,6 +2111,7 @@ function AnimatedCardTimeline({ status }) {
 }
 
 function ManagerMaintenanceView({ navigate }) {
+    const { t } = useLanguage();
     const [metrics, setMetrics] = useState(null);
     const [queue, setQueue] = useState([]);
     const [emergencies, setEmergencies] = useState([]);
@@ -2243,9 +2246,9 @@ function ManagerMaintenanceView({ navigate }) {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card/60 backdrop-blur-md border border-border p-4 rounded-3xl shadow-sm">
                 <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                        Enterprise Operations Command
+                        {t('maintenance.enterpriseCommand', 'Enterprise Operations Command')}
                     </span>
-                    <h2 className="text-xl font-black text-foreground mt-1">Manager Maintenance Dashboard &amp; Queue</h2>
+                    <h2 className="text-xl font-black text-foreground mt-1">{t('maintenance.managerDashboardTitle', 'Manager Maintenance Dashboard & Queue')}</h2>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -2264,7 +2267,7 @@ function ManagerMaintenanceView({ navigate }) {
                     <button onClick={fetchDashboardData} disabled={refreshing}
                         className="p-2.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm">
                         <RefreshCw className={cn("w-4 h-4 text-amber-500", refreshing && "animate-spin")} />
-                        Manual Sync
+                        {t('maintenance.manualSync', 'Manual Sync')}
                     </button>
                 </div>
             </div>
@@ -2278,13 +2281,13 @@ function ManagerMaintenanceView({ navigate }) {
                         </div>
                         <div>
                             <h3 className="text-sm font-black text-rose-400 uppercase tracking-wider flex items-center gap-2">
-                                🚨 Live Emergency Queue ({emergencies.length})
+                                🚨 {t('maintenance.liveEmergencyQueue', 'Live Emergency Queue')} ({emergencies.length})
                             </h3>
-                            <p className="text-[10px] text-muted-foreground">High-priority critical repairs requiring immediate dispatch</p>
+                            <p className="text-[10px] text-muted-foreground">{t('maintenance.emergencyQueueDesc', 'High-priority critical repairs requiring immediate dispatch')}</p>
                         </div>
                     </div>
                     <span className="text-[10px] font-black uppercase text-rose-400 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">
-                        30-Min Emergency SLA
+                        {t('maintenance.emergencySla', '30-Min Emergency SLA')}
                     </span>
                 </div>
 

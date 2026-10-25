@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
 
 export default function ManagerMaintenanceMap({
+
   properties = [],
   requests = [],
   technicians = [],
@@ -14,6 +16,7 @@ export default function ManagerMaintenanceMap({
   onOpenDetailsDrawer,
   theme,
 }) {
+  const { t } = useLanguage();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const tileLayerRef = useRef(null);
@@ -114,7 +117,7 @@ export default function ManagerMaintenanceMap({
       theme === 'light' ? "bg-white/80 border-slate-200/80 shadow-slate-200/50" : "bg-[#0c0d15]/80 border-white/10 shadow-black/60"
     )}>
       <div className="absolute top-4 left-4 z-[400] px-3 py-1.5 rounded-full border shadow-xl backdrop-blur-2xl bg-slate-900/90 border-white/10 text-xs font-black text-white flex items-center gap-2">
-        <span>📍 Operational Maintenance Map</span>
+        <span>📍 {t('maintenance.operationalMap', 'Operational Maintenance Map')}</span>
       </div>
       <div ref={mapContainerRef} className="w-full h-full z-0" />
     </div>

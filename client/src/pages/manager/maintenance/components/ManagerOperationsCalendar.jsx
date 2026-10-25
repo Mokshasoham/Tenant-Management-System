@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Wrench, Clock } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
 
 export default function ManagerOperationsCalendar({ requests = [], onOpenDetailsDrawer, theme }) {
+  const { t, formatDate } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
@@ -33,7 +35,7 @@ export default function ManagerOperationsCalendar({ requests = [], onOpenDetails
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-5 h-5 text-purple-400" />
-          <h3 className="text-base font-black tracking-tight">Operations Schedule</h3>
+          <h3 className="text-base font-black tracking-tight">{t('maintenance.operationsSchedule', 'Operations Schedule')}</h3>
           <span className="text-xs font-bold text-muted-foreground font-mono">
             {monthNames[month]} {year}
           </span>
@@ -53,7 +55,7 @@ export default function ManagerOperationsCalendar({ requests = [], onOpenDetails
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-muted-foreground uppercase tracking-wider py-1 border-b border-border/40">
-        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        <span>{t('common.sun', 'Sun')}</span><span>{t('common.mon', 'Mon')}</span><span>{t('common.tue', 'Tue')}</span><span>{t('common.wed', 'Wed')}</span><span>{t('common.thu', 'Thu')}</span><span>{t('common.fri', 'Fri')}</span><span>{t('common.sat', 'Sat')}</span>
       </div>
 
       <div className="grid grid-cols-7 gap-1 pt-1">

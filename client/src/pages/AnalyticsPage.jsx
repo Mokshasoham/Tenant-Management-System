@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { analyticsService } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { TrendingUp, Building2, CreditCard, BarChart2, Star, RefreshCw } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -47,6 +48,7 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
 }
 
 export default function AnalyticsPage() {
+  const { t, formatCurrency } = useLanguage();
     const { theme } = useTheme();
     const [revenue, setRevenue] = useState([]);
     const [occupancy, setOccupancy] = useState(null);
@@ -86,7 +88,7 @@ export default function AnalyticsPage() {
 
     useEffect(() => { fetchAll(); }, [months]);
 
-    if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground/30 font-bold">Loading analytics...</div>;
+    if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground/30 font-bold">{t('common.loading', 'Loading analytics...')}</div>;
 
     // Occupancy donut colors mapping
     const OCCUPANCY_COLORS = {
@@ -110,16 +112,16 @@ export default function AnalyticsPage() {
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-1.5 h-6 rounded-full bg-gradient-to-b from-violet-400 to-purple-600" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-500 dark:text-violet-400">Insights</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-500 dark:text-violet-400">{t('dashboard.insights', 'Insights')}</p>
                     </div>
-                    <h1 className="text-3xl font-black text-foreground">Analytics</h1>
+                    <h1 className="text-3xl font-black text-foreground">{t('dashboard.analyticsTitle', 'Analytics')}</h1>
                 </div>
                 <div className="flex items-center gap-2">
                     <select value={months} onChange={e => setMonths(Number(e.target.value))}
                         className="px-3 py-2 rounded-xl bg-muted border border-border text-foreground text-sm focus:outline-none appearance-none cursor-pointer font-bold">
-                        <option value={3} className="bg-background">3 Months</option>
-                        <option value={6} className="bg-background">6 Months</option>
-                        <option value={12} className="bg-background">12 Months</option>
+                        <option value={3} className="bg-background">{t('dashboard.threeMonths', '3 Months')}</option>
+                        <option value={6} className="bg-background">{t('dashboard.sixMonths', '6 Months')}</option>
+                        <option value={12} className="bg-background">{t('dashboard.twelveMonths', '12 Months')}</option>
                     </select>
                     <button onClick={fetchAll} className="p-2.5 rounded-xl bg-muted border border-border text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all">
                         <RefreshCw className="w-4 h-4" />
@@ -142,14 +144,14 @@ export default function AnalyticsPage() {
                 {/* Revenue Trend Area Chart */}
                 <div className="lg:col-span-2 p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors flex flex-col justify-between">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-black text-foreground">Revenue Over Time</h3>
+                        <h3 className="font-black text-foreground">{t('dashboard.revenueOverTime', 'Revenue Over Time')}</h3>
                         <p className="text-xs text-emerald-500 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full">
                             ₹{revenue.reduce((a, d) => a + d.value, 0).toLocaleString('en-IN')} total
                         </p>
                     </div>
                     <div className="h-60 w-full">
                         {revenue.length === 0 ? (
-                            <div className="text-center py-16 text-muted-foreground/30 text-sm">No revenue recorded yet</div>
+                            <div className="text-center py-16 text-muted-foreground/30 text-sm">{t('dashboard.noRevenueRecorded', 'No revenue recorded yet')}</div>
                         ) : (
                             <ResponsiveContainer width="100%" height={240}>
                                 <AreaChart data={revenue} margin={{ left: -15, right: 10, top: 10, bottom: 0 }}>
@@ -173,7 +175,7 @@ export default function AnalyticsPage() {
 
                 {/* Occupancy Donut Pie Chart */}
                 <div className="p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors flex flex-col justify-between">
-                    <h3 className="font-black text-foreground mb-4">Occupancy Rate</h3>
+                    <h3 className="font-black text-foreground mb-4">{t('dashboard.occupancyRate', 'Occupancy Rate')}</h3>
                     {occupancy && occupancy.total > 0 ? (
                         <div className="flex flex-col items-center justify-center relative min-h-[220px]">
                             {/* SVG Donut */}
@@ -198,7 +200,7 @@ export default function AnalyticsPage() {
                                 </ResponsiveContainer>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     <span className="text-3xl font-black text-foreground">{occupancy.occupancyRate}%</span>
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mt-0.5">Occupied</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mt-0.5">{t('dashboard.occupied', 'Occupied')}</span>
                                 </div>
                             </div>
 
@@ -220,7 +222,7 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center text-muted-foreground/20 py-16">No units recorded</div>
+                        <div className="text-center text-muted-foreground/20 py-16">{t('dashboard.noUnitsRecorded', 'No units recorded')}</div>
                     )}
                 </div>
             </div>
@@ -229,10 +231,10 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Rent Collection Rate Bar Chart */}
                 <div className="p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors flex flex-col justify-between">
-                    <h3 className="font-black text-foreground mb-4">Payment Collection Rate</h3>
+                    <h3 className="font-black text-foreground mb-4">{t('dashboard.paymentCollectionRate', 'Payment Collection Rate')}</h3>
                     <div className="h-60 w-full">
                         {collection.length === 0 ? (
-                            <div className="text-center py-16 text-muted-foreground/30 text-sm">No payment data recorded</div>
+                            <div className="text-center py-16 text-muted-foreground/30 text-sm">{t('dashboard.noPaymentData', 'No payment data recorded')}</div>
                         ) : (
                             <ResponsiveContainer width="100%" height={240}>
                                 <RechartsBarChart data={collection} margin={{ left: -25, right: 10, top: 10, bottom: 0 }}>
@@ -252,12 +254,12 @@ export default function AnalyticsPage() {
                     </div>
                 </div>
 
-                {/* Maintenance Issues by Category horizontal BarChart */}
+                {/* {t('dashboard.maintenanceByCategory', 'Maintenance Issues by Category')} horizontal BarChart */}
                 <div className="p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors flex flex-col justify-between">
-                    <h3 className="font-black text-foreground mb-4">Maintenance Issues by Category</h3>
+                    <h3 className="font-black text-foreground mb-4">{t('dashboard.maintenanceByCategory', 'Maintenance Issues by Category')}</h3>
                     <div className="h-60 w-full">
                         {maintenanceByCategoryData.length === 0 ? (
-                            <div className="text-center py-16 text-muted-foreground/30 text-sm">No maintenance requests yet</div>
+                            <div className="text-center py-16 text-muted-foreground/30 text-sm">{t('dashboard.noMaintenanceYet', 'No maintenance requests yet')}</div>
                         ) : (
                             <ResponsiveContainer width="100%" height={240}>
                                 <RechartsBarChart data={maintenanceByCategoryData} layout="vertical" margin={{ left: -10, right: 10, top: 0, bottom: 0 }}>
@@ -275,7 +277,7 @@ export default function AnalyticsPage() {
 
             {/* Top Revenue Properties Row */}
             <div className="p-5 rounded-2xl border border-border bg-card shadow-sm transition-colors">
-                <h3 className="font-black text-foreground mb-4">Top Revenue Generating Properties</h3>
+                <h3 className="font-black text-foreground mb-4">{t('dashboard.topRevenueProperties', 'Top Revenue Generating Properties')}</h3>
                 {topProps.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/30 text-sm">No payments recorded yet</div>
                 ) : (
@@ -291,7 +293,7 @@ export default function AnalyticsPage() {
                                 </div>
                                 <div className="mt-4 pt-3 border-t border-border/60 flex items-end justify-between">
                                     <div>
-                                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">Total Earned</p>
+                                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">{t('dashboard.totalEarned', 'Total Earned')}</p>
                                         <p className="text-base font-black text-foreground mt-0.5">₹{p.totalRevenue?.toLocaleString('en-IN')}</p>
                                     </div>
                                     <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">{p.paymentCount} Paid</span>

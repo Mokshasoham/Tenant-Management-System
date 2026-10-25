@@ -167,9 +167,9 @@ export default function ManagerNegotiationsPage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-500 mb-1">
             <Handshake className="w-4 h-4" />
-            <span>Confidential DealFlow</span>
+            <span>{t('negotiations.confidentialDealFlow', 'Confidential DealFlow')}</span>
           </div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">Private Rent Negotiations</h1>
+          <h1 className="text-3xl font-black text-foreground tracking-tight">{t('negotiations.privateRentNegotiations', 'Private Rent Negotiations')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Review and negotiate 1-on-1 private rent offers from qualified tenants without modifying your public listed rent.
           </p>
@@ -188,15 +188,15 @@ export default function ManagerNegotiationsPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-3xl bg-card border border-border space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Deals</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('negotiations.totalDeals', 'Total Deals')}</p>
           <p className="text-2xl font-black text-foreground">{metrics.total}</p>
-          <p className="text-xs text-muted-foreground/80">All active & archived offers</p>
+          <p className="text-xs text-muted-foreground/80">{t('negotiations.allActiveArchivedOffers', 'All active & archived offers')}</p>
         </div>
 
         <div className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Action Required</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">{t('negotiations.actionRequired', 'Action Required')}</p>
           <p className="text-2xl font-black text-amber-400">{metrics.actionRequired}</p>
-          <p className="text-xs text-amber-500/80">Offers awaiting your review</p>
+          <p className="text-xs text-amber-500/80">{t('negotiations.offersAwaitingReview', 'Offers awaiting your review')}</p>
         </div>
 
         <div className="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
@@ -766,17 +766,17 @@ export default function ManagerNegotiationsPage() {
                           📅 {formatDateRange(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate)} • {selectedOffer.durationText || calculateLeaseDuration(selectedOffer.agreedStartDate || selectedOffer.startDate, selectedOffer.agreedEndDate || selectedOffer.endDate).durationText}
                         </p>
                       )}
-                      <p className="text-[11px] text-muted-foreground">Waiting for tenant to finalize their booking at this private rate and locked dates.</p>
+                      <p className="text-[11px] text-muted-foreground">{t('negotiations.waitingForTenantFinalize', 'Waiting for tenant to finalize their booking at this private rate and locked dates.')}</p>
                     </div>
                   ) : isExpired ? (
                     <div className="p-4 rounded-2xl bg-gray-500/10 border border-gray-500/20 text-gray-400 text-xs text-center space-y-1">
-                      <p className="font-bold">Deal Expired</p>
-                      <p className="text-[11px] text-muted-foreground">This negotiation offer has passed its expiration deadline and can no longer be modified.</p>
+                      <p className="font-bold">{t('negotiations.dealExpired', 'Deal Expired')}</p>
+                      <p className="text-[11px] text-muted-foreground">{t('negotiations.dealExpiredDesc', 'This negotiation offer has passed its expiration deadline and can no longer be modified.')}</p>
                     </div>
                   ) : ['pending', 'countered'].includes(selectedOffer.status) ? (
                     <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs text-center space-y-1">
-                      <p className="font-bold">Awaiting Tenant Response</p>
-                      <p className="text-[11px] text-muted-foreground">You have countered. We will notify you as soon as the tenant counters or accepts.</p>
+                      <p className="font-bold">{t('negotiations.awaitingTenantResponse', 'Awaiting Tenant Response')}</p>
+                      <p className="text-[11px] text-muted-foreground">{t('negotiations.awaitingTenantDesc', 'You have countered. We will notify you as soon as the tenant counters or accepts.')}</p>
                     </div>
                   ) : (
                     <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-center text-xs text-muted-foreground">

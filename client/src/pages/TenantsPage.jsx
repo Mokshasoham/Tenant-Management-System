@@ -113,6 +113,7 @@ function TenantModal({ tenant, onClose, onSave }) {
 }
 
 function ViewModal({ tenant, onClose, onEdit }) {
+  const { t } = useLanguage();
   if (!tenant) return null;
   const sc = STATUS_CONFIG[tenant.status] || STATUS_CONFIG.active;
   const Icon = sc.icon;
@@ -127,7 +128,7 @@ function ViewModal({ tenant, onClose, onEdit }) {
         className="w-full max-w-lg rounded-2xl border border-border bg-card overflow-hidden shadow-2xl transition-colors"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
-          <h2 className="text-lg font-black text-foreground">Tenant Profile</h2>
+          <h2 className="text-lg font-black text-foreground">{t('tenants.profile', 'Tenant Profile')}</h2>
           <button onClick={onClose} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-5">
@@ -152,7 +153,7 @@ function ViewModal({ tenant, onClose, onEdit }) {
           </div>
           {tenant.emergencyContact?.name && (
             <div className="p-3 rounded-xl bg-muted/50 border border-border">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">Emergency Contact</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">{t('tenants.emergencyContact', 'Emergency Contact')}</p>
               <p className="text-sm font-bold text-foreground">{tenant.emergencyContact.name}</p>
               <p className="text-xs text-muted-foreground/60">{tenant.emergencyContact.phone} • {tenant.emergencyContact.relationship}</p>
             </div>
@@ -161,7 +162,7 @@ function ViewModal({ tenant, onClose, onEdit }) {
         </div>
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onEdit} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-black hover:opacity-90 transition-all flex items-center justify-center gap-2">
-            <Edit2 className="w-4 h-4" /> Edit
+            <Edit2 className="w-4 h-4" /> {t('common.edit', 'Edit')}
           </button>
         </div>
       </motion.div>
@@ -308,7 +309,7 @@ export default function TenantsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">Loading...</td></tr>
+                <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">{t('common.loading', 'Loading...')}</td></tr>
               ) : tenants.length === 0 ? (
                 <tr><td colSpan={5} className="text-center py-16 text-muted-foreground/30">{t('tenants.noTenantsFound', 'No tenants found')}</td></tr>
               ) : tenants.map((t, i) => {

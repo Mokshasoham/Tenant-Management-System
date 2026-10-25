@@ -5,6 +5,7 @@ import {
     Check, ArrowRight, Sparkles, Layers, ShieldCheck
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const PROPERTY_TYPE_OPTIONS = [
     {
@@ -70,6 +71,7 @@ export const PROPERTY_TYPE_OPTIONS = [
 ];
 
 export default function PropertyTypeSelectorModal({ isOpen, onClose, onSelectType }) {
+  const { t } = useLanguage();
     const [selectedType, setSelectedType] = useState(null);
 
     if (!isOpen) return null;
@@ -107,10 +109,10 @@ export default function PropertyTypeSelectorModal({ isOpen, onClose, onSelectTyp
                                 </span>
                             </div>
                             <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                                What type of property are you adding?
+                                {t('property.propertyTypeTitle', 'What type of property are you adding?')}
                             </h2>
                             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                                Choose a property type to get a tailored listing experience.
+                                {t('property.propertyTypeSubtitle', 'Choose a property type to get a tailored listing experience.')}
                             </p>
                         </div>
                     </div>
@@ -218,7 +220,7 @@ export default function PropertyTypeSelectorModal({ isOpen, onClose, onSelectTyp
                                 : "bg-muted-foreground/20 text-muted-foreground/40 cursor-not-allowed shadow-none"
                         )}
                     >
-                        <span>Continue</span>
+                        <span>{t('common.next', 'Continue')}</span>
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>

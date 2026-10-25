@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Wrench, UserCheck, ArrowRight, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
+import { useLanguage } from '../../../../context/LanguageContext';
+import { getLocalizedStatus } from '../../../../utils/statusLocalization';
 
 export default function ManagerMaintenanceQueue({
+
   requests = [],
   onOpenAssignModal,
   onOpenDetailsDrawer,
   theme,
 }) {
+  const { t } = useLanguage();
   const [filterTab, setFilterTab] = useState('all');
 
   const filteredRequests = requests.filter((r) => {
@@ -28,19 +32,19 @@ export default function ManagerMaintenanceQueue({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/40">
         <div className="flex items-center gap-2">
           <Wrench className="w-5 h-5 text-amber-500" />
-          <h3 className="text-base font-black tracking-tight">Maintenance Request Queue</h3>
+          <h3 className="text-base font-black tracking-tight">{t('maintenance.queueTitle', 'Maintenance Request Queue')}</h3>
         </div>
 
         {/* Queue Filter Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: 'all', label: 'All' },
-            { id: 'open', label: 'Open' },
-            { id: 'assigned', label: 'Assigned' },
-            { id: 'in_progress', label: 'In Progress' },
-            { id: 'scheduled', label: 'Scheduled' },
-            { id: 'resolved', label: 'Resolved' },
-            { id: 'sla_risk', label: 'SLA Risk' },
+            { id: 'all', label: t('leases.statusAll', 'All') },
+            { id: 'open', label: t('common.open', 'Open') },
+            { id: 'assigned', label: t('maintenance.status_assigned', 'Assigned') },
+            { id: 'in_progress', label: t('maintenance.inProgress', 'In Progress') },
+            { id: 'scheduled', label: t('maintenance.scheduled', 'Scheduled') },
+            { id: 'resolved', label: t('maintenance.status_resolved', 'Resolved') },
+            { id: 'sla_risk', label: t('maintenance.slaRisk', 'SLA Risk') },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -61,14 +65,14 @@ export default function ManagerMaintenanceQueue({
       {filteredRequests.length === 0 ? (
         <div className="p-8 border border-dashed rounded-3xl text-center space-y-1 text-muted-foreground">
           <Wrench className="w-6 h-6 mx-auto text-muted-foreground/50 mb-2" />
-          <p className="text-xs font-bold">No maintenance requests found</p>
-          <p className="text-[10px]">No tickets match the selected operational filter.</p>
+          <p className="text-xs font-bold">{t('maintenance.noRequestsFound', 'No maintenance requests found')}</p>
+          <p className="text-[10px]">{t('maintenance.noTicketsMatch', 'No tickets match the selected operational filter.')}</p>
         </div>
       ) : (
         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-none">
           {filteredRequests.map((req) => {
             const dt = req.createdAt ? new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-            const techName = req.assignedTo ? `${req.assignedTo.firstName || ''} ${req.assignedTo.lastName || ''}`.trim() : 'Unassigned';
+            const techName = req.assignedTo ? `${req.assignedTo.firstName || ''} ${req.assignedTo.lastName || ''}`.trim() : t('maintenance.unassigned', 'Unassigned');
 
             return (
               <div
@@ -99,7 +103,7 @@ export default function ManagerMaintenanceQueue({
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <div className="text-xs text-left sm:text-right">
-                    <span className="text-[9px] font-black text-muted-foreground uppercase block">Technician</span>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase block">{t('maintenance.technician', 'Technician')}</span>
                     <p className={cn("font-bold text-xs", req.assignedTo ? "text-purple-400" : "text-amber-500")}>
                       {techName}
                     </p>
