@@ -14,31 +14,66 @@ export const SUPPORTED_LANGUAGES = [
     { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
 ];
 
+const isSupportedLanguage = (code) =>
+    typeof code === 'string' && SUPPORTED_LANGUAGES.some((item) => item.code === code);
+
+function getInitialLanguage() {
+    try {
+        const savedLanguage = window.localStorage.getItem('language');
+        return isSupportedLanguage(savedLanguage) ? savedLanguage : 'en';
+    } catch {
+        // Storage may be unavailable in restricted browser contexts.
+        return 'en';
+    }
+}
+
 export function LanguageProvider({ children }) {
-    const [language, setLanguage] = useState(() => {
-        return localStorage.getItem('language') || 'en';
-    });
+    const [language, setLanguageState] = useState(getInitialLanguage);
 
     useEffect(() => {
-        localStorage.setItem('language', language);
-        document.documentElement.setAttribute('lang', language);
+        try {
+            window.localStorage.setItem('language', language);
+        } catch {
+            // The selected language still works for this session if storage is blocked.
+        }
+
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute('lang', language);
+        }
     }, [language]);
 
+    // Keep the existing setter API while rejecting unsupported language codes.
+    const setLanguage = (nextLanguage) => {
+        const resolvedLanguage =
+            typeof nextLanguage === 'function' ? nextLanguage(language) : nextLanguage;
+
+        if (isSupportedLanguage(resolvedLanguage)) {
+            setLanguageState(resolvedLanguage);
+        }
+    };
+
     const t = (key, fallbackDefault = null) => {
+        if (typeof key !== 'string' || !key.trim()) {
+            return fallbackDefault ?? '';
+        }
+
         const keys = key.split('.');
-        let val = translations[language] || translations['en'];
-        for (const k of keys) {
-            val = val?.[k];
-            if (val === undefined) break;
-        }
-        // Fallback to English
-        if (val === undefined) {
-            let fallback = translations['en'];
-            for (const k of keys) fallback = fallback?.[k];
-            if (fallback !== undefined) return fallback;
-            return fallbackDefault || key;
-        }
-        return val;
+        const resolve = (dictionary) => {
+            let value = dictionary;
+            for (const part of keys) {
+                value = value?.[part];
+                if (value === undefined || value === null) return undefined;
+            }
+            return value;
+        };
+
+        const currentTranslation = resolve(translations[language] || translations.en);
+        if (currentTranslation !== undefined) return currentTranslation;
+
+        const englishFallback = resolve(translations.en);
+        if (englishFallback !== undefined) return englishFallback;
+
+        return fallbackDefault ?? key;
     };
 
     return (
