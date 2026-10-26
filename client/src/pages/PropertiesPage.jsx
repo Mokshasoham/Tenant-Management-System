@@ -439,6 +439,7 @@ export default function PropertiesPage() {
 
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -486,6 +487,7 @@ export default function PropertiesPage() {
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
+      setFetchError('');
       const res = await propertyService.getAllProperties({
         page,
         limit: LIMIT,
@@ -494,11 +496,31 @@ export default function PropertiesPage() {
         status: statusFilter,
         sort: sortBy
       });
-      const data = res.data?.data || res.data || [];
+
+      // APIs may return an array directly or wrap it in data/properties/items/results.
+      // Normalize the response before rendering so an object-shaped API envelope
+      // cannot crash .filter()/.map() and blank the entire page.
+      const responseBody = res?.data ?? {};
+      const payload = responseBody?.data ?? responseBody;
+      const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.properties)
+          ? payload.properties
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.results)
+              ? payload.results
+              : [];
+
+      const pagination = responseBody?.pagination || payload?.pagination || res?.pagination;
+      const totalValue = pagination?.total ?? responseBody?.total ?? payload?.total ?? data.length;
       setProperties(data);
-      setTotal(res.data?.pagination?.total || res.pagination?.total || (Array.isArray(data) ? data.length : 0));
+      setTotal(Number.isFinite(Number(totalValue)) ? Number(totalValue) : data.length);
     } catch (e) {
       console.error('[PropertiesPage] Failed to fetch properties:', e);
+      setProperties([]);
+      setTotal(0);
+      setFetchError('Unable to load properties. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -765,6 +787,19 @@ export default function PropertiesPage() {
           )}
         </div>
       </motion.div>
+
+      {fetchError && !loading && (
+        <div role="alert" className="rounded-2xl border border-rose-500/25 bg-rose-500/5 px-4 py-3 text-sm text-rose-600 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span>{fetchError}</span>
+          <button
+            type="button"
+            onClick={fetchProperties}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 px-3 py-2 text-xs font-bold hover:bg-rose-500/10"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      )}
 
       {/* ── Cards Grid ── */}
       {loading ? (
