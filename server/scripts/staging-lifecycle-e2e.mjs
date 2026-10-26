@@ -184,12 +184,16 @@ async function main() {
   await fs.mkdir(outDir, { recursive: true });
   const health = await api('/health'); check('backend.health', Boolean(health && health.success), 'Staging health endpoint succeeded.');
   const browser = await chromium.launch({ headless: true });
+  let managerSessionForCleanup = null;
+  let tenantSessionForCleanup = null;
+  let createdPropertyIdForCleanup = null;
   try {
     const makePassword = () => 'TmsE2E@' + crypto.randomBytes(5).toString('hex') + '9a';
     const suffix = marker.replace(/[^a-z0-9]/gi, '');
     const managerAcct = { firstName: 'TMS E2E Manager', lastName: 'Test', email: 'tms.e2e.manager.' + suffix + '@example.com', phone: '+919876543210', password: makePassword(), role: 'manager' };
     const tenantAcct = { firstName: 'TMS E2E Tenant', lastName: 'Test', email: 'tms.e2e.tenant.' + suffix + '@example.com', phone: '+919876543211', password: makePassword(), role: 'tenant' };
     const manager = await ensureAccount(browser, managerAcct);
+    managerSessionForCleanup = manager;
     const name = 'TMS E2E Rental ' + marker;
     const uiResult = await createPropertyUi(manager, name);
     let property = uiResult.ok ? await waitForProperty(manager.token, name) : null;
@@ -200,6 +204,7 @@ async function main() {
     } else check('manager.property_create_ui', true, 'Created and queried the listing through manager UI/API.');
     if (!property || !(property._id || property.id)) throw new Error('Property creation failed via UI and API fallback.');
     const propertyId = String(property._id || property.id);
+    createdPropertyIdForCleanup = propertyId;
     report.property = { id: propertyId, name: property.name || name, rentAmount: property.rentAmount, depositAmount: property.depositAmount, city: property.city || 'not returned', createdThroughUi: Boolean(uiResult.ok && await findProperty(manager.token, name).catch(() => null)) };
     await manager.page.goto(FRONTEND + '/properties', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     await manager.page.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
@@ -211,6 +216,7 @@ async function main() {
     check('manager.property_detail_route', managerDetail, 'Manager property detail route renders listing content.'); await shot(manager.page, 'manager-property-detail');
 
     const tenant = await ensureAccount(browser, tenantAcct);
+    tenantSessionForCleanup = tenant;
     await tenant.page.goto(FRONTEND + '/browse', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     await tenant.page.getByText(name, { exact: true }).first().waitFor({ state: 'visible', timeout: 25000 }).catch(() => {});
     const browseVisible = await tenant.page.getByText(name, { exact: true }).first().isVisible().catch(() => false);
@@ -306,7 +312,47 @@ async function main() {
     check('tenant.mobile_property_content_visible', mobileDrawerClosed && mobileTitleVisible && mobileBookingVisible, JSON.stringify({ mobileDrawerClosed, mobileTitleVisible, mobileBookingVisible }));
     check('tenant.mobile_no_horizontal_overflow', Boolean(sizes && sizes.document <= sizes.viewport + 2), JSON.stringify(sizes));
     check('browser.no_uncaught_page_errors', report.browserErrors.length === 0, report.browserErrors.length + ' uncaught page error(s) captured.');
-  } finally { await browser.close().catch(() => {}); }
+  } finally {
+    // Preserve booking/lease audit history, but keep the disposable E2E property out of discovery.
+    if (managerSessionForCleanup?.token && createdPropertyIdForCleanup) {
+      try {
+        await api('/properties/' + createdPropertyIdForCleanup, {
+          method: 'PUT',
+          body: {
+            isTest: true,
+            isInternal: true,
+            isArchived: true,
+            publishStatus: 'archived',
+            status: 'maintenance'
+          }
+        }, managerSessionForCleanup.token);
+        const saved = dataOf(await api('/properties/' + createdPropertyIdForCleanup, {}, managerSessionForCleanup.token));
+        const quarantined = Boolean(saved && saved.isTest === true && saved.isInternal === true &&
+          saved.isArchived === true && saved.publishStatus === 'archived');
+        if (report.property) report.property.quarantined = quarantined;
+        check('cleanup.property_quarantined', quarantined,
+          'E2E listing flags: isTest=' + saved?.isTest + ', isInternal=' + saved?.isInternal +
+          ', isArchived=' + saved?.isArchived + ', publishStatus=' + saved?.publishStatus + '.');
+
+        if (tenantSessionForCleanup?.token) {
+          const visibleResult = dataOf(await api('/properties?search=' + encodeURIComponent(report.property?.name || '') + '&limit=100', {}, tenantSessionForCleanup.token));
+          const rows = Array.isArray(visibleResult) ? visibleResult : Array.isArray(visibleResult?.data) ? visibleResult.data : [];
+          const stillVisible = rows.some(p => String(p?._id || p?.id || '') === createdPropertyIdForCleanup);
+          check('cleanup.property_hidden_from_tenant_discovery', !stillVisible,
+            'New test listing returned by tenant discovery after quarantine=' + stillVisible + '.');
+        } else {
+          check('cleanup.property_hidden_from_tenant_discovery', false, 'Tenant session unavailable to verify quarantined listing visibility.');
+        }
+      } catch (cleanupError) {
+        check('cleanup.property_quarantined', false, 'Staging-only property quarantine failed: ' + msg(cleanupError));
+      }
+    }
+    await Promise.all([
+      managerSessionForCleanup?.context?.close().catch(() => {}),
+      tenantSessionForCleanup?.context?.close().catch(() => {})
+    ]);
+    await browser.close().catch(() => {});
+  }
 }
 try { await main(); }
 catch (error) { report.fatalError = msg(error); console.error('STAGING E2E FATAL: ' + report.fatalError); }
