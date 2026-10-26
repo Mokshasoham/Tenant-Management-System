@@ -283,17 +283,19 @@ async function main() {
     await tenant.page.setViewportSize({ width: 390, height: 844 });
     await tenant.page.goto(FRONTEND + '/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     await tenant.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-    // Close the mobile navigation drawer before asserting the page's usable content.
-    const mobileMenuToggle = tenant.page.locator('button:has(svg.lucide-menu)').first();
-    if (await mobileMenuToggle.isVisible().catch(() => false)) {
-      await mobileMenuToggle.click().catch(() => {});
-    }
+    // Close the actual accessible mobile drawer button (not the desktop menu icon).
+    const closeSidebarButton = tenant.page.getByRole('button', { name: /close sidebar/i });
+    const drawerWasOpen = await closeSidebarButton.isVisible().catch(() => false);
+    if (drawerWasOpen) await closeSidebarButton.click();
+    await closeSidebarButton.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
     await tenant.page.locator('#booking-card').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    const mobileDrawerClosed = !(await closeSidebarButton.isVisible().catch(() => false));
     await shot(tenant.page, 'tenant-property-detail-mobile');
     const sizes = await tenant.page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth })).catch(() => null);
     const mobileTitleVisible = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     const mobileBookingVisible = await tenant.page.locator('#booking-card').isVisible().catch(() => false);
-    check('tenant.mobile_property_content_visible', mobileTitleVisible && mobileBookingVisible, JSON.stringify({ mobileTitleVisible, mobileBookingVisible }));
+    check('tenant.mobile_drawer_closed', mobileDrawerClosed, 'Drawer was open before close=' + drawerWasOpen + '; closed after action=' + mobileDrawerClosed);
+    check('tenant.mobile_property_content_visible', mobileDrawerClosed && mobileTitleVisible && mobileBookingVisible, JSON.stringify({ mobileDrawerClosed, mobileTitleVisible, mobileBookingVisible }));
     check('tenant.mobile_no_horizontal_overflow', Boolean(sizes && sizes.document <= sizes.viewport + 2), JSON.stringify(sizes));
     check('browser.no_uncaught_page_errors', report.browserErrors.length === 0, report.browserErrors.length + ' uncaught page error(s) captured.');
   } finally { await browser.close().catch(() => {}); }
