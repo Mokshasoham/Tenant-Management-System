@@ -283,26 +283,26 @@ async function main() {
     await tenant.page.setViewportSize({ width: 390, height: 844 });
     await tenant.page.goto(FRONTEND + '/properties/' + propertyId, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     await tenant.page.getByText(name, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-    // Close the mobile drawer with its accessible control, then verify it has moved off-screen.
+    // Close the mobile drawer if open, then validate the actual dark backdrop is gone.
     const closeSidebarButton = tenant.page.getByRole('button', { name: /close sidebar/i });
-    const drawerWasOpen = await closeSidebarButton.evaluate((el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && rect.left < innerWidth && rect.right > 0;
-    }).catch(() => false);
-    if (drawerWasOpen) await closeSidebarButton.click();
-    await tenant.page.waitForTimeout(400); // allow the sidebar translate animation to finish
-    const closeButtonInViewport = await closeSidebarButton.evaluate((el) => {
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 &&
-        rect.left < innerWidth && rect.right > 0 && rect.top < innerHeight && rect.bottom > 0;
-    }).catch(() => false);
-    const mobileDrawerClosed = !closeButtonInViewport;
+    const backdropSelector = 'div[class*="bg-black/60"][class*="fixed"][class*="inset-0"]';
+    const backdropWasVisible = await tenant.page.locator(backdropSelector).evaluateAll(
+      els => els.some(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.left < innerWidth && r.right > 0; })
+    ).catch(() => false);
+    if (backdropWasVisible && await closeSidebarButton.count()) {
+      await closeSidebarButton.first().click().catch(() => {});
+    }
+    await tenant.page.waitForTimeout(400); // allow the drawer/backdrop exit animation to finish
+    const mobileBackdropVisible = await tenant.page.locator(backdropSelector).evaluateAll(
+      els => els.some(el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity || 1) > 0.05 && r.left < innerWidth && r.right > 0; })
+    ).catch(() => false);
+    const mobileDrawerClosed = !mobileBackdropVisible;
     await tenant.page.locator('#booking-card').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
     await shot(tenant.page, 'tenant-property-detail-mobile');
     const sizes = await tenant.page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth })).catch(() => null);
     const mobileTitleVisible = await tenant.page.getByText(name, { exact: false }).first().isVisible().catch(() => false);
     const mobileBookingVisible = await tenant.page.locator('#booking-card').isVisible().catch(() => false);
-    check('tenant.mobile_drawer_closed', mobileDrawerClosed, 'Drawer was open before close=' + drawerWasOpen + '; close button remains in viewport=' + closeButtonInViewport);
+    check('tenant.mobile_drawer_closed', mobileDrawerClosed, 'Backdrop was visible before close=' + backdropWasVisible + '; visible after animation=' + mobileBackdropVisible);
     check('tenant.mobile_property_content_visible', mobileDrawerClosed && mobileTitleVisible && mobileBookingVisible, JSON.stringify({ mobileDrawerClosed, mobileTitleVisible, mobileBookingVisible }));
     check('tenant.mobile_no_horizontal_overflow', Boolean(sizes && sizes.document <= sizes.viewport + 2), JSON.stringify(sizes));
     check('browser.no_uncaught_page_errors', report.browserErrors.length === 0, report.browserErrors.length + ' uncaught page error(s) captured.');
